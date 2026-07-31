@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -58,6 +59,8 @@ export default function TodayScreen() {
 }
 
 function SummaryBody({ summary }: { summary: DailySummary }) {
+  const router = useRouter();
+
   if (summary.entry_count === 0) {
     // Stated plainly, with no nudge to write. A day with nothing in it is a
     // fact about the day, not a failure to be corrected.
@@ -75,7 +78,11 @@ function SummaryBody({ summary }: { summary: DailySummary }) {
 
       <Section title="What you wrote">
         {summary.observations.map((observation) => (
-          <View key={observation.id} style={styles.card}>
+          <Pressable
+            key={observation.id}
+            style={styles.card}
+            onPress={() => router.push(`/node/${observation.id}`)}
+          >
             <Text style={styles.body}>{observation.content}</Text>
             <Text style={styles.meta}>
               {new Date(observation.captured_at).toLocaleTimeString([], {
@@ -83,7 +90,7 @@ function SummaryBody({ summary }: { summary: DailySummary }) {
                 minute: "2-digit",
               })}
             </Text>
-          </View>
+          </Pressable>
         ))}
       </Section>
 
@@ -133,13 +140,19 @@ function Inference({
   item: DailySummary["inferred"][number];
   tentative?: boolean;
 }) {
+  // router.push rather than <Link asChild>: asChild renders an anchor on
+  // react-native-web and throws when given a Pressable child.
+  const router = useRouter();
   return (
-    <View style={[styles.card, tentative && styles.cardTentative]}>
+    <Pressable
+      style={[styles.card, tentative && styles.cardTentative]}
+      onPress={() => router.push(`/node/${item.id}`)}
+    >
       <Text style={styles.body}>{item.label}</Text>
       <Text style={styles.meta}>
         {item.kind.toLowerCase()} · {Math.round(item.confidence * 100)}% confident
       </Text>
-    </View>
+    </Pressable>
   );
 }
 

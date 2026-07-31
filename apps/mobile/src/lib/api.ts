@@ -46,7 +46,38 @@ export interface SupportingObservation {
 export interface Explanation {
   node: NodeSummary;
   derived_from: SupportingObservation[];
+  /** True when the node is an observation — it explains itself. */
   is_observed: boolean;
+}
+
+export interface GraphNode {
+  id: string;
+  kind: NodeKind;
+  label: string;
+  created_at: string;
+  confidence: number | null;
+  epistemic_status: EpistemicStatus | null;
+  extractor: string | null;
+  tentative: boolean;
+}
+
+export interface GraphEdge {
+  id: string;
+  kind: EdgeKind;
+  from_id: string;
+  to_id: string;
+  note: string | null;
+  confidence: number;
+  tentative: boolean;
+}
+
+export interface Subgraph {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  returned: number;
+  total_nodes: number;
+  /** More exists than was returned — say so rather than implying otherwise. */
+  truncated: boolean;
 }
 
 export interface DailySummary {
@@ -191,6 +222,16 @@ export const api = {
       `/v1/summary/${day}?tz=${encodeURIComponent(tz)}`,
       token,
     );
+  },
+
+  graph(token: string, options: { limit?: number; minConfidence?: number } = {}) {
+    const params = new URLSearchParams();
+    if (options.limit) params.set("limit", String(options.limit));
+    if (options.minConfidence !== undefined) {
+      params.set("min_confidence", String(options.minConfidence));
+    }
+    const query = params.toString();
+    return request<Subgraph>(`/v1/graph${query ? `?${query}` : ""}`, token);
   },
 
   graphSummary(token: string) {

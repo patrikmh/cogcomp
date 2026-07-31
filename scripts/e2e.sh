@@ -166,7 +166,52 @@ snapshot_contains "not a conclusion about you" \
   && pass "inferences are framed as hypotheses" \
   || fail "hypothesis framing missing"
 
+step "Tapping an inference shows where it came from"
+# The footnote promises this. It is the concrete form of "every inference must be
+# explainable", so it is the single most important thing in the app to verify.
+GUESS_REF="$(ref_for 'I told Sara')"
+# The first match is the entry itself; the inference card is the later one.
+GUESS_REF="$(grep -F 'I told Sara' "$(latest_snapshot)" | tail -1 | grep -oE 'ref=e[0-9]+' | cut -d= -f2)"
+playwright-cli click "$GUESS_REF" >/dev/null 2>&1
+sleep 3
+playwright-cli snapshot >/dev/null 2>&1
+snapshot_contains "hypothesis drawn from your own words" \
+  && pass "framed as a hypothesis, not a conclusion" \
+  || fail "hypothesis framing missing on the explain screen"
+snapshot_contains "$ENTRY" \
+  && pass "shows the user's own words as the source" \
+  || fail "source entry not shown"
+snapshot_contains "extract-v0.1" \
+  && pass "records which extractor produced it" \
+  || fail "extractor not shown"
+snapshot_contains "How this was produced" \
+  && pass "provenance is surfaced, not hidden" \
+  || fail "provenance block missing"
+
+step "The dashboard"
+playwright-cli goto "${WEB_URL}/graph" >/dev/null 2>&1
+sleep 3
+playwright-cli snapshot >/dev/null 2>&1
+snapshot_contains "entries" && pass "dashboard renders counts" || fail "dashboard counts missing"
+snapshot_contains "What has been noticed" \
+  && pass "dashboard lists what was drawn from entries" \
+  || fail "dashboard list missing"
+snapshot_contains "Hide tentative guesses" \
+  && pass "tentative guesses can be filtered out" \
+  || fail "tentative filter missing"
+
+# Hiding tentative guesses should empty the list, since the stub emits 0.3.
+playwright-cli click "$(ref_for 'Hide tentative guesses')" >/dev/null 2>&1
+sleep 3
+playwright-cli snapshot >/dev/null 2>&1
+snapshot_contains "Nothing confident enough to show" \
+  && pass "filtering removes the low-confidence guesses" \
+  || fail "filter had no effect"
+
 step "An empty day says so, without nudging"
+playwright-cli goto "${WEB_URL}/today" >/dev/null 2>&1
+sleep 3
+playwright-cli snapshot >/dev/null 2>&1
 playwright-cli click "$(ref_for 'Previous')" >/dev/null 2>&1
 sleep 2
 playwright-cli snapshot >/dev/null 2>&1
