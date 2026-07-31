@@ -83,7 +83,12 @@ def build_model(api_key: str, model: str) -> ChatOpenAI:
 
 def build_pipeline(model: ChatOpenAI):
     """Compile the extraction graph for a given model client."""
-    structured = model.with_structured_output(Extraction)
+    # An explicit schema rather than the Pydantic class: the class's own JSON
+    # Schema carries numeric bounds the structured-output API rejects outright
+    # (`For 'number' type, properties maximum, minimum are not supported`).
+    # Responses are still validated through Extraction below, so the bounds are
+    # enforced where they can actually be enforced.
+    structured = model.with_structured_output(Extraction.request_schema())
     system_prompt = load_system_prompt()
 
     async def extract(state: ExtractionState) -> ExtractionState:
@@ -109,8 +114,12 @@ def build_pipeline(model: ChatOpenAI):
             messages.append(HumanMessage(content=state["content"]))
 
         try:
-            extraction = await structured.ainvoke(messages)
-        except Exception as exc:  # noqa: BLE001 — transport and parse failures alike
+            raw = await structured.ainvoke(messages)
+            # Validation happens here rather than in the API contract, so an
+            # out-of-range confidence is a retryable error with a message the
+            # model can act on rather than a silent acceptance.
+            extraction = Extraction.model_validate(raw)
+        except Exception as exc:  # noqa: BLE001 — transport and validation alike
             logger.warning("extraction attempt %s failed: %s", attempts, exc)
             return {
                 "attempts": attempts,

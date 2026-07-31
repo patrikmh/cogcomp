@@ -7,10 +7,56 @@ needs to read those errors and feed them back to the model on a retry — a rais
 exception would just end the run.
 """
 
-from pydantic import BaseModel, Field
+from typing import Any
+
+from pydantic import BaseModel, Field, field_validator
 
 from tlon.domain.inference import Confidence
-from tlon.graph.schema import EdgeKind, NodeKind
+from tlon.graph.schema import (
+    EXTRACTABLE_EDGE_KINDS,
+    EXTRACTABLE_NODE_KINDS,
+    EdgeKind,
+    NodeKind,
+)
+
+#: JSON Schema keywords the structured-output APIs reject. Pydantic emits several
+#: of them from ordinary field constraints, so the schema has to be sanitised on
+#: the way out.
+#:
+#: This does not weaken anything: these are bounds on what the *model* returns, and
+#: the model was never the thing enforcing them. Pydantic still validates the
+#: response, and the database still refuses an out-of-range confidence. Dropping
+#: them here only stops us asking the API for a guarantee it does not offer.
+UNSUPPORTED_SCHEMA_KEYWORDS = frozenset(
+    {
+        "minimum",
+        "maximum",
+        "exclusiveMinimum",
+        "exclusiveMaximum",
+        "multipleOf",
+        "minLength",
+        "maxLength",
+        "pattern",
+        "minItems",
+        "maxItems",
+        "uniqueItems",
+        "format",
+    }
+)
+
+
+def strip_unsupported(schema: Any) -> Any:
+    """Recursively remove keywords the structured-output API will not accept."""
+    if isinstance(schema, dict):
+        return {
+            key: strip_unsupported(value)
+            for key, value in schema.items()
+            if key not in UNSUPPORTED_SCHEMA_KEYWORDS
+        }
+    if isinstance(schema, list):
+        return [strip_unsupported(item) for item in schema]
+    return schema
+
 
 #: The ref reserved for the source observation. Edges use it to point at the entry
 #: itself rather than at another extracted node.
@@ -29,6 +75,16 @@ class ExtractedNode(BaseModel):
     label: str = Field(description="The person's own framing, wherever possible.")
     confidence: Confidence
 
+    @field_validator("kind")
+    @classmethod
+    def kind_is_extractable(cls, value: NodeKind) -> NodeKind:
+        """Observations are captured, never inferred. Patterns are recurrences
+        across entries — asserting one from a single entry is the overreach the
+        specification warns about, and Milestone 2 mines them properly."""
+        if value not in EXTRACTABLE_NODE_KINDS:
+            raise ValueError(f"{value} cannot be produced by single-entry extraction")
+        return value
+
 
 class ExtractedEdge(BaseModel):
     kind: EdgeKind
@@ -36,6 +92,16 @@ class ExtractedEdge(BaseModel):
     to_ref: str
     note: str | None = Field(default=None, description="Required for RELATES_TO edges.")
     confidence: Confidence
+
+    @field_validator("kind")
+    @classmethod
+    def kind_is_extractable(cls, value: EdgeKind) -> EdgeKind:
+        """DERIVED_FROM is generated, never modelled — the extractor cannot decline
+        to cite its source because it is never asked to. CO_OCCURS_WITH is a
+        statistical claim that needs more than one entry to make."""
+        if value not in EXTRACTABLE_EDGE_KINDS:
+            raise ValueError(f"{value} is not produced by single-entry extraction")
+        return value
 
 
 class Extraction(BaseModel):
@@ -81,3 +147,27 @@ class Extraction(BaseModel):
     @property
     def is_empty(self) -> bool:
         return not self.nodes and not self.edges
+
+    @classmethod
+    def request_schema(cls) -> dict:
+        """The schema sent to the model.
+
+        Two narrowings from `model_json_schema()`, kept here so the difference
+        between "what we ask for" and "what we accept" stays visible:
+
+        1. Keywords the structured-output API rejects are stripped.
+        2. The kind enums are narrowed to what single-entry extraction may
+           produce. Offering `Pattern` or `DERIVED_FROM` in the schema is an
+           invitation to use them, and a model given the option takes it.
+        """
+        schema = strip_unsupported(cls.model_json_schema())
+
+        defs = schema.get("$defs", {})
+        node_kind = defs.get("NodeKind")
+        if node_kind is not None:
+            node_kind["enum"] = [str(k) for k in EXTRACTABLE_NODE_KINDS]
+        edge_kind = defs.get("EdgeKind")
+        if edge_kind is not None:
+            edge_kind["enum"] = [str(k) for k in EXTRACTABLE_EDGE_KINDS]
+
+        return schema

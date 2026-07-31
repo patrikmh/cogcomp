@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from pydantic import ValidationError
 
@@ -41,10 +43,6 @@ class TestStructuralValidation:
         extraction = Extraction(nodes=[node("t1"), node("t1", NodeKind.EMOTION)])
         assert any("more than once" in e for e in extraction.structural_errors())
 
-    def test_an_extraction_cannot_produce_an_observation_node(self):
-        extraction = Extraction(nodes=[node("o1", NodeKind.OBSERVATION)])
-        assert any("never inferred" in e for e in extraction.structural_errors())
-
     def test_a_node_cannot_claim_the_reserved_observation_ref(self):
         extraction = Extraction(nodes=[node(OBSERVATION_REF)])
         assert any("reserved" in e for e in extraction.structural_errors())
@@ -80,6 +78,69 @@ class TestStructuralValidation:
             edges=[edge(EdgeKind.ABOUT, "a", "ghost")],
         )
         assert len(extraction.structural_errors()) >= 2
+
+
+class TestExtractableKinds:
+    """These constraints were once constants nobody enforced, and a live model
+    happily produced Pattern nodes from a single entry. The tests here assert the
+    behaviour rather than the contents of a list."""
+
+    def test_pattern_cannot_be_produced_from_one_entry(self):
+        # A Pattern is a recurrence across entries. Asserting one from a single
+        # entry is exactly the overreach the specification warns about.
+        with pytest.raises(ValidationError):
+            ExtractedNode(ref="p1", kind=NodeKind.PATTERN, label="x", confidence=0.8)
+
+    def test_observation_cannot_be_produced(self):
+        with pytest.raises(ValidationError):
+            ExtractedNode(ref="o1", kind=NodeKind.OBSERVATION, label="x", confidence=0.8)
+
+    def test_ordinary_kinds_are_accepted(self):
+        for kind in (NodeKind.THOUGHT, NodeKind.EMOTION, NodeKind.BELIEF):
+            assert ExtractedNode(ref="n", kind=kind, label="x", confidence=0.5)
+
+    def test_derived_from_cannot_be_produced(self):
+        # Provenance is generated, so the extractor is never in a position to
+        # decline to cite its source.
+        with pytest.raises(ValidationError):
+            ExtractedEdge(kind=EdgeKind.DERIVED_FROM, from_ref="a", to_ref="b", confidence=0.5)
+
+    def test_co_occurs_with_cannot_be_produced(self):
+        with pytest.raises(ValidationError):
+            ExtractedEdge(kind=EdgeKind.CO_OCCURS_WITH, from_ref="a", to_ref="b", confidence=0.5)
+
+
+class TestRequestSchema:
+    """What the model is actually shown. Offering a kind is an invitation to use
+    it, so the schema must not advertise what we would reject."""
+
+    def test_unsupported_keywords_are_stripped(self):
+        # The structured-output API rejects numeric bounds outright:
+        # "For 'number' type, properties maximum, minimum are not supported".
+        blob = json.dumps(Extraction.request_schema())
+        for keyword in ("minimum", "maximum", "minLength", "pattern", "multipleOf"):
+            assert keyword not in blob, keyword
+
+    def test_the_bounds_are_still_enforced_on_the_way_back_in(self):
+        # Stripping them from the request does not weaken anything — the model
+        # was never what enforced them.
+        with pytest.raises(ValidationError):
+            ExtractedNode(ref="n", kind=NodeKind.THOUGHT, label="x", confidence=1.4)
+
+    def test_the_schema_does_not_offer_pattern_or_observation(self):
+        kinds = Extraction.request_schema()["$defs"]["NodeKind"]["enum"]
+        assert "Pattern" not in kinds
+        assert "Observation" not in kinds
+
+    def test_the_schema_does_not_offer_derived_from(self):
+        kinds = Extraction.request_schema()["$defs"]["EdgeKind"]["enum"]
+        assert "DERIVED_FROM" not in kinds
+        assert "CO_OCCURS_WITH" not in kinds
+
+    def test_the_schema_offers_no_diagnostic_vocabulary(self):
+        blob = json.dumps(Extraction.request_schema())
+        for forbidden in ("Disorder", "Symptom", "Diagnosis", "ScreeningScore"):
+            assert forbidden not in blob, forbidden
 
 
 class TestFieldValidation:

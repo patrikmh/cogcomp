@@ -57,7 +57,16 @@ async def app(test_database: str):
     path is exercised separately — see benchmarks/.
     """
     os.environ["DATABASE_URL"] = test_database
-    os.environ["OPENROUTER_API_KEY"] = ""  # forces the stub extractor
+    # Every credential is cleared, not just the model one. A real key in .env
+    # must never change what the suite exercises — tests that quietly start
+    # calling a paid API are both slow and no longer testing this code.
+    for credential in (
+        "OPENROUTER_API_KEY",
+        "TRANSCRIPTION_API_KEY",
+        "ELEVENLABS_API_KEY",
+        "GROQ_API_KEY",
+    ):
+        os.environ[credential] = ""
 
     from tlon.config import get_settings
 

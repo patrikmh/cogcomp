@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 
+import { RecordButton } from "@/components/RecordButton";
 import { ApiError, api, type ObservationResponse } from "@/lib/api";
 import { uuidv7 } from "@/lib/ids";
 import { useSession } from "@/state/session";
@@ -25,6 +26,16 @@ export default function JournalScreen() {
     queryKey: ["observations"],
     queryFn: () => api.listObservations(token!),
     enabled: Boolean(token),
+  });
+
+  const captureVoice = useMutation({
+    mutationFn: (uri: string) =>
+      api.createVoiceObservation(token!, {
+        id: uuidv7(),
+        uri,
+        capturedAt: new Date().toISOString(),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["observations"] }),
   });
 
   const capture = useMutation({
@@ -72,6 +83,20 @@ export default function JournalScreen() {
             {capture.error instanceof ApiError
               ? capture.error.message
               : "Could not save. Your text is still here — try again."}
+          </Text>
+        )}
+
+        <RecordButton
+          disabled={capture.isPending}
+          onRecorded={async (uri) => {
+            await captureVoice.mutateAsync(uri);
+          }}
+        />
+        {captureVoice.isError && (
+          <Text style={styles.error}>
+            {captureVoice.error instanceof ApiError
+              ? captureVoice.error.message
+              : "Could not save that recording."}
           </Text>
         )}
       </View>

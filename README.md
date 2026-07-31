@@ -40,7 +40,8 @@ Run the backend:
 ```bash
 cd apps/backend
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-cp .env.example .env    # set OPENROUTER_API_KEY, or leave blank to use the stub extractor
+cp .env.example .env    # set OPENROUTER_API_KEY and ELEVENLABS_API_KEY;
+                        # leave either blank to use the matching stub
 .venv/bin/python -m uvicorn tlon.main:app --reload --port 8080
 ```
 

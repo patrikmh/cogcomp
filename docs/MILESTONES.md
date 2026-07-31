@@ -10,7 +10,7 @@
 | 4 | React Native app shell | done |
 | 5 | Observation API | done |
 | 6 | Graph schema v0.1 | done |
-| 7 | Voice recording | not started |
+| 7 | Voice recording | done |
 | 8 | Daily report | done |
 | 9 | CI/CD | done |
 | 10 | Benchmarks | done |
@@ -48,8 +48,18 @@ summary, tentative-inference rendering, the empty day, and sign-out. Eighteen ch
 The graph read API (`GET /v1/graph`, `GET /v1/graph/nodes/{id}/neighbours`) is the
 backend half of the explorer and the dashboard.
 
-Also outstanding for Milestone 1: the interactive dashboard and the Skia graph
-explorer themselves.
+Voice journaling is done: hold-to-record in the app, uploaded to
+`POST /v1/observations/voice`, transcribed by ElevenLabs Scribe (or any
+OpenAI-compatible Whisper endpoint), and stored as an ordinary observation. The
+audio is discarded once transcribed — it is never written to the database, and
+tests assert that no table holds bytes.
+
+The extraction pipeline has now been run against the live model
+(`anthropic/claude-opus-5` via OpenRouter): 12/12 benchmark cases pass, with
+confidence spanning 0.25–0.97 rather than the stub's flat 0.30. No diagnostic
+vocabulary appeared on any of the four cases written to invite it.
+
+Outstanding for Milestone 1: the Skia graph explorer. The dashboard is done.
 
 ## Milestone 2
 

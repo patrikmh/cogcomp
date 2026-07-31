@@ -11,6 +11,7 @@ from tlon.db.engine import create_pool, run_migrations
 from tlon.extraction.pipeline import LangGraphExtractor
 from tlon.extraction.stub import StubExtractor
 from tlon.graph.schema import SCHEMA_VERSION
+from tlon.transcription import build_transcriber
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,12 @@ async def lifespan(app: FastAPI):
     logger.info("migrations applied: %s", applied or "none pending")
 
     app.state.extractor = build_extractor(settings)
+    app.state.transcriber = build_transcriber(
+        settings.transcription_api_key,
+        settings.transcription_provider,
+        settings.transcription_base_url,
+        settings.transcription_model,
+    )
     logger.info("tlön backend ready (graph schema v%s)", SCHEMA_VERSION)
 
     yield

@@ -8,7 +8,16 @@ from datetime import date as Date
 from datetime import datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+    status,
+)
 from pydantic import BaseModel
 
 from tlon.auth import current_user
@@ -19,6 +28,7 @@ from tlon.db import summary as summary_db
 from tlon.domain.observation import NewObservation, Observation, Source
 from tlon.extraction.pipeline import ExtractionFailed
 from tlon.graph.schema import SCHEMA_VERSION, NodeKind
+from tlon.transcription import AudioTooLarge, TranscriptionError
 
 router = APIRouter()
 
@@ -64,6 +74,7 @@ async def ready(request: Request) -> dict:
         "status": "ready",
         "schema_version": SCHEMA_VERSION,
         "extractor": request.app.state.extractor.version,
+        "transcriber": request.app.state.transcriber.version,
     }
 
 
@@ -79,6 +90,52 @@ async def create_observation(
         # The client mints the id, so a retry after a flaky connection resolves to
         # the same observation rather than a second copy of the same thought.
         raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
+    return ObservationResponse.of(observation)
+
+
+@router.post("/v1/observations/voice", status_code=status.HTTP_201_CREATED)
+async def create_voice_observation(
+    request: Request,
+    id: UUID = Form(..., description="Client-generated UUIDv7, as for text entries."),
+    audio: UploadFile = File(...),
+    captured_at: datetime | None = Form(None),
+    user_id: UUID = Depends(current_user),
+) -> ObservationResponse:
+    """Transcribe a recording and store the transcript as an observation.
+
+    The audio is discarded once transcribed. It is never written to the database
+    and never becomes a node — the transcript is the observation, and keeping the
+    recording would mean storing the user's voice alongside their most private
+    thoughts for nothing the transcript does not already give us.
+
+    Declared before the `/{observation_id}` routes so that "voice" is matched as a
+    literal rather than swallowed as an id.
+    """
+    payload = await audio.read()
+
+    try:
+        transcript = await request.app.state.transcriber.transcribe(
+            payload, audio.filename or "recording.m4a"
+        )
+    except AudioTooLarge as exc:
+        raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, str(exc)) from exc
+    except TranscriptionError as exc:
+        # The recording reached us and was rejected downstream, so this is not
+        # something the client fixes by re-sending the same bytes.
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
+
+    try:
+        new = NewObservation(
+            id=id, content=transcript, source=Source.VOICE, captured_at=captured_at
+        )
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
+
+    try:
+        observation = await observations_db.insert(request.app.state.pool, user_id, new)
+    except FileExistsError as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
+
     return ObservationResponse.of(observation)
 
 
