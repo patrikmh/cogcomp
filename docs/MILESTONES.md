@@ -59,6 +59,18 @@ The extraction pipeline has now been run against the live model
 confidence spanning 0.25–0.97 rather than the stub's flat 0.30. No diagnostic
 vocabulary appeared on any of the four cases written to invite it.
 
+Conversational journalling is done, as a second way to capture alongside quick
+notes. The agent's job is to help someone say what they mean, not to interpret it —
+interpretation stays downstream in the extraction pipeline where it is
+schema-constrained, confidence-scored, and visible on the explain screen.
+
+Two rules hold it in place. Only the user's turns become observations: the agent's
+turns are kept so the exchange reads back, but a CHECK constraint refuses to link
+one to an observation, so the model's phrasing can never become evidence for an
+inference about the person. And if someone discloses risk of serious harm, the
+agent stops eliciting entirely and the app shows locally-configured services —
+`CRISIS_RESOURCES`, because a wrong-country hotline is worse than none.
+
 Outstanding for Milestone 1: the Skia graph explorer. The dashboard is done.
 
 ## Milestone 2

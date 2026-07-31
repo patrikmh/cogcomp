@@ -34,6 +34,18 @@ class Settings(BaseSettings):
     #: Blank means the provider's own default model.
     transcription_model: str = ""
 
+    #: Shown alongside the agent's message when the safety path fires. Config
+    #: rather than hardcoded: a US hotline shown to someone in Sweden is worse
+    #: than showing nothing, because it looks like help and is not.
+    #: Newline- or pipe-separated, e.g.
+    #: "Mind Självmordslinjen 90101|112 for emergencies"
+    crisis_resources: str = ""
+
+    @property
+    def crisis_resources_list(self) -> list[str]:
+        raw = self.crisis_resources.replace("\n", "|")
+        return [part.strip() for part in raw.split("|") if part.strip()]
+
     @property
     def uses_real_model(self) -> bool:
         return bool(self.openrouter_api_key.strip())

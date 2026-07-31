@@ -50,6 +50,34 @@ export interface Explanation {
   is_observed: boolean;
 }
 
+export interface ConversationTurn {
+  id: string;
+  speaker: "user" | "assistant";
+  content: string;
+  source: "text" | "voice";
+  spoken_at: string;
+  /** Set once the conversation is closed and this turn became an entry.
+   *  Always null on assistant turns — the model's words never become entries. */
+  observation_id: string | null;
+}
+
+export interface Conversation {
+  id: string;
+  started_at: string;
+  closed_at: string | null;
+  agent: string;
+  flagged: boolean;
+  turns: ConversationTurn[];
+}
+
+export interface TurnReply {
+  reply: string;
+  /** The agent judged someone may be at risk. The UI stops prompting and shows
+   *  the services below instead. */
+  crisis: boolean;
+  crisis_resources: string[];
+}
+
 export interface GraphNode {
   id: string;
   kind: NodeKind;
@@ -266,6 +294,34 @@ export const api = {
     return request<DailySummary>(
       `/v1/summary/${day}?tz=${encodeURIComponent(tz)}`,
       token,
+    );
+  },
+
+  startConversation(token: string) {
+    return request<{ id: string; started_at: string; agent: string }>(
+      "/v1/conversations",
+      token,
+      { method: "POST" },
+    );
+  },
+
+  conversation(token: string, id: string) {
+    return request<Conversation>(`/v1/conversations/${id}`, token);
+  },
+
+  say(token: string, id: string, content: string, source: "text" | "voice" = "text") {
+    return request<TurnReply>(`/v1/conversations/${id}/turns`, token, {
+      method: "POST",
+      body: JSON.stringify({ content, source }),
+    });
+  },
+
+  /** Ends the conversation and keeps only what the person said. */
+  closeConversation(token: string, id: string) {
+    return request<{ turns_converted: number; observations: string[] }>(
+      `/v1/conversations/${id}/close`,
+      token,
+      { method: "POST" },
     );
   },
 

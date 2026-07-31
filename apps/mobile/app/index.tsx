@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "expo-router";
+import { Link, useRouter } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -19,6 +19,7 @@ import { useSession } from "@/state/session";
 export default function JournalScreen() {
   const token = useSession((s) => s.token);
   const signOut = useSession((s) => s.signOut);
+  const router = useRouter();
   const [draft, setDraft] = useState("");
   const queryClient = useQueryClient();
 
@@ -92,6 +93,13 @@ export default function JournalScreen() {
             await captureVoice.mutateAsync(uri);
           }}
         />
+
+        <Pressable style={styles.talk} onPress={() => router.push("/talk")}>
+          <Text style={styles.talkLabel}>Talk it through instead</Text>
+          <Text style={styles.talkNote}>
+            For when you know something is there but not what it is yet.
+          </Text>
+        </Pressable>
         {captureVoice.isError && (
           <Text style={styles.error}>
             {captureVoice.error instanceof ApiError
@@ -174,6 +182,16 @@ const styles = StyleSheet.create({
   buttonDisabled: { opacity: 0.4 },
   buttonLabel: { color: "#fafafa", fontWeight: "600", fontSize: 16 },
   link: { color: "#3f3f46", fontWeight: "600" },
+  talk: {
+    borderWidth: 1,
+    borderColor: "#d4d4d8",
+    borderRadius: 12,
+    padding: 12,
+    gap: 2,
+    alignItems: "center",
+  },
+  talkLabel: { fontSize: 16, fontWeight: "600", color: "#3f3f46" },
+  talkNote: { fontSize: 11, color: "#a1a1aa", textAlign: "center" },
   loader: { marginTop: 24 },
   list: { gap: 8, paddingBottom: 24 },
   row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },

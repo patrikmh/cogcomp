@@ -5,8 +5,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from tlon.api.auth_routes import router as auth_router
+from tlon.api.conversation_routes import router as conversation_router
+from tlon.api.conversation_routes import voice_router
 from tlon.api.routes import router
 from tlon.config import get_settings
+from tlon.conversation import build_agent
 from tlon.db.engine import create_pool, run_migrations
 from tlon.extraction.pipeline import LangGraphExtractor
 from tlon.extraction.stub import StubExtractor
@@ -40,6 +43,12 @@ async def lifespan(app: FastAPI):
     logger.info("migrations applied: %s", applied or "none pending")
 
     app.state.extractor = build_extractor(settings)
+    # Routes read settings off app state rather than re-reading the cache, so a
+    # test overriding configuration overrides it everywhere.
+    app.state.settings = settings
+    app.state.conversation_agent = build_agent(
+        settings.openrouter_api_key, settings.openrouter_model
+    )
     app.state.transcriber = build_transcriber(
         settings.transcription_api_key,
         settings.transcription_provider,
@@ -63,4 +72,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(auth_router)
+app.include_router(conversation_router)
+app.include_router(voice_router)
 app.include_router(router)
