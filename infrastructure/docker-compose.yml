@@ -1,0 +1,39 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: tlon-postgres
+    environment:
+      POSTGRES_USER: tlon
+      POSTGRES_PASSWORD: tlon
+      POSTGRES_DB: tlon
+    ports:
+      # 5432 is already in use on this machine; Tlön binds 5433 to stay isolated.
+      - "5433:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tlon -d tlon"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Graph projection. Postgres is the source of truth; this must always be
+  # rebuildable from it, so the volume is expendable by design.
+  falkordb:
+    image: falkordb/falkordb:latest
+    container_name: tlon-falkordb
+    ports:
+      - "6379:6379"
+      # 3000 and 3001 are commonly taken by dev servers; the browser UI sits on 3002.
+      - "3002:3000"
+    volumes:
+      - falkordb-data:/var/lib/falkordb/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres-data:
+  falkordb-data:

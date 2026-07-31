@@ -1,0 +1,45 @@
+# Milestones
+
+## Milestone 1 (MVP)
+
+| # | Task | Status |
+|---|---|---|
+| 1 | Scaffold monorepo | done |
+| 2 | Docker compose for Postgres + FalkorDB | done |
+| 3 | Backend skeleton (Python/FastAPI — see ADR-0002) | done |
+| 4 | React Native app shell | done |
+| 5 | Observation API | done |
+| 6 | Graph schema v0.1 | done |
+| 7 | Voice recording | not started |
+| 8 | Daily report placeholder | not started |
+| 9 | CI/CD | done |
+| 10 | Benchmarks | not started |
+
+The observation → extraction pipeline is done: a LangGraph state machine calls a
+model through OpenRouter, validates the result against graph schema v0.1, retries
+once with the specific errors, and persists nodes and edges with provenance.
+
+Authentication is done: email + password signup and login, Argon2id password
+hashing, per-device bearer tokens in their own table, individual and global sign-out,
+and password change with session revocation. The mobile app gates on it and keeps its
+token in the device keychain.
+
+CI runs on every push and pull request: lint, format check, unit tests, integration
+tests against a real Postgres, a from-scratch migration check, mobile typecheck, and
+an ontology drift check that verifies the four definitions of graph schema v0.1
+(SQL, Python, JSON, TypeScript) still agree.
+
+Also outstanding for Milestone 1: the daily summary, the interactive dashboard, and
+the Skia graph explorer.
+
+## Milestone 2
+
+Memory consolidation, pattern mining, identity graph, weekly reports, experiment
+engine. `Pattern` nodes and `CO_OCCURS_WITH` edges exist in the schema but nothing
+produces them yet — pattern mining becomes a node in the existing LangGraph pipeline.
+
+## Milestone 3
+
+Multi-agent system, observability engine, temporal graph reasoning, digital twin
+prototype. Graphiti is to be evaluated as the graph layer here — see ADR-0002 when
+it is written.

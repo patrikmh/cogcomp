@@ -1,0 +1,78 @@
+{
+  "version": "0.1",
+  "observedNodeKinds": ["Observation"],
+  "inferredNodeKinds": [
+    "Thought",
+    "Emotion",
+    "Need",
+    "Value",
+    "Belief",
+    "Person",
+    "Place",
+    "Activity",
+    "Event",
+    "Pattern"
+  ],
+  "edgeKinds": {
+    "DERIVED_FROM": {
+      "from": ["*inferred"],
+      "to": ["Observation"],
+      "mandatory": true,
+      "note": "Provenance backbone. At least one per inferred node."
+    },
+    "EXPRESSES": {
+      "from": ["Observation"],
+      "to": ["Thought", "Emotion"]
+    },
+    "ABOUT": {
+      "from": ["Thought", "Emotion", "Event"],
+      "to": ["Person", "Place", "Activity", "Event"]
+    },
+    "FELT_TOWARD": {
+      "from": ["Emotion"],
+      "to": ["Person", "Place", "Activity", "Event"]
+    },
+    "TRIGGERED_BY": {
+      "from": ["Emotion", "Thought"],
+      "to": ["Event", "Activity", "Thought"],
+      "note": "Causal hypothesis from correlational evidence. Never render as fact."
+    },
+    "SUPPORTS": {
+      "from": ["Observation", "Thought"],
+      "to": ["Belief", "Pattern"]
+    },
+    "CONTRADICTS": {
+      "from": ["Observation", "Thought"],
+      "to": ["Belief", "Pattern"]
+    },
+    "INDICATES": {
+      "from": ["Thought", "Emotion"],
+      "to": ["Need", "Value"]
+    },
+    "CO_OCCURS_WITH": {
+      "from": ["*inferred"],
+      "to": ["*inferred"],
+      "note": "Statistical adjacency only. No causal claim. Milestone 2."
+    },
+    "RELATES_TO": {
+      "from": ["*"],
+      "to": ["*"],
+      "requiresNote": true
+    }
+  },
+  "epistemicStatus": ["hypothesis", "user_confirmed", "user_rejected"],
+  "confidence": {
+    "min": 0.0,
+    "max": 1.0,
+    "tentativeBelow": 0.5,
+    "rules": [
+      "Never default a missing confidence to 1.0.",
+      "A derived node's confidence cannot exceed the minimum of its inputs.",
+      "Values below tentativeBelow render as tentative or not at all."
+    ]
+  },
+  "forbidden": {
+    "nodeKinds": ["Disorder", "Symptom", "Diagnosis", "ScreeningScore"],
+    "reason": "Tlön never diagnoses. The vocabulary is absent by construction."
+  }
+}

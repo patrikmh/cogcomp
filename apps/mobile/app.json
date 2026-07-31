@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "Tlön",
+    "slug": "tlon",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "tlon",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "plugins": [
+      "expo-router",
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Tlön records voice journal entries only while you hold the record button. Audio stays on your device until you choose to send it."
+        }
+      ]
+    ],
+    "ios": { "supportsTablet": true, "bundleIdentifier": "com.tlon.app" },
+    "android": { "package": "com.tlon.app" }
+  }
+}

@@ -1,0 +1,120 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  # A newer push makes an in-flight run irrelevant.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: tlon
+          POSTGRES_PASSWORD: tlon
+          POSTGRES_DB: tlon
+        ports:
+          - 5432:5432
+        # Without this the first connection can land before Postgres accepts them.
+        options: >-
+          --health-cmd "pg_isready -U tlon -d tlon"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      # CI's Postgres is on the default port; local dev uses 5433 to avoid a clash.
+      DATABASE_URL: postgres://tlon:tlon@localhost:5432/tlon
+      # Empty on purpose: the suite must run without a model key, and the stub
+      # keeps it deterministic. The live-model path is covered by benchmarks.
+      OPENROUTER_API_KEY: ""
+
+    defaults:
+      run:
+        working-directory: apps/backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: apps/backend/pyproject.toml
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Lint
+        run: ruff check tlon tests
+
+      - name: Format check
+        run: ruff format --check tlon tests
+
+      - name: Unit tests
+        # Run first and without a database, so a plain logic break fails fast and
+        # is not confused with an infrastructure problem.
+        run: pytest -m "not integration" -q
+
+      - name: Integration tests
+        # Real Postgres: the CHECK constraints and foreign keys are the things
+        # actually enforcing provenance, and a mock would verify none of it.
+        run: pytest -m integration -q
+
+      - name: Migrations are reversible from scratch
+        # Guards against a migration that only applies to an already-migrated
+        # database — the failure mode you otherwise find on a fresh deploy.
+        run: |
+          psql "$DATABASE_URL" -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'
+          python -c "
+          import asyncio, os
+          from tlon.db.engine import create_pool, run_migrations
+          async def main():
+              pool = await create_pool(os.environ['DATABASE_URL'])
+              applied = await run_migrations(pool)
+              assert applied, 'no migrations applied to an empty database'
+              print('applied:', applied)
+              assert await run_migrations(pool) == [], 'migrations are not idempotent'
+          asyncio.run(main())
+          "
+
+  mobile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+  ontology:
+    # The ontology is duplicated across three files by necessity (SQL, Python, TS).
+    # This is the check that they have not drifted apart.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Ontology definitions agree
+        run: python scripts/check_ontology_sync.py
