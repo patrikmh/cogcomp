@@ -4,6 +4,7 @@ Handlers stay thin: validate, delegate, serialize. Business logic lives in the d
 and persistence layers where it can be tested without HTTP.
 """
 
+from datetime import date as Date
 from datetime import datetime
 from uuid import UUID
 
@@ -14,6 +15,7 @@ from tlon.auth import current_user
 from tlon.db import graph as graph_db
 from tlon.db import inferences as inferences_db
 from tlon.db import observations as observations_db
+from tlon.db import summary as summary_db
 from tlon.domain.observation import NewObservation, Observation, Source
 from tlon.extraction.pipeline import ExtractionFailed
 from tlon.graph.schema import SCHEMA_VERSION
@@ -169,6 +171,28 @@ async def extract_observation(
         extractor=extractor.version,
     )
     return ExtractionResponse(observation_id=observation_id, extractor=extractor.version, **counts)
+
+
+@router.get("/v1/summary/{day}")
+async def daily_summary(
+    request: Request,
+    day: Date,
+    tz: str = "UTC",
+    user_id: UUID = Depends(current_user),
+) -> dict:
+    """What a given day held.
+
+    `tz` is an IANA timezone (e.g. `Europe/Stockholm`). A day is a local concept —
+    an entry written at 11pm belongs to that day, and computing the boundary in UTC
+    would file it under the next one for anyone east of Greenwich.
+
+    The summary is assembled from the graph, so everything in it is either the
+    user's own words or an inference already carrying confidence and provenance.
+    """
+    try:
+        return await summary_db.daily_summary(request.app.state.pool, user_id, day, tz)
+    except summary_db.UnknownTimezone as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
 
 
 @router.get("/v1/graph/nodes/{node_id}/explain")

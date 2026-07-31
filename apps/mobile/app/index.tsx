@@ -77,8 +77,11 @@ export default function JournalScreen() {
       </View>
 
       <View style={styles.row}>
+        <Link href="/today" style={styles.link}>
+          Today
+        </Link>
         <Link href="/graph" style={styles.link}>
-          View graph
+          Graph
         </Link>
         <Pressable
           onPress={() => {

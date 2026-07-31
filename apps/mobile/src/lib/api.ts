@@ -49,6 +49,27 @@ export interface Explanation {
   is_observed: boolean;
 }
 
+export interface DailySummary {
+  date: string;
+  timezone: string;
+  entry_count: number;
+  first_capture?: string;
+  last_capture?: string;
+  observations: { id: string; content: string; source: string; captured_at: string }[];
+  inferred: {
+    id: string;
+    kind: NodeKind;
+    label: string;
+    confidence: number;
+    epistemic_status: EpistemicStatus;
+    extractor: string;
+    /** Below the confidence threshold — render as a guess, never as knowledge. */
+    tentative: boolean;
+    cites_entries: number;
+  }[];
+  recurring: { kind: NodeKind; label: string; entries: number }[];
+}
+
 export interface GraphSummary {
   schema_version: string;
   counts: { kind: NodeKind; count: number }[];
@@ -158,6 +179,18 @@ export const api = {
   /** "Why do you think this?" — the answer is always the user's own words. */
   explain(token: string, nodeId: string) {
     return request<Explanation>(`/v1/graph/nodes/${nodeId}/explain`, token);
+  },
+
+  /**
+   * `day` is a local calendar date and `tz` the IANA zone it belongs to. An entry
+   * written at 00:30 belongs to that day in the writer's timezone, not the
+   * previous one in UTC.
+   */
+  dailySummary(token: string, day: string, tz: string) {
+    return request<DailySummary>(
+      `/v1/summary/${day}?tz=${encodeURIComponent(tz)}`,
+      token,
+    );
   },
 
   graphSummary(token: string) {
