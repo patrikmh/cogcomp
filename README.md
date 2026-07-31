@@ -72,6 +72,10 @@ cd apps/mobile && npx tsc --noEmit
 
 # The ontology lives in four files by necessity. This checks they agree.
 python3 scripts/check_ontology_sync.py
+
+# End to end: drives the app in a real browser against a real backend.
+# Needs Postgres up and ports 8080/8081 free.
+scripts/e2e.sh
 ```
 
 ## Status

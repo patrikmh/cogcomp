@@ -41,8 +41,15 @@ carrying confidence and provenance, with nothing extra to audit. Days are bounde
 the user's timezone, not UTC. It reports no mood score, no trend, and no prompt to
 write more.
 
+`scripts/e2e.sh` drives the real app in a real browser (React Native Web, via
+Playwright) against the real backend: auth gate, signup, writing an entry, the daily
+summary, tentative-inference rendering, the empty day, and sign-out. Eighteen checks.
+
+The graph read API (`GET /v1/graph`, `GET /v1/graph/nodes/{id}/neighbours`) is the
+backend half of the explorer and the dashboard.
+
 Also outstanding for Milestone 1: the interactive dashboard and the Skia graph
-explorer.
+explorer themselves.
 
 ## Milestone 2
 

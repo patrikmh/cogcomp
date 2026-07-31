@@ -1,12 +1,8 @@
-import * as SecureStore from "expo-secure-store";
 import { create } from "zustand";
 
-/**
- * The token lives in the device keychain (Keychain on iOS, Keystore on Android),
- * not AsyncStorage. A bearer token grants full access to someone's journal, so it
- * belongs behind the OS's hardware-backed store rather than in plain app storage
- * that a device backup would carry off.
- */
+import { deleteItem, getItem, setItem } from "./storage";
+
+/** Where the token is kept, and the tradeoff per platform, lives in ./storage. */
 const TOKEN_KEY = "tlon.token";
 const USER_KEY = "tlon.userId";
 
@@ -30,10 +26,7 @@ export const useSession = create<SessionState>((set) => ({
 
   restore: async () => {
     try {
-      const [token, userId] = await Promise.all([
-        SecureStore.getItemAsync(TOKEN_KEY),
-        SecureStore.getItemAsync(USER_KEY),
-      ]);
+      const [token, userId] = await Promise.all([getItem(TOKEN_KEY), getItem(USER_KEY)]);
       set({ token, userId, ready: true });
     } catch {
       // A keychain read can fail on a locked device. Treat that as signed out
@@ -43,18 +36,12 @@ export const useSession = create<SessionState>((set) => ({
   },
 
   signIn: async (token, userId) => {
-    await Promise.all([
-      SecureStore.setItemAsync(TOKEN_KEY, token),
-      SecureStore.setItemAsync(USER_KEY, userId),
-    ]);
+    await Promise.all([setItem(TOKEN_KEY, token), setItem(USER_KEY, userId)]);
     set({ token, userId });
   },
 
   signOut: async () => {
-    await Promise.all([
-      SecureStore.deleteItemAsync(TOKEN_KEY),
-      SecureStore.deleteItemAsync(USER_KEY),
-    ]);
+    await Promise.all([deleteItem(TOKEN_KEY), deleteItem(USER_KEY)]);
     set({ token: null, userId: null });
   },
 }));

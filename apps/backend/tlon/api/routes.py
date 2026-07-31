@@ -18,7 +18,7 @@ from tlon.db import observations as observations_db
 from tlon.db import summary as summary_db
 from tlon.domain.observation import NewObservation, Observation, Source
 from tlon.extraction.pipeline import ExtractionFailed
-from tlon.graph.schema import SCHEMA_VERSION
+from tlon.graph.schema import SCHEMA_VERSION, NodeKind
 
 router = APIRouter()
 
@@ -193,6 +193,62 @@ async def daily_summary(
         return await summary_db.daily_summary(request.app.state.pool, user_id, day, tz)
     except summary_db.UnknownTimezone as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
+
+
+@router.get("/v1/graph")
+async def graph(
+    request: Request,
+    limit: int = graph_db.DEFAULT_SUBGRAPH_NODES,
+    min_confidence: float | None = None,
+    kinds: str | None = None,
+    since: datetime | None = None,
+    until: datetime | None = None,
+    user_id: UUID = Depends(current_user),
+) -> dict:
+    """Nodes and edges for rendering.
+
+    `kinds` is a comma-separated list of node kinds. `min_confidence` filters
+    inferences but never observations — they are not claims and have no confidence
+    to filter on.
+
+    Edges are returned only when both endpoints survived the filters, so the client
+    never has to draw a line to a node it was not given.
+    """
+    if min_confidence is not None and not 0.0 <= min_confidence <= 1.0:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, "min_confidence must be between 0.0 and 1.0"
+        )
+
+    kind_list = [k.strip() for k in kinds.split(",") if k.strip()] if kinds else None
+    if kind_list:
+        unknown = [k for k in kind_list if k not in set(NodeKind)]
+        if unknown:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_CONTENT, f"unknown node kinds: {unknown}"
+            )
+
+    return await graph_db.subgraph(
+        request.app.state.pool,
+        user_id,
+        limit=limit,
+        min_confidence=min_confidence,
+        kinds=kind_list,
+        since=since,
+        until=until,
+    )
+
+
+@router.get("/v1/graph/nodes/{node_id}/neighbours")
+async def node_neighbours(
+    request: Request,
+    node_id: UUID,
+    user_id: UUID = Depends(current_user),
+) -> dict:
+    """One node and everything directly connected to it — what a tap needs."""
+    result = await graph_db.neighbours(request.app.state.pool, user_id, node_id)
+    if result is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "not found")
+    return result
 
 
 @router.get("/v1/graph/nodes/{node_id}/explain")

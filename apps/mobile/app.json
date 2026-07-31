@@ -14,9 +14,18 @@
         {
           "microphonePermission": "Tlön records voice journal entries only while you hold the record button. Audio stays on your device until you choose to send it."
         }
-      ]
+      ],
+      "expo-asset"
     ],
-    "ios": { "supportsTablet": true, "bundleIdentifier": "com.tlon.app" },
-    "android": { "package": "com.tlon.app" }
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.tlon.app"
+    },
+    "android": {
+      "package": "com.tlon.app"
+    },
+    "web": {
+      "bundler": "metro"
+    }
   }
 }
