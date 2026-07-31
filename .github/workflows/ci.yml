@@ -64,6 +64,15 @@ jobs:
         # is not confused with an infrastructure problem.
         run: pytest -m "not integration" -q
 
+      - name: Benchmark self-tests
+        # The benchmark itself needs a model key, so CI cannot run it. These assert
+        # its safety checks still fire — a check that never fires is
+        # indistinguishable from one that does not work.
+        working-directory: .
+        run: |
+          pip install -e apps/backend
+          pytest benchmarks -q
+
       - name: Integration tests
         # Real Postgres: the CHECK constraints and foreign keys are the things
         # actually enforcing provenance, and a mock would verify none of it.

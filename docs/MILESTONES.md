@@ -13,7 +13,7 @@
 | 7 | Voice recording | not started |
 | 8 | Daily report placeholder | not started |
 | 9 | CI/CD | done |
-| 10 | Benchmarks | not started |
+| 10 | Benchmarks | done |
 
 The observation → extraction pipeline is done: a LangGraph state machine calls a
 model through OpenRouter, validates the result against graph schema v0.1, retries
@@ -28,6 +28,12 @@ CI runs on every push and pull request: lint, format check, unit tests, integrat
 tests against a real Postgres, a from-scratch migration check, mobile typecheck, and
 an ontology drift check that verifies the four definitions of graph schema v0.1
 (SQL, Python, JSON, TypeScript) still agree.
+
+`benchmarks/` checks extraction against the properties the spec calls
+non-negotiable — never diagnose, calibrated confidence, restraint, causal restraint,
+schema conformance — rather than against accuracy, which would need labelled data.
+It runs against the stub today and against a real model the moment
+`OPENROUTER_API_KEY` is set. CI runs its self-tests but not the benchmark itself.
 
 Also outstanding for Milestone 1: the daily summary, the interactive dashboard, and
 the Skia graph explorer.
