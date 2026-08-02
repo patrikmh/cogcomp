@@ -266,3 +266,85 @@ class TestVoiceToken:
 
     async def test_it_requires_authentication(self, client: AsyncClient):
         assert (await client.post("/v1/voice/token")).status_code == 401
+
+
+class TestSpokenTurns:
+    """A spoken turn takes the same path as a typed one — same conversation,
+    entered differently, not a separate feature with its own rules."""
+
+    AUDIO = b"not really audio, but the stub does not care"
+
+    async def speak(self, client: AsyncClient, account: Account, cid: str, audio=None):
+        return await client.post(
+            f"/v1/conversations/{cid}/turns/voice",
+            headers=account.auth,
+            files={"audio": ("r.m4a", audio if audio is not None else self.AUDIO, "audio/m4a")},
+        )
+
+    async def test_a_spoken_turn_gets_a_reply(self, client: AsyncClient, account: Account):
+        cid = await start(client, account)
+        response = await self.speak(client, account, cid)
+        assert response.status_code == 200, response.text
+        assert response.json()["reply"]
+
+    async def test_the_transcript_becomes_the_turn(self, client: AsyncClient, account: Account):
+        cid = await start(client, account)
+        await self.speak(client, account, cid)
+        body = (await client.get(f"/v1/conversations/{cid}", headers=account.auth)).json()
+        spoken = next(t for t in body["turns"] if t["speaker"] == "user")
+        assert "not configured" in spoken["content"]
+        assert spoken["source"] == "voice"
+
+    async def test_it_becomes_a_voice_observation_on_close(
+        self, client: AsyncClient, account: Account
+    ):
+        cid = await start(client, account)
+        await self.speak(client, account, cid)
+        await client.post(f"/v1/conversations/{cid}/close", headers=account.auth)
+        listed = await client.get("/v1/observations", headers=account.auth)
+        assert listed.json()["observations"][0]["source"] == "voice"
+
+    async def test_spoken_and_typed_turns_mix_in_one_conversation(
+        self, client: AsyncClient, account: Account
+    ):
+        cid = await start(client, account)
+        await say(client, account, cid, "typed first")
+        await self.speak(client, account, cid)
+        body = (await client.get(f"/v1/conversations/{cid}", headers=account.auth)).json()
+        sources = [t["source"] for t in body["turns"] if t["speaker"] == "user"]
+        assert sources == ["text", "voice"]
+
+    async def test_empty_audio_is_refused(self, client: AsyncClient, account: Account):
+        cid = await start(client, account)
+        assert (await self.speak(client, account, cid, audio=b"")).status_code == 502
+
+    async def test_a_closed_conversation_refuses_a_spoken_turn(
+        self, client: AsyncClient, account: Account
+    ):
+        cid = await start(client, account)
+        await say(client, account, cid, "hello")
+        await client.post(f"/v1/conversations/{cid}/close", headers=account.auth)
+        assert (await self.speak(client, account, cid)).status_code == 409
+
+    async def test_another_user_cannot_speak_into_it(
+        self, client: AsyncClient, account: Account, other_account: Account
+    ):
+        cid = await start(client, account)
+        assert (await self.speak(client, other_account, cid)).status_code == 404
+
+    async def test_it_requires_authentication(self, client: AsyncClient, account: Account):
+        cid = await start(client, account)
+        response = await client.post(
+            f"/v1/conversations/{cid}/turns/voice",
+            files={"audio": ("r.m4a", self.AUDIO, "audio/m4a")},
+        )
+        assert response.status_code == 401
+
+    async def test_no_audio_is_retained(self, client: AsyncClient, account: Account):
+        cid = await start(client, account)
+        await self.speak(client, account, cid, audio=b"DISTINCTIVE-CONVERSATION-AUDIO")
+        rows = await client._transport.app.state.pool.fetch(
+            "SELECT content FROM conversation_turns"
+        )
+        for row in rows:
+            assert "DISTINCTIVE-CONVERSATION-AUDIO" not in row["content"]

@@ -55,7 +55,13 @@ Voice journaling is done: hold-to-record in the app, uploaded to
 `POST /v1/observations/voice`, transcribed by ElevenLabs Scribe (or any
 OpenAI-compatible Whisper endpoint), and stored as an ordinary observation. The
 audio is discarded once transcribed — it is never written to the database, and
-tests assert that no table holds bytes.
+tests assert that no table holds bytes. Turns inside a conversation can be spoken
+too, taking the same path as a typed turn once transcribed.
+
+The voice path has been verified end to end against the live services: a sentence
+synthesised with ElevenLabs TTS, uploaded, transcribed by Scribe, stored as a
+`voice` turn, answered by the live model, and converted to an observation on
+close.
 
 The extraction pipeline has now been run against the live model
 (`anthropic/claude-opus-5` via OpenRouter): 12/12 benchmark cases pass, with

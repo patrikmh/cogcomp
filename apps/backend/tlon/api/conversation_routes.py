@@ -6,13 +6,14 @@ from datetime import datetime
 from uuid import UUID
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from pydantic import BaseModel, Field
 
 from tlon.auth import current_user
 from tlon.conversation import ConversationError
 from tlon.db import conversations as conversations_db
 from tlon.domain.observation import MAX_CONTENT_CHARS
+from tlon.transcription import AudioTooLarge, TranscriptionError
 
 router = APIRouter(prefix="/v1/conversations", tags=["conversations"])
 
@@ -124,6 +125,39 @@ async def add_turn(
         # Sent with the reply rather than looked up separately, so the client
         # cannot show the message without the services alongside it.
         crisis_resources=settings.crisis_resources_list if reply.crisis else [],
+    )
+
+
+@router.post("/{conversation_id}/turns/voice")
+async def add_voice_turn(
+    request: Request,
+    conversation_id: UUID,
+    audio: UploadFile = File(...),
+    user_id: UUID = Depends(current_user),
+) -> TurnResponse:
+    """Speak a turn instead of typing it.
+
+    Transcribes and then takes exactly the same path as a typed turn, so a
+    spoken conversation is not a separate feature with its own rules — it is the
+    same conversation, entered differently. The recording is discarded once
+    transcribed, as everywhere else.
+    """
+    payload = await audio.read()
+
+    try:
+        transcript = await request.app.state.transcriber.transcribe(
+            payload, audio.filename or "recording.m4a"
+        )
+    except AudioTooLarge as exc:
+        raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, str(exc)) from exc
+    except TranscriptionError as exc:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
+
+    return await add_turn(
+        request,
+        conversation_id,
+        TurnRequest(content=transcript, source="voice"),
+        user_id,
     )
 
 

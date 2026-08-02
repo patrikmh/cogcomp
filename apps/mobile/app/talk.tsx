@@ -51,6 +51,14 @@ export default function TalkScreen() {
     enabled: Boolean(token && conversationId),
   });
 
+  const speak = useMutation({
+    mutationFn: (uri: string) => api.sayAloud(token!, conversationId!, uri),
+    onSuccess: (reply) => {
+      if (reply.crisis) setCrisis(reply.crisis_resources);
+      queryClient.invalidateQueries({ queryKey: ["conversation", conversationId] });
+    },
+  });
+
   const say = useMutation({
     mutationFn: ({ text, source }: { text: string; source: "text" | "voice" }) =>
       api.say(token!, conversationId!, text, source),
@@ -104,7 +112,9 @@ export default function TalkScreen() {
           </View>
         ))}
 
-        {say.isPending && <ActivityIndicator style={styles.thinking} />}
+        {(say.isPending || speak.isPending) && (
+          <ActivityIndicator style={styles.thinking} />
+        )}
 
         {crisis !== null && (
           // Shown alongside the agent's message, never instead of it, and the
@@ -134,6 +144,14 @@ export default function TalkScreen() {
             {say.error instanceof ApiError
               ? say.error.message
               : "Could not send that — what you said is still saved."}
+          </Text>
+        )}
+
+        {speak.isError && (
+          <Text style={styles.error}>
+            {speak.error instanceof ApiError
+              ? speak.error.message
+              : "Could not send that recording."}
           </Text>
         )}
       </ScrollView>
@@ -168,10 +186,9 @@ export default function TalkScreen() {
 
         {conversationId && (
           <RecordButton
-            disabled={say.isPending}
-            onRecorded={async () => {
-              // Spoken turns inside a conversation still go through the same
-              // transcription path; wiring is the same as the journal screen.
+            disabled={say.isPending || speak.isPending}
+            onRecorded={async (uri) => {
+              await speak.mutateAsync(uri);
             }}
           />
         )}

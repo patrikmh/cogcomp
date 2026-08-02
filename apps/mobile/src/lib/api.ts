@@ -177,6 +177,48 @@ async function request<T>(
   return (await response.json()) as T;
 }
 
+/**
+ * A multipart body carrying a recording.
+ *
+ * React Native's FormData takes a {uri, name, type} descriptor; on web the
+ * recording is a real Blob behind a blob: URL and has to be fetched first.
+ */
+async function audioForm(uri: string): Promise<FormData> {
+  const form = new FormData();
+  if (uri.startsWith("blob:") || uri.startsWith("data:")) {
+    const blob = await fetch(uri).then((r) => r.blob());
+    form.append("audio", blob, "recording.webm");
+  } else {
+    form.append("audio", {
+      uri,
+      name: "recording.m4a",
+      type: "audio/m4a",
+    } as unknown as Blob);
+  }
+  return form;
+}
+
+async function uploadAudio<T>(path: string, token: string, form: FormData): Promise<T> {
+  const response = await fetch(`${BASE_URL}${path}`, {
+    method: "POST",
+    // Content-Type is deliberately omitted: the runtime sets it along with the
+    // multipart boundary, and overriding it breaks the upload.
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as {
+      detail?: string | { msg?: string }[];
+    };
+    const detail = Array.isArray(body.detail)
+      ? body.detail.map((d) => d.msg ?? "invalid value").join(", ")
+      : body.detail;
+    throw new ApiError(response.status, detail ?? response.statusText);
+  }
+  return (await response.json()) as T;
+}
+
 export const api = {
   signup(email: string, password: string, device?: string) {
     return request<AuthResponse>("/v1/auth/signup", null, {
@@ -234,41 +276,25 @@ export const api = {
     token: string,
     input: { id: string; uri: string; capturedAt: string },
   ): Promise<ObservationResponse> {
-    const form = new FormData();
+    const form = await audioForm(input.uri);
     form.append("id", input.id);
     form.append("captured_at", input.capturedAt);
+    return uploadAudio<ObservationResponse>("/v1/observations/voice", token, form);
+  },
 
-    // React Native's FormData takes a {uri, name, type} descriptor rather than a
-    // Blob; on web the recording is a real Blob and has to be fetched first.
-    if (input.uri.startsWith("blob:") || input.uri.startsWith("data:")) {
-      const blob = await fetch(input.uri).then((r) => r.blob());
-      form.append("audio", blob, "recording.webm");
-    } else {
-      form.append("audio", {
-        uri: input.uri,
-        name: "recording.m4a",
-        type: "audio/m4a",
-      } as unknown as Blob);
-    }
-
-    const response = await fetch(`${BASE_URL}/v1/observations/voice`, {
-      method: "POST",
-      // Content-Type is deliberately omitted: the runtime sets it along with the
-      // multipart boundary, and overriding it breaks the upload.
-      headers: { Authorization: `Bearer ${token}` },
-      body: form,
-    });
-
-    if (!response.ok) {
-      const body = (await response.json().catch(() => ({}))) as {
-        detail?: string | { msg?: string }[];
-      };
-      const detail = Array.isArray(body.detail)
-        ? body.detail.map((d) => d.msg ?? "invalid value").join(", ")
-        : body.detail;
-      throw new ApiError(response.status, detail ?? response.statusText);
-    }
-    return (await response.json()) as ObservationResponse;
+  /** Speak a turn instead of typing it. Takes the same path as a typed turn
+   *  once transcribed. */
+  async sayAloud(
+    token: string,
+    conversationId: string,
+    uri: string,
+  ): Promise<TurnReply> {
+    const form = await audioForm(uri);
+    return uploadAudio<TurnReply>(
+      `/v1/conversations/${conversationId}/turns/voice`,
+      token,
+      form,
+    );
   },
 
   listObservations(token: string, before?: string) {
