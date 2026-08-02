@@ -34,6 +34,18 @@ class Settings(BaseSettings):
     #: Blank means the provider's own default model.
     transcription_model: str = ""
 
+    #: Text to speech, so the agent can be listened to rather than read. Shares
+    #: the ElevenLabs key with transcription; the voice must be chosen explicitly
+    #: because there is no sensible default for what someone's companion sounds
+    #: like, and picking one silently is a strange thing to do to a person.
+    speech_voice_id: str = ""
+    speech_model: str = "eleven_multilingual_v2"
+
+    #: Whether background agents run on a timer. Off by default: a system that
+    #: rewrites your graph on a schedule should be something you switched on, and
+    #: it keeps test and CI processes from doing background work nobody asked for.
+    agents_enabled: bool = False
+
     #: Shown alongside the agent's message when the safety path fires. Config
     #: rather than hardcoded: a US hotline shown to someone in Sweden is worse
     #: than showing nothing, because it looks like help and is not.
@@ -53,6 +65,10 @@ class Settings(BaseSettings):
     @property
     def uses_real_transcription(self) -> bool:
         return bool(self.transcription_api_key.strip())
+
+    @property
+    def uses_real_speech(self) -> bool:
+        return bool(self.transcription_api_key.strip() and self.speech_voice_id.strip())
 
 
 @lru_cache

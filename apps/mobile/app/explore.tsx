@@ -1,9 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { Suspense, lazy, useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -19,32 +18,13 @@ import {
   nodeAt,
   settle,
 } from "@/lib/forceLayout";
+import { lazySkia } from "@/lib/lazySkia";
 import { useSession } from "@/state/session";
 
 /** Generous next to the drawn radius — fingers are not cursors. */
 const TAP_RADIUS = 26;
 
-/**
- * Created once, at module scope, and deliberately not inside the component.
- *
- * A lazy component's identity has to be stable. Building it per render — which
- * Skia's `WithSkiaWeb` and its `getComponent` prop quietly encourage — remounts
- * the canvas on every state change, so selecting a node destroys the canvas you
- * selected it on and the screen falls back to a spinner forever. The tap was
- * working the whole time; the re-render was eating it.
- *
- * On web, CanvasKit's WASM must finish loading before any Skia component is
- * evaluated, hence awaiting it before the import.
- */
-const LazyGraphCanvas = lazy(async () => {
-  if (Platform.OS === "web") {
-    const { LoadSkiaWeb } = await import(
-      "@shopify/react-native-skia/lib/module/web"
-    );
-    await LoadSkiaWeb();
-  }
-  return import("@/components/GraphCanvas");
-});
+const LazyGraphCanvas = lazySkia(() => import("@/components/GraphCanvas"));
 
 /**
  * The graph explorer.

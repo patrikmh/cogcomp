@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { Stack, useRouter } from "expo-router";
+import { Suspense, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -13,9 +13,33 @@ import {
   View,
 } from "react-native";
 
-import { RecordButton } from "@/components/RecordButton";
+import { RecordButton, type RecordState } from "@/components/RecordButton";
 import { ApiError, api, type Conversation } from "@/lib/api";
+import type { BlobState } from "@/lib/blobShape";
+import { lazySkia } from "@/lib/lazySkia";
+import { useSpokenReply } from "@/lib/useSpokenReply";
 import { useSession } from "@/state/session";
+
+const LazyBlob = lazySkia(() => import("@/components/Blob"));
+
+/** Big enough to be a presence, small enough that the thread is still the page.
+ *  In focus mode it is scaled up rather than replaced. */
+const BLOB_SIZE = 190;
+const FOCUS_BLOB_SIZE = 300;
+
+/**
+ * What the blob is doing, in words.
+ *
+ * Present because the shape alone is not accessible, and because a thing that
+ * changes on screen without saying why is unsettling rather than companionable.
+ * Deliberately plain: it reports state, it does not perform a personality.
+ */
+const STAGE_LABEL: Record<BlobState, string> = {
+  idle: "Tap to see the transcript · drag to spin",
+  listening: "Listening",
+  thinking: "Thinking",
+  speaking: "Speaking",
+};
 
 /**
  * Journalling by talking.
@@ -31,7 +55,20 @@ export default function TalkScreen() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [crisis, setCrisis] = useState<string[] | null>(null);
+  const [recording, setRecording] = useState<RecordState>("idle");
+  // Focus is the default. The sphere is the interface — the transcript is there
+  // for when you want to check what you said, not the thing you sit and read
+  // while talking.
+  const [focus, setFocus] = useState(true);
+  // Cleared on a timer rather than tracked from the thread: "has just replied" is
+  // a moment, and the last turn stays the agent's long after that moment passes.
+  const [justReplied, setJustReplied] = useState(false);
+  const [voiceOn, setVoiceOn] = useState(true);
   const scrollRef = useRef<ScrollView>(null);
+
+  // Speaking is an addition to the text, never a replacement: if it is off, or
+  // unconfigured, or fails, the reply is still on screen to read.
+  const voice = useSpokenReply(token, voiceOn);
 
   const start = useMutation({
     mutationFn: () => api.startConversation(token!),
@@ -54,6 +91,8 @@ export default function TalkScreen() {
   const speak = useMutation({
     mutationFn: (uri: string) => api.sayAloud(token!, conversationId!, uri),
     onSuccess: (reply) => {
+      setJustReplied(true);
+      voice.say(reply.reply);
       if (reply.crisis) setCrisis(reply.crisis_resources);
       queryClient.invalidateQueries({ queryKey: ["conversation", conversationId] });
     },
@@ -64,6 +103,8 @@ export default function TalkScreen() {
       api.say(token!, conversationId!, text, source),
     onSuccess: (reply) => {
       setDraft("");
+      setJustReplied(true);
+      voice.say(reply.reply);
       if (reply.crisis) setCrisis(reply.crisis_resources);
       queryClient.invalidateQueries({ queryKey: ["conversation", conversationId] });
     },
@@ -78,17 +119,89 @@ export default function TalkScreen() {
     },
   });
 
+  useEffect(() => {
+    if (!justReplied) return;
+    const timer = setTimeout(() => setJustReplied(false), 2600);
+    return () => clearTimeout(timer);
+  }, [justReplied]);
+
   if (!token) return null;
 
   const turns: Conversation["turns"] = conversation.data?.turns ?? [];
   const saidSomething = turns.some((t) => t.speaker === "user");
+  const lastReply = [...turns].reverse().find((t) => t.speaker !== "user");
+
+  // Order matters: what the microphone is doing beats what the network is doing,
+  // so the blob never looks busy while someone is mid-sentence.
+  const blobState: BlobState =
+    recording === "recording"
+      ? "listening"
+      : say.isPending || speak.isPending || recording === "uploading"
+        ? "thinking"
+        : voice.speaking || justReplied
+          ? "speaking"
+          : "idle";
 
   return (
     <KeyboardAvoidingView
-      style={styles.screen}
+      style={[styles.screen, focus && styles.screenFocus]}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       keyboardVerticalOffset={90}
     >
+      {/* The header is a white bar across the top of a screen whose whole point
+          is a dark room with one light in it. */}
+      <Stack.Screen options={{ headerShown: !focus }} />
+
+      <Pressable
+        style={[styles.stage, focus && styles.stageFocus]}
+        onPress={() => setFocus((on) => !on)}
+        accessibilityRole="button"
+        accessibilityLabel={focus ? "Leave focus mode" : "Enter focus mode"}
+      >
+        <Suspense
+          fallback={
+            <View
+              style={{ height: focus ? FOCUS_BLOB_SIZE : BLOB_SIZE }}
+            />
+          }
+        >
+          <LazyBlob
+            state={blobState}
+            size={focus ? FOCUS_BLOB_SIZE : BLOB_SIZE}
+            energy={voice.level}
+          />
+        </Suspense>
+        <Text style={[styles.stageHint, focus && styles.stageHintFocus]}>
+          {STAGE_LABEL[blobState]}
+        </Text>
+        <Pressable
+          onPress={() => {
+            // Turning it off stops the current sentence too. Waiting for a reply
+            // you have just muted to finish is the opposite of what you asked for.
+            if (voiceOn) voice.stop();
+            setVoiceOn((on) => !on);
+          }}
+          accessibilityRole="switch"
+          accessibilityState={{ checked: voiceOn }}
+        >
+          <Text style={[styles.voiceToggle, focus && styles.voiceToggleFocus]}>
+            {voiceOn ? "Voice on" : "Voice off"}
+          </Text>
+        </Pressable>
+      </Pressable>
+
+      {focus ? (
+        // Focus mode strips the thread away. What is left is the blob, the last
+        // thing it said, and the microphone — for people who want to talk rather
+        // than read, and for whom a wall of transcript is the distraction.
+        <View style={styles.focusBody}>
+          {lastReply && (
+            <Text style={styles.focusReply} numberOfLines={6}>
+              {lastReply.content}
+            </Text>
+          )}
+        </View>
+      ) : (
       <ScrollView
         ref={scrollRef}
         contentContainerStyle={styles.thread}
@@ -155,17 +268,21 @@ export default function TalkScreen() {
           </Text>
         )}
       </ScrollView>
+      )}
 
-      <View style={styles.composer}>
-        <TextInput
-          style={styles.input}
-          value={draft}
-          onChangeText={setDraft}
-          placeholder="Say something…"
-          multiline
-          editable={Boolean(conversationId) && !say.isPending}
-        />
+      <View style={[styles.composer, focus && styles.composerFocus]}>
+        {!focus && (
+          <TextInput
+            style={styles.input}
+            value={draft}
+            onChangeText={setDraft}
+            placeholder="Say something…"
+            multiline
+            editable={Boolean(conversationId) && !say.isPending}
+          />
+        )}
         <View style={styles.actions}>
+          {!focus && (
           <Pressable
             style={[styles.send, (!draft.trim() || say.isPending) && styles.disabled]}
             disabled={!draft.trim() || say.isPending}
@@ -173,12 +290,17 @@ export default function TalkScreen() {
           >
             <Text style={styles.sendLabel}>Send</Text>
           </Pressable>
+          )}
           <Pressable
-            style={[styles.finish, !saidSomething && styles.disabled]}
+            style={[
+              styles.finish,
+              focus && styles.finishFocus,
+              !saidSomething && styles.disabled,
+            ]}
             disabled={!saidSomething || finish.isPending}
             onPress={() => finish.mutate()}
           >
-            <Text style={styles.finishLabel}>
+            <Text style={[styles.finishLabel, focus && styles.finishLabelFocus]}>
               {finish.isPending ? "Saving…" : "Finish & save"}
             </Text>
           </Pressable>
@@ -190,10 +312,12 @@ export default function TalkScreen() {
             onRecorded={async (uri) => {
               await speak.mutateAsync(uri);
             }}
+            onStateChange={setRecording}
+            tone={focus ? "dark" : "light"}
           />
         )}
 
-        <Text style={styles.footnote}>
+        <Text style={[styles.footnote, focus && styles.footnoteFocus]}>
           Only what you say is kept. My side of this isn't saved as an entry.
         </Text>
       </View>
@@ -203,6 +327,27 @@ export default function TalkScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+  // Focus mode goes dark. Not for style: the blob is a light source, and on white
+  // it reads as a smudge rather than as something present in the room.
+  screenFocus: { backgroundColor: "#08080c" },
+  stage: { alignItems: "center", paddingTop: 12, gap: 6 },
+  stageFocus: { flex: 1, justifyContent: "center", paddingTop: 0 },
+  stageHint: { fontSize: 12, color: "#a1a1aa" },
+  voiceToggle: {
+    fontSize: 11,
+    color: "#71717a",
+    textDecorationLine: "underline",
+    paddingVertical: 4,
+  },
+  voiceToggleFocus: { color: "#a1a1aa" },
+  stageHintFocus: { fontSize: 14, color: "#71717a" },
+  focusBody: { paddingHorizontal: 28, paddingBottom: 12, minHeight: 90 },
+  focusReply: {
+    color: "#e4e4e7",
+    fontSize: 18,
+    lineHeight: 26,
+    textAlign: "center",
+  },
   thread: { padding: 16, gap: 10, paddingBottom: 24 },
   opening: { color: "#71717a", fontSize: 15, lineHeight: 22, marginTop: 8 },
   bubble: { borderRadius: 14, padding: 12, maxWidth: "88%" },
@@ -228,6 +373,7 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 8,
   },
+  composerFocus: { borderTopColor: "#1c1c22" },
   input: {
     borderWidth: 1,
     borderColor: "#d4d4d8",
@@ -254,8 +400,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: "center",
   },
+  finishFocus: { borderColor: "#3f3f46" },
   finishLabel: { color: "#18181b", fontWeight: "600", fontSize: 16 },
+  finishLabelFocus: { color: "#e4e4e7" },
   disabled: { opacity: 0.35 },
   error: { color: "#b91c1c", fontSize: 13 },
   footnote: { fontSize: 11, color: "#a1a1aa", textAlign: "center" },
+  footnoteFocus: { color: "#52525b" },
 });

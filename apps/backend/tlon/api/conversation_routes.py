@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 from datetime import datetime
 from uuid import UUID
 
@@ -13,6 +14,8 @@ from tlon.auth import current_user
 from tlon.conversation import ConversationError
 from tlon.db import conversations as conversations_db
 from tlon.domain.observation import MAX_CONTENT_CHARS
+from tlon.speech import MAX_CHARS as MAX_SPOKEN_CHARS
+from tlon.speech import SpeechError
 from tlon.transcription import AudioTooLarge, TranscriptionError
 
 router = APIRouter(prefix="/v1/conversations", tags=["conversations"])
@@ -194,6 +197,10 @@ async def close_conversation(
 voice_router = APIRouter(prefix="/v1/voice", tags=["voice"])
 
 
+class SpeakRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=MAX_SPOKEN_CHARS)
+
+
 @voice_router.post("/token")
 async def realtime_token(request: Request, user_id: UUID = Depends(current_user)) -> dict:
     """Mint a short-lived ElevenLabs token for realtime transcription.
@@ -223,3 +230,52 @@ async def realtime_token(request: Request, user_id: UUID = Depends(current_user)
     if not token:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, "no token was returned")
     return {"token": token}
+
+
+class SpeechResponse(BaseModel):
+    """A spoken reply, and the shape of it.
+
+    The audio is inlined as base64 rather than served from a URL. A clip is a few
+    seconds of one person's private conversation; giving it an address means
+    deciding how long that address lives and who may follow it, and the answer
+    for this product is "it does not have one".
+    """
+
+    audio: str
+    #: One 0–1 loudness value per `frame_ms`. The client interpolates between
+    #: them by playback position, which is what puts the blob in time with the
+    #: voice rather than merely animating while audio happens to be playing.
+    envelope: list[float]
+    frame_ms: int
+    duration_ms: int
+
+
+@voice_router.post("/speak")
+async def synthesise(
+    request: Request, payload: SpeakRequest, user_id: UUID = Depends(current_user)
+) -> SpeechResponse:
+    """Turn an agent reply into audio.
+
+    Takes the text rather than a turn id on purpose: this synthesises what the
+    client is already showing, so the spoken and written words cannot drift apart.
+    """
+    voice = request.app.state.voice
+    if not voice.enabled:
+        # 503 rather than a silent empty clip, so the client can fall back to
+        # showing text rather than looking broken.
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "speech is not configured on this server",
+        )
+
+    try:
+        clip = await voice.speak(payload.text)
+    except SpeechError as exc:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
+
+    return SpeechResponse(
+        audio=base64.b64encode(clip.audio).decode(),
+        envelope=clip.envelope,
+        frame_ms=clip.frame_ms,
+        duration_ms=clip.duration_ms,
+    )
