@@ -78,6 +78,17 @@ export interface TurnReply {
   crisis_resources: string[];
 }
 
+export interface SpokenClip {
+  /** base64 WAV. Inlined rather than served from a URL — a clip is a few seconds
+   *  of a private conversation, and giving it an address means deciding who may
+   *  follow that address. */
+  audio: string;
+  /** One 0–1 loudness value per `frame_ms` of audio. */
+  envelope: number[];
+  frame_ms: number;
+  duration_ms: number;
+}
+
 export interface GraphNode {
   id: string;
   kind: NodeKind;
@@ -132,6 +143,61 @@ export interface DailySummary {
 export interface GraphSummary {
   schema_version: string;
   counts: { kind: NodeKind; count: number }[];
+}
+
+/** Matches the response from GET /v1/patterns. */
+export interface Pattern {
+  id: string;
+  label: string;
+  confidence: number;
+  epistemic_status: string;
+  extractor: string;
+  occurrences: number;
+  tentative: boolean;
+  created_at: string;
+}
+
+/** Matches the response from POST /v1/patterns/mine. */
+export interface MinePatternsResponse {
+  patterns: number;
+  considered: number;
+}
+
+/** Matches the response from GET /v1/agents. */
+export interface AgentInfo {
+  name: string;
+  version: string;
+  cadence_seconds: number;
+}
+
+/** The current backend agents only write counts and short reasons to summaries. */
+export interface AgentSummary {
+  patterns?: number;
+  considered?: number;
+  groups?: number;
+  nodes_merged?: number;
+  reason?: string;
+}
+
+/** Matches the response from GET /v1/agents/runs. */
+export interface AgentRun {
+  id: string;
+  agent: string;
+  version: string;
+  trigger: "scheduled" | "manual";
+  status: "running" | "skipped" | "succeeded" | "failed";
+  started_at: string;
+  finished_at: string | null;
+  summary: AgentSummary;
+  error: string | null;
+}
+
+/** Matches each item returned by POST /v1/agents/run. */
+export interface AgentRunResult {
+  agent: string;
+  status: "skipped" | "succeeded" | "failed";
+  summary?: AgentSummary;
+  error?: string;
 }
 
 export class ApiError extends Error {
@@ -297,6 +363,18 @@ export const api = {
     );
   },
 
+  /** Synthesise a reply so it can be listened to.
+   *
+   * The envelope arrives with the audio because the blob has to move in time
+   * with the voice, and measuring loudness client-side is only possible on web.
+   * See `tlon/speech.py`. */
+  speak(token: string, text: string) {
+    return request<SpokenClip>("/v1/voice/speak", token, {
+      method: "POST",
+      body: JSON.stringify({ text }),
+    });
+  },
+
   listObservations(token: string, before?: string) {
     const query = before ? `?before=${encodeURIComponent(before)}` : "";
     return request<ListResponse>(`/v1/observations${query}`, token);
@@ -363,6 +441,31 @@ export const api = {
 
   graphSummary(token: string) {
     return request<GraphSummary>("/v1/graph/summary", token);
+  },
+
+  listPatterns(token: string) {
+    return request<Pattern[]>("/v1/patterns", token);
+  },
+
+  minePatterns(token: string) {
+    return request<MinePatternsResponse>("/v1/patterns/mine", token, {
+      method: "POST",
+    });
+  },
+
+  listAgents(token: string) {
+    return request<AgentInfo[]>("/v1/agents", token);
+  },
+
+  listAgentRuns(token: string, limit = 50) {
+    const query = new URLSearchParams({ limit: String(limit) }).toString();
+    return request<AgentRun[]>(`/v1/agents/runs?${query}`, token);
+  },
+
+  runAgents(token: string) {
+    return request<AgentRunResult[]>("/v1/agents/run", token, {
+      method: "POST",
+    });
   },
 };
 

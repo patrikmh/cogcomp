@@ -1,12 +1,16 @@
+import asyncio
 import logging
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from tlon.agents.scheduler import loop as agent_loop
+from tlon.api.agent_routes import router as agent_router
 from tlon.api.auth_routes import router as auth_router
 from tlon.api.conversation_routes import router as conversation_router
 from tlon.api.conversation_routes import voice_router
+from tlon.api.pattern_routes import router as pattern_router
 from tlon.api.routes import router
 from tlon.config import get_settings
 from tlon.conversation import build_agent
@@ -14,6 +18,7 @@ from tlon.db.engine import create_pool, run_migrations
 from tlon.extraction.pipeline import LangGraphExtractor
 from tlon.extraction.stub import StubExtractor
 from tlon.graph.schema import SCHEMA_VERSION
+from tlon.speech import build_voice
 from tlon.transcription import build_transcriber
 
 logger = logging.getLogger(__name__)
@@ -55,9 +60,27 @@ async def lifespan(app: FastAPI):
         settings.transcription_base_url,
         settings.transcription_model,
     )
+    app.state.voice = build_voice(
+        settings.transcription_api_key,
+        settings.speech_voice_id,
+        settings.speech_model,
+    )
+    scheduler = None
+    if settings.agents_enabled:
+        scheduler = asyncio.create_task(agent_loop(app.state.pool))
+    else:
+        logger.info("background agents are off (AGENTS_ENABLED=false)")
+
     logger.info("tlön backend ready (graph schema v%s)", SCHEMA_VERSION)
 
     yield
+
+    if scheduler is not None:
+        scheduler.cancel()
+        # Awaited so the cancellation actually lands before the pool closes —
+        # otherwise a tick can be mid-query when its connection disappears.
+        with suppress(asyncio.CancelledError):
+            await scheduler
 
     # Drain the pool on shutdown. A journal entry lost to a deploy is a thought the
     # user has to reconstruct.
@@ -74,4 +97,6 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(conversation_router)
 app.include_router(voice_router)
+app.include_router(pattern_router)
+app.include_router(agent_router)
 app.include_router(router)
