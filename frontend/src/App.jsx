@@ -2044,7 +2044,7 @@ function VarvApp({ username, onLogout }) {
               key={k}
               onClick={() => setView(k)}
               aria-current={view === k ? "page" : undefined}
-              style={{ ...s.navBtn, color: view === k ? T.petrolDark : T.soft, fontWeight: view === k ? 700 : 400 }}
+              style={{ ...s.navBtn, color: view === k ? T.petrolDark : T.soft, fontWeight: view === k ? 700 : 500, background: view === k ? T.accentSoft : "transparent", borderRadius: 12, minWidth: 68 }}
             >
               <span style={{ ...s.navDash, opacity: view === k ? 1 : 0 }} />
               {label}
@@ -2103,8 +2103,8 @@ function Login({ onLoggedIn }) {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: T.paper, display: "grid", placeItems: "center", fontFamily: F.body }}>
-      <form onSubmit={submit} style={{ background: T.card, padding: 28, borderRadius: 16, width: 280, display: "flex", flexDirection: "column", gap: 12 }}>
+    <div style={{ minHeight: "100vh", background: T.paper, display: "grid", placeItems: "center", padding: 20, fontFamily: F.body }}>
+      <form onSubmit={submit} style={{ background: T.card, border: `1px solid ${T.line}`, boxShadow: `0 18px 50px ${T.shadow}`, padding: 32, borderRadius: 22, width: "min(100%, 320px)", boxSizing: "border-box", display: "flex", flexDirection: "column", gap: 12 }}>
         <div style={{ fontFamily: F.display, fontWeight: 300, fontSize: 28, color: T.ink }}>Varv</div>
         <input
           autoFocus
@@ -3781,10 +3781,10 @@ const styles = {
   coin: { width: 32, height: 32, borderRadius: 10, background: T.surfaceQuiet, border: `1px solid ${T.line}`, display: "grid", placeItems: "center", fontSize: 16, color: T.ink, flexShrink: 0 },
   coinLg: { width: 42, height: 42, borderRadius: 13, background: T.surfaceQuiet, border: `1px solid ${T.line}`, display: "grid", placeItems: "center", fontSize: 21, color: T.ink, flexShrink: 0 },
   nav: { position: "fixed", bottom: 0, left: 0, right: 0, height: 68, background: "color-mix(in srgb, var(--surface) 92%, transparent)", backdropFilter: "blur(16px)", borderTop: `1px solid ${T.line}`, display: "flex", justifyContent: "space-around", alignItems: "center", maxWidth: "100%", zIndex: 40, paddingBottom: "env(safe-area-inset-bottom)" },
-  navBtn: { position: "relative", minWidth: 52, minHeight: 48, background: "none", border: "none", fontSize: 13, fontFamily: "inherit", cursor: "pointer", padding: "10px 10px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3 },
+  navBtn: { position: "relative", minWidth: 52, minHeight: 48, background: "none", border: "none", fontSize: 12, fontFamily: "inherit", cursor: "pointer", padding: "8px 10px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, letterSpacing: "0.01em" },
   navDash: { width: 20, height: 3, borderRadius: 2, background: T.petrol, display: "block" },
   navDot: { position: "absolute", top: 8, right: 8, width: 8, height: 8, borderRadius: 4, background: T.warn },
-  navPlus: { width: 48, height: 48, borderRadius: 24, background: T.petrol, color: T.card, border: "none", fontSize: 26, fontWeight: 400, cursor: "pointer", lineHeight: 1, boxShadow: `0 2px 8px ${T.shadow}` },
+  navPlus: { width: 52, height: 52, borderRadius: 17, background: T.petrol, color: T.card, border: "none", fontSize: 26, fontWeight: 400, cursor: "pointer", lineHeight: 1, boxShadow: `0 6px 16px ${T.shadow}` },
   sheetBackdrop: { position: "fixed", inset: 0, background: T.overlay, zIndex: 50, display: "flex", alignItems: "flex-end" },
   sheet: { background: T.card, borderRadius: "20px 20px 0 0", padding: "10px 16px 26px", width: "100%", maxWidth: 560, margin: "0 auto", boxSizing: "border-box" },
   sheetHandle: { width: 40, height: 4, borderRadius: 2, background: T.track, margin: "4px auto 14px" },
