@@ -2178,12 +2178,6 @@ function CaptureSheet({ onClose, onTask, onListItem, onIdea, onAuto, onTranscrib
   const idea = () => { if (v.trim()) { onIdea(v.trim()); onClose(); } };
   const auto = () => { if (v.trim()) { onAuto(v.trim()); onClose(); } };
   const primary = aiSortingEnabled ? auto : idea;
-  const submitOnShortcut = (e) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-      e.preventDefault();
-      primary();
-    }
-  };
 
   // Riktig mikrofoninspelning → uppladdning till varv-server (KB-Whisper), inte
   // webbläsarens inbyggda taligenkänning som skickar ljudet till Google.
@@ -2248,9 +2242,7 @@ function CaptureSheet({ onClose, onTask, onListItem, onIdea, onAuto, onTranscrib
             placeholder={rec ? "lyssnar…" : "Fånga den innan den försvinner…"}
             value={v}
             onChange={(e) => setV(e.target.value)}
-            onKeyDown={(e) => { submitOnShortcut(e); if (e.key === "Enter" && !e.shiftKey) primary(); }}
-            aria-label="Tanke att fånga"
-            maxLength={500}
+            onKeyDown={(e) => e.key === "Enter" && primary()}
           />
           <button
             style={{ ...s.micBtn, background: rec ? T.warn : T.petrol, opacity: vBusy ? 0.5 : 1 }}
@@ -2264,10 +2256,6 @@ function CaptureSheet({ onClose, onTask, onListItem, onIdea, onAuto, onTranscrib
         {rec && <div style={{ fontSize: 12, color: T.warn, textAlign: "center", marginTop: 6 }}>● spelar in — tala fritt, tryck ■ när du är klar</div>}
         {vBusy && <div style={{ fontSize: 12, color: T.soft, textAlign: "center", marginTop: 6 }}>transkriberar…</div>}
         {vErr && <div role="alert" style={{ fontSize: 12, color: T.warn, marginTop: 6 }}>{vErr}</div>}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8, color: T.soft, fontSize: 11 }}>
-          <span>{v.trim() ? "Redo att fångas" : "Skriv, tala eller klistra in"}</span>
-          <span>{v.length}/500</span>
-        </div>
         <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
           <button style={{ ...s.primaryBtn, flex: 1, opacity: v.trim() ? 1 : 0.5 }} disabled={!v.trim()} onClick={primary}>
             {aiSortingEnabled ? "Fånga — agenten sorterar" : "Spara som idé"}
