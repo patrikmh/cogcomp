@@ -116,6 +116,11 @@ jobs:
       - name: Typecheck
         run: npx tsc --noEmit
 
+      - name: Layout tests
+        # The force simulation is pure logic and the half of the explorer that
+        # would be painful to debug through a canvas, so it is tested directly.
+        run: npx jest
+
   ontology:
     # The ontology is duplicated across three files by necessity (SQL, Python, TS).
     # This is the check that they have not drifted apart.

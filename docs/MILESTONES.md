@@ -43,7 +43,10 @@ write more.
 
 `scripts/e2e.sh` drives the real app in a real browser (React Native Web, via
 Playwright) against the real backend: auth gate, signup, writing an entry, the daily
-summary, tentative-inference rendering, the empty day, and sign-out. Eighteen checks.
+summary, tentative-inference rendering, the explain screen, the dashboard, the
+Skia explorer, the empty day, and sign-out. Thirty-one checks. It clears API keys
+before starting the backend, so a real key in `.env` cannot make the run
+nondeterministic or expensive.
 
 The graph read API (`GET /v1/graph`, `GET /v1/graph/nodes/{id}/neighbours`) is the
 backend half of the explorer and the dashboard.
@@ -71,7 +74,17 @@ inference about the person. And if someone discloses risk of serious harm, the
 agent stops eliciting entirely and the app shows locally-configured services —
 `CRISIS_RESOURCES`, because a wrong-country hotline is worse than none.
 
-Outstanding for Milestone 1: the Skia graph explorer. The dashboard is done.
+The graph explorer is done, which completes Milestone 1. The force simulation is
+a pure module with its own tests (`src/lib/forceLayout.ts`) — the spec asks for
+test-first on graph algorithms, and the layout is the half that would be painful
+to debug through a canvas. It is deterministic: positions are seeded from node
+ids rather than `Math.random`, so the same graph always settles the same way and
+spatial memory of where things are actually works.
+
+Rendering is Skia. On web CanvasKit arrives as a WASM module, so the canvas is
+lazy-loaded behind a `Suspense` boundary whose lazy component is created once at
+module scope — building it per render remounts the canvas on every state change,
+which made selecting a node destroy the canvas it was selected on.
 
 ## Milestone 2
 

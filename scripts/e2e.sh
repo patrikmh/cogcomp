@@ -76,8 +76,22 @@ wait_for() {
 
 step "Starting services"
 
+# Cleared so the run uses the deterministic stubs even when real keys are in
+# .env. An end-to-end test that quietly starts calling a paid API is slow,
+# nondeterministic, and no longer testing this code — the same reasoning as the
+# integration suite's conftest. The live model is covered by benchmarks/.
+export OPENROUTER_API_KEY=""
+export TRANSCRIPTION_API_KEY=""
+export ELEVENLABS_API_KEY=""
+
 if curl -sf -o /dev/null "${API_URL}/health"; then
-  pass "backend already running"
+  # A backend we did not start may be running against real keys, which would
+  # make the confidence-dependent checks below nondeterministic.
+  if ! curl -s "${API_URL}/ready" | grep -q '/stub"'; then
+    echo "  ! a backend is already running with real keys; stop it first" >&2
+    exit 1
+  fi
+  pass "backend already running (stub extractor)"
 else
   (cd "${ROOT}/apps/backend" && .venv/bin/python -m uvicorn tlon.main:app \
     --host 0.0.0.0 --port "${API_PORT}" >"${LOGS}/api.log" 2>&1 &)
@@ -208,7 +222,29 @@ snapshot_contains "Nothing confident enough to show" \
   && pass "filtering removes the low-confidence guesses" \
   || fail "filter had no effect"
 
+step "The graph explorer"
+# Skia on web loads CanvasKit as a 7.6MB WASM module, so the canvas appears
+# several seconds after the route does. Waiting for the element rather than
+# sleeping a fixed amount keeps this from being flaky on a slow machine.
+playwright-cli goto "${WEB_URL}/explore" >/dev/null 2>&1
+CANVAS=""
+for _ in $(seq 1 20); do
+  if playwright-cli eval "document.querySelector('canvas') ? 'yes' : 'no'" 2>&1 | grep -q '"yes"'; then
+    CANVAS="yes"; break
+  fi
+  sleep 3
+done
+[ -n "$CANVAS" ] && pass "the Skia canvas renders" || fail "canvas never appeared"
+
+CANVAS_ERRORS="$(playwright-cli console 2>&1 | grep -oE 'Errors: [0-9]+' | grep -oE '[0-9]+' | head -1)"
+[ "${CANVAS_ERRORS:-0}" = "0" ] \
+  && pass "no errors while rendering the graph" \
+  || fail "${CANVAS_ERRORS} errors on the explorer"
+
 step "An empty day says so, without nudging"
+playwright-cli goto "${WEB_URL}/today" >/dev/null 2>&1
+sleep 3
+playwright-cli snapshot >/dev/null 2>&1
 playwright-cli goto "${WEB_URL}/today" >/dev/null 2>&1
 sleep 3
 playwright-cli snapshot >/dev/null 2>&1

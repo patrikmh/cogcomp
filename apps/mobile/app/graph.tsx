@@ -59,6 +59,8 @@ function Body({
   hideTentative: boolean;
   onToggle: () => void;
 }) {
+  const router = useRouter();
+
   if (graph.total_nodes === 0) {
     return (
       <ScrollView contentContainerStyle={styles.screen}>
@@ -92,6 +94,10 @@ function Body({
           Showing {graph.returned} of {graph.total_nodes} nodes.
         </Text>
       )}
+
+      <Pressable style={styles.explore} onPress={() => router.push("/explore")}>
+        <Text style={styles.exploreLabel}>Explore the graph →</Text>
+      </Pressable>
 
       <Pressable onPress={onToggle} style={styles.toggle}>
         <Text style={styles.toggleText}>
@@ -175,6 +181,14 @@ const styles = StyleSheet.create({
   },
   statValue: { fontSize: 24, fontWeight: "700" },
   statLabel: { fontSize: 11, color: "#71717a", textAlign: "center" },
+  explore: {
+    borderWidth: 1,
+    borderColor: "#18181b",
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  exploreLabel: { fontSize: 15, fontWeight: "600", color: "#18181b" },
   toggle: { paddingVertical: 6 },
   toggleText: { fontSize: 14, color: "#3f3f46" },
   kinds: { flexDirection: "row", flexWrap: "wrap", gap: 6 },

@@ -4,9 +4,19 @@
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "paths": {
-      "@/*": ["./src/*"],
-      "@tlon/ontology": ["../../packages/ontology/index.ts"]
-    }
+      "@/*": [
+        "./src/*"
+      ],
+      "@tlon/ontology": [
+        "../../packages/ontology/index.ts"
+      ]
+    },
+    "module": "esnext",
+    "moduleResolution": "bundler"
   },
-  "include": ["**/*.ts", "**/*.tsx", "../../packages/ontology/*.ts"]
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "../../packages/ontology/*.ts"
+  ]
 }
