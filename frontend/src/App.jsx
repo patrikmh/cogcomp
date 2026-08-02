@@ -1114,6 +1114,10 @@ function VarvApp({ username, onLogout }) {
         body { margin: 0; background: var(--canvas); }
         button, input, textarea, select { font: inherit; }
         ::selection { background: var(--accent-soft); color: var(--text); }
+        input:focus, textarea:focus, select:focus { border-color: var(--accent) !important; box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-soft) 75%, transparent); outline: none; }
+        button:disabled { cursor: not-allowed; opacity: 0.55; }
+        @media (max-width: 600px) { .shell { padding-left: 16px !important; padding-right: 16px !important; } .today-grid { gap: 0; } }
+        @media (min-width: 1200px) { .shell { padding-left: 30px; padding-right: 30px; } }
 
         /* Sober micro-interactions: a quiet press-down on tap, a quiet lift on hover
            (desktop only — "hover: hover" keeps touch devices from getting a stuck
@@ -3704,7 +3708,7 @@ const styles = {
   // Bredden bor i .shell-regeln i <style> så mediafrågan kan bredda den på
   // laptop — en inline maxWidth hade vunnit över stylesheetet.
   shell: { margin: "0 auto", padding: "22px 22px 132px" },
-  header: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, paddingBottom: 14, borderBottom: `1px solid ${T.rule}` },
+  header: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, paddingBottom: 14, borderBottom: `1px solid ${T.rule}`, position: "relative" },
   /* Loggan är ~16:9 (VARV med loop-motivet) — utgå från höjden så headern
      håller sig slank, och låt bredden följa. Ska dominera headern — varu-
      märket först, avatar-knappen underordnad. */
@@ -3740,7 +3744,7 @@ const styles = {
   primaryBtn: { background: T.petrol, color: T.card, border: "none", borderRadius: 11, padding: "12px 17px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: `0 4px 12px ${T.shadow}` },
   ghostBtn: { background: "transparent", color: T.petrolDark, border: `1.5px solid ${T.petrol}`, borderRadius: 12, padding: "10px 14px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" },
   linkBtn: { background: "none", border: "none", color: T.petrolDark, fontSize: 14, fontWeight: 700, cursor: "pointer", padding: "6px 2px", fontFamily: "inherit" },
-  input: { width: "100%", boxSizing: "border-box", padding: "11px 12px", borderRadius: 12, border: `1px solid ${T.line}`, background: T.control, fontSize: 15, marginTop: 8, fontFamily: "inherit", color: T.ink },
+  input: { width: "100%", boxSizing: "border-box", padding: "12px 13px", borderRadius: 11, border: `1px solid ${T.line}`, background: T.control, fontSize: 15, marginTop: 8, fontFamily: "inherit", color: T.ink, transition: "border-color 0.15s ease, box-shadow 0.15s ease" },
   select: { padding: "9px 10px", borderRadius: 10, border: `1px solid ${T.line}`, background: T.control, fontSize: 14, fontFamily: "inherit", marginTop: 4 },
   smallLabel: { display: "flex", flexDirection: "column", fontSize: 12, color: T.soft, marginTop: 8 },
   timeline: { position: "relative", marginTop: 12, paddingLeft: 2 },
@@ -3762,7 +3766,7 @@ const styles = {
   restPlus: { font: `500 13px ${F.mono}`, color: T.moss, flexShrink: 0 },
   footer: { textAlign: "center", color: T.soft, fontSize: 13, marginTop: 36 },
   captureRow: { display: "flex", gap: 8, marginBottom: 6 },
-  captureInput: { flex: 1, boxSizing: "border-box", width: "100%", padding: "11px 14px", borderRadius: 12, border: `1.5px solid ${T.track}`, background: T.control, fontSize: 15, fontFamily: "inherit", color: T.ink },
+  captureInput: { flex: 1, boxSizing: "border-box", width: "100%", padding: "12px 14px", borderRadius: 11, border: `1.5px solid ${T.track}`, background: T.control, fontSize: 15, fontFamily: "inherit", color: T.ink, transition: "border-color 0.15s ease, box-shadow 0.15s ease" },
   winddownBanner: { background: T.night, color: T.nightText, borderRadius: 12, padding: "10px 14px", fontSize: 14, marginTop: 10 },
   medRow: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginTop: 12, paddingTop: 12, borderTop: `1px solid ${T.line}`, flexWrap: "wrap" },
   medBtn: { background: "transparent", border: `1px solid ${T.line}`, borderRadius: 16, padding: "7px 11px", fontSize: 12, color: T.spruce, cursor: "pointer", fontFamily: "inherit" },
