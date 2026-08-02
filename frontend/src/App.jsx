@@ -1118,6 +1118,7 @@ function VarvApp({ username, onLogout }) {
         button:disabled { cursor: not-allowed; opacity: 0.55; }
         @media (max-width: 600px) { .shell { padding-left: 16px !important; padding-right: 16px !important; } .today-grid { gap: 0; } }
         @media (min-width: 1200px) { .shell { padding-left: 30px; padding-right: 30px; } }
+        @media (min-width: 900px) { .nav { background: transparent !important; border-top: 0 !important; box-shadow: none !important; backdrop-filter: none !important; } .nav-inner { max-width: 520px; margin-bottom: 14px; padding: 6px 10px; border: 1px solid var(--border-subtle); border-radius: 18px; background: color-mix(in srgb, var(--surface) 94%, transparent); box-shadow: 0 8px 24px var(--shadow); } }
 
         /* Sober micro-interactions: a quiet press-down on tap, a quiet lift on hover
            (desktop only — "hover: hover" keeps touch devices from getting a stuck
@@ -2036,7 +2037,7 @@ function VarvApp({ username, onLogout }) {
       {/* Modalerna täcker hela skärmen — då ska navigeringen inte ligga kvar och
           se klickbar ut (eller nås med tab) bakom dem. */}
       {!blockingOverlayOpen && (
-      <nav aria-label="Huvudnavigation" style={s.nav}>
+      <nav className="nav" aria-label="Huvudnavigation" style={s.nav}>
         <div className="nav-inner">
         {[["today", "Idag"], ["ideas", "Idéer"], ["capture", "+"], ["lists", "Listor"], ["tools", "Verktyg"]].map(([k, label]) =>
           k === "capture" ? (
@@ -3784,7 +3785,7 @@ const styles = {
      color så SVG-ikonerna får samma färg som omgivande text i mörkt läge. */
   coin: { width: 32, height: 32, borderRadius: 10, background: T.surfaceQuiet, border: `1px solid ${T.line}`, display: "grid", placeItems: "center", fontSize: 16, color: T.ink, flexShrink: 0 },
   coinLg: { width: 42, height: 42, borderRadius: 13, background: T.surfaceQuiet, border: `1px solid ${T.line}`, display: "grid", placeItems: "center", fontSize: 21, color: T.ink, flexShrink: 0 },
-  nav: { position: "fixed", bottom: 0, left: 0, right: 0, height: 68, background: "color-mix(in srgb, var(--surface) 92%, transparent)", backdropFilter: "blur(16px)", borderTop: `1px solid ${T.line}`, display: "flex", justifyContent: "space-around", alignItems: "center", maxWidth: "100%", zIndex: 40, paddingBottom: "env(safe-area-inset-bottom)" },
+  nav: { position: "fixed", bottom: 0, left: 0, right: 0, height: 68, background: "color-mix(in srgb, var(--surface) 92%, transparent)", backdropFilter: "blur(16px)", borderTop: `1px solid ${T.line}`, boxShadow: "0 -8px 24px rgba(24, 42, 49, 0.06)", display: "flex", justifyContent: "space-around", alignItems: "center", maxWidth: "100%", zIndex: 40, paddingBottom: "env(safe-area-inset-bottom)" },
   navBtn: { position: "relative", minWidth: 52, minHeight: 48, background: "none", border: "none", fontSize: 12, fontFamily: "inherit", cursor: "pointer", padding: "8px 10px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, letterSpacing: "0.01em" },
   navDash: { width: 20, height: 3, borderRadius: 2, background: T.petrol, display: "block" },
   navDot: { position: "absolute", top: 8, right: 8, width: 8, height: 8, borderRadius: 4, background: T.warn },
