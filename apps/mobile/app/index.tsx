@@ -116,6 +116,12 @@ export default function JournalScreen() {
         <Link href="/graph" style={styles.link}>
           Graph
         </Link>
+        <Link href="/patterns" style={styles.link}>
+          Patterns
+        </Link>
+        <Link href="/agents" style={styles.link}>
+          Activity
+        </Link>
         <Pressable
           onPress={() => {
             // Revoke server-side too, so a copied token cannot outlive sign-out.
@@ -194,7 +200,7 @@ const styles = StyleSheet.create({
   talkNote: { fontSize: 11, color: "#a1a1aa", textAlign: "center" },
   loader: { marginTop: 24 },
   list: { gap: 8, paddingBottom: 24 },
-  row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  row: { flexDirection: "row", flexWrap: "wrap", gap: 16, alignItems: "center" },
   entry: {
     borderWidth: 1,
     borderColor: "#e4e4e7",

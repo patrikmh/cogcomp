@@ -16,7 +16,7 @@ checkboxes but standing gates, so they are tracked once:
 
 | Gate | Status | Notes |
 |---|---|---|
-| Unit tests pass | ✅ | 388 backend, 85 mobile, all green |
+| Unit tests pass | ✅ | 389 backend and 90 mobile tests green; Ruff and TypeScript checks clean |
 | Explainability available | ✅ | `/v1/nodes/{id}/explain`; every inference traces to the entry that produced it |
 | Confidence scores included | ✅ | Enforced by CHECK constraint, not convention — an inference without one cannot be inserted |
 | Provenance retained | ✅ | `node_provenance` / `edge_provenance` are tables with FKs into `observations` |
@@ -44,7 +44,7 @@ checkboxes but standing gates, so they are tracked once:
 
 | Feature | Status | Notes |
 |---|---|---|
-| Pattern mining | ✅ | `tlon/patterns.py` + `POST /v1/patterns/mine`, and now also a background agent. Exact normalised matching, ≥3 entries across ≥2 days, confidence never exceeds its weakest input. **Not yet surfaced in the app** |
+| Pattern mining | ✅ | `tlon/patterns.py` + `POST /v1/patterns/mine`, background agent, and mobile Patterns screen. Exact normalised matching, ≥3 entries across ≥2 days, confidence never exceeds its weakest input. |
 | Memory consolidation | ✅ | `tlon/agents/consolidation.py`. Merges duplicate inferred nodes on exact normalised labels; survivor inherits all provenance, `node_merges` records what was absorbed. Observations are never merged |
 | Identity graph | ⬜ | |
 | Weekly reports | ⬜ | |
@@ -57,7 +57,7 @@ checkboxes but standing gates, so they are tracked once:
 | Feature | Status | Notes |
 |---|---|---|
 | Multi-agent system | 🟡 | Framework done: registry, per-user runner, scheduler, failure containment. Two agents live (consolidation, patterns) |
-| Observability engine | 🟡 | `agent_runs` records every attempt — including skips and failures — with trigger, version, and counts. `GET /v1/agents/runs`. Not yet a UI |
+| Observability engine | ✅ | `agent_runs` records every attempt — including skips and failures — with trigger, version, and counts. `GET /v1/agents/runs` and mobile Agent activity screen. |
 | Temporal graph reasoning | ⬜ | |
 | Digital twin prototype | ⬜ | |
 
@@ -113,12 +113,10 @@ Things that are genuinely not done, stated plainly rather than left to be discov
    bounded only by Argon2id's cost.
 2. **CI has never run on GitHub.** Every step is verified locally; the workflow
    itself is unexercised.
-3. **Patterns are not in the UI.** The endpoint works and is tested; nothing
-   renders it yet. The agent run log has the same gap.
-4. **No ADR** for two decisions that deserve one: the Rust→Python pivot, and
+3. **No ADR** for two decisions that deserve one: the Rust→Python pivot, and
    FalkorDB vs Graphiti as the graph layer.
-5. **Graphiti** is intended as the graph layer at a later milestone; not evaluated.
-6. **Realtime voice loop** (websocket VAD, barge-in) is not ported. `/v1/voice/token`
+4. **Graphiti** is intended as the graph layer at a later milestone; not evaluated.
+5. **Realtime voice loop** (websocket VAD, barge-in) is not ported. `/v1/voice/token`
    exists as groundwork.
-7. **Web storage is weaker than native.** `expo-secure-store` has no web
+6. **Web storage is weaker than native.** `expo-secure-store` has no web
    implementation, so the web build falls back to localStorage. Test surface only.

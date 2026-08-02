@@ -81,6 +81,8 @@ function Gate() {
         <Stack.Screen name="today" options={{ title: "Today" }} />
         <Stack.Screen name="talk" options={{ title: "Talk it through" }} />
         <Stack.Screen name="graph" options={{ title: "Graph" }} />
+        <Stack.Screen name="patterns" options={{ title: "Patterns" }} />
+        <Stack.Screen name="agents" options={{ title: "Agent activity" }} />
         <Stack.Screen name="explore" options={{ title: "Explore" }} />
         <Stack.Screen name="node/[id]" options={{ title: "Where this came from" }} />
       </Stack>
