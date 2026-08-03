@@ -29,6 +29,18 @@ jobs:
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
+      falkordb:
+        # The Themes agent is part of the production registry and is exercised
+        # by the full-agent integration test. Match the local Compose dependency
+        # rather than mocking that boundary only in CI.
+        image: falkordb/falkordb:latest
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
 
     env:
       # CI's Postgres is on the default port; local dev uses 5433 to avoid a clash.
