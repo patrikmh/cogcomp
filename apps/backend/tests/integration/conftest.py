@@ -102,7 +102,11 @@ async def clean_tables(client) -> AsyncIterator[None]:
     through the foreign keys from `users`.
     """
     yield
-    await client._transport.app.state.pool.execute("TRUNCATE users CASCADE")
+    # `login_attempts` deliberately has no foreign key to users — attempts
+    # against addresses with no account must be counted too — so the cascade
+    # does not reach it and it has to be named. Left out, one test's failed
+    # sign-ins could lock an address a later test tries to use.
+    await client._transport.app.state.pool.execute("TRUNCATE users, login_attempts CASCADE")
 
 
 class Account:

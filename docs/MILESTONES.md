@@ -92,11 +92,26 @@ lazy-loaded behind a `Suspense` boundary whose lazy component is created once at
 module scope — building it per render remounts the canvas on every state change,
 which made selecting a node destroy the canvas it was selected on.
 
-## Milestone 2
+## Milestone 2 (complete)
 
-Memory consolidation, pattern mining, identity graph, weekly reports, experiment
-engine. `Pattern` nodes and `CO_OCCURS_WITH` edges exist in the schema but nothing
-produces them yet — pattern mining becomes a node in the existing LangGraph pipeline.
+Memory consolidation, pattern mining, identity graph, weekly reports, and the
+experiment engine are implemented. The identity graph is a user-curated
+projection over existing Value/Belief/Need/Activity nodes; it does not add an
+ontology kind. Pattern mining is deterministic and provenance-backed.
+
+The experiment engine provides user-authored drafts, explicit revisioned
+lifecycle transitions, same-user Pattern evidence links, Journal-backed
+check-ins, qualitative completion with an attached final check-in, account
+isolation, and soft deletion. It has no score or generated interpretation; see
+`docs/EXPERIMENTS.md` and ADR-0005.
+
+Identity selection/removal is separate from epistemic status and retains removed
+selections as tombstones. Active selections are protected from consolidation.
+
+Weekly reports are done: on-demand, read-only Monday–Sunday windows in the caller's
+IANA timezone, with DST-safe bounds, seven buckets, explainable hypotheses, and
+counted recurrence. No report persistence, generated prose, score, trend, diagnosis,
+or engagement prompt is involved (ADR-0004).
 
 ## Milestone 3
 

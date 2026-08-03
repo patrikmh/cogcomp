@@ -102,6 +102,26 @@ async def listed(client: AsyncClient, account: Account) -> list[dict]:
     return response.json()
 
 
+async def thursday_recurrence(
+    client: AsyncClient,
+    pool: asyncpg.Pool,
+    account: Account,
+    label: str = "drained",
+) -> list[UUID]:
+    observations = await recurring(
+        client,
+        pool,
+        account,
+        label,
+        days=(4, 11, 18, 25),
+    )
+    # The calendar shape is only meaningful if the person also wrote at other
+    # times. Otherwise this would detect their journalling habit, not their life.
+    for offset in (5, 6, 7):
+        await entry(client, account, DAY_ONE + timedelta(days=offset))
+    return observations
+
+
 class TestMining:
     async def test_an_empty_graph_yields_no_patterns(self, client: AsyncClient, account: Account):
         assert await mine(client, account) == {
@@ -146,6 +166,80 @@ class TestMining:
         # you. The person asks, and then it looks.
         await recurring(client, pool, account, "dread")
         assert await listed(client, account) == []
+
+
+class TestWeekdayPeriodicity:
+    async def test_a_weekday_shape_is_a_separate_pattern_claim(
+        self, client: AsyncClient, pool: asyncpg.Pool, account: Account
+    ):
+        observations = await thursday_recurrence(client, pool, account)
+
+        assert await mine(client, account) == {
+            "patterns": 2,
+            "added": 2,
+            "confirmed": 0,
+            "considered": 4,
+        }
+        patterns = {pattern["detector"]: pattern for pattern in await listed(client, account)}
+
+        assert patterns["exact-label"]["label"] == "drained"
+        assert patterns["weekday"]["label"] == "drained · Thursdays"
+        assert patterns["weekday"]["occurrences"] == 4
+
+        periodic_id = UUID(patterns["weekday"]["id"])
+        assert (
+            await pool.fetchval(
+                "SELECT extractor FROM graph_nodes WHERE id = $1",
+                periodic_id,
+            )
+            == "periodicity-v0.1"
+        )
+        cited = await pool.fetch(
+            "SELECT observation_id FROM node_provenance WHERE node_id = $1",
+            periodic_id,
+        )
+        assert {row["observation_id"] for row in cited} == set(observations)
+
+    async def test_a_thursday_only_writer_gets_no_weekday_claim(
+        self, client: AsyncClient, pool: asyncpg.Pool, account: Account
+    ):
+        await recurring(client, pool, account, "drained", days=(4, 11, 18, 25))
+        await mine(client, account)
+
+        assert [pattern["detector"] for pattern in await listed(client, account)] == ["exact-label"]
+
+    async def test_a_weekday_verdict_is_independent_of_generic_recurrence(
+        self, client: AsyncClient, pool: asyncpg.Pool, account: Account
+    ):
+        await thursday_recurrence(client, pool, account)
+        await mine(client, account)
+        first = {pattern["detector"]: pattern for pattern in await listed(client, account)}
+
+        await pool.execute(
+            "UPDATE graph_nodes SET epistemic_status = 'user_rejected' WHERE id = $1",
+            UUID(first["weekday"]["id"]),
+        )
+        await mine(client, account)
+        second = {pattern["detector"]: pattern for pattern in await listed(client, account)}
+
+        assert second["weekday"]["id"] == first["weekday"]["id"]
+        assert second["weekday"]["epistemic_status"] == "user_rejected"
+        assert second["exact-label"]["epistemic_status"] == "hypothesis"
+
+    async def test_an_off_weekday_occurrence_lapses_only_the_calendar_claim(
+        self, client: AsyncClient, pool: asyncpg.Pool, account: Account
+    ):
+        await thursday_recurrence(client, pool, account)
+        await mine(client, account)
+
+        friday = await entry(client, account, DAY_ONE + timedelta(days=26))
+        await inferred(pool, account, friday, "drained")
+        await mine(client, account)
+
+        patterns = await listed(client, account)
+        assert [(pattern["detector"], pattern["label"]) for pattern in patterns] == [
+            ("exact-label", "drained")
+        ]
 
 
 class TestWhatTheDatabaseEnforces:

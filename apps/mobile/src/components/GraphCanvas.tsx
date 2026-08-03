@@ -3,6 +3,7 @@ import { StyleSheet, View } from "react-native";
 
 import type { GraphNode } from "@/lib/api";
 import type { LayoutEdge, LayoutNode } from "@/lib/forceLayout";
+import { colors } from "@/theme";
 
 const NODE_RADIUS = 9;
 const OBSERVATION_RADIUS = 12;
@@ -10,17 +11,17 @@ const OBSERVATION_RADIUS = 12;
  *  Tentative ones are drawn hollow rather than tinted, because a colour shift
  *  reads as a different category and an outline reads as "not filled in yet". */
 const KIND_COLOUR: Record<string, string> = {
-  Observation: "#18181b",
-  Thought: "#2563eb",
-  Emotion: "#db2777",
-  Need: "#ea580c",
-  Value: "#7c3aed",
-  Belief: "#0891b2",
-  Person: "#16a34a",
-  Place: "#65a30d",
-  Activity: "#ca8a04",
-  Event: "#dc2626",
-  Pattern: "#475569",
+  Observation: colors.ink,
+  Thought: colors.cyan,
+  Emotion: colors.pink,
+  Need: "#fb923c",
+  Value: colors.violet,
+  Belief: "#22d3ee",
+  Person: "#4ade80",
+  Place: "#a3e635",
+  Activity: colors.warning,
+  Event: colors.danger,
+  Pattern: colors.inkMuted,
 };
 
 /**
@@ -66,7 +67,7 @@ export default function GraphCanvas({
                 key={index}
                 p1={vec(a.x, a.y)}
                 p2={vec(b.x, b.y)}
-                color={touchesSelection ? "#18181b" : "#d4d4d8"}
+                color={touchesSelection ? colors.ink : colors.line}
                 strokeWidth={touchesSelection ? 2 : 1}
               />
             );
@@ -79,7 +80,14 @@ export default function GraphCanvas({
             return (
               <Group key={node.id}>
                 {node.id === selected && (
-                  <Circle cx={node.x} cy={node.y} r={radius + 5} color="#18181b" />
+                  <Circle
+                    cx={node.x}
+                    cy={node.y}
+                    r={radius + 5}
+                    color={colors.ink}
+                    style="stroke"
+                    strokeWidth={2}
+                  />
                 )}
                 <Circle
                   cx={node.x}
@@ -102,5 +110,5 @@ export default function GraphCanvas({
 }
 
 const styles = StyleSheet.create({
-  wrap: { backgroundColor: "#fff" },
+  wrap: { backgroundColor: colors.room },
 });

@@ -16,9 +16,9 @@ declared shapes, chosen because each one probes a different failure:
   it exists, rather than being drowned by months of unrelated history.
 - **sparse** — genuinely recurring but thin. Sits near the reporting threshold on
   purpose: this is where a detector either under-reports or starts inventing.
-- **weekly** — only ever on the same weekday. Invisible to exact-label counting,
-  which is the point: it is the ground truth for the periodicity detector that
-  does not exist yet, and it should show up as a *missed* thread until it does.
+- **weekly** — only ever on the same weekday. Exact-label counting sees that it
+  recurs but cannot see the calendar shape; detector-specific ground truth keeps
+  those two claims separate.
 - **noise** — mentioned once or twice, never a pattern. Any detector that reports
   these is manufacturing findings, which is the failure that matters most.
 """
@@ -93,8 +93,8 @@ THREADS: tuple[Thread, ...] = (
         kind="Emotion",
         days=_weekdays(0, HORIZON_DAYS, 3),
         expected=True,
-        probes="weekly: only ever a Thursday. Exact-label counting cannot see the "
-        "shape, only the recurrence — the periodicity detector is what this is for.",
+        probes="weekly: only ever a Thursday. Exact-label counting can see the "
+        "recurrence, but only the periodicity detector can claim the calendar shape.",
     ),
     Thread(
         label="the dentist",
@@ -172,6 +172,14 @@ EXPECTED: dict[str, Thread] = {
 FORBIDDEN: frozenset[str] = frozenset(
     f"{thread.kind}:{thread.label}" for thread in THREADS if not thread.expected
 )
+
+#: Calendar claims have their own truth. A generic ``Emotion:drained`` recurrence
+#: is correct too, but it cannot satisfy this expectation.
+EXPECTED_PERIODICITY: dict[str, Thread] = {
+    "Emotion:drained:weekday:3": next(
+        thread for thread in THREADS if thread.label == "drained"
+    )
+}
 
 
 def entries_on(day: int) -> list[Thread]:

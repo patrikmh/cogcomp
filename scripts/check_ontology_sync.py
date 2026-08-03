@@ -70,7 +70,9 @@ def sql_check_values(constraint: str) -> set[str]:
 
 def python_enum_values(name: str, path: Path = PY) -> set[str]:
     text = path.read_text()
-    match = re.search(rf"class {name}\(StrEnum\):(.*?)(?=\n\nclass |\n\n#|\Z)", text, re.DOTALL)
+    match = re.search(
+        rf"class {name}\(StrEnum\):(.*?)(?=\n\nclass |\n\n#|\Z)", text, re.DOTALL
+    )
     if not match:
         fail(f"could not find enum {name} in {path.name}")
         return set()
@@ -157,7 +159,9 @@ def main() -> int:
         print(f"  ✓ {path.name}")
 
     print("\nConfidence threshold agrees")
-    ts_threshold = re.search(r"TENTATIVE_CONFIDENCE_THRESHOLD = ([\d.]+)", TS.read_text())
+    ts_threshold = re.search(
+        r"TENTATIVE_CONFIDENCE_THRESHOLD = ([\d.]+)", TS.read_text()
+    )
     py_threshold = re.search(
         r"TENTATIVE_THRESHOLD = ([\d.]+)",
         INFERENCE.read_text(),

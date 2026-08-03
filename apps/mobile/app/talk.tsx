@@ -5,7 +5,6 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,12 +12,19 @@ import {
   View,
 } from "react-native";
 
+import { AtmosphericShell } from "@/components/Atmospheric";
+import { FieldFrame } from "@/components/SpatialField";
+import { MotionSurface } from "@/components/MotionSurface";
+import { useReducedMotion } from "@/lib/motion";
 import { RecordButton, type RecordState } from "@/components/RecordButton";
 import { ApiError, api, type Conversation } from "@/lib/api";
 import type { BlobState } from "@/lib/blobShape";
 import { lazySkia } from "@/lib/lazySkia";
+import { useContinuousVoice } from "@/lib/useContinuousVoice";
 import { useSpokenReply } from "@/lib/useSpokenReply";
+import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
+import { colors } from "@/theme";
 
 const LazyBlob = lazySkia(() => import("@/components/Blob"));
 
@@ -34,6 +40,17 @@ const FOCUS_BLOB_SIZE = 300;
  * changes on screen without saying why is unsettling rather than companionable.
  * Deliberately plain: it reports state, it does not perform a personality.
  */
+/** What the continuous loop is doing, in words. The shape alone is not
+ *  accessible, and "is it listening?" must never be a question in an app people
+ *  use to talk about difficult things. */
+const LIVE_LABEL: Record<string, string> = {
+  off: "Start talking",
+  listening: "Listening — say anything",
+  hearing: "Hearing you",
+  thinking: "Thinking",
+  replying: "Speaking",
+};
+
 const STAGE_LABEL: Record<BlobState, string> = {
   idle: "Tap to see the transcript · drag to spin",
   listening: "Listening",
@@ -56,6 +73,7 @@ export default function TalkScreen() {
   const [draft, setDraft] = useState("");
   const [crisis, setCrisis] = useState<string[] | null>(null);
   const [recording, setRecording] = useState<RecordState>("idle");
+  const reducedMotion = useReducedMotion();
   // Focus is the default. The sphere is the interface — the transcript is there
   // for when you want to check what you said, not the thing you sit and read
   // while talking.
@@ -63,12 +81,15 @@ export default function TalkScreen() {
   // Cleared on a timer rather than tracked from the thread: "has just replied" is
   // a moment, and the last turn stays the agent's long after that moment passes.
   const [justReplied, setJustReplied] = useState(false);
-  const [voiceOn, setVoiceOn] = useState(true);
+
   const scrollRef = useRef<ScrollView>(null);
 
   // Speaking is an addition to the text, never a replacement: if it is off, or
   // unconfigured, or fails, the reply is still on screen to read.
+  const voiceOn = usePreferences((s) => s.voice);
+  const setVoice = usePreferences((s) => s.setVoice);
   const voice = useSpokenReply(token, voiceOn);
+
 
   const start = useMutation({
     mutationFn: () => api.startConversation(token!),
@@ -119,6 +140,23 @@ export default function TalkScreen() {
     },
   });
 
+
+  /**
+   * Continuous mode: the conversation runs itself.
+   *
+   * The microphone stays open, the detector decides when a thought has finished,
+   * and the reply is spoken back. `speaking` is passed straight through so the
+   * microphone is shut while the agent talks — otherwise its own voice becomes
+   * the next turn and the two of them talk to each other indefinitely.
+   */
+  const live = useContinuousVoice({
+    enabled: Boolean(conversationId),
+    speaking: voice.speaking || speak.isPending || say.isPending,
+    onUtterance: async (uri) => {
+      await speak.mutateAsync(uri);
+    },
+  });
+
   useEffect(() => {
     if (!justReplied) return;
     const timer = setTimeout(() => setJustReplied(false), 2600);
@@ -143,7 +181,8 @@ export default function TalkScreen() {
           : "idle";
 
   return (
-    <KeyboardAvoidingView
+    <AtmosphericShell variant="secondary">
+      <KeyboardAvoidingView
       style={[styles.screen, focus && styles.screenFocus]}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       keyboardVerticalOffset={90}
@@ -152,34 +191,36 @@ export default function TalkScreen() {
           is a dark room with one light in it. */}
       <Stack.Screen options={{ headerShown: !focus }} />
 
-      <Pressable
-        style={[styles.stage, focus && styles.stageFocus]}
-        onPress={() => setFocus((on) => !on)}
-        accessibilityRole="button"
-        accessibilityLabel={focus ? "Leave focus mode" : "Enter focus mode"}
-      >
-        <Suspense
-          fallback={
-            <View
-              style={{ height: focus ? FOCUS_BLOB_SIZE : BLOB_SIZE }}
-            />
-          }
+      <FieldFrame label="Conversation spatial stage"><View style={[styles.stage, focus && styles.stageFocus]}>
+        <MotionSurface
+          style={[styles.stageControl, focus && styles.stageControlFocus]}
+          onPress={() => setFocus((on) => !on)}
+          accessibilityRole="button"
+          accessibilityLabel={focus ? "Leave focus mode" : "Enter focus mode"}
         >
-          <LazyBlob
-            state={blobState}
-            size={focus ? FOCUS_BLOB_SIZE : BLOB_SIZE}
-            energy={voice.level}
-          />
-        </Suspense>
-        <Text style={[styles.stageHint, focus && styles.stageHintFocus]}>
-          {STAGE_LABEL[blobState]}
-        </Text>
-        <Pressable
+          <Suspense
+            fallback={
+              <View
+                style={{ height: focus ? FOCUS_BLOB_SIZE : BLOB_SIZE }}
+              />
+            }
+          >
+            <LazyBlob
+              state={blobState}
+              size={focus ? FOCUS_BLOB_SIZE : BLOB_SIZE}
+              energy={voice.level}
+            />
+          </Suspense>
+          <Text style={[styles.stageHint, focus && styles.stageHintFocus]}>
+            {STAGE_LABEL[blobState]}
+          </Text>
+        </MotionSurface>
+        <MotionSurface
           onPress={() => {
             // Turning it off stops the current sentence too. Waiting for a reply
             // you have just muted to finish is the opposite of what you asked for.
             if (voiceOn) voice.stop();
-            setVoiceOn((on) => !on);
+            void setVoice(!voiceOn);
           }}
           accessibilityRole="switch"
           accessibilityState={{ checked: voiceOn }}
@@ -187,8 +228,8 @@ export default function TalkScreen() {
           <Text style={[styles.voiceToggle, focus && styles.voiceToggleFocus]}>
             {voiceOn ? "Voice on" : "Voice off"}
           </Text>
-        </Pressable>
-      </Pressable>
+        </MotionSurface>
+      </View></FieldFrame>
 
       {focus ? (
         // Focus mode strips the thread away. What is left is the blob, the last
@@ -205,7 +246,7 @@ export default function TalkScreen() {
       <ScrollView
         ref={scrollRef}
         contentContainerStyle={styles.thread}
-        onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
+        onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: !reducedMotion })}
       >
         {turns.length === 0 && !start.isPending && (
           <Text style={styles.opening}>
@@ -283,15 +324,15 @@ export default function TalkScreen() {
         )}
         <View style={styles.actions}>
           {!focus && (
-          <Pressable
+          <MotionSurface
             style={[styles.send, (!draft.trim() || say.isPending) && styles.disabled]}
             disabled={!draft.trim() || say.isPending}
             onPress={() => say.mutate({ text: draft, source: "text" })}
           >
             <Text style={styles.sendLabel}>Send</Text>
-          </Pressable>
+          </MotionSurface>
           )}
-          <Pressable
+          <MotionSurface
             style={[
               styles.finish,
               focus && styles.finishFocus,
@@ -303,80 +344,141 @@ export default function TalkScreen() {
             <Text style={[styles.finishLabel, focus && styles.finishLabelFocus]}>
               {finish.isPending ? "Saving…" : "Finish & save"}
             </Text>
-          </Pressable>
+          </MotionSurface>
         </View>
 
         {conversationId && (
-          <RecordButton
-            disabled={say.isPending || speak.isPending}
-            onRecorded={async (uri) => {
-              await speak.mutateAsync(uri);
-            }}
-            onStateChange={setRecording}
-            tone={focus ? "dark" : "light"}
-          />
+          <View style={styles.voiceRow}>
+            {/* One control for the whole conversation, rather than a button held
+                down once per sentence. Holding a button while working out what
+                you mean is operating a machine, not talking. */}
+            <MotionSurface
+              style={[styles.live, live.state !== "off" && styles.liveOn]}
+              onPress={() => (live.state === "off" ? void live.start() : live.stop())}
+              accessibilityRole="button"
+              accessibilityState={{ selected: live.state !== "off" }}
+            >
+              <View
+                style={[
+                  styles.liveDot,
+                  live.state !== "off" && styles.liveDotOn,
+                  // Grows with your voice, so you can see it is hearing you
+                  // without reading anything.
+                  live.state !== "off" && {
+                    transform: [{ scale: 1 + live.level * 1.6 }],
+                  },
+                ]}
+              />
+              <Text style={[styles.liveLabel, live.state !== "off" && styles.liveLabelOn]}>
+                {LIVE_LABEL[live.state]}
+              </Text>
+            </MotionSurface>
+
+            {/* Push-to-talk stays for anyone who would rather not leave a
+                microphone open, and for rooms where that is not appropriate. */}
+            {live.state === "off" && (
+              <RecordButton
+                disabled={say.isPending || speak.isPending}
+                onRecorded={async (uri) => {
+                  await speak.mutateAsync(uri);
+                }}
+                onStateChange={setRecording}
+                tone={focus ? "dark" : "light"}
+              />
+            )}
+            {live.error && <Text style={styles.error}>{live.error}</Text>}
+          </View>
         )}
 
         <Text style={[styles.footnote, focus && styles.footnoteFocus]}>
           Only what you say is kept. My side of this isn't saved as an entry.
         </Text>
       </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </AtmosphericShell>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
+  voiceRow: { gap: 10 },
+  live: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+    borderWidth: 1,
+    borderColor: colors.lineStrong,
+    borderRadius: 999,
+    paddingVertical: 15,
+    backgroundColor: colors.surface,
+  },
+  // Lit rather than merely "pressed". An open microphone should be unmistakable
+  // from across a room.
+  liveOn: { borderColor: colors.cyan, backgroundColor: "#0c1c22" },
+  liveDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.lineStrong,
+  },
+  liveDotOn: { backgroundColor: colors.cyan },
+  liveLabel: { color: colors.inkSoft, fontSize: 15, fontWeight: "700" },
+  liveLabelOn: { color: colors.ink },
+  screen: { flex: 1, backgroundColor: "#08080c" },
   // Focus mode goes dark. Not for style: the blob is a light source, and on white
   // it reads as a smudge rather than as something present in the room.
   screenFocus: { backgroundColor: "#08080c" },
   stage: { alignItems: "center", paddingTop: 12, gap: 6 },
+  stageControl: { alignItems: "center" },
+  stageControlFocus: { flex: 1, alignSelf: "stretch", justifyContent: "center" },
   stageFocus: { flex: 1, justifyContent: "center", paddingTop: 0 },
-  stageHint: { fontSize: 12, color: "#a1a1aa" },
+  stageHint: { fontSize: 12, color: "#a09db4" },
   voiceToggle: {
     fontSize: 11,
-    color: "#71717a",
+    color: "#a09db4",
     textDecorationLine: "underline",
     paddingVertical: 4,
   },
-  voiceToggleFocus: { color: "#a1a1aa" },
-  stageHintFocus: { fontSize: 14, color: "#71717a" },
+  voiceToggleFocus: { color: "#a09db4" },
+  stageHintFocus: { fontSize: 14, color: "#a09db4" },
   focusBody: { paddingHorizontal: 28, paddingBottom: 12, minHeight: 90 },
   focusReply: {
-    color: "#e4e4e7",
+    color: "#f1f0f8",
     fontSize: 18,
     lineHeight: 26,
     textAlign: "center",
   },
   thread: { padding: 16, gap: 10, paddingBottom: 24 },
-  opening: { color: "#71717a", fontSize: 15, lineHeight: 22, marginTop: 8 },
+  opening: { color: "#a09db4", fontSize: 15, lineHeight: 22, marginTop: 8 },
   bubble: { borderRadius: 14, padding: 12, maxWidth: "88%" },
-  mine: { alignSelf: "flex-end", backgroundColor: "#18181b" },
-  mineText: { color: "#fafafa", fontSize: 16, lineHeight: 22 },
-  theirs: { alignSelf: "flex-start", backgroundColor: "#f4f4f5" },
-  theirsText: { color: "#18181b", fontSize: 16, lineHeight: 22 },
+  mine: { alignSelf: "flex-end", backgroundColor: "#f1f0f8" },
+  mineText: { color: "#08080c", fontSize: 16, lineHeight: 22 },
+  theirs: { alignSelf: "flex-start", backgroundColor: "#181827" },
+  theirsText: { color: "#f1f0f8", fontSize: 16, lineHeight: 22 },
   thinking: { alignSelf: "flex-start", marginVertical: 4 },
   crisis: {
     borderWidth: 1,
-    borderColor: "#b91c1c",
+    borderColor: "#fb7185",
     borderRadius: 12,
     padding: 12,
     gap: 6,
     marginTop: 8,
   },
-  crisisTitle: { fontWeight: "700", fontSize: 15, color: "#b91c1c" },
-  crisisLine: { fontSize: 15, lineHeight: 22 },
-  crisisNote: { fontSize: 12, color: "#71717a", lineHeight: 18 },
+  crisisTitle: { fontWeight: "700", fontSize: 15, color: "#fb7185" },
+  crisisLine: { fontSize: 15, lineHeight: 22, color: "#f1f0f8" },
+  crisisNote: { fontSize: 12, color: "#a09db4", lineHeight: 18 },
   composer: {
     borderTopWidth: 1,
-    borderTopColor: "#e4e4e7",
+    borderTopColor: "#29293b",
     padding: 12,
     gap: 8,
   },
   composerFocus: { borderTopColor: "#1c1c22" },
   input: {
+    color: "#f1f0f8",
+    backgroundColor: "#12121c",
     borderWidth: 1,
-    borderColor: "#d4d4d8",
+    borderColor: "#454563",
     borderRadius: 12,
     padding: 12,
     minHeight: 64,
@@ -386,25 +488,25 @@ const styles = StyleSheet.create({
   actions: { flexDirection: "row", gap: 8 },
   send: {
     flex: 1,
-    backgroundColor: "#18181b",
+    backgroundColor: "#a78bfa",
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: "center",
   },
-  sendLabel: { color: "#fafafa", fontWeight: "600", fontSize: 16 },
+  sendLabel: { color: "#08080c", fontWeight: "600", fontSize: 16 },
   finish: {
     flex: 1,
     borderWidth: 1,
-    borderColor: "#18181b",
+    borderColor: "#f1f0f8",
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: "center",
   },
-  finishFocus: { borderColor: "#3f3f46" },
-  finishLabel: { color: "#18181b", fontWeight: "600", fontSize: 16 },
-  finishLabelFocus: { color: "#e4e4e7" },
+  finishFocus: { borderColor: "#b5b3c7" },
+  finishLabel: { color: "#f1f0f8", fontWeight: "600", fontSize: 16 },
+  finishLabelFocus: { color: "#f1f0f8" },
   disabled: { opacity: 0.35 },
-  error: { color: "#b91c1c", fontSize: 13 },
-  footnote: { fontSize: 11, color: "#a1a1aa", textAlign: "center" },
-  footnoteFocus: { color: "#52525b" },
+  error: { color: "#fb7185", fontSize: 13 },
+  footnote: { fontSize: 11, color: "#a09db4", textAlign: "center" },
+  footnoteFocus: { color: "#a09db4" },
 });

@@ -79,8 +79,23 @@ AI
 - Memory consolidation
 - Pattern mining
 - Identity graph
-- Weekly reports
+- Weekly reports (deterministic, on-demand Monday–Sunday local windows; no generated prose or persistence)
 - Experiment engine
+
+## Experiment engine contract
+The Experiment engine is a private, user-authored self-observation workflow. A
+bounded draft stores title, first-person hypothesis, action, success criterion,
+local start date, 1–42 day duration, IANA timezone, and daily/weekly/end-only
+cadence. The user explicitly starts, pauses, resumes, completes, cancels, or
+soft-deletes it; lifecycle mutations are authenticated and revisioned.
+
+A draft can link a live same-user Pattern or other provenance-backed graph node.
+Check-ins are ordinary Journal Observations attached by ID, not duplicated raw
+experiment content. Completion requires an attached final check-in and the
+user-selected qualitative assessment `met`, `partly_met`, `not_met`, or `unclear`.
+The outcome displays that assessment and the selected check-in without a score,
+generated interpretation, diagnosis, prescription, streak, or reminder. Account
+isolation applies to experiments, links, check-ins, and patterns.
 
 ## Milestone 3
 - Multi-agent system

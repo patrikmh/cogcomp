@@ -125,10 +125,11 @@ function bulge(ringIndex: number, angle: number, time: number, wobble: number): 
 export function project(
   time: number,
   options: SphereOptions,
-  { energy = 0, wobble = 0.07, spin = SPIN_RATE }: {
+  { energy = 0, wobble = 0.07, spin = SPIN_RATE, rotation }: {
     energy?: number;
     wobble?: number;
     spin?: number;
+    rotation?: number;
   } = {},
 ): ProjectedArc[] {
   const { cx, cy, radius, segments = 64 } = options;
@@ -137,7 +138,7 @@ export function project(
   // than distorting perspective.
   const factor = 1 + 0.16 * level;
 
-  const spinAngle = time * spin;
+  const spinAngle = rotation ?? time * spin;
   const nod = TILT + NOD_DEPTH * Math.sin(time * 0.23);
 
   const arcs: ProjectedArc[] = [];

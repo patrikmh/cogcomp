@@ -10,8 +10,12 @@ from tlon.api.agent_routes import router as agent_router
 from tlon.api.auth_routes import router as auth_router
 from tlon.api.conversation_routes import router as conversation_router
 from tlon.api.conversation_routes import voice_router
+from tlon.api.experiment_routes import router as experiment_router
+from tlon.api.identity_routes import router as identity_router
 from tlon.api.pattern_routes import router as pattern_router
 from tlon.api.routes import router
+from tlon.api.temporal_routes import router as temporal_router
+from tlon.api.twin_routes import router as twin_router
 from tlon.config import get_settings
 from tlon.conversation import build_agent
 from tlon.db.engine import create_pool, run_migrations
@@ -99,4 +103,8 @@ app.include_router(conversation_router)
 app.include_router(voice_router)
 app.include_router(pattern_router)
 app.include_router(agent_router)
+app.include_router(temporal_router)
+app.include_router(twin_router)
+app.include_router(identity_router)
+app.include_router(experiment_router)
 app.include_router(router)

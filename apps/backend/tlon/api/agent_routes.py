@@ -50,11 +50,7 @@ class AgentRun(BaseModel):
 async def list_agents(_: UUID = Depends(current_user)) -> list[AgentInfo]:
     """Everything that may run in the background, named."""
     return [
-        AgentInfo(
-            name=agent.name,
-            version=agent.version,
-            cadence_seconds=agent.cadence_seconds,
-        )
+        AgentInfo(name=agent.name, version=agent.version, cadence_seconds=agent.cadence_seconds)
         for agent in REGISTRY
     ]
 
@@ -68,29 +64,21 @@ async def list_runs(
 
 
 @router.post("/run")
-async def run_everything(
-    request: Request, user_id: UUID = Depends(current_user)
-) -> list[dict]:
+async def run_everything(request: Request, user_id: UUID = Depends(current_user)) -> list[dict]:
     """Run the whole registry now, in order.
 
     Forced, like the single-agent route: someone who pressed a button should get
     "I looked and there was nothing", not "I declined to look".
     """
-    return await run_all(
-        request.app.state.pool, REGISTRY, user_id, trigger="manual", force=True
-    )
+    return await run_all(request.app.state.pool, REGISTRY, user_id, trigger="manual", force=True)
 
 
 @router.post("/{name}/run")
-async def run_one(
-    request: Request, name: str, user_id: UUID = Depends(current_user)
-) -> dict:
+async def run_one(request: Request, name: str, user_id: UUID = Depends(current_user)) -> dict:
     agent = BY_NAME.get(name)
     if agent is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"no agent named {name!r}")
 
     # Forced: "I pressed the button and it decided not to" is a baffling thing for
     # a button to do. Scheduled runs are the ones that get to skip.
-    return await run_agent(
-        request.app.state.pool, agent, user_id, trigger="manual", force=True
-    )
+    return await run_agent(request.app.state.pool, agent, user_id, trigger="manual", force=True)

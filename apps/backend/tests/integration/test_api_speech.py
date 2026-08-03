@@ -27,9 +27,7 @@ class TestUnconfigured:
         # audio that is never coming.
         assert response.status_code == 503
 
-    async def test_it_never_returns_a_placeholder_clip(
-        self, client: AsyncClient, account: Account
-    ):
+    async def test_it_never_returns_a_placeholder_clip(self, client: AsyncClient, account: Account):
         response = await client.post(
             "/v1/voice/speak", headers=account.auth, json={"text": "hello"}
         )
@@ -43,14 +41,10 @@ class TestValidation:
         assert response.status_code == 401
 
     async def test_empty_text_is_rejected(self, client: AsyncClient, account: Account):
-        response = await client.post(
-            "/v1/voice/speak", headers=account.auth, json={"text": ""}
-        )
+        response = await client.post("/v1/voice/speak", headers=account.auth, json={"text": ""})
         assert response.status_code == 422
 
-    async def test_an_unbounded_reply_is_rejected(
-        self, client: AsyncClient, account: Account
-    ):
+    async def test_an_unbounded_reply_is_rejected(self, client: AsyncClient, account: Account):
         # Truncating beats an unbounded synthesis bill, and a reply this long is a
         # prompt problem rather than a transport one.
         response = await client.post(

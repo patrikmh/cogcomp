@@ -1,0 +1,65 @@
+- generic [ref=e9]:
+  - generic [ref=e10]:
+    - banner [ref=e11]:
+      - generic [ref=e12]: Varv
+      - generic [ref=e13]: ett varv i taget
+      - button "patrik · logga ut" [ref=e14] [cursor=pointer]
+    - generic [ref=e15]:
+      - img [ref=e18]:
+        - generic [ref=e29]: "20"
+        - generic [ref=e30]: of 20 ⚡
+      - generic [ref=e31]:
+        - button "Stadig" [ref=e32] [cursor=pointer]
+        - button "Lågt batteri" [ref=e33] [cursor=pointer]
+        - button "Återhämtning" [ref=e34] [cursor=pointer]
+      - generic [ref=e35]:
+        - generic [ref=e36]: Medicin idag
+        - generic [ref=e37]:
+          - button "Tagen" [ref=e38] [cursor=pointer]
+          - button "Hoppade över" [ref=e39] [cursor=pointer]
+          - button "Inte idag" [ref=e40] [cursor=pointer]
+    - generic [ref=e41]:
+      - button "🗓️ Hämta kalendern" [ref=e42] [cursor=pointer]
+      - button "✉️ Kolla mejlen" [ref=e43] [cursor=pointer]
+    - generic [ref=e73]: Den här integrationen är inte kopplad till servern än.
+    - generic [ref=e74]: kalender – · mejl – · oura – · notion – · 10:54, sedan var 3:e h
+    - generic [ref=e44]:
+      - generic [ref=e45]: Inget i kön
+      - paragraph [ref=e46]: Tryck på + där nere för att fånga en uppgift, eller ta pausen. En tom kö är tillåten.
+    - generic [ref=e47]:
+      - generic [ref=e48]: Nästa halvdag
+      - paragraph [ref=e49]: Inga tidsatta punkter de närmaste timmarna. Oschemalagda uppgifter finns nedanför.
+    - generic [ref=e50]:
+      - generic [ref=e51]: 0 klara idag
+      - generic [ref=e52]: 0 kvar
+      - generic [ref=e53]:
+        - generic [ref=e54]: 0⚡
+        - text: förbrukat ·
+        - generic [ref=e55]: 0⚡
+        - text: återladdat
+      - generic [ref=e56]: 0 vinster
+    - generic [ref=e57]:
+      - generic [ref=e58]:
+        - generic [ref=e59]: Uppgifter
+        - button "+ lägg till" [ref=e60] [cursor=pointer]
+      - paragraph [ref=e61]: Inget här ännu. Fånga en uppgift innan den dunstar.
+    - contentinfo [ref=e62]: Inga streaks. Varje dag börjar på noll.
+  - generic [ref=e76]:
+    - generic [ref=e78]:
+      - 'button "röst: svenska · byt" [ref=e79] [cursor=pointer]'
+      - button "Klar" [ref=e80] [cursor=pointer]
+    - generic [ref=e81]:
+      - textbox "Fånga den innan den försvinner…" [active] [ref=e82]
+      - button "Tala in" [ref=e83] [cursor=pointer]: 🎙
+    - button "Fånga — agenten sorterar" [disabled] [ref=e85] [cursor=pointer]
+    - generic [ref=e86]:
+      - button "Uppgift" [disabled] [ref=e87] [cursor=pointer]
+      - button "💡 Idé" [disabled] [ref=e88] [cursor=pointer]
+      - button "Inköp" [disabled] [ref=e89] [cursor=pointer]
+    - generic [ref=e90]: Enter = agenten sorterar åt dig. Knapparna styr själv.
+  - navigation [ref=e63]:
+    - button "Idag" [ref=e64] [cursor=pointer]: Idag
+    - button "Idéer" [ref=e66] [cursor=pointer]: Idéer
+    - button "Fånga en tanke" [ref=e68] [cursor=pointer]: +
+    - button "Listor" [ref=e69] [cursor=pointer]: Listor
+    - button "Verktyg" [ref=e71] [cursor=pointer]: Verktyg

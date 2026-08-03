@@ -41,23 +41,25 @@ from uuid import UUID, uuid4
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "apps" / "backend"))
 
 import asyncpg
-from tlon.db import cooccurrence as cooccurrence_db
-from tlon.db import patterns as patterns_db
-from tlon.db.engine import run_migrations
-from tlon.patterns import RECENCY_DAYS
 
 from benchmarks.history import (
     EXPECTED,
     EXPECTED_PAIRS,
+    EXPECTED_PERIODICITY,
     FORBIDDEN,
     FORBIDDEN_PAIRS,
     HORIZON_DAYS,
     entries_on,
 )
+from tlon.db import cooccurrence as cooccurrence_db
+from tlon.db import patterns as patterns_db
+from tlon.db.engine import run_migrations
+from tlon.patterns import RECENCY_DAYS
 
 DEV_URL = "postgres://tlon:tlon@localhost:5433/tlon"
 REPLAY_DB = "tlon_replay"
 DAY_ZERO = datetime(2026, 1, 5, 9, 0, tzinfo=UTC)  # a Monday
+PatternIdentity = tuple[str, str]
 
 
 @dataclass
@@ -185,18 +187,20 @@ async def _write_day(pool: asyncpg.Pool, user_id: UUID, day: int) -> None:
         )
 
 
-async def _live_patterns(pool: asyncpg.Pool, user_id: UUID) -> dict[str, str]:
-    """Pattern key to node id, for everything currently being claimed."""
+async def _live_patterns(
+    pool: asyncpg.Pool, user_id: UUID
+) -> dict[PatternIdentity, str]:
+    """Detector and pattern key to node id, for every live claim."""
     rows = await pool.fetch(
         """
-        SELECT p.pattern_key, p.node_id
+        SELECT p.detector, p.pattern_key, p.node_id
         FROM patterns p
         JOIN graph_nodes n ON n.id = p.node_id
         WHERE p.user_id = $1 AND p.lapsed_at IS NULL AND n.deleted_at IS NULL
         """,
         user_id,
     )
-    return {row["pattern_key"]: str(row["node_id"]) for row in rows}
+    return {(row["detector"], row["pattern_key"]): str(row["node_id"]) for row in rows}
 
 
 async def replay(days: int) -> dict:
@@ -212,7 +216,7 @@ async def replay(days: int) -> dict:
             f"replay-{user_id}@example.test",
         )
 
-        tracks: dict[str, Track] = defaultdict(Track)
+        tracks: dict[PatternIdentity, Track] = defaultdict(Track)
         pair_tracks: dict[frozenset[str], Track] = defaultdict(Track)
         churn_events = 0
 
@@ -223,8 +227,8 @@ async def replay(days: int) -> dict:
             await patterns_db.remine(pool, user_id)
             await cooccurrence_db.remine(pool, user_id)
 
-            for key, node_id in (await _live_patterns(pool, user_id)).items():
-                track = tracks[key]
+            for identity, node_id in (await _live_patterns(pool, user_id)).items():
+                track = tracks[identity]
                 if track.first_reported_day is None:
                     track.first_reported_day = day
                 if track.node_ids and node_id not in track.node_ids:
@@ -245,7 +249,7 @@ async def replay(days: int) -> dict:
 
 
 def _report(
-    tracks: dict[str, Track],
+    tracks: dict[PatternIdentity, Track],
     pair_tracks: dict[frozenset[str], Track],
     churn_events: int,
     days: int,
@@ -254,7 +258,7 @@ def _report(
     missed = {}
     for key, thread in EXPECTED.items():
         eligible = eligible_day(tuple(d for d in thread.days if d < days))
-        track = tracks.get(key)
+        track = tracks.get(("exact-label", key))
         if track is None or track.first_reported_day is None:
             missed[key] = {"probes": thread.probes, "eligible_on": eligible}
             continue
@@ -281,9 +285,15 @@ def _report(
         }
 
     reported_forbidden = {
-        key: tracks[key].first_reported_day for key in FORBIDDEN if key in tracks
+        key: tracks[("exact-label", key)].first_reported_day
+        for key in FORBIDDEN
+        if ("exact-label", key) in tracks
     }
-    churned = sorted(key for key, track in tracks.items() if track.churned)
+    churned = sorted(
+        f"{detector}:{key}"
+        for (detector, key), track in tracks.items()
+        if track.churned
+    )
 
     return {
         "days": days,
@@ -292,7 +302,41 @@ def _report(
         "false_positives": reported_forbidden,
         "identity_churn_events": churn_events,
         "churned_patterns": churned,
+        "periodicity": _periodicity_report(tracks, days),
         "associations": _pair_report(pair_tracks),
+    }
+
+
+def _periodicity_report(
+    tracks: dict[PatternIdentity, Track],
+    days: int,
+) -> dict:
+    """Calendar claims, kept separate from generic recurrence truth."""
+    reported = {
+        key: track.first_reported_day
+        for (detector, key), track in tracks.items()
+        if detector == "weekday" and track.first_reported_day is not None
+    }
+    expected = {
+        key: thread
+        for key, thread in EXPECTED_PERIODICITY.items()
+        if len([day for day in thread.days if day < days]) >= 4
+    }
+    return {
+        "found": {key: reported[key] for key in expected if key in reported},
+        "missed": {
+            key: {
+                "eligible_on": [day for day in thread.days if day < days][3],
+                "probes": thread.probes,
+            }
+            for key, thread in expected.items()
+            if key not in reported
+        },
+        # Every calendar claim needs planted truth. There is no harmless
+        # "interesting extra" when the system is describing a person's rhythm.
+        "unaccounted": {
+            key: day for key, day in reported.items() if key not in expected
+        },
     }
 
 
@@ -346,6 +390,17 @@ def _print(report: dict) -> None:
         for key, day in sorted(report["false_positives"].items()):
             print(f"  {key:<28} day {day}")
 
+    periodicity = report["periodicity"]
+    print("\nweekday patterns found:")
+    for key, day in sorted(periodicity["found"].items()):
+        print(f"  {key:<36} day {day}")
+    for key, detail in sorted(periodicity["missed"].items()):
+        print(f"  {key:<36} MISSED (eligible day {detail['eligible_on']})")
+    if periodicity["unaccounted"]:
+        print("\nweekday patterns reported that were not planted:")
+        for key, day in sorted(periodicity["unaccounted"].items()):
+            print(f"  {key:<36} day {day}")
+
     # Only silences longer than the dormancy window. A pattern surviving a quiet
     # fortnight is the window doing its job; one surviving two months is the
     # system claiming something about a person that stopped being true.
@@ -391,14 +446,13 @@ def main() -> int:
     if args.json:
         args.json.write_text(json.dumps(report, indent=2))
 
-    # Missed threads are not a hard failure: `drained` is planted specifically to
-    # be invisible to the only detector that exists today, and a benchmark that
-    # fails on a detector nobody has written yet is a benchmark people switch off.
-    # Inventing patterns and losing identity are failures now.
     pairs = report["associations"]
+    periodicity = report["periodicity"]
     failed = (
         bool(report["false_positives"])
         or report["identity_churn_events"] > 0
+        or bool(periodicity["missed"])
+        or bool(periodicity["unaccounted"])
         # An association nobody planted is a claim about someone's life invented
         # by arithmetic, and it is the failure the person is least able to catch.
         or bool(pairs["unaccounted"])

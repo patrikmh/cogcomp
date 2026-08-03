@@ -1,0 +1,1597 @@
+- generic [ref=e1]:
+  - dialog "Your privacy, your choice" [ref=e3]:
+    - generic [ref=e5]:
+      - heading "Your privacy, your choice" [level=2] [ref=e7]
+      - generic [ref=e8]:
+        - generic [ref=e9]:
+          - paragraph [ref=e10]:
+            - text: We use essential cookies to make sure the site can function. We, and our 90
+            - button "partners" [ref=e11] [cursor=pointer]
+            - text: ", also use optional cookies and similar technologies for advertising, personalisation of content, usage analysis, and social media."
+          - paragraph [ref=e12]:
+            - text: By accepting optional cookies, you consent to allowing us and our partners to store and access personal data on your device, such as browsing behaviour and unique identifiers. Some third parties are outside of the European Economic Area, with varying standards of data protection. See our
+            - link "privacy policy" [ref=e13] [cursor=pointer]:
+              - /url: https://link.springer.com/privacystatement
+            - text: for more information on the use of your personal data. Your consent choices apply to springer.com and applicable subdomains.
+          - paragraph [ref=e14]:
+            - text: You can find further information, and change your preferences via 'Manage preferences'.
+            - text: You can also change your preferences or withdraw consent at any time via 'Your privacy choices', found in the footer of every page.
+        - generic [ref=e15]:
+          - paragraph [ref=e16]: "We use cookies and similar technologies for the following purposes:"
+          - generic [ref=e17]:
+            - group [ref=e18]:
+              - generic "Store and/or access information on a device" [ref=e19]:
+                - generic [ref=e20]:
+                  - img [ref=e21]
+                  - heading "Store and/or access information on a device" [level=3] [ref=e23]
+            - group [ref=e24]:
+              - generic "Personalised advertising and content, advertising and content measurement, audience research and services development" [ref=e25]:
+                - generic [ref=e26]:
+                  - img [ref=e27]
+                  - heading "Personalised advertising and content, advertising and content measurement, audience research and services development" [level=3] [ref=e29]
+      - generic [ref=e30]:
+        - button "Accept all cookies" [ref=e31] [cursor=pointer]
+        - button "Reject optional cookies" [ref=e32] [cursor=pointer]
+        - button "Manage preferences" [ref=e33] [cursor=pointer]
+  - img [ref=e35]
+  - link "Skip to main content" [ref=e36] [cursor=pointer]:
+    - /url: "#main"
+  - complementary "Advertisement" [ref=e37]:
+    - paragraph [ref=e40]: Advertisement
+  - banner [ref=e42]:
+    - generic [ref=e43]:
+      - link "Springer Nature Link" [ref=e45] [cursor=pointer]:
+        - /url: https://link.springer.com
+        - img "Springer Nature Link" [ref=e46]
+      - link "Log in" [ref=e47] [cursor=pointer]:
+        - /url: https://idp.springer.com/auth/personal/springernature?redirect_uri=https://link.springer.com/article/10.1007/s11336-021-09765-2
+    - navigation "Site" [ref=e48]:
+      - generic [ref=e49]:
+        - generic [ref=e50]:
+          - link "Find a journal" [ref=e51] [cursor=pointer]:
+            - /url: https://link.springer.com/journals/
+          - link "Publish with us" [ref=e52] [cursor=pointer]:
+            - /url: https://www.springernature.com/gp/authors
+          - link "Track your research" [ref=e53] [cursor=pointer]:
+            - /url: https://link.springernature.com/home/
+        - generic [ref=e54]:
+          - button "Search" [ref=e56] [cursor=pointer]:
+            - img [ref=e57]
+            - text: Search
+          - generic [ref=e59]:
+            - link "Saved research" [ref=e61] [cursor=pointer]:
+              - /url: /saved-research
+              - img [ref=e62]
+              - text: Saved research
+            - link "Cart" [ref=e65] [cursor=pointer]:
+              - /url: https://order.springer.com/public/cart
+              - img [ref=e66]
+              - text: Cart
+  - article [ref=e68]:
+    - region "About this article" [ref=e69]:
+      - generic [ref=e71]:
+        - generic [ref=e72]:
+          - navigation "breadcrumbs" [ref=e73]:
+            - list [ref=e74]:
+              - listitem [ref=e75]:
+                - link "Home" [ref=e76] [cursor=pointer]:
+                  - /url: /
+                - img [ref=e77]
+              - listitem [ref=e79]:
+                - link "Psychometrika" [ref=e80] [cursor=pointer]:
+                  - /url: /journal/11336
+                - img [ref=e81]
+              - listitem [ref=e83]: Article
+          - 'heading "ConNEcT: A Novel Network Approach for Investigating the Co-occurrence of Binary Psychopathological Symptoms Over Time" [level=1] [ref=e84]'
+          - list [ref=e85]:
+            - listitem [ref=e86]: Application Reviews and Case Studies
+            - listitem [ref=e87]:
+              - text: "Published:"
+              - time [ref=e88]: 01 June 2021
+          - list [ref=e89]:
+            - listitem [ref=e90]: Volume 87, pages 107–132 (2022)
+            - listitem [ref=e91]:
+              - link "Cite this article" [ref=e92] [cursor=pointer]:
+                - /url: "#citeas"
+          - link "Save article" [ref=e96] [cursor=pointer]:
+            - /url: /article/10.1007/s11336-021-09765-2/save-research?_csrf=0jadf0Qc1yNdb0GMKQJMbTSaJb-ZupH5
+            - img [ref=e97]
+            - text: Save article
+        - generic [ref=e99]:
+          - link "Psychometrika" [ref=e100] [cursor=pointer]:
+            - /url: /journal/11336
+            - generic [ref=e102]: Psychometrika
+          - link "Aims and scope" [ref=e103] [cursor=pointer]:
+            - /url: /journal/11336/aims-and-scope
+            - text: Aims and scope
+            - img [ref=e104]
+    - generic [ref=e106]:
+      - main [ref=e107]:
+        - generic [ref=e109]:
+          - list [ref=e110]:
+            - listitem [ref=e111]:
+              - link "Nadja Bodner" [ref=e112] [cursor=pointer]:
+                - /url: "#auth-Nadja-Bodner-Aff1"
+                - text: Nadja Bodner
+                - img [ref=e113]
+              - text: ","
+            - listitem [ref=e115]:
+              - link "Laura Bringmann" [ref=e116] [cursor=pointer]:
+                - /url: "#auth-Laura-Bringmann-Aff2-Aff4"
+              - text: ","
+            - listitem [ref=e117]:
+              - link "Francis Tuerlinckx" [ref=e118] [cursor=pointer]:
+                - /url: "#auth-Francis-Tuerlinckx-Aff1"
+              - text: ","
+            - listitem [ref=e119]:
+              - link "Peter de Jonge" [ref=e120] [cursor=pointer]:
+                - /url: "#auth-Peter-Jonge-Aff3-Aff4"
+              - text: "&"
+            - listitem [ref=e121]:
+              - link "Eva Ceulemans" [ref=e122] [cursor=pointer]:
+                - /url: "#auth-Eva-Ceulemans-Aff5"
+          - list [ref=e124]:
+            - listitem [ref=e125]:
+              - paragraph [ref=e126]:
+                - img [ref=e127]
+                - text: 1136 Accesses
+            - listitem [ref=e129]:
+              - paragraph [ref=e130]:
+                - img [ref=e131]
+                - text: 1 Altmetric
+            - listitem [ref=e133]:
+              - paragraph [ref=e134]:
+                - link "Explore all metrics" [ref=e135] [cursor=pointer]:
+                  - /url: /article/10.1007/s11336-021-09765-2/metrics
+                  - text: Explore all metrics
+                  - img [ref=e136]
+        - generic [ref=e138]:
+          - region "Abstract" [ref=e139]:
+            - generic [ref=e140]:
+              - heading "Abstract" [level=2] [ref=e141]
+              - paragraph [ref=e143]: Network analysis is an increasingly popular approach to study mental disorders in all their complexity. Multiple methods have been developed to extract networks from cross-sectional data, with these data being either continuous or binary. However, when it comes to time series data, most efforts have focused on continuous data. We therefore propose ConNEcT, a network approach for binary symptom data across time. ConNEcT allows to visualize and study the prevalence of different symptoms as well as their co-occurrence, measured by means of a contingency measure in one single network picture. ConNEcT can be complemented with a significance test that accounts for the serial dependence in the data. To illustrate the usefulness of ConNEcT, we re-analyze data from a study in which patients diagnosed with major depressive disorder weekly reported the absence or presence of eight depression symptoms. We first extract ConNEcTs for all patients that provided data during at least 104 weeks, revealing strong inter-individual differences in which symptom pairs co-occur significantly. Second, to gain insight into these differences, we apply Hierarchical Classes Analysis on the co-occurrence patterns of all patients, showing that they can be grouped into meaningful clusters. Core depression symptoms (i.e., depressed mood and/or diminished interest), cognitive problems and loss of energy seem to co-occur universally, but preoccupation with death, psychomotor problems or eating problems only co-occur with other symptoms for specific patient subgroups.
+          - paragraph [ref=e145]:
+            - img [ref=e146]
+            - text: This is a preview of subscription content,
+            - link "log in via an institution" [ref=e148] [cursor=pointer]:
+              - /url: //wayf.springernature.com?redirect_uri=https%3A%2F%2Flink.springer.com%2Farticle%2F10.1007%2Fs11336-021-09765-2
+            - img [ref=e149]
+            - text: to check access.
+          - region "Similar content being viewed by others" [ref=e151]:
+            - heading "Similar content being viewed by others" [level=3] [ref=e152]
+            - generic [ref=e153]:
+              - article [ref=e155]:
+                - generic [ref=e157]:
+                  - 'heading "The importance of transdiagnostic symptom level assessment to understanding prognosis for depressed adults: analysis of data from six randomised control trials" [level=3] [ref=e158]':
+                    - 'link "The importance of transdiagnostic symptom level assessment to understanding prognosis for depressed adults: analysis of data from six randomised control trials" [ref=e159] [cursor=pointer]':
+                      - /url: https://link.springer.com/10.1186/s12916-021-01971-0?fromPaywallRec=true
+                  - generic [ref=e160]:
+                    - text: Article Open access
+                    - generic [ref=e161]: 06 May 2021
+              - article [ref=e163]:
+                - generic [ref=e165]:
+                  - 'heading "ConNEcT: An R package to build contingency measure-based networks on binary time series" [level=3] [ref=e166]':
+                    - 'link "ConNEcT: An R package to build contingency measure-based networks on binary time series" [ref=e167] [cursor=pointer]':
+                      - /url: https://link.springer.com/10.3758/s13428-021-01760-w?fromPaywallRec=true
+                  - generic [ref=e168]: Article 05 April 2022
+              - article [ref=e170]:
+                - generic [ref=e172]:
+                  - 'heading "Using network analysis for the prediction of treatment dropout in patients with mood and anxiety disorders: A methodological proof-of-concept study" [level=3] [ref=e173]':
+                    - 'link "Using network analysis for the prediction of treatment dropout in patients with mood and anxiety disorders: A methodological proof-of-concept study" [ref=e174] [cursor=pointer]':
+                      - /url: https://link.springer.com/10.1038/s41598-018-25953-0?fromPaywallRec=true
+                  - generic [ref=e175]:
+                    - text: Article Open access
+                    - generic [ref=e176]: 18 May 2018
+          - region "Explore related subjects" [ref=e177]:
+            - heading "Explore related subjects" [level=3] [ref=e178]
+            - generic [ref=e179]: Discover the latest articles, books and news in related subjects, suggested using machine learning.
+            - list [ref=e180]:
+              - listitem [ref=e181]:
+                - link "Complex Networks" [ref=e182] [cursor=pointer]:
+                  - /url: /subjects/complex-networks
+              - listitem [ref=e183]:
+                - link "Ecological Network" [ref=e184] [cursor=pointer]:
+                  - /url: /subjects/ecological-network
+              - listitem [ref=e185]:
+                - link "Mental Health" [ref=e186] [cursor=pointer]:
+                  - /url: /subjects/mental-health
+              - listitem [ref=e187]:
+                - link "Network topology" [ref=e188] [cursor=pointer]:
+                  - /url: /subjects/network-topology
+              - listitem [ref=e189]:
+                - link "Network Models" [ref=e190] [cursor=pointer]:
+                  - /url: /subjects/network-models
+              - listitem [ref=e191]:
+                - link "Network Research" [ref=e192] [cursor=pointer]:
+                  - /url: /subjects/network-research
+          - generic [ref=e194]:
+            - heading "Notes" [level=2] [ref=e195]
+            - list [ref=e197]:
+              - listitem [ref=e198]:
+                - text: "1."
+                - paragraph [ref=e200]: For reasons of readability a minimum node size was applied, so that symptoms that were not shown still were represented in the network.
+              - listitem [ref=e201]:
+                - text: "2."
+                - paragraph [ref=e203]:
+                  - text: This HICLAS reconstruction rule is a disjunctive rule; note that also conjunctive versions have been proposed (see Van Mechelen et al.,
+                  - link "Reference 1995" [ref=e204] [cursor=pointer]:
+                    - /url: /article/10.1007/s11336-021-09765-2#ref-CR63
+                    - text: "1995"
+                  - text: ).
+              - listitem [ref=e205]:
+                - text: "3."
+                - paragraph [ref=e207]: It should be noted that mgm also implements regression-based time-series models for binary data as a special case of mixed VAR models, allowing to control for serial dependence by including lagged outcome variables. This approach yields more complicated regression equations including at least two predictor variables, however. Therefore, we did not consider it further.
+              - listitem [ref=e208]:
+                - text: "4."
+                - paragraph [ref=e210]:
+                  - text: To circumvent this identification problem solutions have been proposed, which make use of regularized or Bayesian logistic regression (Firth,
+                  - link "Reference 1993" [ref=e211] [cursor=pointer]:
+                    - /url: /article/10.1007/s11336-021-09765-2#ref-CR33
+                    - text: "1993"
+                  - text: ; Gelman et al.,
+                  - link "Reference 2008" [ref=e212] [cursor=pointer]:
+                    - /url: /article/10.1007/s11336-021-09765-2#ref-CR39
+                    - text: "2008"
+                  - text: ; Heinze & Schemper,
+                  - link "Reference 2002" [ref=e213] [cursor=pointer]:
+                    - /url: /article/10.1007/s11336-021-09765-2#ref-CR45
+                    - text: "2002"
+                  - text: ; Mansournia et al.,
+                  - link "Reference 2018" [ref=e214] [cursor=pointer]:
+                    - /url: /article/10.1007/s11336-021-09765-2#ref-CR52
+                    - text: "2018"
+                  - text: ).
+              - listitem [ref=e215]:
+                - text: "5."
+                - paragraph [ref=e217]: The Medical Ethics Committee of the University Medical Center Groningen (UMCG) approved the study (No MEC96/02/028c). All participants provided informed consent.
+              - listitem [ref=e218]:
+                - text: "6."
+                - paragraph [ref=e220]: Each label consists of three binary scores. When the first score equals one, this indicates that this cluster of patients scores on the first component (clusters 100, 101, 110, 111); when the second score equals one, it scores on the second component (clusters 010, 011, 110, 111); a third score of one implies that it scores on the third component (clusters 001, 011, 101, 111).
+          - region "References" [ref=e222]:
+            - generic [ref=e223]:
+              - heading "References" [level=2] [ref=e224]
+              - generic [ref=e226]:
+                - list [ref=e227]:
+                  - listitem [ref=e228]:
+                    - paragraph [ref=e229]:
+                      - text: Albert, A., & Anderson, J. A. (1984). On the existence of maximum likelihood estimates in logistic regression models. Biometrika, 71(1), 1–10.
+                      - link "https://doi.org/10.1093/biomet/71.1.1" [ref=e230] [cursor=pointer]:
+                        - /url: https://doi.org/10.1093/biomet/71.1.1
+                      - text: .
+                    - paragraph [ref=e231]:
+                      - link "Article reference 1" [ref=e232] [cursor=pointer]:
+                        - /url: https://doi.org/10.1093%2Fbiomet%2F71.1.1
+                        - text: Article
+                      - link "Google Scholar reference 1" [ref=e233] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=On%20the%20existence%20of%20maximum%20likelihood%20estimates%20in%20logistic%20regression%20models&journal=Biometrika&doi=10.1093%2Fbiomet%2F71.1.1&volume=71&issue=1&pages=1-10&publication_year=1984&author=Albert%2CA&author=Anderson%2CJA
+                        - text: Google Scholar
+                  - listitem [ref=e234]:
+                    - paragraph [ref=e235]:
+                      - text: "Bakeman, R., McArthur, D., & Quera, V. (1996). Detecting group differences in sequential association using sampled permutations: Log odds, kappa, and phi compared. Behavior Research Methods, Instruments, and Computers, 28(3), 446–457."
+                      - link "https://doi.org/10.3758/BF03200524" [ref=e236] [cursor=pointer]:
+                        - /url: https://doi.org/10.3758/BF03200524
+                      - text: .
+                    - paragraph [ref=e237]:
+                      - link "Article reference 2" [ref=e238] [cursor=pointer]:
+                        - /url: https://doi.org/10.3758%2FBF03200524
+                        - text: Article
+                      - link "Google Scholar reference 2" [ref=e239] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Detecting%20group%20differences%20in%20sequential%20association%20using%20sampled%20permutations%3A%20Log%20odds%2C%20kappa%2C%20and%20phi%20compared&journal=Behavior%20Research%20Methods%2C%20Instruments%2C%20and%20Computers&doi=10.3758%2FBF03200524&volume=28&issue=3&pages=446-457&publication_year=1996&author=Bakeman%2CR&author=McArthur%2CD&author=Quera%2CV
+                        - text: Google Scholar
+                  - listitem [ref=e240]:
+                    - paragraph [ref=e241]: "Bakeman, R., & Quera, V. (2011). Sequential analysis and observational methods for the behavioral sciences. Cambridge: Cambridge University Press."
+                    - paragraph [ref=e242]:
+                      - link "Book reference 3" [ref=e243] [cursor=pointer]:
+                        - /url: https://doi.org/10.1017%2FCBO9781139017343
+                        - text: Book
+                      - link "Google Scholar reference 3" [ref=e244] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Sequential%20analysis%20and%20observational%20methods%20for%20the%20behavioral%20sciences&doi=10.1017%2FCBO9781139017343&publication_year=2011&author=Bakeman%2CR&author=Quera%2CV
+                        - text: Google Scholar
+                  - listitem [ref=e245]:
+                    - paragraph [ref=e246]:
+                      - text: "Benjamini, Y., & Hochberg, Y. (1995). Controlling the false discovery rate: A practical and powerful approach to multiple testing. Journal of the Royal Statistical Society: Series B (Methodological), 57(1), 289–300."
+                      - link "https://doi.org/10.1111/j.2517-6161.1995.tb02031.x" [ref=e247] [cursor=pointer]:
+                        - /url: https://doi.org/10.1111/j.2517-6161.1995.tb02031.x
+                      - text: .
+                    - paragraph [ref=e248]:
+                      - link "Article reference 4" [ref=e249] [cursor=pointer]:
+                        - /url: https://doi.org/10.1111%2Fj.2517-6161.1995.tb02031.x
+                        - text: Article
+                      - link "Google Scholar reference 4" [ref=e250] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Controlling%20the%20false%20discovery%20rate%3A%20A%20practical%20and%20powerful%20approach%20to%20multiple%20testing&journal=Journal%20of%20the%20Royal%20Statistical%20Society%3A%20Series%20B%20%28Methodological%29&doi=10.1111%2Fj.2517-6161.1995.tb02031.x&volume=57&issue=1&pages=289-300&publication_year=1995&author=Benjamini%2CY&author=Hochberg%2CY
+                        - text: Google Scholar
+                  - listitem [ref=e251]:
+                    - paragraph [ref=e252]:
+                      - text: Bodner, N., Bosmans, G., Sannen, J., Verhees, M., & Ceulemans, E. (2019). Unraveling middle childhood attachment-related behavior sequences using a micro-coding approach. Plos One, 14(10), e0224372.
+                      - link "https://doi.org/10.1371/journal.pone.0224372" [ref=e253] [cursor=pointer]:
+                        - /url: https://doi.org/10.1371/journal.pone.0224372
+                      - text: .
+                    - paragraph [ref=e254]:
+                      - link "Article reference 5" [ref=e255] [cursor=pointer]:
+                        - /url: https://doi.org/10.1371%2Fjournal.pone.0224372
+                        - text: Article
+                      - link "PubMed reference 5" [ref=e256] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=31661519
+                        - text: PubMed
+                      - link "PubMed Central reference 5" [ref=e257] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/pmc/articles/PMC6818776
+                        - text: PubMed Central
+                      - link "Google Scholar reference 5" [ref=e258] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Unraveling%20middle%20childhood%20attachment-related%20behavior%20sequences%20using%20a%20micro-coding%20approach&journal=Plos%20One&doi=10.1371%2Fjournal.pone.0224372&volume=14&issue=10&publication_year=2019&author=Bodner%2CN&author=Bosmans%2CG&author=Sannen%2CJ&author=Verhees%2CM&author=Ceulemans%2CE
+                        - text: Google Scholar
+                  - listitem [ref=e259]:
+                    - paragraph [ref=e260]:
+                      - text: "Bodner, N., Kuppens, P., Allen, N. B., Sheeber, L. B., & Ceulemans, E. (2018). Affective family interactions and their associations with adolescent depression: A dynamic network approach. Development and Psychopathology, 30(4), 1459–1473."
+                      - link "https://doi.org/10.1017/S0954579417001699" [ref=e261] [cursor=pointer]:
+                        - /url: https://doi.org/10.1017/S0954579417001699
+                      - text: .
+                    - paragraph [ref=e262]:
+                      - link "Article reference 6" [ref=e263] [cursor=pointer]:
+                        - /url: https://doi.org/10.1017%2FS0954579417001699
+                        - text: Article
+                      - link "PubMed reference 6" [ref=e264] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=29151387
+                        - text: PubMed
+                      - link "Google Scholar reference 6" [ref=e265] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Affective%20family%20interactions%20and%20their%20associations%20with%20adolescent%20depression%3A%20A%20dynamic%20network%20approach&journal=Development%20and%20Psychopathology&doi=10.1017%2FS0954579417001699&volume=30&issue=4&pages=1459-1473&publication_year=2018&author=Bodner%2CN&author=Kuppens%2CP&author=Allen%2CNB&author=Sheeber%2CLB&author=Ceulemans%2CE
+                        - text: Google Scholar
+                  - listitem [ref=e266]:
+                    - paragraph [ref=e267]:
+                      - text: "Bodner, N., Tuerlinckx, F., Bosmans, G., & Ceulemans, E. (2020). Accounting for auto-dependency in binary dyadic time series data: A comparison of model- and permutation-based approaches for testing pairwise associations. British Journal of Mathematical and Statistical Psychology."
+                      - link "https://doi.org/10.1111/bmsp.12222" [ref=e268] [cursor=pointer]:
+                        - /url: https://doi.org/10.1111/bmsp.12222
+                  - listitem [ref=e269]:
+                    - paragraph [ref=e270]:
+                      - text: Borsboom, D. (2008). Psychometric perspectives on diagnostic systems. Journal of Clinical Psychology, 64(9), 1089–1108.
+                      - link "https://doi.org/10.1002/jclp.20503" [ref=e271] [cursor=pointer]:
+                        - /url: https://doi.org/10.1002/jclp.20503
+                      - text: .
+                    - paragraph [ref=e272]:
+                      - link "Article reference 8" [ref=e273] [cursor=pointer]:
+                        - /url: https://doi.org/10.1002%2Fjclp.20503
+                        - text: Article
+                      - link "PubMed reference 8" [ref=e274] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=18683856
+                        - text: PubMed
+                      - link "Google Scholar reference 8" [ref=e275] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Psychometric%20perspectives%20on%20diagnostic%20systems&journal=Journal%20of%20Clinical%20Psychology&doi=10.1002%2Fjclp.20503&volume=64&issue=9&pages=1089-1108&publication_year=2008&author=Borsboom%2CD
+                        - text: Google Scholar
+                  - listitem [ref=e276]:
+                    - paragraph [ref=e277]:
+                      - text: Borsboom, D. (2017). A network theory of mental disorders. World Psychiatry, 16(1), 5–13.
+                      - link "https://doi.org/10.1002/wps.20375" [ref=e278] [cursor=pointer]:
+                        - /url: https://doi.org/10.1002/wps.20375
+                      - text: .
+                    - paragraph [ref=e279]:
+                      - link "Article reference 9" [ref=e280] [cursor=pointer]:
+                        - /url: https://doi.org/10.1002%2Fwps.20375
+                        - text: Article
+                      - link "PubMed reference 9" [ref=e281] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=28127906
+                        - text: PubMed
+                      - link "PubMed Central reference 9" [ref=e282] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/pmc/articles/PMC5269502
+                        - text: PubMed Central
+                      - link "Google Scholar reference 9" [ref=e283] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=A%20network%20theory%20of%20mental%20disorders&journal=World%20Psychiatry&doi=10.1002%2Fwps.20375&volume=16&issue=1&pages=5-13&publication_year=2017&author=Borsboom%2CD
+                        - text: Google Scholar
+                  - listitem [ref=e284]:
+                    - paragraph [ref=e285]:
+                      - text: "Borsboom, D., & Cramer, A. O. J. (2013). Network analysis: An integrative approach to the structure of psychopathology. Annual Review of Clinical Psychology, 9(1), 91–121."
+                      - link "https://doi.org/10.1146/annurev-clinpsy-050212-185608" [ref=e286] [cursor=pointer]:
+                        - /url: https://doi.org/10.1146/annurev-clinpsy-050212-185608
+                      - text: .
+                    - paragraph [ref=e287]:
+                      - link "Article reference 10" [ref=e288] [cursor=pointer]:
+                        - /url: https://doi.org/10.1146%2Fannurev-clinpsy-050212-185608
+                        - text: Article
+                      - link "PubMed reference 10" [ref=e289] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=23537483
+                        - text: PubMed
+                      - link "Google Scholar reference 10" [ref=e290] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Network%20analysis%3A%20An%20integrative%20approach%20to%20the%20structure%20of%20psychopathology&journal=Annual%20Review%20of%20Clinical%20Psychology&doi=10.1146%2Fannurev-clinpsy-050212-185608&volume=9&issue=1&pages=91-121&publication_year=2013&author=Borsboom%2CD&author=Cramer%2CAOJ
+                        - text: Google Scholar
+                  - listitem [ref=e291]:
+                    - paragraph [ref=e292]:
+                      - text: Boschloo, L., van Borkulo, C. D., Rhemtulla, M., Keyes, K. M., Borsboom, D., & Schoevers, R. A. (2015). The network structure of symptoms of the diagnostic and statistical manual of mental disorders. Plos One, 10(9), e0137621.
+                      - link "https://doi.org/10.1371/journal.pone.0137621" [ref=e293] [cursor=pointer]:
+                        - /url: https://doi.org/10.1371/journal.pone.0137621
+                      - text: .
+                    - paragraph [ref=e294]:
+                      - link "Article reference 11" [ref=e295] [cursor=pointer]:
+                        - /url: https://doi.org/10.1371%2Fjournal.pone.0137621
+                        - text: Article
+                      - link "PubMed reference 11" [ref=e296] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=26368008
+                        - text: PubMed
+                      - link "PubMed Central reference 11" [ref=e297] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/pmc/articles/PMC4569413
+                        - text: PubMed Central
+                      - link "Google Scholar reference 11" [ref=e298] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=The%20network%20structure%20of%20symptoms%20of%20the%20diagnostic%20and%20statistical%20manual%20of%20mental%20disorders&journal=Plos%20One&doi=10.1371%2Fjournal.pone.0137621&volume=10&issue=9&publication_year=2015&author=Boschloo%2CL&author=Borkulo%2CCD&author=Rhemtulla%2CM&author=Keyes%2CKM&author=Borsboom%2CD&author=Schoevers%2CRA
+                        - text: Google Scholar
+                  - listitem [ref=e299]:
+                    - paragraph [ref=e300]:
+                      - text: "Bosley, H. G., Sandel, D. B., & Fisher, A. J. (2020). Idiographic dynamics of positive affect in gad: Modeling emotion regulation at the person level. European Journal of Psychological Assessment, 36(3), 500–509."
+                      - link "https://doi.org/10.1027/1015-5759/a000580" [ref=e301] [cursor=pointer]:
+                        - /url: https://doi.org/10.1027/1015-5759/a000580
+                      - text: .
+                    - paragraph [ref=e302]:
+                      - link "Article reference 12" [ref=e303] [cursor=pointer]:
+                        - /url: https://doi.org/10.1027%2F1015-5759%2Fa000580
+                        - text: Article
+                      - link "Google Scholar reference 12" [ref=e304] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Idiographic%20dynamics%20of%20positive%20affect%20in%20gad%3A%20Modeling%20emotion%20regulation%20at%20the%20person%20level&journal=European%20Journal%20of%20Psychological%20Assessment&doi=10.1027%2F1015-5759%2Fa000580&volume=36&issue=3&pages=500-509&publication_year=2020&author=Bosley%2CHG&author=Sandel%2CDB&author=Fisher%2CAJ
+                        - text: Google Scholar
+                  - listitem [ref=e305]:
+                    - paragraph [ref=e306]:
+                      - text: Brandt, M. J., Sibley, C. G., & Osborne, D. (2019). What is central to political belief system networks? Personality and Social Psychology Bulletin, 45(9), 1352–1364.
+                      - link "https://doi.org/10.1177/0146167218824354" [ref=e307] [cursor=pointer]:
+                        - /url: https://doi.org/10.1177/0146167218824354
+                      - text: .
+                    - paragraph [ref=e308]:
+                      - link "Article reference 13" [ref=e309] [cursor=pointer]:
+                        - /url: https://doi.org/10.1177%2F0146167218824354
+                        - text: Article
+                      - link "PubMed reference 13" [ref=e310] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=30688553
+                        - text: PubMed
+                      - link "Google Scholar reference 13" [ref=e311] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=What%20is%20central%20to%20political%20belief%20system%20networks%3F&journal=Personality%20and%20Social%20Psychology%20Bulletin&doi=10.1177%2F0146167218824354&volume=45&issue=9&pages=1352-1364&publication_year=2019&author=Brandt%2CMJ&author=Sibley%2CCG&author=Osborne%2CD
+                        - text: Google Scholar
+                  - listitem [ref=e312]:
+                    - paragraph [ref=e313]:
+                      - text: "Bringmann, L. F., Vissers, N., Wichers, M., Geschwind, N., Kuppens, P., Peeters, F., et al. (2013). A network approach to psychopathology: New insights into clinical longitudinal data. PLoS ONE, 8(4), e60188."
+                      - link "https://doi.org/10.1371/journal.pone.0060188" [ref=e314] [cursor=pointer]:
+                        - /url: https://doi.org/10.1371/journal.pone.0060188
+                      - text: .
+                    - paragraph [ref=e315]:
+                      - link "Article reference 14" [ref=e316] [cursor=pointer]:
+                        - /url: https://doi.org/10.1371%2Fjournal.pone.0060188
+                        - text: Article
+                      - link "PubMed reference 14" [ref=e317] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=23593171
+                        - text: PubMed
+                      - link "PubMed Central reference 14" [ref=e318] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/pmc/articles/PMC3617177
+                        - text: PubMed Central
+                      - link "Google Scholar reference 14" [ref=e319] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=A%20network%20approach%20to%20psychopathology%3A%20New%20insights%20into%20clinical%20longitudinal%20data&journal=PLoS%20ONE&doi=10.1371%2Fjournal.pone.0060188&volume=8&issue=4&publication_year=2013&author=Bringmann%2CLF&author=Vissers%2CN&author=Wichers%2CM&author=Geschwind%2CN&author=Kuppens%2CP&author=Peeters%2CF&author=Borsboom%2CD&author=Tuerlinckx%2CF
+                        - text: Google Scholar
+                  - listitem [ref=e320]:
+                    - paragraph [ref=e321]:
+                      - text: Brusco, M. J., Steinley, D., Hoffman, M., Davis-Stober, C., & Wasserman, S. (2019). On Ising models and algorithms for the construction of symptom networks in psychopathological research. Psychological Methods, 24(6), 735–753.
+                      - link "https://doi.org/10.1037/met0000207" [ref=e322] [cursor=pointer]:
+                        - /url: https://doi.org/10.1037/met0000207
+                      - text: .
+                    - paragraph [ref=e323]:
+                      - link "Article reference 15" [ref=e324] [cursor=pointer]:
+                        - /url: https://doi.org/10.1037%2Fmet0000207
+                        - text: Article
+                      - link "PubMed reference 15" [ref=e325] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=31589062
+                        - text: PubMed
+                      - link "Google Scholar reference 15" [ref=e326] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=On%20Ising%20models%20and%20algorithms%20for%20the%20construction%20of%20symptom%20networks%20in%20psychopathological%20research&journal=Psychological%20Methods&doi=10.1037%2Fmet0000207&volume=24&issue=6&pages=735-753&publication_year=2019&author=Brusco%2CMJ&author=Steinley%2CD&author=Hoffman%2CM&author=Davis-Stober%2CC&author=Wasserman%2CS
+                        - text: Google Scholar
+                  - listitem [ref=e327]:
+                    - paragraph [ref=e328]:
+                      - text: Bulteel, K., Mestdagh, M., Tuerlinckx, F., & Ceulemans, E. (2018). VAR (1) based models do not always outpredict AR(1) models in typical psychological applications. Psychological Methods, 23(4), 740–756.
+                      - link "https://doi.org/10.1037/met0000178" [ref=e329] [cursor=pointer]:
+                        - /url: https://doi.org/10.1037/met0000178
+                      - text: .
+                    - paragraph [ref=e330]:
+                      - link "Article reference 16" [ref=e331] [cursor=pointer]:
+                        - /url: https://doi.org/10.1037%2Fmet0000178
+                        - text: Article
+                      - link "PubMed reference 16" [ref=e332] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=29745683
+                        - text: PubMed
+                      - link "Google Scholar reference 16" [ref=e333] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=VAR%20%281%29%20based%20models%20do%20not%20always%20outpredict%20AR%281%29%20models%20in%20typical%20psychological%20applications&journal=Psychological%20Methods&doi=10.1037%2Fmet0000178&volume=23&issue=4&pages=740-756&publication_year=2018&author=Bulteel%2CK&author=Mestdagh%2CM&author=Tuerlinckx%2CF&author=Ceulemans%2CE
+                        - text: Google Scholar
+                  - listitem [ref=e334]:
+                    - paragraph [ref=e335]:
+                      - text: Bulteel, K., Tuerlinckx, F., Brose, A., & Ceulemans, E. (2018). Improved insight into and prediction of network dynamics by combining VAR and dimension reduction. Multivariate Behavioral Research, 53(6), 853–875.
+                      - link "https://doi.org/10.1080/00273171.2018.1516540" [ref=e336] [cursor=pointer]:
+                        - /url: https://doi.org/10.1080/00273171.2018.1516540
+                      - text: .
+                    - paragraph [ref=e337]:
+                      - link "Article reference 17" [ref=e338] [cursor=pointer]:
+                        - /url: https://doi.org/10.1080%2F00273171.2018.1516540
+                        - text: Article
+                      - link "PubMed reference 17" [ref=e339] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=30453783
+                        - text: PubMed
+                      - link "Google Scholar reference 17" [ref=e340] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Improved%20insight%20into%20and%20prediction%20of%20network%20dynamics%20by%20combining%20VAR%20and%20dimension%20reduction&journal=Multivariate%20Behavioral%20Research&doi=10.1080%2F00273171.2018.1516540&volume=53&issue=6&pages=853-875&publication_year=2018&author=Bulteel%2CK&author=Tuerlinckx%2CF&author=Brose%2CA&author=Ceulemans%2CE
+                        - text: Google Scholar
+                  - listitem [ref=e341]:
+                    - paragraph [ref=e342]:
+                      - text: "Ceulemans, E., & Van Mechelen, I. (2005). Hierarchical classes models for three-way three-mode binary data: Interrelations and model selection. Psychometrika, 70(3), 461–480."
+                      - link "https://doi.org/10.1007/s11336-003-1067-3" [ref=e343] [cursor=pointer]:
+                        - /url: https://doi.org/10.1007/s11336-003-1067-3
+                      - text: .
+                    - paragraph [ref=e344]:
+                      - link "Article reference 18" [ref=e345] [cursor=pointer]:
+                        - /url: https://link.springer.com/doi/10.1007/s11336-003-1067-3
+                        - text: Article
+                      - link "Google Scholar reference 18" [ref=e346] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Hierarchical%20classes%20models%20for%20three-way%20three-mode%20binary%20data%3A%20Interrelations%20and%20model%20selection&journal=Psychometrika&doi=10.1007%2Fs11336-003-1067-3&volume=70&issue=3&pages=461-480&publication_year=2005&author=Ceulemans%2CE&author=Mechelen%2CI
+                        - text: Google Scholar
+                  - listitem [ref=e347]:
+                    - paragraph [ref=e348]:
+                      - text: "Ceulemans, E., Van Mechelen, I., & Leenen, I. (2007). The local minima problem in hierarchical classes analysis: An evaluation of a simulated annealing algorithm and various multistart procedures. Psychometrika, 72(3), 377–391."
+                      - link "https://doi.org/10.1007/s11336-007-9000-9" [ref=e349] [cursor=pointer]:
+                        - /url: https://doi.org/10.1007/s11336-007-9000-9
+                      - text: .
+                    - paragraph [ref=e350]:
+                      - link "Article reference 19" [ref=e351] [cursor=pointer]:
+                        - /url: https://link.springer.com/doi/10.1007/s11336-007-9000-9
+                        - text: Article
+                      - link "Google Scholar reference 19" [ref=e352] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=The%20local%20minima%20problem%20in%20hierarchical%20classes%20analysis%3A%20An%20evaluation%20of%20a%20simulated%20annealing%20algorithm%20and%20various%20multistart%20procedures&journal=Psychometrika&doi=10.1007%2Fs11336-007-9000-9&volume=72&issue=3&pages=377-391&publication_year=2007&author=Ceulemans%2CE&author=Mechelen%2CI&author=Leenen%2CI
+                        - text: Google Scholar
+                  - listitem [ref=e353]:
+                    - paragraph [ref=e354]:
+                      - text: "Ceulemans, E., & Kiers, H. A. L. (2006). Selecting among three-mode principal component models of different types and complexities: A numerical convex hull based method. British Journal of Mathematical and Statistical Psychology, 59(1), 133–150."
+                      - link "https://doi.org/10.1348/000711005X64817" [ref=e355] [cursor=pointer]:
+                        - /url: https://doi.org/10.1348/000711005X64817
+                      - text: .
+                    - paragraph [ref=e356]:
+                      - link "Article reference 20" [ref=e357] [cursor=pointer]:
+                        - /url: https://doi.org/10.1348%2F000711005X64817
+                        - text: Article
+                      - link "PubMed reference 20" [ref=e358] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=16709283
+                        - text: PubMed
+                      - link "Google Scholar reference 20" [ref=e359] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Selecting%20among%20three-mode%20principal%20component%20models%20of%20different%20types%20and%20complexities%3A%20A%20numerical%20convex%20hull%20based%20method&journal=British%20Journal%20of%20Mathematical%20and%20Statistical%20Psychology&doi=10.1348%2F000711005X64817&volume=59&issue=1&pages=133-150&publication_year=2006&author=Ceulemans%2CE&author=Kiers%2CHAL
+                        - text: Google Scholar
+                  - listitem [ref=e360]:
+                    - paragraph [ref=e361]:
+                      - text: Cohen, J. (1960). A coefficient of agreement for nominal scales. Educational and Psychological Measurement, 20(1), 37–46.
+                      - link "https://doi.org/10.1177/001316446002000104" [ref=e362] [cursor=pointer]:
+                        - /url: https://doi.org/10.1177/001316446002000104
+                      - text: .
+                    - paragraph [ref=e363]:
+                      - link "Article reference 21" [ref=e364] [cursor=pointer]:
+                        - /url: https://doi.org/10.1177%2F001316446002000104
+                        - text: Article
+                      - link "Google Scholar reference 21" [ref=e365] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=A%20coefficient%20of%20agreement%20for%20nominal%20scales&journal=Educational%20and%20Psychological%20Measurement&doi=10.1177%2F001316446002000104&volume=20&issue=1&pages=37-46&publication_year=1960&author=Cohen%2CJ
+                        - text: Google Scholar
+                  - listitem [ref=e366]:
+                    - paragraph [ref=e367]:
+                      - text: Cramer, A. O. J., van Borkulo, C. D., Giltay, E. J., van der Maas, H. L. J., Kendler, K. S., Scheffer, M., et al. (2016). Major depression as a complex dynamic system. Plos One, 11(12), e0167490.
+                      - link "https://doi.org/10.1371/journal.pone.0167490" [ref=e368] [cursor=pointer]:
+                        - /url: https://doi.org/10.1371/journal.pone.0167490
+                      - text: .
+                    - paragraph [ref=e369]:
+                      - link "Article reference 22" [ref=e370] [cursor=pointer]:
+                        - /url: https://doi.org/10.1371%2Fjournal.pone.0167490
+                        - text: Article
+                      - link "PubMed reference 22" [ref=e371] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=27930698
+                        - text: PubMed
+                      - link "PubMed Central reference 22" [ref=e372] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/pmc/articles/PMC5145163
+                        - text: PubMed Central
+                      - link "Google Scholar reference 22" [ref=e373] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Major%20depression%20as%20a%20complex%20dynamic%20system&journal=Plos%20One&doi=10.1371%2Fjournal.pone.0167490&volume=11&issue=12&publication_year=2016&author=Cramer%2CAOJ&author=Borkulo%2CCD&author=Giltay%2CEJ&author=Maas%2CHLJ&author=Kendler%2CKS&author=Scheffer%2CM&author=Borsboom%2CD
+                        - text: Google Scholar
+                  - listitem [ref=e374]:
+                    - paragraph [ref=e375]:
+                      - text: "Cramer, A. O. J., van der Sluis, S., Noordhof, A., Wichers, M., Geschwind, N., Aggen, S. H., et al. (2012). Dimensions of normal personality as networks in search of equilibrium: You can’t like parties if you don’t like people. European Journal of Personality, 26(4), 414–431."
+                      - link "https://doi.org/10.1002/per.1866" [ref=e376] [cursor=pointer]:
+                        - /url: https://doi.org/10.1002/per.1866
+                      - text: .
+                    - paragraph [ref=e377]:
+                      - link "Article reference 23" [ref=e378] [cursor=pointer]:
+                        - /url: https://doi.org/10.1002%2Fper.1866
+                        - text: Article
+                      - link "Google Scholar reference 23" [ref=e379] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Dimensions%20of%20normal%20personality%20as%20networks%20in%20search%20of%20equilibrium%3A%20You%20can%E2%80%99t%20like%20parties%20if%20you%20don%E2%80%99t%20like%20people&journal=European%20Journal%20of%20Personality&doi=10.1002%2Fper.1866&volume=26&issue=4&pages=414-431&publication_year=2012&author=Cramer%2CAOJ&author=Sluis%2CS&author=Noordhof%2CA&author=Wichers%2CM&author=Geschwind%2CN&author=Aggen%2CSH&author=Kendler%2CKS&author=Borsboom%2CD
+                        - text: Google Scholar
+                  - listitem [ref=e380]:
+                    - paragraph [ref=e381]:
+                      - text: "Cramer, A. O. J., Waldorp, L. J., van der Maas, H. L. J., & Borsboom, D. (2010). Comorbidity: A network perspective. Behavioral and Brain Sciences, 33(2–3), 137–150."
+                      - link "https://doi.org/10.1017/S0140525X09991567" [ref=e382] [cursor=pointer]:
+                        - /url: https://doi.org/10.1017/S0140525X09991567
+                      - text: .
+                    - paragraph [ref=e383]:
+                      - link "Article reference 24" [ref=e384] [cursor=pointer]:
+                        - /url: https://doi.org/10.1017%2FS0140525X09991567
+                        - text: Article
+                      - link "PubMed reference 24" [ref=e385] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=20584369
+                        - text: PubMed
+                      - link "Google Scholar reference 24" [ref=e386] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Comorbidity%3A%20A%20network%20perspective&journal=Behavioral%20and%20Brain%20Sciences&doi=10.1017%2FS0140525X09991567&volume=33&issue=2%E2%80%933&pages=137-150&publication_year=2010&author=Cramer%2CAOJ&author=Waldorp%2CLJ&author=Maas%2CHLJ&author=Borsboom%2CD
+                        - text: Google Scholar
+                  - listitem [ref=e387]:
+                    - paragraph [ref=e388]:
+                      - text: "Dalege, J., Borsboom, D., van Harreveld, F., van den Berg, H., Conner, M., & van der Maas, H. L. J. (2016). Toward a formalized account of attitudes: The Causal Attitude Network (CAN) model. Psychological Review, 123(1), 2–22."
+                      - link "https://doi.org/10.1037/a0039802" [ref=e389] [cursor=pointer]:
+                        - /url: https://doi.org/10.1037/a0039802
+                      - text: .
+                    - paragraph [ref=e390]:
+                      - link "Article reference 25" [ref=e391] [cursor=pointer]:
+                        - /url: https://doi.org/10.1037%2Fa0039802
+                        - text: Article
+                      - link "PubMed reference 25" [ref=e392] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=26479706
+                        - text: PubMed
+                      - link "Google Scholar reference 25" [ref=e393] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Toward%20a%20formalized%20account%20of%20attitudes%3A%20The%20Causal%20Attitude%20Network%20%28CAN%29%20model&journal=Psychological%20Review&doi=10.1037%2Fa0039802&volume=123&issue=1&pages=2-22&publication_year=2016&author=Dalege%2CJ&author=Borsboom%2CD&author=Harreveld%2CF&author=Berg%2CH&author=Conner%2CM&author=Maas%2CHLJ
+                        - text: Google Scholar
+                  - listitem [ref=e394]:
+                    - paragraph [ref=e395]:
+                      - text: "De Boeck, P., & Rosenberg, S. (1988). Hierarchical classes: Model and data analysis. Psychometrika, 53(3), 361–381."
+                      - link "https://doi.org/10.1007/BF02294218" [ref=e396] [cursor=pointer]:
+                        - /url: https://doi.org/10.1007/BF02294218
+                      - text: .
+                    - paragraph [ref=e397]:
+                      - link "Article reference 26" [ref=e398] [cursor=pointer]:
+                        - /url: https://link.springer.com/doi/10.1007/BF02294218
+                        - text: Article
+                      - link "Google Scholar reference 26" [ref=e399] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Hierarchical%20classes%3A%20Model%20and%20data%20analysis&journal=Psychometrika&doi=10.1007%2FBF02294218&volume=53&issue=3&pages=361-381&publication_year=1988&author=Boeck%2CP&author=Rosenberg%2CS
+                        - text: Google Scholar
+                  - listitem [ref=e400]:
+                    - paragraph [ref=e401]:
+                      - text: de Vos, S., Wardenaar, K. J., Bos, E. H., Wit, E. C., Bouwmans, M. E. J., & de Jonge, P. (2017). An investigation of emotion dynamics in major depressive disorder patients and healthy persons using sparse longitudinal networks. Plos One, 12(6), e0178586.
+                      - link "https://doi.org/10.1371/journal.pone.0178586" [ref=e402] [cursor=pointer]:
+                        - /url: https://doi.org/10.1371/journal.pone.0178586
+                      - text: .
+                    - paragraph [ref=e403]:
+                      - link "Article reference 27" [ref=e404] [cursor=pointer]:
+                        - /url: https://doi.org/10.1371%2Fjournal.pone.0178586
+                        - text: Article
+                      - link "PubMed reference 27" [ref=e405] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=28570696
+                        - text: PubMed
+                      - link "PubMed Central reference 27" [ref=e406] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/pmc/articles/PMC5453553
+                        - text: PubMed Central
+                      - link "Google Scholar reference 27" [ref=e407] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=An%20investigation%20of%20emotion%20dynamics%20in%20major%20depressive%20disorder%20patients%20and%20healthy%20persons%20using%20sparse%20longitudinal%20networks&journal=Plos%20One&doi=10.1371%2Fjournal.pone.0178586&volume=12&issue=6&publication_year=2017&author=Vos%2CS&author=Wardenaar%2CKJ&author=Bos%2CEH&author=Wit%2CEC&author=Bouwmans%2CMEJ&author=Jonge%2CP
+                        - text: Google Scholar
+                  - listitem [ref=e408]:
+                    - paragraph [ref=e409]: "Edgington, E. S., & Onghena, P. (2007). Randomization tests (4th ed.). Florida: Chapman & Hall/CRC."
+                    - paragraph [ref=e410]:
+                      - link "Book reference 28" [ref=e411] [cursor=pointer]:
+                        - /url: https://doi.org/10.1201%2F9781420011814
+                        - text: Book
+                      - link "Google Scholar reference 28" [ref=e412] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Randomization%20tests&doi=10.1201%2F9781420011814&publication_year=2007&author=Edgington%2CES&author=Onghena%2CP
+                        - text: Google Scholar
+                  - listitem [ref=e413]:
+                    - paragraph [ref=e414]:
+                      - text: "Epskamp, S., Borsboom, D., & Fried, E. I. (2018). Estimating psychological networks and their accuracy: A tutorial paper. Behavior Research Methods, 50(1), 195–212."
+                      - link "https://doi.org/10.3758/s13428-017-0862-1" [ref=e415] [cursor=pointer]:
+                        - /url: https://doi.org/10.3758/s13428-017-0862-1
+                      - text: .
+                    - paragraph [ref=e416]:
+                      - link "Article reference 29" [ref=e417] [cursor=pointer]:
+                        - /url: https://doi.org/10.3758%2Fs13428-017-0862-1
+                        - text: Article
+                      - link "PubMed reference 29" [ref=e418] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=28342071
+                        - text: PubMed
+                      - link "Google Scholar reference 29" [ref=e419] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Estimating%20psychological%20networks%20and%20their%20accuracy%3A%20A%20tutorial%20paper&journal=Behavior%20Research%20Methods&doi=10.3758%2Fs13428-017-0862-1&volume=50&issue=1&pages=195-212&publication_year=2018&author=Epskamp%2CS&author=Borsboom%2CD&author=Fried%2CEI
+                        - text: Google Scholar
+                  - listitem [ref=e420]:
+                    - paragraph [ref=e421]: "Epskamp, S., Cramer, A. O. J., Waldorp, L. J., Schmittmann, V. D., & Borsboom, D. (2012). qgraph: Network visualizations of relationships in psychometric data. Journal of Statistical Software, 48(4), 1–18."
+                    - paragraph [ref=e422]:
+                      - link "Article reference 30" [ref=e423] [cursor=pointer]:
+                        - /url: https://doi.org/10.18637%2Fjss.v048.i04
+                        - text: Article
+                      - link "Google Scholar reference 30" [ref=e424] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=qgraph%3A%20Network%20visualizations%20of%20relationships%20in%20psychometric%20data&journal=Journal%20of%20Statistical%20Software&doi=10.18637%2Fjss.v048.i04&volume=48&issue=4&pages=1-18&publication_year=2012&author=Epskamp%2CS&author=Cramer%2CAOJ&author=Waldorp%2CLJ&author=Schmittmann%2CVD&author=Borsboom%2CD
+                        - text: Google Scholar
+                  - listitem [ref=e425]:
+                    - paragraph [ref=e426]:
+                      - text: "Epskamp, S., Kruis, J., & Marsman, M. (2017). Estimating psychopathological networks: Be careful what you wish for. Plos One, 12(6), e0179891."
+                      - link "https://doi.org/10.1371/journal.pone.0179891" [ref=e427] [cursor=pointer]:
+                        - /url: https://doi.org/10.1371/journal.pone.0179891
+                      - text: .
+                    - paragraph [ref=e428]:
+                      - link "Article reference 31" [ref=e429] [cursor=pointer]:
+                        - /url: https://doi.org/10.1371%2Fjournal.pone.0179891
+                        - text: Article
+                      - link "PubMed reference 31" [ref=e430] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=28644856
+                        - text: PubMed
+                      - link "PubMed Central reference 31" [ref=e431] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/pmc/articles/PMC5482475
+                        - text: PubMed Central
+                      - link "Google Scholar reference 31" [ref=e432] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Estimating%20psychopathological%20networks%3A%20Be%20careful%20what%20you%20wish%20for&journal=Plos%20One&doi=10.1371%2Fjournal.pone.0179891&volume=12&issue=6&publication_year=2017&author=Epskamp%2CS&author=Kruis%2CJ&author=Marsman%2CM
+                        - text: Google Scholar
+                  - listitem [ref=e433]:
+                    - paragraph [ref=e434]:
+                      - text: Epskamp, S., Waldorp, L. J., Mõttus, R., & Borsboom, D. (2018). The Gaussian graphical model in cross-sectional and time-series data. Multivariate Behavioral Research, 53(4), 453–480.
+                      - link "https://doi.org/10.1080/00273171.2018.1454823" [ref=e435] [cursor=pointer]:
+                        - /url: https://doi.org/10.1080/00273171.2018.1454823
+                      - text: .
+                    - paragraph [ref=e436]:
+                      - link "Article reference 32" [ref=e437] [cursor=pointer]:
+                        - /url: https://doi.org/10.1080%2F00273171.2018.1454823
+                        - text: Article
+                      - link "PubMed reference 32" [ref=e438] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=29658809
+                        - text: PubMed
+                      - link "Google Scholar reference 32" [ref=e439] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=The%20Gaussian%20graphical%20model%20in%20cross-sectional%20and%20time-series%20data&journal=Multivariate%20Behavioral%20Research&doi=10.1080%2F00273171.2018.1454823&volume=53&issue=4&pages=453-480&publication_year=2018&author=Epskamp%2CS&author=Waldorp%2CLJ&author=M%C3%B5ttus%2CR&author=Borsboom%2CD
+                        - text: Google Scholar
+                  - listitem [ref=e440]:
+                    - paragraph [ref=e441]:
+                      - text: Firth, D. (1993). Bias reduction of maximum likelihood estimates. Biometrika, 80(1), 27–38.
+                      - link "https://doi.org/10.1093/biomet/80.1.27" [ref=e442] [cursor=pointer]:
+                        - /url: https://doi.org/10.1093/biomet/80.1.27
+                      - text: .
+                    - paragraph [ref=e443]:
+                      - link "Article reference 33" [ref=e444] [cursor=pointer]:
+                        - /url: https://doi.org/10.1093%2Fbiomet%2F80.1.27
+                        - text: Article
+                      - link "Google Scholar reference 33" [ref=e445] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Bias%20reduction%20of%20maximum%20likelihood%20estimates&journal=Biometrika&doi=10.1093%2Fbiomet%2F80.1.27&volume=80&issue=1&pages=27-38&publication_year=1993&author=Firth%2CD
+                        - text: Google Scholar
+                  - listitem [ref=e446]:
+                    - paragraph [ref=e447]:
+                      - text: Fisher, A. J., Reeves, J. W., Lawyer, G., Medaglia, J. D., & Rubel, J. A. (2017). Exploring the idiographic dynamics of mood and anxiety via network analysis. Journal of Abnormal Psychology, 126(8), 1044–1056.
+                      - link "https://doi.org/10.1037/abn0000311" [ref=e448] [cursor=pointer]:
+                        - /url: https://doi.org/10.1037/abn0000311
+                      - text: .
+                    - paragraph [ref=e449]:
+                      - link "Article reference 34" [ref=e450] [cursor=pointer]:
+                        - /url: https://doi.org/10.1037%2Fabn0000311
+                        - text: Article
+                      - link "PubMed reference 34" [ref=e451] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=29154565
+                        - text: PubMed
+                      - link "Google Scholar reference 34" [ref=e452] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Exploring%20the%20idiographic%20dynamics%20of%20mood%20and%20anxiety%20via%20network%20analysis&journal=Journal%20of%20Abnormal%20Psychology&doi=10.1037%2Fabn0000311&volume=126&issue=8&pages=1044-1056&publication_year=2017&author=Fisher%2CAJ&author=Reeves%2CJW&author=Lawyer%2CG&author=Medaglia%2CJD&author=Rubel%2CJA
+                        - text: Google Scholar
+                  - listitem [ref=e453]:
+                    - paragraph [ref=e454]: Fisher, R. A. (1949). The design of experiments (5th ed.). Oliver & Boyd.
+                  - listitem [ref=e455]:
+                    - paragraph [ref=e456]:
+                      - text: "Fried, E. I., van Borkulo, C. D., Cramer, A. O. J., Boschloo, L., Schoevers, R. A., & Borsboom, D. (2017). Mental disorders as networks of problems: A review of recent insights. Social Psychiatry and Psychiatric Epidemiology, 52(1), 1–10."
+                      - link "https://doi.org/10.1007/s00127-016-1319-z" [ref=e457] [cursor=pointer]:
+                        - /url: https://doi.org/10.1007/s00127-016-1319-z
+                      - text: .
+                    - paragraph [ref=e458]:
+                      - link "Article reference 36" [ref=e459] [cursor=pointer]:
+                        - /url: https://link.springer.com/doi/10.1007/s00127-016-1319-z
+                        - text: Article
+                      - link "PubMed reference 36" [ref=e460] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=27921134
+                        - text: PubMed
+                      - link "Google Scholar reference 36" [ref=e461] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Mental%20disorders%20as%20networks%20of%20problems%3A%20A%20review%20of%20recent%20insights&journal=Social%20Psychiatry%20and%20Psychiatric%20Epidemiology&doi=10.1007%2Fs00127-016-1319-z&volume=52&issue=1&pages=1-10&publication_year=2017&author=Fried%2CEI&author=Borkulo%2CCD&author=Cramer%2CAOJ&author=Boschloo%2CL&author=Schoevers%2CRA&author=Borsboom%2CD
+                        - text: Google Scholar
+                  - listitem [ref=e462]:
+                    - paragraph [ref=e463]:
+                      - text: Fried, E. I., Epskamp, S., Nesse, R. M., Tuerlinckx, F., & Borsboom, D. (2016). What are ‘good’ depression symptoms? Comparing the centrality of DSM and non-DSM symptoms of depression in a network analysis. Journal of Affective Disorders, 189, 314–320.
+                      - link "https://doi.org/10.1016/j.jad.2015.09.005" [ref=e464] [cursor=pointer]:
+                        - /url: https://doi.org/10.1016/j.jad.2015.09.005
+                      - text: .
+                    - paragraph [ref=e465]:
+                      - link "Article reference 37" [ref=e466] [cursor=pointer]:
+                        - /url: https://doi.org/10.1016%2Fj.jad.2015.09.005
+                        - text: Article
+                      - link "PubMed reference 37" [ref=e467] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=26458184
+                        - text: PubMed
+                      - link "Google Scholar reference 37" [ref=e468] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=What%20are%20%E2%80%98good%E2%80%99%20depression%20symptoms%3F%20Comparing%20the%20centrality%20of%20DSM%20and%20non-DSM%20symptoms%20of%20depression%20in%20a%20network%20analysis&journal=Journal%20of%20Affective%20Disorders&doi=10.1016%2Fj.jad.2015.09.005&volume=189&pages=314-320&publication_year=2016&author=Fried%2CEI&author=Epskamp%2CS&author=Nesse%2CRM&author=Tuerlinckx%2CF&author=Borsboom%2CD
+                        - text: Google Scholar
+                  - listitem [ref=e469]:
+                    - paragraph [ref=e470]:
+                      - text: "Fried, E. I., & Nesse, R. M. (2015). Depression is not a consistent syndrome: An investigation of unique symptom patterns in the STAR*D study. Journal of Affective Disorders, 172, 96–102."
+                      - link "https://doi.org/10.1016/j.jad.2014.10.010" [ref=e471] [cursor=pointer]:
+                        - /url: https://doi.org/10.1016/j.jad.2014.10.010
+                      - text: .
+                    - paragraph [ref=e472]:
+                      - link "Article reference 38" [ref=e473] [cursor=pointer]:
+                        - /url: https://doi.org/10.1016%2Fj.jad.2014.10.010
+                        - text: Article
+                      - link "PubMed reference 38" [ref=e474] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=25451401
+                        - text: PubMed
+                      - link "Google Scholar reference 38" [ref=e475] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Depression%20is%20not%20a%20consistent%20syndrome%3A%20An%20investigation%20of%20unique%20symptom%20patterns%20in%20the%20STAR%2AD%20study&journal=Journal%20of%20Affective%20Disorders&doi=10.1016%2Fj.jad.2014.10.010&volume=172&pages=96-102&publication_year=2015&author=Fried%2CEI&author=Nesse%2CRM
+                        - text: Google Scholar
+                  - listitem [ref=e476]:
+                    - paragraph [ref=e477]:
+                      - text: Gelman, A., Jakulin, A., Pittau, M. G., & Su, Y.-S. (2008). A weakly informative default prior distribution for logistic and other regression models. The Annals of Applied Statistics, 2(4), 1360–1383.
+                      - link "https://doi.org/10.1214/08-AOAS191" [ref=e478] [cursor=pointer]:
+                        - /url: https://doi.org/10.1214/08-AOAS191
+                      - text: .
+                    - paragraph [ref=e479]:
+                      - link "Article reference 39" [ref=e480] [cursor=pointer]:
+                        - /url: https://doi.org/10.1214%2F08-AOAS191
+                        - text: Article
+                      - link "Google Scholar reference 39" [ref=e481] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=A%20weakly%20informative%20default%20prior%20distribution%20for%20logistic%20and%20other%20regression%20models&journal=The%20Annals%20of%20Applied%20Statistics&doi=10.1214%2F08-AOAS191&volume=2&issue=4&pages=1360-1383&publication_year=2008&author=Gelman%2CA&author=Jakulin%2CA&author=Pittau%2CMG&author=Su%2CY-S
+                        - text: Google Scholar
+                  - listitem [ref=e482]:
+                    - paragraph [ref=e483]:
+                      - text: "Golino, H. F., & Epskamp, S. (2017). Exploratory graph analysis: A new approach for estimating the number of dimensions in psychological research. Plos One, 12(6), e0174035."
+                      - link "https://doi.org/10.1371/journal.pone.0174035" [ref=e484] [cursor=pointer]:
+                        - /url: https://doi.org/10.1371/journal.pone.0174035
+                      - text: .
+                    - paragraph [ref=e485]:
+                      - link "Article reference 40" [ref=e486] [cursor=pointer]:
+                        - /url: https://doi.org/10.1371%2Fjournal.pone.0174035
+                        - text: Article
+                      - link "PubMed reference 40" [ref=e487] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=28594839
+                        - text: PubMed
+                      - link "PubMed Central reference 40" [ref=e488] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/pmc/articles/PMC5465941
+                        - text: PubMed Central
+                      - link "Google Scholar reference 40" [ref=e489] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Exploratory%20graph%20analysis%3A%20A%20new%20approach%20for%20estimating%20the%20number%20of%20dimensions%20in%20psychological%20research&journal=Plos%20One&doi=10.1371%2Fjournal.pone.0174035&volume=12&issue=6&publication_year=2017&author=Golino%2CHF&author=Epskamp%2CS
+                        - text: Google Scholar
+                  - listitem [ref=e490]:
+                    - paragraph [ref=e491]:
+                      - text: Good, P. (2000). Permutation Tests. Springer New York.
+                      - link "https://doi.org/10.1007/978-1-4757-3235-1" [ref=e492] [cursor=pointer]:
+                        - /url: https://doi.org/10.1007/978-1-4757-3235-1
+                  - listitem [ref=e493]:
+                    - paragraph [ref=e494]:
+                      - text: "Hamaker, E., Asparouhov, T., Brose, A., Schmiedek, F., & Muthén, B. (2018). At the frontiers of modeling intensive longitudinal data: Dynamic structural equation models for the affective measurements from the COGITO study. Multivariate Behavioral Research, 53(6), 820–841."
+                      - link "https://doi.org/10.1080/00273171.2018.1446819" [ref=e495] [cursor=pointer]:
+                        - /url: https://doi.org/10.1080/00273171.2018.1446819
+                      - text: .
+                    - paragraph [ref=e496]:
+                      - link "Article reference 42" [ref=e497] [cursor=pointer]:
+                        - /url: https://doi.org/10.1080%2F00273171.2018.1446819
+                        - text: Article
+                      - link "PubMed reference 42" [ref=e498] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=29624092
+                        - text: PubMed
+                      - link "Google Scholar reference 42" [ref=e499] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=At%20the%20frontiers%20of%20modeling%20intensive%20longitudinal%20data%3A%20Dynamic%20structural%20equation%20models%20for%20the%20affective%20measurements%20from%20the%20COGITO%20study&journal=Multivariate%20Behavioral%20Research&doi=10.1080%2F00273171.2018.1446819&volume=53&issue=6&pages=820-841&publication_year=2018&author=Hamaker%2CE&author=Asparouhov%2CT&author=Brose%2CA&author=Schmiedek%2CF&author=Muth%C3%A9n%2CB
+                        - text: Google Scholar
+                  - listitem [ref=e500]:
+                    - paragraph [ref=e501]:
+                      - text: Hamming, R. W. (1950). Error detecting and error correcting codes. The Bell System Technical Journal, 29(2), 147–160.
+                      - link "https://doi.org/10.1002/j.1538-7305.1950.tb00463.x" [ref=e502] [cursor=pointer]:
+                        - /url: https://doi.org/10.1002/j.1538-7305.1950.tb00463.x
+                      - text: .
+                    - paragraph [ref=e503]:
+                      - link "Article reference 43" [ref=e504] [cursor=pointer]:
+                        - /url: https://doi.org/10.1002%2Fj.1538-7305.1950.tb00463.x
+                        - text: Article
+                      - link "Google Scholar reference 43" [ref=e505] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Error%20detecting%20and%20error%20correcting%20codes&journal=The%20Bell%20System%20Technical%20Journal&doi=10.1002%2Fj.1538-7305.1950.tb00463.x&volume=29&issue=2&pages=147-160&publication_year=1950&author=Hamming%2CRW
+                        - text: Google Scholar
+                  - listitem [ref=e506]:
+                    - paragraph [ref=e507]:
+                      - text: "Haslbeck, J. M. B., & Waldorp, L. J. (2020). mgm: Estimating time-varying mixed graphical models in high-dimensional data."
+                      - link "ArXiv:1510.06871" [ref=e508] [cursor=pointer]:
+                        - /url: http://arxiv.org/abs/1510.06871
+                      - text: "[Stat]."
+                  - listitem [ref=e509]:
+                    - paragraph [ref=e510]:
+                      - text: Heinze, G., & Schemper, M. (2002). A solution to the problem of separation in logistic regression. Statistics in Medicine, 21(16), 2409–2419.
+                      - link "https://doi.org/10.1002/sim.1047" [ref=e511] [cursor=pointer]:
+                        - /url: https://doi.org/10.1002/sim.1047
+                      - text: .
+                    - paragraph [ref=e512]:
+                      - link "Article reference 45" [ref=e513] [cursor=pointer]:
+                        - /url: https://doi.org/10.1002%2Fsim.1047
+                        - text: Article
+                      - link "PubMed reference 45" [ref=e514] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=12210625
+                        - text: PubMed
+                      - link "Google Scholar reference 45" [ref=e515] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=A%20solution%20to%20the%20problem%20of%20separation%20in%20logistic%20regression&journal=Statistics%20in%20Medicine&doi=10.1002%2Fsim.1047&volume=21&issue=16&pages=2409-2419&publication_year=2002&author=Heinze%2CG&author=Schemper%2CM
+                        - text: Google Scholar
+                  - listitem [ref=e516]:
+                    - paragraph [ref=e517]:
+                      - text: "Holloway, E. L., Wampold, B. E., & Nelson, M. L. (1990). Use of a paradoxical intervention with a couple: An interactional analysis. Journal of Family Psychology, 3(4), 385–402."
+                      - link "https://doi.org/10.1037/h0080552" [ref=e518] [cursor=pointer]:
+                        - /url: https://doi.org/10.1037/h0080552
+                      - text: .
+                    - paragraph [ref=e519]:
+                      - link "Article reference 46" [ref=e520] [cursor=pointer]:
+                        - /url: https://doi.org/10.1037%2Fh0080552
+                        - text: Article
+                      - link "Google Scholar reference 46" [ref=e521] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Use%20of%20a%20paradoxical%20intervention%20with%20a%20couple%3A%20An%20interactional%20analysis&journal=Journal%20of%20Family%20Psychology&doi=10.1037%2Fh0080552&volume=3&issue=4&pages=385-402&publication_year=1990&author=Holloway%2CEL&author=Wampold%2CBE&author=Nelson%2CML
+                        - text: Google Scholar
+                  - listitem [ref=e522]:
+                    - paragraph [ref=e523]:
+                      - text: "Hosenfeld, B., Bos, E. H., Wardenaar, K. J., Conradi, H. J., van der Maas, H. L. J., Visser, I., et al. (2015). Major depressive disorder as a nonlinear dynamic system: Bimodality in the frequency distribution of depressive symptoms over time. BMC Psychiatry, 15(1), 222."
+                      - link "https://doi.org/10.1186/s12888-015-0596-5" [ref=e524] [cursor=pointer]:
+                        - /url: https://doi.org/10.1186/s12888-015-0596-5
+                      - text: .
+                    - paragraph [ref=e525]:
+                      - link "Article reference 47" [ref=e526] [cursor=pointer]:
+                        - /url: https://link.springer.com/doi/10.1186/s12888-015-0596-5
+                        - text: Article
+                      - link "PubMed reference 47" [ref=e527] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=26385384
+                        - text: PubMed
+                      - link "PubMed Central reference 47" [ref=e528] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/pmc/articles/PMC4574448
+                        - text: PubMed Central
+                      - link "Google Scholar reference 47" [ref=e529] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Major%20depressive%20disorder%20as%20a%20nonlinear%20dynamic%20system%3A%20Bimodality%20in%20the%20frequency%20distribution%20of%20depressive%20symptoms%20over%20time&journal=BMC%20Psychiatry&doi=10.1186%2Fs12888-015-0596-5&volume=15&issue=1&publication_year=2015&author=Hosenfeld%2CB&author=Bos%2CEH&author=Wardenaar%2CKJ&author=Conradi%2CHJ&author=Maas%2CHLJ&author=Visser%2CI&author=Jonge%2CP
+                        - text: Google Scholar
+                  - listitem [ref=e530]:
+                    - paragraph [ref=e531]:
+                      - text: "Isvoranu, A.-M., Borsboom, D., van Os, J., & Guloksuz, S. (2016). A network approach to environmental impact in psychotic disorder: Brief theoretical framework. Schizophrenia Bulletin, 42(4), 870–873."
+                      - link "https://doi.org/10.1093/schbul/sbw049" [ref=e532] [cursor=pointer]:
+                        - /url: https://doi.org/10.1093/schbul/sbw049
+                      - text: .
+                    - paragraph [ref=e533]:
+                      - link "Article reference 48" [ref=e534] [cursor=pointer]:
+                        - /url: https://doi.org/10.1093%2Fschbul%2Fsbw049
+                        - text: Article
+                      - link "PubMed reference 48" [ref=e535] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=27179124
+                        - text: PubMed
+                      - link "PubMed Central reference 48" [ref=e536] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/pmc/articles/PMC4903069
+                        - text: PubMed Central
+                      - link "Google Scholar reference 48" [ref=e537] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=A%20network%20approach%20to%20environmental%20impact%20in%20psychotic%20disorder%3A%20Brief%20theoretical%20framework&journal=Schizophrenia%20Bulletin&doi=10.1093%2Fschbul%2Fsbw049&volume=42&issue=4&pages=870-873&publication_year=2016&author=Isvoranu%2CA-M&author=Borsboom%2CD&author=Os%2CJ&author=Guloksuz%2CS
+                        - text: Google Scholar
+                  - listitem [ref=e538]:
+                    - paragraph [ref=e539]: Jaccard, P. (1901). Étude comparative de la distribution florale dans une portion des Alpes et des Jura. Bulletin de La Société Vaudoise Des Sciences Naturelles, 37, 547–579.
+                    - paragraph [ref=e540]:
+                      - link "Google Scholar reference 49" [ref=e541] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=%C3%89tude%20comparative%20de%20la%20distribution%20florale%20dans%20une%20portion%20des%20Alpes%20et%20des%20Jura&journal=Bulletin%20de%20La%20Soci%C3%A9t%C3%A9%20Vaudoise%20Des%20Sciences%20Naturelles&volume=37&pages=547-579&publication_year=1901&author=Jaccard%2CP
+                        - text: Google Scholar
+                  - listitem [ref=e542]:
+                    - paragraph [ref=e543]:
+                      - text: Jaccard, P. (1912). The distribution of the flora in the Alpine zone. New Phytologist, 11(2), 37–50.
+                      - link "https://doi.org/10.1111/j.1469-8137.1912.tb05611.x" [ref=e544] [cursor=pointer]:
+                        - /url: https://doi.org/10.1111/j.1469-8137.1912.tb05611.x
+                      - text: .
+                    - paragraph [ref=e545]:
+                      - link "Article reference 50" [ref=e546] [cursor=pointer]:
+                        - /url: https://doi.org/10.1111%2Fj.1469-8137.1912.tb05611.x
+                        - text: Article
+                      - link "Google Scholar reference 50" [ref=e547] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=The%20distribution%20of%20the%20flora%20in%20the%20Alpine%20zone&journal=New%20Phytologist&doi=10.1111%2Fj.1469-8137.1912.tb05611.x&volume=11&issue=2&pages=37-50&publication_year=1912&author=Jaccard%2CP
+                        - text: Google Scholar
+                  - listitem [ref=e548]:
+                    - paragraph [ref=e549]:
+                      - text: "Lamers, F., de Jonge, P., Nolen, W. A., Smit, J. H., Zitman, F. G., Beekman, A. T. F., et al. (2010). Identifying depressive subtypes in a large Cohort study: Results from the Netherlands study of depression and anxiety (NESDA). The Journal of Clinical Psychiatry, 71(12), 1582–1589."
+                      - link "https://doi.org/10.4088/JCP.09m05398blu" [ref=e550] [cursor=pointer]:
+                        - /url: https://doi.org/10.4088/JCP.09m05398blu
+                      - text: .
+                    - paragraph [ref=e551]:
+                      - link "Article reference 51" [ref=e552] [cursor=pointer]:
+                        - /url: https://doi.org/10.4088%2FJCP.09m05398blu
+                        - text: Article
+                      - link "PubMed reference 51" [ref=e553] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=20673552
+                        - text: PubMed
+                      - link "Google Scholar reference 51" [ref=e554] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Identifying%20depressive%20subtypes%20in%20a%20large%20Cohort%20study%3A%20Results%20from%20the%20Netherlands%20study%20of%20depression%20and%20anxiety%20%28NESDA%29&journal=The%20Journal%20of%20Clinical%20Psychiatry&doi=10.4088%2FJCP.09m05398blu&volume=71&issue=12&pages=1582-1589&publication_year=2010&author=Lamers%2CF&author=Jonge%2CP&author=Nolen%2CWA&author=Smit%2CJH&author=Zitman%2CFG&author=Beekman%2CATF&author=Penninx%2CBWJH
+                        - text: Google Scholar
+                  - listitem [ref=e555]:
+                    - paragraph [ref=e556]:
+                      - text: "Mansournia, M. A., Geroldinger, A., Greenland, S., & Heinze, G. (2018). Separation in logistic regression: Causes, consequences, and control. American Journal of Epidemiology, 187(4), 864–870."
+                      - link "https://doi.org/10.1093/aje/kwx299" [ref=e557] [cursor=pointer]:
+                        - /url: https://doi.org/10.1093/aje/kwx299
+                      - text: .
+                    - paragraph [ref=e558]:
+                      - link "Article reference 52" [ref=e559] [cursor=pointer]:
+                        - /url: https://doi.org/10.1093%2Faje%2Fkwx299
+                        - text: Article
+                      - link "PubMed reference 52" [ref=e560] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=29020135
+                        - text: PubMed
+                      - link "Google Scholar reference 52" [ref=e561] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Separation%20in%20logistic%20regression%3A%20Causes%2C%20consequences%2C%20and%20control&journal=American%20Journal%20of%20Epidemiology&doi=10.1093%2Faje%2Fkwx299&volume=187&issue=4&pages=864-870&publication_year=2018&author=Mansournia%2CMA&author=Geroldinger%2CA&author=Greenland%2CS&author=Heinze%2CG
+                        - text: Google Scholar
+                  - listitem [ref=e562]:
+                    - paragraph [ref=e563]:
+                      - text: Marsman, M., Waldorp, L., & Borsboom, D. (2019). Towards an encompassing theory of network models [Preprint].
+                      - link "https://doi.org/10.31234/osf.io/n98qt" [ref=e564] [cursor=pointer]:
+                        - /url: https://doi.org/10.31234/osf.io/n98qt
+                  - listitem [ref=e565]:
+                    - paragraph [ref=e566]:
+                      - text: "Moulder, R. G., Boker, S. M., Ramseyer, F., & Tschacher, W. (2018). Determining synchrony between behavioral time series: An application of surrogate data generation for establishing falsifiable null-hypotheses. Psychological Methods, 23(4), 757–773."
+                      - link "https://doi.org/10.1037/met0000172" [ref=e567] [cursor=pointer]:
+                        - /url: https://doi.org/10.1037/met0000172
+                      - text: .
+                    - paragraph [ref=e568]:
+                      - link "Article reference 54" [ref=e569] [cursor=pointer]:
+                        - /url: https://doi.org/10.1037%2Fmet0000172
+                        - text: Article
+                      - link "PubMed reference 54" [ref=e570] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=29595296
+                        - text: PubMed
+                      - link "PubMed Central reference 54" [ref=e571] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/pmc/articles/PMC6163103
+                        - text: PubMed Central
+                      - link "Google Scholar reference 54" [ref=e572] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Determining%20synchrony%20between%20behavioral%20time%20series%3A%20An%20application%20of%20surrogate%20data%20generation%20for%20establishing%20falsifiable%20null-hypotheses&journal=Psychological%20Methods&doi=10.1037%2Fmet0000172&volume=23&issue=4&pages=757-773&publication_year=2018&author=Moulder%2CRG&author=Boker%2CSM&author=Ramseyer%2CF&author=Tschacher%2CW
+                        - text: Google Scholar
+                  - listitem [ref=e573]:
+                    - paragraph [ref=e574]:
+                      - text: Olthof, M., Hasselman, F., Strunk, G., van Rooij, M., Aas, B., Helmich, M. A., et al. (2020). Critical fluctuations as an early-warning signal for sudden gains and losses in patients receiving psychotherapy for mood disorders. Clinical Psychological Science, 8(1), 25–35.
+                      - link "https://doi.org/10.1177/2167702619865969" [ref=e575] [cursor=pointer]:
+                        - /url: https://doi.org/10.1177/2167702619865969
+                      - text: .
+                    - paragraph [ref=e576]:
+                      - link "Article reference 55" [ref=e577] [cursor=pointer]:
+                        - /url: https://doi.org/10.1177%2F2167702619865969
+                        - text: Article
+                      - link "Google Scholar reference 55" [ref=e578] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Critical%20fluctuations%20as%20an%20early-warning%20signal%20for%20sudden%20gains%20and%20losses%20in%20patients%20receiving%20psychotherapy%20for%20mood%20disorders&journal=Clinical%20Psychological%20Science&doi=10.1177%2F2167702619865969&volume=8&issue=1&pages=25-35&publication_year=2020&author=Olthof%2CM&author=Hasselman%2CF&author=Strunk%2CG&author=Rooij%2CM&author=Aas%2CB&author=Helmich%2CMA&author=Schiepek%2CG&author=Lichtwarck-Aschoff%2CA
+                        - text: Google Scholar
+                  - listitem [ref=e579]:
+                    - paragraph [ref=e580]:
+                      - text: "Racine, J. (2000). Consistent cross-validatory model-selection for dependent data: Hv-block cross-validation. Journal of Econometrics, 99(1), 39–61."
+                      - link "https://doi.org/10.1016/S0304-4076(00)00030-0" [ref=e581] [cursor=pointer]:
+                        - /url: https://doi.org/10.1016/S0304-4076(00)00030-0
+                      - text: .
+                    - paragraph [ref=e582]:
+                      - link "Article reference 56" [ref=e583] [cursor=pointer]:
+                        - /url: https://doi.org/10.1016%2FS0304-4076%2800%2900030-0
+                        - text: Article
+                      - link "Google Scholar reference 56" [ref=e584] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Consistent%20cross-validatory%20model-selection%20for%20dependent%20data%3A%20Hv-block%20cross-validation&journal=Journal%20of%20Econometrics&doi=10.1016%2FS0304-4076%2800%2900030-0&volume=99&issue=1&pages=39-61&publication_year=2000&author=Racine%2CJ
+                        - text: Google Scholar
+                  - listitem [ref=e585]:
+                    - paragraph [ref=e586]:
+                      - text: "Salvatore, S., Rand, K. D., Grytten, I., Ferkingstad, E., Domanska, D., Holden, L., Gheorghe, M., Mathelier, A., Glad, I., & Sandve, G. K. (2019). Beware the Jaccard: The choice of metric is important and non-trivial in genomic colocalisation analysis. BioRxiv, 479253."
+                      - link "https://doi.org/10.1101/479253" [ref=e587] [cursor=pointer]:
+                        - /url: https://doi.org/10.1101/479253
+                      - text: .
+                  - listitem [ref=e588]:
+                    - paragraph [ref=e589]:
+                      - text: "Scott, W. A. (1955). Reliability of content analysis: The case of nominal scale coding. The Public Opinion Quarterly, 19(3), 321–325."
+                      - link "https://www.jstor.org/stable/2746450" [ref=e590] [cursor=pointer]:
+                        - /url: https://www.jstor.org/stable/2746450
+                      - text: .
+                  - listitem [ref=e591]:
+                    - paragraph [ref=e592]:
+                      - text: Steegen, S., Tuerlinckx, F., Gelman, A., & Vanpaemel, W. (2016). Increasing transparency through a multiverse analysis. Perspectives on Psychological Science, 11(5), 702–712.
+                      - link "https://doi.org/10.1177/1745691616658637" [ref=e593] [cursor=pointer]:
+                        - /url: https://doi.org/10.1177/1745691616658637
+                      - text: .
+                    - paragraph [ref=e594]:
+                      - link "Article reference 59" [ref=e595] [cursor=pointer]:
+                        - /url: https://doi.org/10.1177%2F1745691616658637
+                        - text: Article
+                      - link "PubMed reference 59" [ref=e596] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=27694465
+                        - text: PubMed
+                      - link "Google Scholar reference 59" [ref=e597] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Increasing%20transparency%20through%20a%20multiverse%20analysis&journal=Perspectives%20on%20Psychological%20Science&doi=10.1177%2F1745691616658637&volume=11&issue=5&pages=702-712&publication_year=2016&author=Steegen%2CS&author=Tuerlinckx%2CF&author=Gelman%2CA&author=Vanpaemel%2CW
+                        - text: Google Scholar
+                  - listitem [ref=e598]:
+                    - paragraph [ref=e599]:
+                      - text: van Borkulo, C. D., Borsboom, D., Epskamp, S., Blanken, T. F., Boschloo, L., Schoevers, R. A., et al. (2014). A new method for constructing networks from binary data. Scientific Reports,.
+                      - link "https://doi.org/10.1038/srep05918" [ref=e600] [cursor=pointer]:
+                        - /url: https://doi.org/10.1038/srep05918
+                      - text: .
+                    - paragraph [ref=e601]:
+                      - link "Article reference 60" [ref=e602] [cursor=pointer]:
+                        - /url: https://doi.org/10.1038%2Fsrep05918
+                        - text: Article
+                      - link "PubMed reference 60" [ref=e603] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=25082149
+                        - text: PubMed
+                      - link "PubMed Central reference 60" [ref=e604] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/pmc/articles/PMC4118196
+                        - text: PubMed Central
+                      - link "Google Scholar reference 60" [ref=e605] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=A%20new%20method%20for%20constructing%20networks%20from%20binary%20data&journal=Scientific%20Reports&doi=10.1038%2Fsrep05918&publication_year=2014&author=Borkulo%2CCD&author=Borsboom%2CD&author=Epskamp%2CS&author=Blanken%2CTF&author=Boschloo%2CL&author=Schoevers%2CRA&author=Waldorp%2CLJ
+                        - text: Google Scholar
+                  - listitem [ref=e606]:
+                    - paragraph [ref=e607]:
+                      - text: van de Leemput, I. A., Wichers, M., Cramer, A. O. J., Borsboom, D., Tuerlinckx, F., Kuppens, P., et al. (2014). Critical slowing down as early warning for the onset and termination of depression. Proceedings of the National Academy of Sciences, 111(1), 87–92.
+                      - link "https://doi.org/10.1073/pnas.1312114110" [ref=e608] [cursor=pointer]:
+                        - /url: https://doi.org/10.1073/pnas.1312114110
+                      - text: .
+                  - listitem [ref=e609]:
+                    - paragraph [ref=e610]:
+                      - text: "Van Keer, I., Ceulemans, E., Bodner, N., Vandesande, S., Van Leeuwen, K., & Maes, B. (2019). Parent-child interaction: A micro-level sequential approach in children with a significant cognitive and motor developmental delay. Research in Developmental Disabilities, 85, 172–186."
+                      - link "https://doi.org/10.1016/j.ridd.2018.11.008" [ref=e611] [cursor=pointer]:
+                        - /url: https://doi.org/10.1016/j.ridd.2018.11.008
+                      - text: .
+                    - paragraph [ref=e612]:
+                      - link "Article reference 62" [ref=e613] [cursor=pointer]:
+                        - /url: https://doi.org/10.1016%2Fj.ridd.2018.11.008
+                        - text: Article
+                      - link "PubMed reference 62" [ref=e614] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=30572148
+                        - text: PubMed
+                      - link "Google Scholar reference 62" [ref=e615] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Parent-child%20interaction%3A%20A%20micro-level%20sequential%20approach%20in%20children%20with%20a%20significant%20cognitive%20and%20motor%20developmental%20delay&journal=Research%20in%20Developmental%20Disabilities&doi=10.1016%2Fj.ridd.2018.11.008&volume=85&pages=172-186&publication_year=2019&author=Keer%2CI&author=Ceulemans%2CE&author=Bodner%2CN&author=Vandesande%2CS&author=Leeuwen%2CK&author=Maes%2CB
+                        - text: Google Scholar
+                  - listitem [ref=e616]:
+                    - paragraph [ref=e617]:
+                      - text: Van Mechelen, I., De Boeck, P., & Rosenberg, S. (1995). The conjunctive model of hierarchical classes. Psychometrika, 60(4), 505–521.
+                      - link "https://doi.org/10.1007/BF02294326" [ref=e618] [cursor=pointer]:
+                        - /url: https://doi.org/10.1007/BF02294326
+                      - text: .
+                    - paragraph [ref=e619]:
+                      - link "Article reference 63" [ref=e620] [cursor=pointer]:
+                        - /url: https://link.springer.com/doi/10.1007/BF02294326
+                        - text: Article
+                      - link "Google Scholar reference 63" [ref=e621] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=The%20conjunctive%20model%20of%20hierarchical%20classes&journal=Psychometrika&doi=10.1007%2FBF02294326&volume=60&issue=4&pages=505-521&publication_year=1995&author=Mechelen%2CI&author=Boeck%2CP&author=Rosenberg%2CS
+                        - text: Google Scholar
+                  - listitem [ref=e622]:
+                    - paragraph [ref=e623]: "Vermunt, J. K., & Magidson, J. (2002). Latent class cluster analysis. In J. Hagenaars & A. McCutcheon (Eds.), Applied latent class analysis (pp. 89–106). Cambridge: Cambridge University Press."
+                    - paragraph [ref=e624]:
+                      - link "Chapter reference 64" [ref=e625] [cursor=pointer]:
+                        - /url: https://doi.org/10.1017%2FCBO9780511499531.004
+                        - text: Chapter
+                      - link "Google Scholar reference 64" [ref=e626] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Latent%20class%20cluster%20analysis&doi=10.1017%2FCBO9780511499531.004&pages=89-106&publication_year=2002&author=Vermunt%2CJK&author=Magidson%2CJ
+                        - text: Google Scholar
+                  - listitem [ref=e627]:
+                    - paragraph [ref=e628]:
+                      - text: "Wardenaar, K. J., Monden, R., Conradi, H. J., & de Jonge, P. (2015). Symptom-specific course trajectories and their determinants in primary care patients with Major Depressive Disorder: Evidence for two etiologically distinct prototypes. Journal of Affective Disorders, 179, 38–46."
+                      - link "https://doi.org/10.1016/j.jad.2015.03.029" [ref=e629] [cursor=pointer]:
+                        - /url: https://doi.org/10.1016/j.jad.2015.03.029
+                      - text: .
+                    - paragraph [ref=e630]:
+                      - link "Article reference 65" [ref=e631] [cursor=pointer]:
+                        - /url: https://doi.org/10.1016%2Fj.jad.2015.03.029
+                        - text: Article
+                      - link "PubMed reference 65" [ref=e632] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=25845748
+                        - text: PubMed
+                      - link "Google Scholar reference 65" [ref=e633] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Symptom-specific%20course%20trajectories%20and%20their%20determinants%20in%20primary%20care%20patients%20with%20Major%20Depressive%20Disorder%3A%20Evidence%20for%20two%20etiologically%20distinct%20prototypes&journal=Journal%20of%20Affective%20Disorders&doi=10.1016%2Fj.jad.2015.03.029&volume=179&pages=38-46&publication_year=2015&author=Wardenaar%2CKJ&author=Monden%2CR&author=Conradi%2CHJ&author=Jonge%2CP
+                        - text: Google Scholar
+                  - listitem [ref=e634]:
+                    - paragraph [ref=e635]:
+                      - text: "Wilderjans, T. F., Ceulemans, E., & Meers, K. (2013). CHull: A generic convex-hull-based model selection method. Behavior Research Methods, 45(1), 1–15."
+                      - link "https://doi.org/10.3758/s13428-012-0238-5" [ref=e636] [cursor=pointer]:
+                        - /url: https://doi.org/10.3758/s13428-012-0238-5
+                      - text: .
+                    - paragraph [ref=e637]:
+                      - link "Article reference 66" [ref=e638] [cursor=pointer]:
+                        - /url: https://doi.org/10.3758%2Fs13428-012-0238-5
+                        - text: Article
+                      - link "PubMed reference 66" [ref=e639] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=23055156
+                        - text: PubMed
+                      - link "Google Scholar reference 66" [ref=e640] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=CHull%3A%20A%20generic%20convex-hull-based%20model%20selection%20method&journal=Behavior%20Research%20Methods&doi=10.3758%2Fs13428-012-0238-5&volume=45&issue=1&pages=1-15&publication_year=2013&author=Wilderjans%2CTF&author=Ceulemans%2CE&author=Meers%2CK
+                        - text: Google Scholar
+                  - listitem [ref=e641]:
+                    - paragraph [ref=e642]:
+                      - text: Wright, A. G. C., & Woods, W. C. (2020). Personalized models of psychopathology. Annual Review of Clinical Psychology, 16(1), 49–74.
+                      - link "https://doi.org/10.1146/annurev-clinpsy-102419-125032" [ref=e643] [cursor=pointer]:
+                        - /url: https://doi.org/10.1146/annurev-clinpsy-102419-125032
+                      - text: .
+                    - paragraph [ref=e644]:
+                      - link "Article reference 67" [ref=e645] [cursor=pointer]:
+                        - /url: https://doi.org/10.1146%2Fannurev-clinpsy-102419-125032
+                        - text: Article
+                      - link "PubMed reference 67" [ref=e646] [cursor=pointer]:
+                        - /url: http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&db=PubMed&dopt=Abstract&list_uids=32070120
+                        - text: PubMed
+                      - link "Google Scholar reference 67" [ref=e647] [cursor=pointer]:
+                        - /url: http://scholar.google.com/scholar_lookup?&title=Personalized%20models%20of%20psychopathology&journal=Annual%20Review%20of%20Clinical%20Psychology&doi=10.1146%2Fannurev-clinpsy-102419-125032&volume=16&issue=1&pages=49-74&publication_year=2020&author=Wright%2CAGC&author=Woods%2CWC
+                        - text: Google Scholar
+                - paragraph [ref=e648]:
+                  - link "Download references" [ref=e649] [cursor=pointer]:
+                    - /url: https://citation-needed.springer.com/v2/references/10.1007/s11336-021-09765-2?format=refman&flavour=references
+                    - text: Download references
+                    - img [ref=e650]
+          - generic [ref=e653]:
+            - heading "Acknowledgements" [level=2] [ref=e654]
+            - paragraph [ref=e656]:
+              - text: The research leading to the results reported in this paper was sponsored in part by research grants from the Fund for Scientific Research-Flanders (FWO, Project No. G066316N awarded to Eva Ceulemans and Francis Tuerlinckx) and by the Research Council of KU Leuven (C14/19/054 and PDM/20/062). The raw data analyzed during the current study are available from the corresponding author on reasonable request. HICLAS software can be requested by emailing eva.ceulemans@kuleuven.be.. The beta version of the R package ConNEcT (0.6.3) can be downloaded from OSF at
+              - link "https://osf.io/rfxhc/" [ref=e657] [cursor=pointer]:
+                - /url: https://osf.io/rfxhc/
+              - text: .
+          - region "Author information" [ref=e658]:
+            - generic [ref=e659]:
+              - heading "Author information" [level=2] [ref=e660]
+              - generic [ref=e661]:
+                - heading "Authors and Affiliations" [level=3] [ref=e662]
+                - list [ref=e663]:
+                  - listitem [ref=e664]:
+                    - paragraph [ref=e665]: Quantitative Psychology and Individual Differences Research Group, Faculty of Psychology and Educational Studies, KU Leuven (University of Leuven), Tiensestraat 102, Box 3713, 3000 , Leuven, Belgium
+                    - paragraph [ref=e666]: Nadja Bodner & Francis Tuerlinckx
+                  - listitem [ref=e667]:
+                    - paragraph [ref=e668]: Department Psychometrics and Statistics, Heymans Institute for Psychological Research, University of Groningen, Groningen, The Netherlands
+                    - paragraph [ref=e669]: Laura Bringmann
+                  - listitem [ref=e670]:
+                    - paragraph [ref=e671]: Department Developmental Psychology, Heymans Institute for Psychological Research, University of Groningen, Groningen, The Netherlands
+                    - paragraph [ref=e672]: Peter de Jonge
+                  - listitem [ref=e673]:
+                    - paragraph [ref=e674]: Interdisciplinary Center Psychopathology and Emotion Regulation (ICPE), Department of Psychiatry (UCP), University Medical Center Groningen, University of Groningen, Groningen, The Netherlands
+                    - paragraph [ref=e675]: Laura Bringmann & Peter de Jonge
+                  - listitem [ref=e676]:
+                    - paragraph [ref=e677]: Quantitative Psychology and Individual Differences Research Group, Faculty of Psychology and Educational Studies, Leuven (University of Leuven), Tiensestraat 102, Box 3713, 3000 , Leuven, Belgium
+                    - paragraph [ref=e678]: Eva Ceulemans
+                - heading "Corresponding author" [level=3] [ref=e679]
+                - paragraph [ref=e680]:
+                  - text: Correspondence to
+                  - link "email Nadja Bodner" [ref=e681] [cursor=pointer]:
+                    - /url: mailto:nadja.bodner@kuleuven.be
+                    - text: Nadja Bodner
+                  - text: .
+          - generic [ref=e683]:
+            - heading "Additional information" [level=2] [ref=e684]
+            - generic [ref=e685]:
+              - heading "Publisher's Note" [level=3] [ref=e686]
+              - paragraph [ref=e687]: Springer Nature remains neutral with regard to jurisdictional claims in published maps and institutional affiliations.
+          - generic [ref=e689]:
+            - heading "Supplementary Information" [level=2] [ref=e690]
+            - generic [ref=e692]:
+              - paragraph [ref=e693]: Below is the link to the electronic supplementary material.
+              - heading "Supplementary material 1 (zip 77 KB) (download ZIP )" [level=3] [ref=e695]:
+                - link "Supplementary material 1 (zip 77 KB) (download ZIP )" [ref=e696] [cursor=pointer]:
+                  - /url: https://media.springernature.com/original/springer-static/esm/art%3A10.1007%2Fs11336-021-09765-2/MediaObjects/11336_2021_9765_MOESM1_ESM.zip
+                  - text: Supplementary material 1 (zip 77 KB) (download ZIP
+                  - img [ref=e697]
+                  - text: )
+              - heading "Supplementary material 2 (pdf 479 KB) (download PDF )" [level=3] [ref=e700]:
+                - link "Supplementary material 2 (pdf 479 KB) (download PDF )" [ref=e701] [cursor=pointer]:
+                  - /url: https://media.springernature.com/original/springer-static/esm/art%3A10.1007%2Fs11336-021-09765-2/MediaObjects/11336_2021_9765_MOESM2_ESM.pdf
+                  - text: Supplementary material 2 (pdf 479 KB) (download PDF
+                  - img [ref=e702]
+                  - text: )
+          - region "Appendices" [ref=e704]:
+            - generic [ref=e705]:
+              - heading "Appendices" [level=2] [ref=e706]
+              - generic [ref=e707]:
+                - heading "Appendix" [level=3] [ref=e708]
+                - heading "Retrieving model-based Networks with ConNEcT" [level=3] [ref=e709]
+                - paragraph [ref=e710]:
+                  - text: ConNEcT is a widely applicable method for capturing and testing contingency of binary variables across time. It is not based on a particular model specification. Therefore, we expect that it is able to find associations irrespective of which underlying model generated these associations. To demonstrate this, we will apply ConNEcT to binary data that have been generated by published syntaxes. These syntaxes pertain to a latent variable model (Golino & Epskamp,
+                  - link "Reference 2017" [ref=e711] [cursor=pointer]:
+                    - /url: /article/10.1007/s11336-021-09765-2#ref-CR40
+                    - text: "2017"
+                  - text: ) and the Curie-Weiss network and sparse network from the article of Epskamp et al. (
+                  - link "Reference 2017" [ref=e712] [cursor=pointer]:
+                    - /url: /article/10.1007/s11336-021-09765-2#ref-CR31
+                    - text: "2017"
+                  - text: ). Both models are cross-sectional, as we did not readily find scripts for generating longitudinal binary data.
+                - 'heading "1.1 Application 1: Retrieving the Associations Implied by a Latent Variable Model" [level=3] [ref=e713]'
+                - paragraph [ref=e714]:
+                  - text: As a first example, we use the syntax of Golino and Epskamp (
+                  - link "Reference 2017" [ref=e715] [cursor=pointer]:
+                    - /url: /article/10.1007/s11336-021-09765-2#ref-CR40
+                    - text: "2017"
+                  - text: ), who generate binary data from a latent variable model. These authors make use of exploratory graph analysis, as a specific form of network psychometrics that looks for clusters of highly connected variables, to retrieve the latent variable structure. They expect that each latent variable will correspond to a different cluster. Therefore, we will investigate whether applying ConNEcT to such data will also reveal such clusters of highly connected variables.
+                - heading "1.1.1 Design of the Simulation Study of Golino and Epskamp" [level=4] [ref=e716]
+                - paragraph [ref=e717]: "Number of factors (latent variables): 2, 4"
+                - paragraph [ref=e718]: "Number of variables per factor: 5,10"
+                - paragraph [ref=e719]: "Number of observations: 100"
+                - paragraph [ref=e720]: "Correlation between factors: 0, 0.3, 0.5, 0.7"
+                - paragraph [ref=e721]: For details on the data generation procedure, we refer to the original paper. We generated 100 data sets for each of the 16 settings and analyzed each data set with the ConNEcT approach. Note that the data contain no serial dependence as the observations within each dataset were sampled independently.
+                - figure "Fig. 7" [ref=e723]:
+                  - generic [ref=e725]: Fig. 7
+                  - generic [ref=e726]:
+                    - generic [ref=e727]:
+                      - img "Fig. 7" [ref=e729]
+                      - link "Full size image figure 7" [ref=e731] [cursor=pointer]:
+                        - /url: /article/10.1007/s11336-021-09765-2/figures/7
+                        - text: Full size image
+                        - img [ref=e732]
+                    - paragraph [ref=e735]: Retrieved ConNEcTs for 16 different latent variable models that imply two factors (upper two rows) or four factors (lower two rows), with 5 (rows 1 and 3) or 10 (row 2 and 4) variables per factor. The intercorrelations among the factors amount to 0 (first column), 0.3 (second column), 0.5 (third column) and 0.7 (last column). Different node colors indicate generation from the same factor. The number of significant links is summarized over all 100 simulated data sets per simulation setting. Dark lines indicate that a link is significant in almost all data sets, while less saturated or thinner links show links that are significant in few data sets only.
+                - heading "1.1.2 Settings ConNEcT Significance Test" [level=4] [ref=e736]
+                - paragraph [ref=e737]: The scores on each variable were divided into ten segments, which were permuted 100 times. For each combination of two variables, we considered all possible pairs of the corresponding permuted variables, resulting in a sampling distribution of 10,000 Jaccard values.
+                - heading "1.1.3 Results" [level=4] [ref=e738]
+                - paragraph [ref=e739]:
+                  - text: We computed for each variable pair how often its association was significant across the 100 simulated data sets. These results are visualized in the networks in Fig.
+                  - link "7" [ref=e740] [cursor=pointer]:
+                    - /url: /article/10.1007/s11336-021-09765-2#Fig7
+                  - text: ", where the width and saturation of the network edges represent how often the associated link was significant. Dark lines therefore indicate a link that is significant in almost all data sets, while less saturated or thinner links show links that are significant in a few data sets only. The networks reveal that the ConNEcT approach indeed retrieves the latent variable models, in that the variables that load strongly on the same underlying factor are densely connected. If the factors are not correlated, we hardly find any links between different clusters (first column). However, the higher the correlations between the factors, the more between-cluster links are found, as could be expected."
+                - 'heading "1.2 Application 2: Retrieving the Association Structure of a Curie Weiss Network and a Sparse Network" [level=3] [ref=e741]'
+                - paragraph [ref=e742]:
+                  - text: In this section, we use the Curie–Weiss and sparse networks that were studied by Epskamp, Kruis and Marsman (
+                  - link "Reference 2017" [ref=e743] [cursor=pointer]:
+                    - /url: /article/10.1007/s11336-021-09765-2#ref-CR31
+                    - text: "2017"
+                  - text: see Fig. 1 of their paper). For both networks, we generate 100 data sets, each consisting of 10 variables and 1000 independent observations, and test the significance of each pairwise link with the ConNEcT approach. We used the same test settings as in Study 1.1. The number of significant links across the 100 data sets is shown in Fig.
+                  - link "8" [ref=e744] [cursor=pointer]:
+                    - /url: /article/10.1007/s11336-021-09765-2#Fig8
+                  - text: ", revealing that we indeed retrieve the underlying network structures."
+                - heading "1.2.1 Results" [level=4] [ref=e745]
+                - figure "Fig. 8" [ref=e747]:
+                  - generic [ref=e749]: Fig. 8
+                  - generic [ref=e750]:
+                    - generic [ref=e751]:
+                      - img "Fig. 8" [ref=e753]
+                      - link "Full size image figure 8" [ref=e755] [cursor=pointer]:
+                        - /url: /article/10.1007/s11336-021-09765-2/figures/8
+                        - text: Full size image
+                        - img [ref=e756]
+                    - paragraph [ref=e759]: "Retrieving a a Curie–Weiss network and b a sparse network; 100 data sets were generated each consisting of 10 variables with \\(\\hbox {n}= 1000\\) observations and tested with the ConNEcT approach. Dark lines indicate link that are significant in almost all data sets, while less saturated or thinner links show links that are significant only in few data sets."
+                - heading "1.3 Comparison of Model-based and ConNEcT-Based Testing Results" [level=3] [ref=e760]
+                - paragraph [ref=e761]:
+                  - text: To demonstrate that not accounting for serial dependence in the data indeed leads to type 1 errors, we generated data using the simulation syntaxes of Bodner et al. (
+                  - link "Reference 2020" [ref=e762] [cursor=pointer]:
+                    - /url: /article/10.1007/s11336-021-09765-2#ref-CR7
+                    - text: "2020"
+                  - text: "). We twice simulated 100 datasets, that each contain ten independent ‘time series’ of 500 observations. In one setting, the data contain no serial dependence; in the other setting they do. Subsequently, we investigate how often each of the \\(10^{*}9/2=45\\) links between the variables is considered significant by the IsingFit (van Borkulo et al.,"
+                  - link "Reference 2014" [ref=e763] [cursor=pointer]:
+                    - /url: /article/10.1007/s11336-021-09765-2#ref-CR60
+                    - text: "2014"
+                  - text: ) and mgm (Haslbeck & Waldorp,
+                  - link "Reference 2020" [ref=e764] [cursor=pointer]:
+                    - /url: /article/10.1007/s11336-021-09765-2#ref-CR44
+                    - text: "2020"
+                  - text: ) approaches. As the variables are generated independently, one might naively expect a type 1 error rate (i.e., percentage of false positives) of around 5%. However, we expect that the type 1 error rate will only be reasonable for the data without serial dependence and will be too high for the data with serial dependence. We will compare the results to those of the ConNEcT approach.
+                - heading "1.4 Data Generation" [level=3] [ref=e765]
+                - paragraph [ref=e766]: "The data were generated by drawing from one or several Bernoulli distributions:"
+                - paragraph [ref=e767]: "data were generated by drawing from one or several Bernoulli distributions:"
+                - list [ref=e768]:
+                  - listitem [ref=e769]:
+                    - paragraph [ref=e770]: "For the data without serial dependence, all observations were drawn form a Bernoulli distribution with probability \\(\\hbox {p}_{{1}}=.2\\)."
+                  - listitem [ref=e771]:
+                    - paragraph [ref=e772]:
+                      - text: "For the data with serial dependence, the first observation was again drawn from a Bernoulli distribution with probability \\(\\hbox {p}_{{1}}=.2\\); the following observations were either drawn from a Bernoulli distribution with \\(\\hbox {p}_{{1\\vert 1}} = .9\\), if the previous observation had been a 1 or from a distribution with \\(\\hbox {p}_{{1\\vert 0}} = .025\\) (this value was computed based on the chosen values for \\(\\hbox {p}_{{1}}\\) and \\(\\hbox {p}_{{1\\vert 1}}\\): \\(\\hbox {p}_{{1\\vert 0}}\\) ~(\\(\\hbox {p}_{{1}}\\)-\\({\\hbox {p}_{1}}^{*} \\hbox {p}_{{1\\vert 1}})/(1\\hbox {-}\\hbox {p}_{{1}})\\); see Bodner et al."
+                      - link "Reference 2020" [ref=e773] [cursor=pointer]:
+                        - /url: /article/10.1007/s11336-021-09765-2#ref-CR7
+                        - text: "2020"
+                      - text: ).
+                - paragraph [ref=e774]: We decided to take data sets of 500 observations, because longer time series will match the chosen prevalence and serial dependence level more exactly. This is especially important, because for both IsingFit and mgm to run smoothly, we need to make sure that there are enough 1s observed (while the IsingFit gives a warning when less than eight 1s are included, the mgm does not give a result if variables contain less than three 1s).
+                - heading "1.5 Analysis and Results" [level=3] [ref=e775]
+                - paragraph [ref=e776]: "For each method (ConNEcT, IsingFig, mgm) and each data type (with or without serial dependence, we summed the significance results across the 100 simulated data sets. As expected, all three methods perform well, when the data contain no serial dependence:"
+                - list [ref=e777]:
+                  - listitem [ref=e778]:
+                    - paragraph [ref=e779]: "For IsingFit, the type 1 error rate per link never exceeds the nominal level of 5%. The false positive rate ranges between 0 and 0.02 (mean: 0.003), which is actually too small."
+                  - listitem [ref=e780]:
+                    - paragraph [ref=e781]: "For mgm, the type 1 error rate ranges between .01 and .09 (mean: 0.048), which is quite satisfactory."
+                  - listitem [ref=e782]:
+                    - paragraph [ref=e783]:
+                      - text: "For ConNEcT, we find a type 1 error rate of 0 to 0.07 (mean: .033) (Fig."
+                      - link "9" [ref=e784] [cursor=pointer]:
+                        - /url: /article/10.1007/s11336-021-09765-2#Fig9
+                      - text: ).
+                - figure "Fig. 9" [ref=e786]:
+                  - generic [ref=e788]: Fig. 9
+                  - generic [ref=e789]:
+                    - generic [ref=e790]:
+                      - img "Fig. 9" [ref=e792]
+                      - link "Full size image figure 9" [ref=e794] [cursor=pointer]:
+                        - /url: /article/10.1007/s11336-021-09765-2/figures/9
+                        - text: Full size image
+                        - img [ref=e795]
+                    - paragraph [ref=e798]: "Investigating proportion false positives for independent data 1) without serial dependence (first row) and 2) with serial dependence (second row) with a IsingFit, b mgm and c ConNEcT. 100 data sets of 10 independent variables (length n\\(=\\)500) were drawn from 1) Bern(0.2) for the cross-sectional data or 2) time point per time point from a Bernoulli distribution with probability p(\\(\\hbox {X}_{t}=1 | \\hbox {X}_{{t-1}}=1)= .9\\) or p(\\(\\hbox {X}_{t}=1 | \\hbox {X}_{{t-1}}=0) = .025\\) for the time series data."
+                - paragraph [ref=e799]: However, the results for the data that contain serial dependence clearly show that taking into account serial dependence matters and that using a method that does not do this yields a too high type 1 error rate.
+                - list [ref=e800]:
+                  - listitem [ref=e801]:
+                    - paragraph [ref=e802]: "For the IsingFit, the type 1 error rate ranges between .36 and .62 (mean: .46)"
+                  - listitem [ref=e803]:
+                    - paragraph [ref=e804]: "For mgm , the type 1 error ranges between .54 and .75 (mean: .59)"
+                  - listitem [ref=e805]:
+                    - paragraph [ref=e806]: "For ConNEcT, the type 1 error rate ranges between 0 and 0.12 (mean: 0.05)"
+          - generic [ref=e808]:
+            - heading "Rights and permissions" [level=2] [ref=e809]
+            - paragraph [ref=e811]:
+              - link "Reprints and permissions" [ref=e812] [cursor=pointer]:
+                - /url: https://s100.copyright.com/AppDispatchServlet?title=ConNEcT%3A%20A%20Novel%20Network%20Approach%20for%20Investigating%20the%20Co-occurrence%20of%20Binary%20Psychopathological%20Symptoms%20Over%20Time&author=Nadja%20Bodner%20et%20al&contentID=10.1007%2Fs11336-021-09765-2&copyright=The%20Psychometric%20Society&publication=0033-3123&publicationDate=2021-06-01&publisherName=SpringerNature&orderBeanReset=true
+          - region "About this article" [ref=e813]:
+            - generic [ref=e814]:
+              - heading "About this article" [level=2] [ref=e815]
+              - generic [ref=e817]:
+                - link "Check for updates. Verify currency and authenticity via CrossMark" [ref=e819] [cursor=pointer]:
+                  - /url: https://crossmark.crossref.org/dialog/?doi=10.1007/s11336-021-09765-2
+                  - img "Check for updates. Verify currency and authenticity via CrossMark" [ref=e820]
+                - generic [ref=e821]:
+                  - heading "Cite this article" [level=3] [ref=e822]
+                  - paragraph [ref=e823]: "Bodner, N., Bringmann, L., Tuerlinckx, F. et al. ConNEcT: A Novel Network Approach for Investigating the Co-occurrence of Binary Psychopathological Symptoms Over Time. Psychometrika 87, 107–132 (2022). https://doi.org/10.1007/s11336-021-09765-2"
+                  - paragraph [ref=e824]:
+                    - link "Download citation" [ref=e825] [cursor=pointer]:
+                      - /url: https://citation-needed.springer.com/v2/references/10.1007/s11336-021-09765-2?format=refman&flavour=citation
+                      - text: Download citation
+                      - img [ref=e826]
+                  - list [ref=e828]:
+                    - listitem [ref=e829]:
+                      - paragraph [ref=e830]:
+                        - text: Received
+                        - time [ref=e832]: 13 March 2020
+                    - listitem [ref=e833]:
+                      - paragraph [ref=e834]:
+                        - text: Revised
+                        - time [ref=e836]: 08 April 2021
+                    - listitem [ref=e837]:
+                      - paragraph [ref=e838]:
+                        - text: Accepted
+                        - time [ref=e840]: 16 April 2021
+                    - listitem [ref=e841]:
+                      - paragraph [ref=e842]:
+                        - text: Published
+                        - time [ref=e844]: 01 June 2021
+                    - listitem [ref=e845]:
+                      - paragraph [ref=e846]:
+                        - text: Version of record
+                        - time [ref=e848]: 01 June 2021
+                    - listitem [ref=e849]:
+                      - paragraph [ref=e850]:
+                        - text: Issue date
+                        - time [ref=e852]: March 2022
+                    - listitem [ref=e853]:
+                      - paragraph [ref=e854]:
+                        - text: DOI
+                        - generic [ref=e855]: https://doi.org/10.1007/s11336-021-09765-2
+                  - heading "Keywords" [level=3] [ref=e856]
+                  - list [ref=e857]:
+                    - listitem [ref=e858]:
+                      - link "binary data" [ref=e860] [cursor=pointer]:
+                        - /url: /search?query=binary%20data&facet-discipline="Psychology"
+                    - listitem [ref=e861]:
+                      - link "network analysis" [ref=e863] [cursor=pointer]:
+                        - /url: /search?query=network%20analysis&facet-discipline="Psychology"
+                    - listitem [ref=e864]:
+                      - link "time series" [ref=e866] [cursor=pointer]:
+                        - /url: /search?query=time%20series&facet-discipline="Psychology"
+                    - listitem [ref=e867]:
+                      - link "depression" [ref=e869] [cursor=pointer]:
+                        - /url: /search?query=depression&facet-discipline="Psychology"
+                    - listitem [ref=e870]:
+                      - link "individual differences" [ref=e872] [cursor=pointer]:
+                        - /url: /search?query=individual%20differences&facet-discipline="Psychology"
+      - complementary "reading companion" [ref=e874]:
+        - generic [ref=e876]:
+          - heading "Associated Content" [level=2] [ref=e877]
+          - generic [ref=e878]:
+            - paragraph [ref=e879]: "Part of a collection:"
+            - 'heading "Special Section: Network Psychometrics in Action" [level=3] [ref=e880]':
+              - 'link "Special Section: Network Psychometrics in Action" [ref=e881] [cursor=pointer]':
+                - /url: https://link.springer.com/collections/aihecgfbgi
+        - generic [ref=e883]:
+          - generic [ref=e884]:
+            - heading "Access this article" [level=2] [ref=e885]
+            - link "Log in via an institution" [ref=e887] [cursor=pointer]:
+              - /url: //wayf.springernature.com?redirect_uri=https%3A%2F%2Flink.springer.com%2Farticle%2F10.1007%2Fs11336-021-09765-2
+              - text: Log in via an institution
+              - img [ref=e888]
+          - tablist [ref=e890]:
+            - tab "Sections" [selected] [ref=e891] [cursor=pointer]
+            - tab "Figures" [ref=e892] [cursor=pointer]
+            - tab "References" [ref=e893] [cursor=pointer]
+          - tabpanel "Sections" [ref=e894]:
+            - list [ref=e896]:
+              - listitem [ref=e897]:
+                - link "Abstract" [ref=e898] [cursor=pointer]:
+                  - /url: "#Abs1"
+              - listitem [ref=e899]:
+                - link "Notes" [ref=e900] [cursor=pointer]:
+                  - /url: "#notes"
+              - listitem [ref=e901]:
+                - link "References" [ref=e902] [cursor=pointer]:
+                  - /url: "#Bib1"
+              - listitem [ref=e903]:
+                - link "Acknowledgements" [ref=e904] [cursor=pointer]:
+                  - /url: "#Ack1"
+              - listitem [ref=e905]:
+                - link "Author information" [ref=e906] [cursor=pointer]:
+                  - /url: "#author-information"
+              - listitem [ref=e907]:
+                - link "Additional information" [ref=e908] [cursor=pointer]:
+                  - /url: "#additional-information"
+              - listitem [ref=e909]:
+                - link "Supplementary Information" [ref=e910] [cursor=pointer]:
+                  - /url: "#Sec26"
+              - listitem [ref=e911]:
+                - link "Appendices" [ref=e912] [cursor=pointer]:
+                  - /url: "#appendices"
+              - listitem [ref=e913]:
+                - link "Rights and permissions" [ref=e914] [cursor=pointer]:
+                  - /url: "#rightslink"
+              - listitem [ref=e915]:
+                - link "About this article" [ref=e916] [cursor=pointer]:
+                  - /url: "#article-info"
+            - paragraph [ref=e920]: Advertisement
+  - generic [ref=e921]:
+    - navigation
+    - contentinfo [ref=e922]:
+      - generic [ref=e923]:
+        - heading "Footer Navigation" [level=2] [ref=e924]
+        - navigation "Footer" [ref=e925]:
+          - generic [ref=e927]:
+            - generic [ref=e928]:
+              - heading "Discover content" [level=3] [ref=e929]
+              - list [ref=e930]:
+                - listitem [ref=e931]:
+                  - link "Journals A-Z" [ref=e932] [cursor=pointer]:
+                    - /url: https://link.springer.com/journals/a/1
+                - listitem [ref=e933]:
+                  - link "Books A-Z" [ref=e934] [cursor=pointer]:
+                    - /url: https://link.springer.com/books/a/1
+                - listitem [ref=e935]:
+                  - link "Subjects A-Z" [ref=e936] [cursor=pointer]:
+                    - /url: https://link.springer.com/subjects
+            - generic [ref=e937]:
+              - heading "Publish with us" [level=3] [ref=e938]
+              - list [ref=e939]:
+                - listitem [ref=e940]:
+                  - link "Journal finder" [ref=e941] [cursor=pointer]:
+                    - /url: https://link.springer.com/journals
+                - listitem [ref=e942]:
+                  - link "Publish your research" [ref=e943] [cursor=pointer]:
+                    - /url: https://www.springernature.com/gp/authors
+                - listitem [ref=e944]:
+                  - link "Language editing" [ref=e945] [cursor=pointer]:
+                    - /url: https://authorservices.springernature.com/go/sn/?utm_source=SNLinkfooter&utm_medium=Web&utm_campaign=SNReferral
+                - listitem [ref=e946]:
+                  - link "Open access publishing" [ref=e947] [cursor=pointer]:
+                    - /url: https://www.springernature.com/gp/open-science/about/the-fundamentals-of-open-access-and-open-research
+            - generic [ref=e948]:
+              - heading "Products and services" [level=3] [ref=e949]
+              - list [ref=e950]:
+                - listitem [ref=e951]:
+                  - link "Our products" [ref=e952] [cursor=pointer]:
+                    - /url: https://www.springernature.com/gp/products
+                - listitem [ref=e953]:
+                  - link "Librarians" [ref=e954] [cursor=pointer]:
+                    - /url: https://www.springernature.com/gp/librarians
+                - listitem [ref=e955]:
+                  - link "Societies" [ref=e956] [cursor=pointer]:
+                    - /url: https://www.springernature.com/gp/societies
+                - listitem [ref=e957]:
+                  - link "Partners and advertisers" [ref=e958] [cursor=pointer]:
+                    - /url: https://www.springernature.com/gp/partners
+            - generic [ref=e959]:
+              - heading "Our brands" [level=3] [ref=e960]
+              - list [ref=e961]:
+                - listitem [ref=e962]:
+                  - link "Springer" [ref=e963] [cursor=pointer]:
+                    - /url: https://link.springer.com/brands/springer
+                - listitem [ref=e964]:
+                  - link "Nature Portfolio" [ref=e965] [cursor=pointer]:
+                    - /url: https://www.nature.com/
+                - listitem [ref=e966]:
+                  - link "BMC" [ref=e967] [cursor=pointer]:
+                    - /url: https://link.springer.com/brands/bmc
+                - listitem [ref=e968]:
+                  - link "Palgrave Macmillan" [ref=e969] [cursor=pointer]:
+                    - /url: /brands/palgrave
+                - listitem [ref=e970]:
+                  - link "Apress" [ref=e971] [cursor=pointer]:
+                    - /url: /brands/apress
+                - listitem [ref=e972]:
+                  - link "Discover" [ref=e973] [cursor=pointer]:
+                    - /url: https://link.springer.com/brands/discover
+          - generic [ref=e974]:
+            - heading "Corporate Navigation" [level=3] [ref=e975]
+            - list [ref=e976]:
+              - listitem [ref=e977]:
+                - button "Your privacy choices/Manage cookies" [ref=e978] [cursor=pointer]
+              - listitem [ref=e979]:
+                - link "Your US state privacy rights" [ref=e980] [cursor=pointer]:
+                  - /url: https://www.springernature.com/gp/legal/ccpa
+              - listitem [ref=e981]:
+                - link "Accessibility statement" [ref=e982] [cursor=pointer]:
+                  - /url: https://link.springer.com/accessibility
+              - listitem [ref=e983]:
+                - link "Terms and conditions" [ref=e984] [cursor=pointer]:
+                  - /url: https://link.springer.com/termsandconditions
+              - listitem [ref=e985]:
+                - link "Privacy policy" [ref=e986] [cursor=pointer]:
+                  - /url: https://link.springer.com/privacystatement
+              - listitem [ref=e987]:
+                - link "Help and support" [ref=e988] [cursor=pointer]:
+                  - /url: https://support.springernature.com/en/support/home
+              - listitem [ref=e989]:
+                - link "Legal notice" [ref=e990] [cursor=pointer]:
+                  - /url: https://link.springer.com/legal-notice
+              - listitem [ref=e991]:
+                - link "Cancel contracts here" [ref=e992] [cursor=pointer]:
+                  - /url: https://support.springernature.com/en/support/solutions/articles/6000255911-subscription-cancellations
+        - generic [ref=e993]:
+          - generic [ref=e994]:
+            - paragraph [ref=e995]: 31.208.28.52
+            - paragraph [ref=e996]: Not affiliated
+          - link "Springer Nature" [ref=e997] [cursor=pointer]:
+            - /url: https://www.springernature.com/
+            - img "Springer Nature" [ref=e998]
+          - paragraph [ref=e999]: © 2026 Springer Nature

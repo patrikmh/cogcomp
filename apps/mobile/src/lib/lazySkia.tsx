@@ -27,7 +27,9 @@ export function lazySkia<P extends object>(
       const { LoadSkiaWeb } = await import(
         "@shopify/react-native-skia/lib/module/web"
       );
-      await LoadSkiaWeb();
+      await LoadSkiaWeb({
+        locateFile: () => "/canvaskit.wasm",
+      });
     }
     return load();
   });

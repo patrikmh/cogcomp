@@ -1,0 +1,19 @@
+{
+  "nextId": 2,
+  "tasks": [
+    {
+      "id": "1",
+      "subject": "Plan conservative Identity Graph",
+      "description": "Design Milestone 2 Identity Graph using confidence-scored hypotheses, provenance, explainability, and user confirmation/rejection. Identify schema, API, mobile UI, tests, migration, and docs.",
+      "status": "in_progress",
+      "activeForm": "Planning Identity Graph",
+      "metadata": {
+        "agentType": "planner"
+      },
+      "blocks": [],
+      "blockedBy": [],
+      "createdAt": 1785701992368,
+      "updatedAt": 1785702002135
+    }
+  ]
+}

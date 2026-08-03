@@ -12,6 +12,7 @@ import { PanResponder, StyleSheet, View } from "react-native";
 
 import { type BlobState, motionFor, withEnergy } from "@/lib/blobShape";
 import { MAX_EXTENT, project, toPath } from "@/lib/blobSphere";
+import { useReducedMotion } from "@/lib/motion";
 
 /**
  * The sphere — the thing you talk to.
@@ -101,18 +102,25 @@ function useClock(paused: boolean): number {
  * returns the sphere to its own slow turn instead of leaving it stranded wherever
  * your finger stopped.
  */
-function useDragSpin(time: number) {
+function useDragSpin(time: number, allowMomentum: boolean) {
   const [offset, setOffset] = useState(0);
   const velocity = useRef(0);
+  const previousDx = useRef(0);
   const dragging = useRef(false);
+  const momentumPolicy = useRef(allowMomentum);
+
+  useEffect(() => {
+    momentumPolicy.current = allowMomentum;
+    if (!allowMomentum) velocity.current = 0;
+  }, [allowMomentum]);
 
   // Momentum, advanced off the render clock rather than its own timer — a paused
   // sphere should not keep coasting invisibly.
   useEffect(() => {
-    if (dragging.current || Math.abs(velocity.current) < 0.0005) return;
+    if (!allowMomentum || dragging.current || Math.abs(velocity.current) < 0.0005) return;
     velocity.current *= MOMENTUM_DECAY;
     setOffset((current) => current + velocity.current);
-  }, [time]);
+  }, [time, allowMomentum]);
 
   const responder = useRef(
     PanResponder.create({
@@ -123,17 +131,20 @@ function useDragSpin(time: number) {
         Math.abs(gesture.dx) > 4 || Math.abs(gesture.dy) > 4,
       onPanResponderGrant: () => {
         dragging.current = true;
+        previousDx.current = 0;
         velocity.current = 0;
       },
       onPanResponderMove: (_, gesture) => {
         // Horizontal only. The sphere turns about one axis, so vertical drag has
         // nothing to move and pretending otherwise would feel broken.
-        setOffset((current) => current + gesture.vx * DRAG_SENSITIVITY);
+        const deltaX = gesture.dx - previousDx.current;
+        previousDx.current = gesture.dx;
+        setOffset((current) => current + deltaX * DRAG_SENSITIVITY);
         velocity.current = gesture.vx * DRAG_SENSITIVITY;
       },
       onPanResponderRelease: (_, gesture) => {
         dragging.current = false;
-        velocity.current = gesture.vx * DRAG_SENSITIVITY;
+        velocity.current = momentumPolicy.current ? gesture.vx * DRAG_SENSITIVITY : 0;
       },
       onPanResponderTerminate: () => {
         dragging.current = false;
@@ -145,22 +156,27 @@ function useDragSpin(time: number) {
 }
 
 export default function Blob({ state, size, paused = false, energy = 0 }: Props) {
-  const time = useClock(paused);
+  const reduced = useReducedMotion();
+  const active = state !== "idle";
+  const time = useClock(paused || reduced || !active);
   const motion = withEnergy(motionFor(state), energy);
-  const { offset, responder } = useDragSpin(time);
+  const { offset, responder } = useDragSpin(time, !reduced && active);
 
   const centre = size / 2;
   // Sized so the halo still fits at full energy: a loud syllable must not push
   // the glow past the canvas edge, where it would clip into a hard circle.
   const radius = size / 2 / (MAX_EXTENT * HALO_SCALE);
 
-  const spin = BASE_SPIN * motion.speed;
+  const spin = active ? BASE_SPIN * motion.speed : 0;
   const arcs = project(
-    // The drag offset is converted to time so it rides the same rotation the
-    // automatic spin does — dragging nudges the turn rather than fighting it.
-    time + (spin === 0 ? 0 : offset / spin),
+    time,
     { cx: centre, cy: centre, radius },
-    { energy, wobble: 0.04 + 0.04 * motion.amplitude, spin },
+    {
+      energy,
+      wobble: 0.04 + 0.04 * motion.amplitude,
+      spin,
+      rotation: (active ? time * spin : 0) + offset,
+    },
   );
 
   return (

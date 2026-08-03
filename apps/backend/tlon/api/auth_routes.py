@@ -8,6 +8,7 @@ from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr, Field
 
 from tlon.auth import bearer, current_user
+from tlon.db import login_attempts as attempts_db
 from tlon.db import users as users_db
 from tlon.domain.credentials import (
     MIN_PASSWORD_LENGTH,
@@ -62,6 +63,18 @@ async def signup(request: Request, payload: SignupRequest) -> TokenResponse:
 @router.post("/login")
 async def login(request: Request, payload: LoginRequest) -> TokenResponse:
     pool = request.app.state.pool
+
+    # Checked before the password is verified, so a locked identity costs an
+    # attacker a cheap rejection rather than an Argon2id hash. Counted per
+    # address rather than per connection: an address is what passwords get
+    # iterated against, and an IP is trivially rotated and shared by everyone
+    # behind one router.
+    if await attempts_db.is_locked(pool, payload.email):
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            "too many sign-in attempts — wait a few minutes and try again",
+        )
+
     user = await users_db.find_by_email(pool, payload.email)
 
     # Verify against a dummy hash when the account does not exist, so a missing
@@ -71,7 +84,15 @@ async def login(request: Request, payload: LoginRequest) -> TokenResponse:
     if not verify_password(stored_hash, payload.password):
         if stored_hash is None:
             hash_password("timing-equalizer-not-a-real-password")
+        # Recorded for unknown addresses too. If only real accounts were rate
+        # limited, the presence of a lockout would tell an attacker the account
+        # exists — the very thing the constant-time check above avoids.
+        await attempts_db.record_failure(pool, payload.email)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid email or password")
+
+    # Cleared on success, so someone who mistyped a few times and then got it
+    # right is not left one typo from a lockout for the rest of the window.
+    await attempts_db.clear(pool, payload.email)
 
     if needs_rehash(stored_hash):
         # Cost parameters were raised since this password was set. We have the

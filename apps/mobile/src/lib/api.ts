@@ -1,3 +1,4 @@
+import * as Crypto from "expo-crypto";
 import type { EdgeKind, EpistemicStatus, NodeKind } from "@tlon/ontology";
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080";
@@ -41,6 +42,20 @@ export interface SupportingObservation {
   content: string;
   source: string;
   captured_at: string;
+}
+
+/** What a person may say about a reading. `hypothesis` withdraws a judgement —
+ *  someone who agreed with something in a bad week must not be held to it. */
+export type Judgement = "hypothesis" | "user_confirmed" | "user_rejected";
+
+export interface SelfModel {
+  confirmed: number;
+  rejected: number;
+  unreviewed: number;
+  /** 0–1. Zero for an empty picture, never one — nothing has been reviewed, it
+   *  simply is not there yet. */
+  reviewed_fraction: number;
+  generated_at: string;
 }
 
 export interface Explanation {
@@ -119,6 +134,22 @@ export interface Subgraph {
   truncated: boolean;
 }
 
+export interface WeeklySummary {
+  week_start: string;
+  week_end: string;
+  timezone: string;
+  entry_count: number;
+  active_days: number;
+  days: { date: string; entry_count: number; observations: ObservationResponse[] }[];
+  day_buckets: { date: string; entry_count: number; observations: ObservationResponse[] }[];
+  observations: ObservationResponse[];
+  inferred: (DailySummary["inferred"][number] & {
+    source_observation_ids: string[];
+    cites_days: number;
+  })[];
+  recurring: { kind: NodeKind; label: string; entries: number; days: number; inference_ids: string[] }[];
+}
+
 export interface DailySummary {
   date: string;
   timezone: string;
@@ -140,12 +171,52 @@ export interface DailySummary {
   recurring: { kind: NodeKind; label: string; entries: number }[];
 }
 
+export type IdentitySelectionStatus = "selected" | "removed";
+
+export interface IdentityNode extends GraphNode {
+  status: IdentitySelectionStatus | null;
+  selected_at: string | null;
+  selection_id?: string;
+}
+
+export interface IdentityProjection {
+  nodes: IdentityNode[];
+  edges: GraphEdge[];
+}
+
+export interface IdentityCandidates {
+  candidates: IdentityNode[];
+}
+
 export interface GraphSummary {
   schema_version: string;
   counts: { kind: NodeKind; count: number }[];
 }
 
 /** Matches the response from GET /v1/patterns. */
+export interface TemporalChange {
+  kind: string;
+  label: string;
+  /** new | more | less | absent. Arithmetic words only — there is deliberately
+   *  no "improved", because the same change means opposite things to different
+   *  people. See `tlon/temporal.py`. */
+  shift: "new" | "more" | "less" | "absent";
+  recent_days: number;
+  earlier_days: number;
+  confidence: number;
+  /** The counts as a sentence, written by the server so every client says it the
+   *  same way and none of them adds a verdict of its own. */
+  description: string;
+}
+
+export interface TemporalChanges {
+  window_days: number;
+  changes: TemporalChange[];
+  /** True when the two windows were too quiet to compare. Distinct from an empty
+   *  list, which means it looked and nothing had moved. */
+  not_enough_material: boolean;
+}
+
 export interface Pattern {
   id: string;
   label: string;
@@ -161,6 +232,16 @@ export interface Pattern {
 export interface MinePatternsResponse {
   patterns: number;
   considered: number;
+}
+
+export type ExperimentState = "draft" | "active" | "paused" | "completed" | "cancelled";
+export interface Experiment {
+  id: string; user_id: string; title: string; hypothesis: string; action: string;
+  success_criterion: string; start_date: string; duration_days: number; timezone: string;
+  cadence: "daily" | "weekly" | "end_only"; state: ExperimentState; revision: number;
+  links?: { node_id: string; kind: NodeKind; label: string; availability?: boolean }[];
+  checkins?: ObservationResponse[];
+  outcome?: { assessment: "met" | "partly_met" | "not_met" | "unclear"; note: string | null; final_checkin_observation_id: string } | null;
 }
 
 /** Matches the response from GET /v1/agents. */
@@ -375,6 +456,32 @@ export const api = {
     });
   },
 
+  async createExperiment(token: string, input: { id: string; title: string; hypothesis: string; action: string; success_criterion: string; start_date: string; duration_days: number; timezone: string; cadence: Experiment["cadence"] }) {
+    const { id: _id, ...payload } = input;
+    const fingerprint = await Crypto.digestStringAsync(
+      Crypto.CryptoDigestAlgorithm.SHA256,
+      JSON.stringify(payload, Object.keys(payload).sort()),
+    );
+    return request<Experiment>("/v1/experiments", token, { method: "POST", headers: { "X-Request-Fingerprint": fingerprint }, body: JSON.stringify(input) });
+  },
+  listExperiments(token: string) { return request<{ experiments: Experiment[] }>("/v1/experiments", token); },
+  experiment(token: string, id: string) { return request<Experiment>(`/v1/experiments/${id}`, token); },
+  editExperiment(token: string, id: string, revision: number, input: { id?: string; title: string; hypothesis: string; action: string; success_criterion: string; start_date: string; duration_days: number; timezone: string; cadence: Experiment["cadence"] }) {
+    return request<Experiment>(`/v1/experiments/${id}?revision=${revision}`, token, { method: "PATCH", body: JSON.stringify(input) });
+  },
+  deleteExperiment(token: string, id: string, revision: number) {
+    return request<void>(`/v1/experiments/${id}?revision=${revision}`, token, { method: "DELETE" });
+  },
+  experimentTransition(token: string, id: string, transition: "start" | "pause" | "resume" | "cancel" | "complete", revision: number, assessment?: string, finalCheckinObservationId?: string) {
+    return request<Experiment>(`/v1/experiments/${id}/${transition}`, token, { method: "POST", body: JSON.stringify({ revision, assessment, final_checkin_observation_id: finalCheckinObservationId }) });
+  },
+  linkExperimentPattern(token: string, id: string, nodeId: string, revision: number) {
+    return request<Experiment>(`/v1/experiments/${id}/links`, token, { method: "POST", body: JSON.stringify({ node_id: nodeId, revision }) });
+  },
+  attachExperimentCheckin(token: string, id: string, observationId: string, revision: number) {
+    return request<Experiment>(`/v1/experiments/${id}/checkins`, token, { method: "POST", body: JSON.stringify({ observation_id: observationId, revision }) });
+  },
+
   listObservations(token: string, before?: string) {
     const query = before ? `?before=${encodeURIComponent(before)}` : "";
     return request<ListResponse>(`/v1/observations${query}`, token);
@@ -394,6 +501,13 @@ export const api = {
    * written at 00:30 belongs to that day in the writer's timezone, not the
    * previous one in UTC.
    */
+  weeklySummary(token: string, weekStart: string, tz: string) {
+    return request<WeeklySummary>(
+      `/v1/summary/week/${weekStart}?tz=${encodeURIComponent(tz)}`,
+      token,
+    );
+  },
+
   dailySummary(token: string, day: string, tz: string) {
     return request<DailySummary>(
       `/v1/summary/${day}?tz=${encodeURIComponent(tz)}`,
@@ -441,6 +555,59 @@ export const api = {
 
   graphSummary(token: string) {
     return request<GraphSummary>("/v1/graph/summary", token);
+  },
+
+  identity(token: string) {
+    return request<IdentityProjection>("/v1/identity", token);
+  },
+
+  identityCandidates(token: string) {
+    return request<IdentityCandidates>("/v1/identity/candidates", token);
+  },
+
+  selectIdentity(token: string, nodeId: string) {
+    return request<IdentityNode>("/v1/identity/selections", token, {
+      method: "POST",
+      body: JSON.stringify({ node_id: nodeId }),
+    });
+  },
+
+  updateIdentitySelection(token: string, nodeId: string, status: IdentitySelectionStatus) {
+    return request<IdentityNode>(`/v1/identity/selections/${nodeId}`, token, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    });
+  },
+
+  removeIdentity(token: string, nodeId: string) {
+    return request<void>(`/v1/identity/selections/${nodeId}`, token, { method: "DELETE" });
+  },
+
+  /** What moved between the last seven days and the seven before.
+   *
+   * Derived on request, never stored: a change is a statement about two windows
+   * ending today, and a cached one would quietly become a statement about two
+   * windows ending whenever it was written. */
+  temporalChanges(token: string, timezone: string) {
+    return request<TemporalChanges>(
+      `/v1/temporal/changes?timezone=${encodeURIComponent(timezone)}`,
+      token,
+    );
+  },
+
+  /** Agree, disagree, or take it back.
+   *
+   * Rejecting does not delete: the reading stays with its provenance, marked
+   * rejected, and stops feeding patterns and temporal changes. */
+  judgeNode(token: string, nodeId: string, status: Judgement) {
+    return request<NodeSummary>(`/v1/nodes/${nodeId}/judgement`, token, {
+      method: "POST",
+      body: JSON.stringify({ status }),
+    });
+  },
+
+  selfModel(token: string) {
+    return request<SelfModel>("/v1/self-model", token);
   },
 
   listPatterns(token: string) {

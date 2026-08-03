@@ -34,9 +34,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "apps" / "backend"))
 
-from benchmarks.cases import CASES, GLOBAL_FORBIDDEN, Case
 from tlon.extraction.models import Extraction
 from tlon.graph.schema import EdgeKind
+
+from benchmarks.cases import CASES, GLOBAL_FORBIDDEN, Case
 
 #: Edges that assert one thing led to another.
 CAUSAL_EDGES = {EdgeKind.TRIGGERED_BY}
@@ -125,7 +126,9 @@ def check(result: CaseResult) -> None:
 def check_corpus(results: list[CaseResult]) -> list[str]:
     """Checks that only make sense across the whole corpus."""
     problems: list[str] = []
-    confidences = [n.confidence for r in results if r.extraction for n in r.extraction.nodes]
+    confidences = [
+        n.confidence for r in results if r.extraction for n in r.extraction.nodes
+    ]
     if len(confidences) < 2:
         return problems
 
@@ -155,7 +158,9 @@ async def build_extractor(model: str | None):
 
 async def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--model", help="OpenRouter model slug, e.g. anthropic/claude-opus-5")
+    parser.add_argument(
+        "--model", help="OpenRouter model slug, e.g. anthropic/claude-opus-5"
+    )
     parser.add_argument("--json", type=Path, help="write the full report here")
     parser.add_argument("--only", help="run one case by id")
     args = parser.parse_args()
@@ -183,7 +188,9 @@ async def main() -> int:
         mark = "✓" if result.ok else "✗"
         nodes = len(result.extraction.nodes) if result.extraction else 0
         edges = len(result.extraction.edges) if result.extraction else 0
-        print(f"{mark} {case.id:24} {nodes:>2}n {edges:>2}e  {result.seconds:5.2f}s  {case.probes}")
+        print(
+            f"{mark} {case.id:24} {nodes:>2}n {edges:>2}e  {result.seconds:5.2f}s  {case.probes}"
+        )
         for failure in result.failures:
             print(f"    ✗ {failure}")
         for warning in result.warnings:
@@ -197,7 +204,9 @@ async def main() -> int:
 
     failed = [r for r in results if not r.ok]
     warned = [r for r in results if r.warnings]
-    confidences = [n.confidence for r in results if r.extraction for n in r.extraction.nodes]
+    confidences = [
+        n.confidence for r in results if r.extraction for n in r.extraction.nodes
+    ]
 
     print(f"\n{'─' * 72}")
     print(f"passed   {len(results) - len(failed)}/{len(results)}")

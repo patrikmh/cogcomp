@@ -1,0 +1,468 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - link "DuckDuckGo home" [ref=e7] [cursor=pointer]:
+            - /url: /
+            - generic [ref=e9]: DuckDuckGo
+          - generic [ref=e15]:
+            - combobox "Sök privat" [ref=e17]: Bodner Connect co-occurrence binary psychopathological symptoms over time Psychometrika 2022
+            - button "search" [ref=e19] [cursor=pointer]:
+              - img [ref=e20]
+        - button "Öppna menyn" [ref=e23] [cursor=pointer]:
+          - generic [ref=e24]: Öppna menyn
+          - img [ref=e25]
+      - navigation [ref=e31]:
+        - list [ref=e32]:
+          - listitem [ref=e33]:
+            - link "Alla" [ref=e34] [cursor=pointer]:
+              - /url: /?q=Bodner+Connect+co-occurrence+binary+psychopathological+symptoms+over+time+Psychometrika+2022&ia=web
+              - img [ref=e35]
+              - text: Alla
+          - listitem [ref=e37]:
+            - link "Bilder" [ref=e38] [cursor=pointer]:
+              - /url: /?q=Bodner+Connect+co-occurrence+binary+psychopathological+symptoms+over+time+Psychometrika+2022&ia=images&iax=images
+          - listitem [ref=e39]:
+            - link "Videor" [ref=e40] [cursor=pointer]:
+              - /url: /?q=Bodner+Connect+co-occurrence+binary+psychopathological+symptoms+over+time+Psychometrika+2022&ia=videos&iax=videos
+          - listitem [ref=e41]:
+            - link "Nyheter" [ref=e42] [cursor=pointer]:
+              - /url: /?q=Bodner+Connect+co-occurrence+binary+psychopathological+symptoms+over+time+Psychometrika+2022&ia=news&iar=news
+          - listitem [ref=e43]:
+            - generic [ref=e44]:
+              - generic [ref=e45] [cursor=pointer]:
+                - generic [ref=e47]: Mer
+                - img [ref=e48]: ▼
+              - generic:
+                - generic:
+                  - generic:
+                    - generic:
+                      - generic:
+                        - link "Kartor":
+                          - /url: /?q=Bodner+Connect+co-occurrence+binary+psychopathological+symptoms+over+time+Psychometrika+2022&iaxm=maps
+                  - generic:
+                    - generic:
+                      - generic:
+                        - link "Shoppa":
+                          - /url: /?q=Bodner+Connect+co-occurrence+binary+psychopathological+symptoms+over+time+Psychometrika+2022&ia=shopping&iax=shopping
+        - list [ref=e50]:
+          - listitem [ref=e51]:
+            - link "Duck.ai" [ref=e53] [cursor=pointer]:
+              - /url: /?q=Bodner+Connect+co-occurrence+binary+psychopathological+symptoms+over+time+Psychometrika+2022&ia=chat
+              - img [ref=e54]
+              - text: Duck.ai
+          - listitem [ref=e57]:
+            - button "Sökinställningar ✀" [ref=e59] [cursor=pointer]:
+              - img [ref=e60]
+              - generic [ref=e62]: Sökinställningar
+              - generic [ref=e65]: ✀
+    - generic [ref=e70]:
+      - navigation [ref=e72]:
+        - generic [ref=e75] [cursor=pointer]:
+          - generic [ref=e83]: Skyddad
+          - img [ref=e84]: ▼
+        - generic [ref=e88] [cursor=pointer]:
+          - generic [ref=e91]:
+            - switch "✓" [ref=e92]: ✓
+            - generic [ref=e94]: Sverige
+          - img [ref=e95]: ▼
+        - generic [ref=e99] [cursor=pointer]:
+          - generic [ref=e100]: "Säker sökning: måttlig"
+          - img [ref=e101]: ▼
+        - generic [ref=e105] [cursor=pointer]:
+          - generic [ref=e106]: Alla tider
+          - img [ref=e107]: ▼
+      - generic [ref=e110]:
+        - list [ref=e111]:
+          - listitem [ref=e112]:
+            - article [ref=e113] [cursor=pointer]:
+              - button [ref=e115]:
+                - img [ref=e116]
+              - generic [ref=e120]:
+                - link "Sök domän link.springer.com" [ref=e122]:
+                  - /url: /?q=Bodner%20Connect%20co%2Doccurrence%20binary%20psychopathological%20symptoms%20over%20time%20Psychometrika%202022+site:link.springer.com
+                  - img [ref=e124]
+                - generic [ref=e125]:
+                  - paragraph [ref=e126]: Springer
+                  - link "https://link.springer.com › article › 10.1007 › s11336-021-09765-2" [ref=e127]:
+                    - /url: https://link.springer.com/article/10.1007/s11336-021-09765-2
+                    - paragraph [ref=e129]:
+                      - generic [ref=e130]: https://link.springer.com
+                      - generic [ref=e131]: › article › 10.1007 › s11336-021-09765-2
+              - 'heading "ConNEcT: A Novel Network Approach for Investigating the Co-occurrence ..." [level=2] [ref=e133]':
+                - 'link "ConNEcT: A Novel Network Approach for Investigating the Co-occurrence ..." [ref=e134]':
+                  - /url: https://link.springer.com/article/10.1007/s11336-021-09765-2
+                  - generic [ref=e135]: "ConNEcT: A Novel Network Approach for Investigating the Co-occurrence ..."
+              - generic [ref=e140]: We therefore propose ConNEcT, a network approach for binary symptom data across time. ConNEcT allows to visualize and study the prevalence of different symptoms as well as their co-occurrence, measured by means of a contingency measure in one single network picture.
+          - listitem [ref=e141]:
+            - article [ref=e142] [cursor=pointer]:
+              - button [ref=e144]:
+                - img [ref=e145]
+              - generic [ref=e149]:
+                - link "Sök domän cambridge.org" [ref=e151]:
+                  - /url: /?q=Bodner%20Connect%20co%2Doccurrence%20binary%20psychopathological%20symptoms%20over%20time%20Psychometrika%202022+site:www.cambridge.org
+                  - img [ref=e153]
+                - generic [ref=e154]:
+                  - paragraph [ref=e155]: Cambridge University Press & Assessment
+                  - link "https://www.cambridge.org › core › journals › psychometrika › article › abs › connect-a-novel-network-approach-for-investigating-the-cooccurrence-of-binary-psychopathological-symptoms-over-time › B6C322DDDD24035544ECFFBE246A88DB" [ref=e156]:
+                    - /url: https://www.cambridge.org/core/journals/psychometrika/article/abs/connect-a-novel-network-approach-for-investigating-the-cooccurrence-of-binary-psychopathological-symptoms-over-time/B6C322DDDD24035544ECFFBE246A88DB
+                    - paragraph [ref=e158]:
+                      - generic [ref=e159]: https://www.cambridge.org
+                      - generic [ref=e160]: › core › journals › psychometrika › article › abs › connect-a-novel-network-approach-for-investigating-the-cooccurrence-of-binary-psychopathological-symptoms-over-time › B6C322DDDD24035544ECFFBE246A88DB
+              - 'heading "Connect: A Novel Network Approach for Investigating the Co-occurrence ..." [level=2] [ref=e162]':
+                - 'link "Connect: A Novel Network Approach for Investigating the Co-occurrence ..." [ref=e163]':
+                  - /url: https://www.cambridge.org/core/journals/psychometrika/article/abs/connect-a-novel-network-approach-for-investigating-the-cooccurrence-of-binary-psychopathological-symptoms-over-time/B6C322DDDD24035544ECFFBE246A88DB
+                  - generic [ref=e164]: "Connect: A Novel Network Approach for Investigating the Co-occurrence ..."
+              - generic [ref=e168]:
+                - text: 1 jan. 2025·
+                - generic [ref=e169]: We therefore propose ConNEcT, a network approach for binary symptom data across time. ConNEcT allows to visualize and study the prevalence of different symptoms as well as their co-occurrence, measured by means of a contingency measure in one single network picture.
+          - listitem [ref=e170]:
+            - article [ref=e171] [cursor=pointer]:
+              - button [ref=e173]:
+                - img [ref=e174]
+              - generic [ref=e178]:
+                - link "Sök domän pure.rug.nl" [ref=e180]:
+                  - /url: /?q=Bodner%20Connect%20co%2Doccurrence%20binary%20psychopathological%20symptoms%20over%20time%20Psychometrika%202022+site:pure.rug.nl
+                  - img [ref=e182]
+                - generic [ref=e183]:
+                  - paragraph [ref=e184]: pure.rug.nl
+                  - link "https://pure.rug.nl › ws › files › 223306870 › Bodner2022_Article_ConNEcTANovelNetworkApproachFo.pdf" [ref=e185]:
+                    - /url: https://pure.rug.nl/ws/files/223306870/Bodner2022_Article_ConNEcTANovelNetworkApproachFo.pdf
+                    - paragraph [ref=e187]:
+                      - generic [ref=e188]: https://pure.rug.nl
+                      - generic [ref=e189]: › ws › files › 223306870 › Bodner2022_Article_ConNEcTANovelNetworkApproachFo.pdf
+              - heading "PDF University of Groningen ConNEcT Bodner, Nadja; Bringmann, Laura ..." [level=2] [ref=e191]:
+                - link "PDF University of Groningen ConNEcT Bodner, Nadja; Bringmann, Laura ..." [ref=e192]:
+                  - /url: https://pure.rug.nl/ws/files/223306870/Bodner2022_Article_ConNEcTANovelNetworkApproachFo.pdf
+                  - generic [ref=e193]:
+                    - generic [ref=e194]: PDF
+                    - text: University of Groningen ConNEcT Bodner, Nadja; Bringmann, Laura ...
+              - generic [ref=e199]: ave focused on continuous data. We therefore propose ConNEcT, a network approach for binary symptom data across time. ConNEcT allows to visualize and study the prevalence of differ nt symptoms as well as their co-occurrence, measured by means of a contingency measure in one single netw
+          - listitem [ref=e200]:
+            - article [ref=e201] [cursor=pointer]:
+              - button [ref=e203]:
+                - img [ref=e204]
+              - generic [ref=e208]:
+                - link "Sök domän ideas.repec.org" [ref=e210]:
+                  - /url: /?q=Bodner%20Connect%20co%2Doccurrence%20binary%20psychopathological%20symptoms%20over%20time%20Psychometrika%202022+site:ideas.repec.org
+                  - img [ref=e212]
+                - generic [ref=e213]:
+                  - paragraph [ref=e214]: IDEAS/RePEc
+                  - link "https://ideas.repec.org › a › spr › psycho › v87y2022i1d10.1007_s11336-021-09765-2.html" [ref=e215]:
+                    - /url: https://ideas.repec.org/a/spr/psycho/v87y2022i1d10.1007_s11336-021-09765-2.html
+                    - paragraph [ref=e217]:
+                      - generic [ref=e218]: https://ideas.repec.org
+                      - generic [ref=e219]: › a › spr › psycho › v87y2022i1d10.1007_s11336-021-09765-2.html
+              - 'heading "ConNEcT: A Novel Network Approach for Investigating the Co-o" [level=2] [ref=e221]':
+                - 'link "ConNEcT: A Novel Network Approach for Investigating the Co-o" [ref=e222]':
+                  - /url: https://ideas.repec.org/a/spr/psycho/v87y2022i1d10.1007_s11336-021-09765-2.html
+                  - generic [ref=e223]: "ConNEcT: A Novel Network Approach for Investigating the Co-o"
+              - generic [ref=e228]: We first extract ConNEcTs for all patients that provided data during at least 104 weeks, revealing strong inter-individual differences in which symptom pairs co-occur significantly.
+          - listitem [ref=e229]:
+            - article [ref=e230] [cursor=pointer]:
+              - button [ref=e232]:
+                - img [ref=e233]
+              - generic [ref=e237]:
+                - link "Sök domän academia.edu" [ref=e239]:
+                  - /url: /?q=Bodner%20Connect%20co%2Doccurrence%20binary%20psychopathological%20symptoms%20over%20time%20Psychometrika%202022+site:www.academia.edu
+                  - img [ref=e241]
+                - generic [ref=e242]:
+                  - paragraph [ref=e243]: Academia.edu
+                  - link "https://www.academia.edu › 165780693 › ConNEcT_A_Novel_Network_Approach_for_Investigating_the_Co_occurrence_of_Binary_Psychopathological_Symptoms_Over_Time" [ref=e244]:
+                    - /url: https://www.academia.edu/165780693/ConNEcT_A_Novel_Network_Approach_for_Investigating_the_Co_occurrence_of_Binary_Psychopathological_Symptoms_Over_Time
+                    - paragraph [ref=e246]:
+                      - generic [ref=e247]: https://www.academia.edu
+                      - generic [ref=e248]: › 165780693 › ConNEcT_A_Novel_Network_Approach_for_Investigating_the_Co_occurrence_of_Binary_Psychopathological_Symptoms_Over_Time
+              - 'heading "ConNEcT: A Novel Network Approach for Investigating the Co-occurrence ..." [level=2] [ref=e250]':
+                - 'link "ConNEcT: A Novel Network Approach for Investigating the Co-occurrence ..." [ref=e251]':
+                  - /url: https://www.academia.edu/165780693/ConNEcT_A_Novel_Network_Approach_for_Investigating_the_Co_occurrence_of_Binary_Psychopathological_Symptoms_Over_Time
+                  - generic [ref=e252]: "ConNEcT: A Novel Network Approach for Investigating the Co-occurrence ..."
+              - generic [ref=e257]: We therefore propose ConNEcT, a network approach for binary symptom data across time. ConNEcT allows to visualize and study the prevalence of different symptoms as well as their cooccurrence, measured by means of a contingency measure in one single network picture.
+          - listitem [ref=e258]:
+            - article [ref=e259] [cursor=pointer]:
+              - button [ref=e261]:
+                - img [ref=e262]
+              - generic [ref=e266]:
+                - link "Sök domän cambridge.org" [ref=e268]:
+                  - /url: /?q=Bodner%20Connect%20co%2Doccurrence%20binary%20psychopathological%20symptoms%20over%20time%20Psychometrika%202022+site:www.cambridge.org
+                  - img [ref=e270]
+                - generic [ref=e271]:
+                  - paragraph [ref=e272]: Cambridge University Press & Assessment
+                  - link "https://www.cambridge.org › core › journals › psychometrika › issue › EBD8F69D468C110B444CF4817848C353" [ref=e273]:
+                    - /url: https://www.cambridge.org/core/journals/psychometrika/issue/EBD8F69D468C110B444CF4817848C353
+                    - paragraph [ref=e275]:
+                      - generic [ref=e276]: https://www.cambridge.org
+                      - generic [ref=e277]: › core › journals › psychometrika › issue › EBD8F69D468C110B444CF4817848C353
+              - 'heading "Psychometrika: Volume 87 - Special Issue on Network Psychometrics in ..." [level=2] [ref=e279]':
+                - 'link "Psychometrika: Volume 87 - Special Issue on Network Psychometrics in ..." [ref=e280]':
+                  - /url: https://www.cambridge.org/core/journals/psychometrika/issue/EBD8F69D468C110B444CF4817848C353
+                  - generic [ref=e281]: "Psychometrika: Volume 87 - Special Issue on Network Psychometrics in ..."
+              - generic [ref=e285]:
+                - text: 1 jan. 2025·
+                - generic [ref=e286]: We therefore propose ConNEcT, a network approach for binary symptom data across time. ConNEcT allows to visualize and study the prevalence of different symptoms as well as their co-occurrence, measured by means of a contingency measure in one single network picture.
+          - listitem [ref=e287]:
+            - article [ref=e288] [cursor=pointer]:
+              - button [ref=e290]:
+                - img [ref=e291]
+              - generic [ref=e295]:
+                - link "Sök domän mendeley.com" [ref=e297]:
+                  - /url: /?q=Bodner%20Connect%20co%2Doccurrence%20binary%20psychopathological%20symptoms%20over%20time%20Psychometrika%202022+site:www.mendeley.com
+                  - img [ref=e299]
+                - generic [ref=e300]:
+                  - paragraph [ref=e301]: Mendeley
+                  - link "https://www.mendeley.com › catalogue › 4cafc92b-e145-32aa-924d-a0d88ec3cf5d" [ref=e302]:
+                    - /url: https://www.mendeley.com/catalogue/4cafc92b-e145-32aa-924d-a0d88ec3cf5d/
+                    - paragraph [ref=e304]:
+                      - generic [ref=e305]: https://www.mendeley.com
+                      - generic [ref=e306]: › catalogue › 4cafc92b-e145-32aa-924d-a0d88ec3cf5d
+              - 'heading "ConNEcT: A Novel Network Approach... preview & related info - Mendeley" [level=2] [ref=e308]':
+                - 'link "ConNEcT: A Novel Network Approach... preview & related info - Mendeley" [ref=e309]':
+                  - /url: https://www.mendeley.com/catalogue/4cafc92b-e145-32aa-924d-a0d88ec3cf5d/
+                  - generic [ref=e310]: "ConNEcT: A Novel Network Approach... preview & related info - Mendeley"
+              - generic [ref=e315]: We therefore propose ConNEcT, a network approach for binary symptom data across time. ConNEcT allows to visualize and study the prevalence of different symptoms as well as their co-occurrence, measured by means of a contingency measure in one single network picture.
+          - listitem [ref=e316]:
+            - article [ref=e317] [cursor=pointer]:
+              - button [ref=e319]:
+                - img [ref=e320]
+              - generic [ref=e324]:
+                - link "Sök domän link.springer.com" [ref=e326]:
+                  - /url: /?q=Bodner%20Connect%20co%2Doccurrence%20binary%20psychopathological%20symptoms%20over%20time%20Psychometrika%202022+site:link.springer.com
+                  - img [ref=e328]
+                - generic [ref=e329]:
+                  - paragraph [ref=e330]: Springer
+                  - link "https://link.springer.com › journal › 11336 › volumes-and-issues › 87-1" [ref=e331]:
+                    - /url: https://link.springer.com/journal/11336/volumes-and-issues/87-1
+                    - paragraph [ref=e333]:
+                      - generic [ref=e334]: https://link.springer.com
+                      - generic [ref=e335]: › journal › 11336 › volumes-and-issues › 87-1
+              - heading "Volume 87, Issue 1 | Psychometrika | Springer Nature Link" [level=2] [ref=e337]:
+                - link "Volume 87, Issue 1 | Psychometrika | Springer Nature Link" [ref=e338]:
+                  - /url: https://link.springer.com/journal/11336/volumes-and-issues/87-1
+                  - generic [ref=e339]: Volume 87, Issue 1 | Psychometrika | Springer Nature Link
+              - generic [ref=e344]: Psychometrika will be published by Cambridge University Press from 2025. Psychometrika is a peer-reviewed journal devoted to fostering psychology as a ...
+          - listitem [ref=e345]:
+            - article [ref=e346] [cursor=pointer]:
+              - button [ref=e348]:
+                - img [ref=e349]
+              - generic [ref=e353]:
+                - link "Sök domän ppw.kuleuven.be" [ref=e355]:
+                  - /url: /?q=Bodner%20Connect%20co%2Doccurrence%20binary%20psychopathological%20symptoms%20over%20time%20Psychometrika%202022+site:ppw.kuleuven.be
+                  - img [ref=e357]
+                - generic [ref=e358]:
+                  - paragraph [ref=e359]: Faculteit Psychologie en Pedagogische Wetenschappen
+                  - link "https://ppw.kuleuven.be › okp › team › Nadja_Bodner" [ref=e360]:
+                    - /url: https://ppw.kuleuven.be/okp/team/Nadja_Bodner/
+                    - paragraph [ref=e362]:
+                      - generic [ref=e363]: https://ppw.kuleuven.be
+                      - generic [ref=e364]: › okp › team › Nadja_Bodner
+              - heading "KU Leuven - Research group of quantitative psychology and individual ..." [level=2] [ref=e366]:
+                - link "KU Leuven - Research group of quantitative psychology and individual ..." [ref=e367]:
+                  - /url: https://ppw.kuleuven.be/okp/team/Nadja_Bodner/
+                  - generic [ref=e368]: KU Leuven - Research group of quantitative psychology and individual ...
+              - generic [ref=e372]:
+                - text: 10 dec. 2024·
+                - generic [ref=e373]: "Bodner, N., Bringmann, L. F., Tuerlinckx, F., de Jonge, P., & Ceulemans, E. (2022). ConNEcT: A novel network approach for investigating the co-occurrence of binary psychopathological symptoms over time."
+          - listitem [ref=e374]:
+            - article [ref=e375] [cursor=pointer]:
+              - button [ref=e377]:
+                - img [ref=e378]
+              - generic [ref=e382]:
+                - link "Sök domän research.rug.nl" [ref=e384]:
+                  - /url: /?q=Bodner%20Connect%20co%2Doccurrence%20binary%20psychopathological%20symptoms%20over%20time%20Psychometrika%202022+site:research.rug.nl
+                  - img [ref=e386]
+                - generic [ref=e387]:
+                  - paragraph [ref=e388]: the University of Groningen research portal
+                  - link "https://research.rug.nl › en › publications › connect-a-novel-network-approach-for-investigating-the-co-occurre" [ref=e389]:
+                    - /url: https://research.rug.nl/en/publications/connect-a-novel-network-approach-for-investigating-the-co-occurre
+                    - paragraph [ref=e391]:
+                      - generic [ref=e392]: https://research.rug.nl
+                      - generic [ref=e393]: › en › publications › connect-a-novel-network-approach-for-investigating-the-co-occurre
+              - 'heading "ConNEcT: A Novel Network Approach for Investigating the Co-occurrence ..." [level=2] [ref=e395]':
+                - 'link "ConNEcT: A Novel Network Approach for Investigating the Co-occurrence ..." [ref=e396]':
+                  - /url: https://research.rug.nl/en/publications/connect-a-novel-network-approach-for-investigating-the-co-occurre
+                  - generic [ref=e397]: "ConNEcT: A Novel Network Approach for Investigating the Co-occurrence ..."
+              - generic [ref=e402]: We first extract ConNEcTs for all patients that provided data during at least 104 weeks, revealing strong inter-individual differences in which symptom pairs co-occur significantly.
+        - button "Fler sökresultat" [ref=e405] [cursor=pointer]
+    - list [ref=e408]:
+      - button "Stäng menyn" [ref=e409] [cursor=pointer]:
+        - generic [ref=e410]: Stäng menyn
+        - img [ref=e411]
+      - list [ref=e413]:
+        - listitem [ref=e414]: Sök
+        - listitem [ref=e415]:
+          - link "Startsida" [ref=e416] [cursor=pointer]:
+            - /url: https://start.duckduckgo.com/
+        - listitem [ref=e417]:
+          - link "Teman" [ref=e418] [cursor=pointer]:
+            - /url: /settings#appearance
+        - listitem [ref=e419]:
+          - link "Inställningar" [ref=e420] [cursor=pointer]:
+            - /url: /settings
+      - list [ref=e421]:
+        - listitem [ref=e422]: Berätta vad du tycker
+        - listitem [ref=e423]:
+          - generic [ref=e426]:
+            - button "Positive feedback" [ref=e427] [cursor=pointer]:
+              - img [ref=e428]
+            - button "Negative feedback" [ref=e431] [cursor=pointer]:
+              - img [ref=e432]
+      - list [ref=e435]:
+        - listitem [ref=e436]: Nerladdningar
+        - listitem [ref=e437]:
+          - link "iOS-webbläsare" [ref=e438] [cursor=pointer]:
+            - /url: https://apps.apple.com/app/duckduckgo-private-browser/id663592361?platform=iphone&pt=866401&mt=8&ct=serp-atb-serp
+        - listitem [ref=e439]:
+          - link "Android-webbläsare" [ref=e440] [cursor=pointer]:
+            - /url: https://play.google.com/store/apps/details?id=com.duckduckgo.mobile.android&referrer=utm_campaign%3Dserp-atb-serp%26origin%3Dfunnel_playstore_searchresults
+        - listitem [ref=e441]:
+          - link "Mac-webbläsare" [ref=e442] [cursor=pointer]:
+            - /url: /mac?origin=funnel_browser_searchresults
+        - listitem [ref=e443]:
+          - link "Windows-webbläsare" [ref=e444] [cursor=pointer]:
+            - /url: /windows?origin=funnel_browser_searchresults
+        - listitem [ref=e445]: Webbläsartillägg
+      - list [ref=e446]:
+        - listitem [ref=e447]: Mer från DuckDuckGo
+        - listitem [ref=e448]:
+          - generic [ref=e451]:
+            - button "Stäng kampanj" [ref=e452] [cursor=pointer]:
+              - img [ref=e453]
+            - generic [ref=e455]:
+              - paragraph [ref=e457]:
+                - img [ref=e458]
+                - text: Uppgradera till vår privata webbläsare
+              - paragraph [ref=e469]: Snabb. Säker. Fri.
+            - link "Installera webbläsaren för Mac" [ref=e470] [cursor=pointer]:
+              - /url: /mac
+              - img [ref=e471]
+              - text: Installera webbläsaren för Mac
+        - listitem [ref=e473]:
+          - link "DuckDuckGo Abonnemang" [ref=e474] [cursor=pointer]:
+            - /url: /pro?origin=funnel_pro_searchresults
+        - listitem [ref=e475]:
+          - link "Duck.ai" [ref=e476] [cursor=pointer]:
+            - /url: https://duck.ai
+        - listitem [ref=e477]:
+          - link "E-postskydd" [ref=e478] [cursor=pointer]:
+            - /url: /email
+        - listitem [ref=e479]:
+          - link "Nyhetsbrev" [ref=e480] [cursor=pointer]:
+            - /url: /newsletter
+        - listitem [ref=e481]:
+          - link "Blogg" [ref=e482] [cursor=pointer]:
+            - /url: /blog
+        - listitem [ref=e483]:
+          - link "Podcast" [ref=e484] [cursor=pointer]:
+            - /url: https://insideduckduckgo.substack.com/?showWelcome=true
+        - listitem [ref=e485]:
+          - link "Samarbeten" [ref=e486] [cursor=pointer]:
+            - /url: /collaborations
+      - list [ref=e487]:
+        - listitem [ref=e488]: Läs mer
+        - listitem [ref=e489]:
+          - link "Vad är nytt?" [ref=e490] [cursor=pointer]:
+            - /url: /updates
+        - listitem [ref=e491]:
+          - link "Jämför integritet" [ref=e492] [cursor=pointer]:
+            - /url: /compare-privacy
+        - listitem [ref=e493]:
+          - link "Om vår webbläsare" [ref=e494] [cursor=pointer]:
+            - /url: /app
+        - listitem [ref=e495]:
+          - link "Om DuckDuckGo" [ref=e496] [cursor=pointer]:
+            - /url: /about
+      - list [ref=e497]:
+        - listitem [ref=e498]: Övriga resurser
+        - listitem [ref=e499]:
+          - link "Hjälp" [ref=e500] [cursor=pointer]:
+            - /url: /duckduckgo-help-pages
+        - listitem [ref=e501]:
+          - link "Organisation" [ref=e502] [cursor=pointer]:
+            - /url: https://www.reddit.com/r/duckduckgo/
+        - listitem [ref=e503]:
+          - link "Jobb" [ref=e504] [cursor=pointer]:
+            - /url: /careers
+        - listitem [ref=e505]:
+          - link "Integritetspolicy" [ref=e506] [cursor=pointer]:
+            - /url: /privacy
+        - listitem [ref=e507]:
+          - link "Användarvillkor" [ref=e508] [cursor=pointer]:
+            - /url: /terms
+        - listitem [ref=e509]:
+          - link "Mediekit" [ref=e510] [cursor=pointer]:
+            - /url: /press
+        - listitem [ref=e511]:
+          - link "Annonsera på söksidan" [ref=e512] [cursor=pointer]:
+            - /url: /duckduckgo-help-pages/company/advertise-on-duckduckgo-search
+  - generic [ref=e516]:
+    - generic [ref=e518]:
+      - img [ref=e519]
+      - generic [ref=e535]:
+        - heading "Hämta vår webbläsare för Mac" [level=3] [ref=e536]
+        - paragraph [ref=e537]: Skydda dina data när du söker, surfar och använder AI.
+      - link "Nedladdning" [ref=e538] [cursor=pointer]:
+        - /url: https://duckduckgo.com/mac?origin=funnel_browser_searchresults__footercard
+        - img [ref=e539]
+        - text: Nedladdning
+    - generic [ref=e542]:
+      - generic [ref=e543]:
+        - heading "Läs mer" [level=3] [ref=e544]
+        - list [ref=e545]:
+          - listitem [ref=e546]:
+            - link "Vad är nytt?" [ref=e547] [cursor=pointer]:
+              - /url: https://duckduckgo.com/updates
+          - listitem [ref=e548]:
+            - link "Om webbläsaren" [ref=e549] [cursor=pointer]:
+              - /url: https://duckduckgo.com/app
+          - listitem [ref=e550]:
+            - link "Jämför integritet" [ref=e551] [cursor=pointer]:
+              - /url: https://duckduckgo.com/compare-privacy
+          - listitem [ref=e552]:
+            - link "Hjälpsidor" [ref=e553] [cursor=pointer]:
+              - /url: https://duckduckgo.com/duckduckgo-help-pages/
+      - generic [ref=e554]:
+        - heading "Få mer" [level=3] [ref=e555]
+        - list [ref=e556]:
+          - listitem [ref=e557]:
+            - link "Abonnemang" [ref=e558] [cursor=pointer]:
+              - /url: https://duckduckgo.com/pro
+          - listitem [ref=e559]:
+            - link "E-postskydd" [ref=e560] [cursor=pointer]:
+              - /url: https://duckduckgo.com/email
+          - listitem [ref=e561]:
+            - generic [ref=e562]:
+              - link "Podcast" [ref=e564] [cursor=pointer]:
+                - /url: https://insideduckduckgo.substack.com/?showWelcome=true
+              - generic [ref=e565]:
+                - text: "&"
+                - link "Nyhetsbrev" [ref=e566] [cursor=pointer]:
+                  - /url: https://duckduckgo.com/newsletter
+          - listitem [ref=e567]:
+            - link "Samarbeten" [ref=e568] [cursor=pointer]:
+              - /url: https://duckduckgo.com/collaborations
+  - button "Berätta vad du tycker" [ref=e573] [cursor=pointer]
+  - generic [ref=e574]:
+    - generic [ref=e576]:
+      - banner [ref=e577]:
+        - img [ref=e578]
+        - paragraph [ref=e579]: Uppgradera till vår webbläsare.
+      - generic [ref=e580]:
+        - generic [ref=e581]:
+          - img [ref=e582]
+          - generic [ref=e583]:
+            - img [ref=e584]
+            - img [ref=e585]
+        - paragraph [ref=e586]:
+          - generic [ref=e587]:
+            - text: Prova
+            - strong [ref=e588]: DuckDuckGo-webbläsaren.
+            - text: Snabb. Gratis. Privat.
+        - link "Ladda ner webbläsare" [ref=e589] [cursor=pointer]:
+          - /url: https://duckduckgo.com/mac?origin=funnel_browser_searchresults__popover
+          - img [ref=e590]
+          - generic [ref=e592]: Ladda ner webbläsare
+      - paragraph [ref=e595]:
+        - generic [ref=e596]: Gratis
+    - button [ref=e598] [cursor=pointer]:
+      - img [ref=e599]

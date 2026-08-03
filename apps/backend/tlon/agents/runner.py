@@ -37,9 +37,7 @@ async def run_agent(
     thing for a button to do.
     """
     if not force and not await agent.should_run(pool, user_id):
-        return await _record_skip(
-            pool, agent, user_id, trigger, "nothing new to work on"
-        )
+        return await _record_skip(pool, agent, user_id, trigger, "nothing new to work on")
 
     run_id = uuid4()
     await pool.execute(
@@ -125,9 +123,7 @@ async def run_all(
     """Run every agent for one user, in order, containing failures individually."""
     results = []
     for agent in agents:
-        results.append(
-            await run_agent(pool, agent, user_id, trigger=trigger, force=force)
-        )
+        results.append(await run_agent(pool, agent, user_id, trigger=trigger, force=force))
     return results
 
 

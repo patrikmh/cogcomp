@@ -1,0 +1,46 @@
+- generic [ref=e4]:
+  - generic:
+    - generic: GAMLA ÖVERFARTEN
+    - generic "1/11 HJÄLPTA":
+      - generic: 1/11 HJÄLPTA
+  - button "Inställningar" [ref=e5] [cursor=pointer]: ⚙
+  - button "Öppna samtal med spelets karaktärer" [ref=e6] [cursor=pointer]: Samtal
+  - button "Återställ hela äventyret" [ref=e7] [cursor=pointer]: Återställ
+  - generic [ref=e9]:
+    - generic [ref=e10] [cursor=pointer]:
+      - generic: Glasskärva
+    - generic [ref=e12] [cursor=pointer]:
+      - generic: Kamera
+    - generic [ref=e14]:
+      - img "Månen"
+    - generic [ref=e15] [cursor=pointer]:
+      - img "En punkig fiskmås"
+    - generic [ref=e16] [cursor=pointer]:
+      - img "En snorkel som sticker upp ur vattnet"
+    - generic [ref=e18] [cursor=pointer]:
+      - img "En säl med solglasögon och cigarett"
+    - generic:
+      - button "Gå till nattlägret": NATTLÄGRET ↓
+  - status [ref=e30]:
+    - button "✕" [ref=e31] [cursor=pointer]
+    - generic [ref=e32]: Månen
+    - generic [ref=e33]:
+      - text: Hallå där! Vem är du och varför ligger du där och skrotar? ...Här på stranden kan du inte vara! Här finns många djur och många av dem bits alldeles hårt! Värst
+      - generic [ref=e34]: ▍
+  - generic [ref=e22]:
+    - generic [ref=e23]:
+      - generic [ref=e24]:
+        - generic [ref=e25]: PACKNING
+        - generic [ref=e26]: DRA TILL SCENEN
+      - button "Dölj packningen, 0 föremål" [expanded] [ref=e27] [cursor=pointer]: Dölj (0)
+    - generic [ref=e29]: TOM
+  - generic [ref=e36]:
+    - generic [ref=e37]:
+      - generic [ref=e38]:
+        - generic [ref=e39]: BOMBANFALL ÖVER VIKEN
+        - generic [ref=e40]: "Piltangenter styr, MELLANSLAG släpper — Träffar: 0/3 · Bomber kvar: 9"
+      - button "✕" [ref=e41] [cursor=pointer]
+    - generic [active] [ref=e42]:
+      - img "Polisbåten"
+      - img "Måsen på bombuppdrag"
+    - generic [ref=e43]: Sikta över polisbåten och tryck MELLANSLAG för att släppa en bomb.

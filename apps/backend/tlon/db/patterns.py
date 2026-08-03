@@ -12,6 +12,7 @@ shown, not linger as a claim nobody can retract.
 
 from __future__ import annotations
 
+from datetime import date
 from uuid import UUID, uuid4
 
 import asyncpg
@@ -19,6 +20,9 @@ import asyncpg
 from tlon.domain.inference import EpistemicStatus
 from tlon.graph.schema import EdgeKind, NodeKind
 from tlon.patterns import DETECTOR, PROMPT_VERSION, Candidate, MinedPattern, mine
+from tlon.periodicity import DETECTOR as WEEKDAY_DETECTOR
+from tlon.periodicity import VERSION as PERIODICITY_VERSION
+from tlon.periodicity import mine_weekdays
 
 
 async def load_candidates(pool: asyncpg.Pool, user_id: UUID) -> list[Candidate]:
@@ -61,8 +65,29 @@ async def load_candidates(pool: asyncpg.Pool, user_id: UUID) -> list[Candidate]:
     ]
 
 
-async def persist(pool: asyncpg.Pool, user_id: UUID, patterns: list[MinedPattern]) -> dict:
-    """Reconcile this user's patterns against a freshly mined set.
+async def load_observed_days(pool: asyncpg.Pool, user_id: UUID) -> set[date]:
+    """Every day the person wrote something that is still in their graph."""
+    rows = await pool.fetch(
+        """
+        SELECT DISTINCT o.captured_at::date AS observed_on
+        FROM observations o
+        JOIN graph_nodes n ON n.id = o.node_id
+        WHERE o.user_id = $1 AND n.deleted_at IS NULL
+        """,
+        user_id,
+    )
+    return {row["observed_on"] for row in rows}
+
+
+async def persist(
+    pool: asyncpg.Pool,
+    user_id: UUID,
+    patterns: list[MinedPattern],
+    *,
+    detector: str = DETECTOR,
+    extractor: str = PROMPT_VERSION,
+) -> dict:
+    """Reconcile one detector's patterns against a freshly mined set.
 
     An upsert keyed on `(detector, pattern_key)`, not a replacement. Three things
     follow from that, and each is the point:
@@ -81,37 +106,78 @@ async def persist(pool: asyncpg.Pool, user_id: UUID, patterns: list[MinedPattern
     One transaction: a half-reconciled set would mix current and stale claims with
     no way to tell which was which.
     """
+    async with pool.acquire() as conn, conn.transaction():
+        return await _persist_detector(
+            conn,
+            user_id,
+            patterns,
+            detector=detector,
+            extractor=extractor,
+        )
+
+
+async def _persist_detector(
+    conn: asyncpg.Connection,
+    user_id: UUID,
+    patterns: list[MinedPattern],
+    *,
+    detector: str,
+    extractor: str,
+) -> dict:
     added: list[str] = []
     confirmed: list[str] = []
 
-    async with pool.acquire() as conn, conn.transaction():
-        existing = {
-            row["pattern_key"]: row
-            for row in await conn.fetch(
-                "SELECT pattern_key, node_id FROM patterns WHERE user_id = $1 AND detector = $2",
+    existing = {
+        row["pattern_key"]: row
+        for row in await conn.fetch(
+            "SELECT pattern_key, node_id FROM patterns WHERE user_id = $1 AND detector = $2",
+            user_id,
+            detector,
+        )
+    }
+
+    for pattern in patterns:
+        row = existing.get(pattern.key)
+        if row is None:
+            pattern_id = await _insert(
+                conn,
                 user_id,
-                DETECTOR,
+                pattern,
+                detector=detector,
+                extractor=extractor,
             )
-        }
+            added.append(str(pattern_id))
+        else:
+            pattern_id = row["node_id"]
+            await _confirm(conn, pattern_id, pattern)
+            confirmed.append(str(pattern_id))
 
-        for pattern in patterns:
-            row = existing.get(pattern.key)
-            if row is None:
-                pattern_id = await _insert(conn, user_id, pattern)
-                added.append(str(pattern_id))
-            else:
-                pattern_id = row["node_id"]
-                await _confirm(conn, pattern_id, pattern)
-                confirmed.append(str(pattern_id))
+        await _attach_evidence(
+            conn,
+            user_id,
+            pattern_id,
+            pattern,
+            extractor=extractor,
+        )
 
-            await _attach_evidence(conn, user_id, pattern_id, pattern)
-
-        await _lapse_absent(conn, user_id, {pattern.key for pattern in patterns})
+    await _lapse_absent(
+        conn,
+        user_id,
+        {pattern.key for pattern in patterns},
+        detector=detector,
+    )
 
     return {"added": added, "confirmed": confirmed}
 
 
-async def _insert(conn: asyncpg.Connection, user_id: UUID, pattern: MinedPattern) -> UUID:
+async def _insert(
+    conn: asyncpg.Connection,
+    user_id: UUID,
+    pattern: MinedPattern,
+    *,
+    detector: str,
+    extractor: str,
+) -> UUID:
     pattern_id = uuid4()
     await conn.execute(
         """
@@ -124,7 +190,7 @@ async def _insert(conn: asyncpg.Connection, user_id: UUID, pattern: MinedPattern
         pattern.label.strip(),
         pattern.confidence,
         str(EpistemicStatus.HYPOTHESIS),
-        PROMPT_VERSION,
+        extractor,
     )
     await conn.execute(
         """
@@ -134,7 +200,7 @@ async def _insert(conn: asyncpg.Connection, user_id: UUID, pattern: MinedPattern
         """,
         pattern_id,
         user_id,
-        DETECTOR,
+        detector,
         pattern.key,
         pattern.occurrences,
         pattern.distinct_days,
@@ -173,7 +239,12 @@ async def _confirm(conn: asyncpg.Connection, pattern_id: UUID, pattern: MinedPat
 
 
 async def _attach_evidence(
-    conn: asyncpg.Connection, user_id: UUID, pattern_id: UUID, pattern: MinedPattern
+    conn: asyncpg.Connection,
+    user_id: UUID,
+    pattern_id: UUID,
+    pattern: MinedPattern,
+    *,
+    extractor: str,
 ) -> None:
     """Point the pattern at every entry and node it currently rests on."""
     # Every contributing entry, not a representative one. A pattern citing only
@@ -219,7 +290,7 @@ async def _attach_evidence(
             pattern_id,
             pattern.confidence,
             str(EpistemicStatus.HYPOTHESIS),
-            PROMPT_VERSION,
+            extractor,
         )
         for observation_id in pattern.observation_ids:
             await conn.execute(
@@ -229,7 +300,13 @@ async def _attach_evidence(
             )
 
 
-async def _lapse_absent(conn: asyncpg.Connection, user_id: UUID, held: set[str]) -> None:
+async def _lapse_absent(
+    conn: asyncpg.Connection,
+    user_id: UUID,
+    held: set[str],
+    *,
+    detector: str,
+) -> None:
     """Retire the patterns this run no longer found.
 
     The node is tombstoned so it stops being shown; the identity row stays so its
@@ -244,7 +321,7 @@ async def _lapse_absent(conn: asyncpg.Connection, user_id: UUID, held: set[str])
           AND NOT (pattern_key = ANY($3::text[]))
         """,
         user_id,
-        DETECTOR,
+        detector,
         list(held),
     )
     await conn.execute(
@@ -257,23 +334,46 @@ async def _lapse_absent(conn: asyncpg.Connection, user_id: UUID, held: set[str])
           )
         """,
         user_id,
-        DETECTOR,
+        detector,
     )
 
 
 async def remine(pool: asyncpg.Pool, user_id: UUID) -> dict:
     candidates = await load_candidates(pool, user_id)
-    patterns = mine(candidates)
-    result = await persist(pool, user_id, patterns)
+    observed_days = await load_observed_days(pool, user_id)
+    exact_patterns = mine(candidates)
+    weekday_patterns = mine_weekdays(candidates, observed_days)
+
+    # Both views describe the same graph at the same instant. Reconcile them in
+    # one transaction so a failed weekday write cannot leave exact recurrence
+    # refreshed while the calendar claims still describe the previous run.
+    async with pool.acquire() as conn, conn.transaction():
+        exact = await _persist_detector(
+            conn,
+            user_id,
+            exact_patterns,
+            detector=DETECTOR,
+            extractor=PROMPT_VERSION,
+        )
+        weekday = await _persist_detector(
+            conn,
+            user_id,
+            weekday_patterns,
+            detector=WEEKDAY_DETECTOR,
+            extractor=PERIODICITY_VERSION,
+        )
+
+    added = exact["added"] + weekday["added"]
+    confirmed = exact["confirmed"] + weekday["confirmed"]
     return {
-        "patterns": len(result["added"]) + len(result["confirmed"]),
+        "patterns": len(added) + len(confirmed),
         # Reported separately because they mean different things to a reader: one
         # is "here is something new", the other is "the same things still hold".
         # A run that adds nothing is not a run that found nothing.
-        "added": len(result["added"]),
-        "confirmed": len(result["confirmed"]),
+        "added": len(added),
+        "confirmed": len(confirmed),
         "considered": len(candidates),
-        "ids": result["added"] + result["confirmed"],
+        "ids": added + confirmed,
     }
 
 

@@ -64,16 +64,12 @@ class TestWhoIsDue:
         self, client: AsyncClient, pool: asyncpg.Pool, account: Account
     ):
         await entry_at(client, account, long_ago())
-        await pool.execute(
-            "UPDATE users SET deleted_at = now() WHERE id = $1", account.user_id
-        )
+        await pool.execute("UPDATE users SET deleted_at = now() WHERE id = $1", account.user_id)
         assert account.user_id not in await due_users(pool)
 
 
 class TestCadence:
-    async def test_an_agent_that_has_never_run_is_due(
-        self, pool: asyncpg.Pool, account: Account
-    ):
+    async def test_an_agent_that_has_never_run_is_due(self, pool: asyncpg.Pool, account: Account):
         due = await due_agents(pool, account.user_id)
         assert {a.name for a in due} == {a.name for a in REGISTRY}
 

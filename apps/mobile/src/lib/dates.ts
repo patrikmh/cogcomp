@@ -18,6 +18,16 @@ export function deviceTimezone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 }
 
+export function mondayOfWeek(day: string): string {
+  const [year, month, date] = day.split("-").map(Number);
+  const value = new Date(year!, month! - 1, date!, 12);
+  return shiftDay(day, -((value.getDay() + 6) % 7));
+}
+
+export function shiftWeek(weekStart: string, deltaWeeks: number): string {
+  return shiftDay(weekStart, deltaWeeks * 7);
+}
+
 export function shiftDay(day: string, deltaDays: number): string {
   const [year, month, date] = day.split("-").map(Number);
   // Constructed at noon so a DST transition cannot roll the date over.

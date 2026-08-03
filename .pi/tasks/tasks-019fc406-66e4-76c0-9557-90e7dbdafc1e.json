@@ -1,0 +1,53 @@
+{
+  "nextId": 5,
+  "tasks": [
+    {
+      "id": "1",
+      "subject": "Explore product and ontology specifications",
+      "description": "Read product/spec documentation and ontology definitions relevant to Milestone 2 identity graph; extract bounded requirements and safety principles.",
+      "status": "completed",
+      "activeForm": "Exploring specifications",
+      "metadata": {},
+      "blocks": [],
+      "blockedBy": [],
+      "createdAt": 1785700185589,
+      "updatedAt": 1785700466750
+    },
+    {
+      "id": "2",
+      "subject": "Trace backend graph and explainability architecture",
+      "description": "Inspect extraction prompts/schemas, graph persistence, pattern system, explainability endpoints, migrations, and backend tests to identify exact implementation seams.",
+      "status": "completed",
+      "activeForm": "Tracing backend architecture",
+      "metadata": {},
+      "blocks": [],
+      "blockedBy": [],
+      "createdAt": 1785700188806,
+      "updatedAt": 1785700470006
+    },
+    {
+      "id": "3",
+      "subject": "Trace mobile graph and explain UI",
+      "description": "Inspect mobile graph/explain screens, navigation, API clients, UI test conventions, and determine exact UI slice and files.",
+      "status": "completed",
+      "activeForm": "Tracing mobile UI architecture",
+      "metadata": {},
+      "blocks": [],
+      "blockedBy": [],
+      "createdAt": 1785700191052,
+      "updatedAt": 1785700471799
+    },
+    {
+      "id": "4",
+      "subject": "Synthesize bounded implementation plan",
+      "description": "Combine findings into a concrete Milestone 2 identity graph implementation plan with schema/API/UI behavior, safety semantics, migrations, tests, and verification commands.",
+      "status": "completed",
+      "activeForm": "Synthesizing implementation plan",
+      "metadata": {},
+      "blocks": [],
+      "blockedBy": [],
+      "createdAt": 1785700193564,
+      "updatedAt": 1785700519764
+    }
+  ]
+}

@@ -26,6 +26,7 @@ from tlon.db import inferences as inferences_db
 from tlon.db import observations as observations_db
 from tlon.db import summary as summary_db
 from tlon.domain.observation import NewObservation, Observation, Source
+from tlon.domain.weekly import NonMonday, UnknownTimezone
 from tlon.extraction.pipeline import ExtractionFailed
 from tlon.graph.schema import SCHEMA_VERSION, NodeKind
 from tlon.transcription import AudioTooLarge, TranscriptionError
@@ -228,6 +229,19 @@ async def extract_observation(
         extractor=extractor.version,
     )
     return ExtractionResponse(observation_id=observation_id, extractor=extractor.version, **counts)
+
+
+@router.get("/v1/summary/week/{week_start}")
+async def weekly_summary(
+    request: Request,
+    week_start: Date,
+    tz: str = "UTC",
+    user_id: UUID = Depends(current_user),
+) -> dict:
+    try:
+        return await summary_db.weekly_summary(request.app.state.pool, user_id, week_start, tz)
+    except (UnknownTimezone, NonMonday) as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
 
 
 @router.get("/v1/summary/{day}")

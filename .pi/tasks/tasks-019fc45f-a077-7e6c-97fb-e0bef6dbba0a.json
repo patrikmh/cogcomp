@@ -1,0 +1,21 @@
+{
+  "nextId": 15,
+  "tasks": [
+    {
+      "id": "14",
+      "subject": "Complete spatial route compositions",
+      "description": "Close the major implementation gap: the first pass left landing and most routes as conventional forms/cards and only used SpatialField in Identity. Build and apply semantic spatial primitives/navigation across every route so the selected Living Observatory direction is visibly realized, then verify all routes.",
+      "status": "in_progress",
+      "activeForm": "Completing spatial route compositions",
+      "metadata": {
+        "agentType": "coder",
+        "agentId": "cdd1ef9b-dd19-427"
+      },
+      "blocks": [],
+      "blockedBy": [],
+      "createdAt": 1785711795379,
+      "updatedAt": 1785711812892,
+      "owner": "cdd1ef9b-dd19-427"
+    }
+  ]
+}

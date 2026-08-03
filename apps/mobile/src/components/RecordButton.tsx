@@ -1,6 +1,8 @@
 import { Audio } from "expo-av";
 import { useEffect, useRef, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, StyleSheet, Text, View } from "react-native";
+import { MotionSurface } from "@/components/MotionSurface";
+import { colors } from "@/theme";
 
 export type RecordState = "idle" | "recording" | "uploading";
 type State = RecordState;
@@ -29,6 +31,10 @@ export function RecordButton({
   tone?: "light" | "dark";
 }) {
   const [state, setState] = useState<State>("idle");
+  const mounted = useRef(true);
+  const holdActive = useRef(false);
+  const generation = useRef(0);
+  const recording = useRef<Audio.Recording | null>(null);
 
   useEffect(() => {
     onStateChange?.(state);
@@ -36,26 +42,49 @@ export function RecordButton({
     // on every render of the parent.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
-  const recording = useRef<Audio.Recording | null>(null);
-
   useEffect(() => {
-    // If the screen goes away mid-recording, stop the hardware rather than
-    // leaving the microphone open.
+    // If the screen goes away mid-recording or during startup, stop the
+    // hardware rather than leaving the microphone open.
     return () => {
-      recording.current?.stopAndUnloadAsync().catch(() => undefined);
+      mounted.current = false;
+      holdActive.current = false;
+      generation.current += 1;
+      const active = recording.current;
       recording.current = null;
+      if (active) {
+        active.stopAndUnloadAsync()
+          .catch(() => undefined)
+          .finally(() => resetAudioMode().catch(() => undefined));
+      } else {
+        resetAudioMode().catch(() => undefined);
+      }
     };
   }, []);
 
+  async function resetAudioMode() {
+    await Audio.setAudioModeAsync({
+      allowsRecordingIOS: false,
+      playsInSilentModeIOS: false,
+    });
+  }
+
   async function start() {
-    if (state !== "idle" || disabled) return;
+    if (state !== "idle" || disabled || !mounted.current) return;
+    holdActive.current = true;
+    const currentGeneration = ++generation.current;
     try {
       const permission = await Audio.requestPermissionsAsync();
+      if (!mounted.current || !holdActive.current || generation.current !== currentGeneration) {
+        await resetAudioMode();
+        return;
+      }
       if (!permission.granted) {
         Alert.alert(
           "Microphone access needed",
           "Tlön records voice entries only while you hold the button.",
         );
+        holdActive.current = false;
+        await resetAudioMode();
         return;
       }
       await Audio.setAudioModeAsync({
@@ -65,31 +94,48 @@ export function RecordButton({
       const { recording: started } = await Audio.Recording.createAsync(
         Audio.RecordingOptionsPresets.HIGH_QUALITY,
       );
+      const cancelled = !mounted.current || !holdActive.current || generation.current !== currentGeneration;
+      if (cancelled) {
+        await started.stopAndUnloadAsync().catch(() => undefined);
+        await resetAudioMode();
+        return;
+      }
       recording.current = started;
       setState("recording");
     } catch {
-      setState("idle");
-      Alert.alert("Could not start recording", "Please try again.");
+      await resetAudioMode().catch(() => undefined);
+      if (mounted.current && generation.current === currentGeneration) {
+        setState("idle");
+        Alert.alert("Could not start recording", "Please try again.");
+      }
     }
   }
 
   async function stop() {
-    if (state !== "recording") return;
+    holdActive.current = false;
+    generation.current += 1;
+    // Use the ref, not React state: release can arrive after the recording is
+    // assigned but before the state commit that follows it.
     const active = recording.current;
     recording.current = null;
+    if (!active) {
+      // Release can arrive while permission or createAsync is pending. The
+      // startup continuation will also clean up any late-created recording.
+      await resetAudioMode().catch(() => undefined);
+      return;
+    }
     setState("uploading");
 
     try {
       await active?.stopAndUnloadAsync();
-      // Release the audio session so other apps are not left muted.
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+      await resetAudioMode();
       const uri = active?.getURI();
       if (!uri) throw new Error("no recording produced");
       await onRecorded(uri);
     } catch {
       Alert.alert("Could not save that recording", "Please try again.");
     } finally {
-      setState("idle");
+      if (mounted.current) setState("idle");
     }
   }
 
@@ -102,10 +148,13 @@ export function RecordButton({
 
   return (
     <View style={styles.wrap}>
-      <Pressable
+      <MotionSurface motion="none"
         onPressIn={start}
         onPressOut={stop}
         disabled={disabled || state === "uploading"}
+        accessibilityRole="button"
+        accessibilityLabel="Hold to record"
+        accessibilityHint="Press and hold while speaking; release to stop and save the recording."
         style={[
           styles.button,
           tone === "dark" && styles.buttonDark,
@@ -113,6 +162,13 @@ export function RecordButton({
           (disabled || state === "uploading") && styles.disabled,
         ]}
       >
+        <View
+          style={[
+            styles.pip,
+            tone === "dark" && styles.pipDark,
+            state === "recording" && styles.pipRecording,
+          ]}
+        />
         <Text
           style={[
             styles.label,
@@ -122,7 +178,7 @@ export function RecordButton({
         >
           {label}
         </Text>
-      </Pressable>
+      </MotionSurface>
       <Text style={[styles.note, tone === "dark" && styles.noteDark]}>
         The recording is transcribed and then discarded. Only the text is kept.
       </Text>
@@ -132,19 +188,33 @@ export function RecordButton({
 
 const styles = StyleSheet.create({
   wrap: { gap: 6 },
+  // A lit pip beside the label. Held-to-talk has no state you can see once your
+  // finger is on it, and the colour change under the thumb is hidden by the
+  // thumb; a dot next to the words is not.
+  pip: { width: 9, height: 9, borderRadius: 5, backgroundColor: "#a1a1aa" },
+  pipDark: { backgroundColor: "#52525b" },
+  pipRecording: { backgroundColor: "#fb7185" },
   button: {
     borderWidth: 1,
-    borderColor: "#d4d4d8",
-    borderRadius: 12,
+    borderColor: colors.lineStrong,
+    backgroundColor: colors.surface,
+    // A pill, because it is held rather than clicked — the shape says "press and
+    // keep pressing" in a way a rectangle does not.
+    borderRadius: 999,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 10,
     paddingVertical: 14,
     alignItems: "center",
   },
-  buttonDark: { borderColor: "#3f3f46", backgroundColor: "#12121a" },
-  recording: { backgroundColor: "#fee2e2", borderColor: "#b91c1c" },
+  buttonDark: { borderColor: colors.lineStrong, backgroundColor: colors.surfaceBright },
+  // A dark alert surface keeps the recording state unmistakable while pairing
+  // with a light label at normal-text contrast.
+  recording: { backgroundColor: "#991b1b", borderColor: "#fecaca" },
   disabled: { opacity: 0.4 },
-  label: { fontSize: 16, fontWeight: "600", color: "#3f3f46" },
-  labelDark: { color: "#e4e4e7" },
-  labelRecording: { color: "#b91c1c" },
-  note: { fontSize: 11, color: "#a1a1aa", textAlign: "center" },
-  noteDark: { color: "#52525b" },
+  label: { fontSize: 16, fontWeight: "600", color: colors.inkSoft },
+  labelDark: { color: colors.ink },
+  labelRecording: { color: "#fff1f2" },
+  note: { fontSize: 11, color: colors.inkMuted, textAlign: "center" },
+  noteDark: { color: colors.inkMuted },
 });

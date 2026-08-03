@@ -70,6 +70,11 @@ class ConsolidationAgent:
             f"""
             SELECT 1 FROM graph_nodes
             WHERE user_id = $1 AND deleted_at IS NULL AND {MERGEABLE}
+              AND NOT EXISTS (
+                  SELECT 1 FROM identity_selections s
+                  WHERE s.user_id = graph_nodes.user_id
+                    AND s.node_id = graph_nodes.id AND s.status = 'selected'
+              )
             GROUP BY kind, lower(btrim(label))
             HAVING count(*) > 1
             LIMIT 1
@@ -99,6 +104,11 @@ class ConsolidationAgent:
             SELECT id, kind, label, confidence, created_at
             FROM graph_nodes
             WHERE user_id = $1 AND deleted_at IS NULL AND {MERGEABLE}
+              AND NOT EXISTS (
+                  SELECT 1 FROM identity_selections s
+                  WHERE s.user_id = graph_nodes.user_id
+                    AND s.node_id = graph_nodes.id AND s.status = 'selected'
+              )
             ORDER BY created_at, id
             """,
             user_id,
@@ -116,9 +126,7 @@ class ConsolidationAgent:
 
         return [group for group in grouped.values() if len(group) > 1]
 
-    async def _merge(
-        self, pool: asyncpg.Pool, user_id: UUID, group: list[asyncpg.Record]
-    ) -> int:
+    async def _merge(self, pool: asyncpg.Pool, user_id: UUID, group: list[asyncpg.Record]) -> int:
         # The oldest survives. Arbitrary but stable, and it means a node's id does
         # not change under someone who has already looked at it.
         keeper, *duplicates = group
@@ -126,6 +134,53 @@ class ConsolidationAgent:
         strongest = max(row["confidence"] for row in group)
 
         async with pool.acquire() as conn, conn.transaction():
+            # Selection and consolidation both lock graph nodes. Lock every node
+            # in id order before checking selections so the check and rewrites are
+            # serialized with a concurrent selection transaction. A selection that
+            # wins the race is visible here; one that starts after these locks are
+            # acquired waits until the merge commits and then sees a deleted node.
+            node_ids = [keeper_id, *(duplicate["id"] for duplicate in duplicates)]
+            await conn.fetch(
+                """
+                SELECT id FROM graph_nodes
+                WHERE user_id = $1 AND id = ANY($2::uuid[])
+                ORDER BY id
+                FOR UPDATE
+                """,
+                user_id,
+                node_ids,
+            )
+
+            # A concurrent consolidation may have discovered this same group
+            # before us and soft-deleted it while we waited for these locks. Do
+            # not write another audit row or count an already-completed merge.
+            live_count = await conn.fetchval(
+                """
+                SELECT count(*) FROM graph_nodes
+                WHERE user_id = $1 AND id = ANY($2::uuid[])
+                  AND deleted_at IS NULL
+                """,
+                user_id,
+                node_ids,
+            )
+            if live_count != len(node_ids):
+                return 0
+
+            # Recheck under the merge transaction: selection may have happened
+            # after duplicate discovery. A selected node is never rewritten.
+            protected = await conn.fetchval(
+                """
+                SELECT 1 FROM identity_selections
+                WHERE user_id = $1 AND status = 'selected'
+                  AND node_id = ANY($2::uuid[])
+                LIMIT 1
+                """,
+                user_id,
+                [keeper_id, *(duplicate["id"] for duplicate in duplicates)],
+            )
+            if protected:
+                return 0
+
             for duplicate in duplicates:
                 dup_id = duplicate["id"]
 

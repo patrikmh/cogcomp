@@ -1,0 +1,16 @@
+{
+  "nextId": 2,
+  "tasks": [
+    {
+      "id": "1",
+      "subject": "Explore backend endpoints and mobile structure",
+      "description": "Inspect the FastAPI backend routes for /v1/patterns, /v1/patterns/mine, /v1/agents, /v1/agents/runs, /v1/agents/run. Also inspect the mobile app structure: navigation, existing API wrappers, query keys, styles, screens, and tests. Return a structured summary with exact file paths and code snippets needed to implement patterns and agent activity UI.",
+      "status": "in_progress",
+      "metadata": {},
+      "blocks": [],
+      "blockedBy": [],
+      "createdAt": 1785698727118,
+      "updatedAt": 1785698730648
+    }
+  ]
+}

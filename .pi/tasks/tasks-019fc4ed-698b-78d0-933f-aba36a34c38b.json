@@ -1,0 +1,119 @@
+{
+  "nextId": 10,
+  "tasks": [
+    {
+      "id": "1",
+      "subject": "Map application and specifications",
+      "description": "Identify app architecture, authoritative specifications, implementation surfaces, test suites, run commands, and critical user journeys across backend and mobile/web.",
+      "status": "completed",
+      "activeForm": "Mapping application and specifications",
+      "metadata": {
+        "agentType": "Explore"
+      },
+      "blocks": [],
+      "blockedBy": [],
+      "createdAt": 1785715369556,
+      "updatedAt": 1785715456108
+    },
+    {
+      "id": "2",
+      "subject": "Run automated quality checks",
+      "description": "Execute project-native backend, frontend/mobile, lint, typecheck, build, and integration checks; capture exact commands, outcomes, and failures without modifying source.",
+      "status": "completed",
+      "activeForm": "Running automated quality checks",
+      "metadata": {},
+      "blocks": [],
+      "blockedBy": [],
+      "createdAt": 1785715372652,
+      "updatedAt": 1785715502778
+    },
+    {
+      "id": "3",
+      "subject": "Exercise critical E2E journeys",
+      "description": "Start the application per project docs and validate critical browser-visible journeys against the product spec, recording screenshots/logs and classifying failures.",
+      "status": "completed",
+      "activeForm": "Exercising critical E2E journeys",
+      "metadata": {},
+      "blocks": [],
+      "blockedBy": [],
+      "createdAt": 1785715375876,
+      "updatedAt": 1785717114358
+    },
+    {
+      "id": "4",
+      "subject": "Perform full code and security review",
+      "description": "Review the complete current application and uncommitted implementation against specifications, using fresh critic and security-auditor sessions and parent verification for serious findings.",
+      "status": "completed",
+      "activeForm": "Performing full code and security review",
+      "metadata": {},
+      "blocks": [],
+      "blockedBy": [],
+      "createdAt": 1785715379283,
+      "updatedAt": 1785717364996
+    },
+    {
+      "id": "5",
+      "subject": "Produce comprehensive review report",
+      "description": "Synthesize spec coverage, automated test evidence, E2E evidence, verified findings by severity, gaps, and release recommendation into a clear report.",
+      "status": "completed",
+      "activeForm": "Producing comprehensive review report",
+      "metadata": {},
+      "blocks": [],
+      "blockedBy": [],
+      "createdAt": 1785715382102,
+      "updatedAt": 1785717371882
+    },
+    {
+      "id": "6",
+      "subject": "Plan comprehensive remediation",
+      "description": "Produce an implementation plan covering every verified review finding: Unicode experiment fingerprints, crisis voice shutdown, rate limiting and quotas, loopback datastore exposure, transactional conversation close, recording mute behavior, provider consent/disclosure, deletion/account erasure semantics, dependency pinning, formatting, tests, and E2E reliability.",
+      "status": "in_progress",
+      "activeForm": "Planning comprehensive remediation",
+      "metadata": {
+        "agentType": "planner"
+      },
+      "blocks": [],
+      "blockedBy": [],
+      "createdAt": 1785779474309,
+      "updatedAt": 1785779489122
+    },
+    {
+      "id": "7",
+      "subject": "Implement reviewed fixes",
+      "description": "Apply the approved remediation plan across backend, mobile, infrastructure, CI, documentation, and tests without overwriting unrelated user changes.",
+      "status": "pending",
+      "activeForm": "Implementing reviewed fixes",
+      "metadata": {
+        "agentType": "coder"
+      },
+      "blocks": [],
+      "blockedBy": [],
+      "createdAt": 1785779479282,
+      "updatedAt": 1785779479282
+    },
+    {
+      "id": "8",
+      "subject": "Verify all automated checks",
+      "description": "Run formatting, lint, backend unit/integration, mobile typecheck/Jest, ontology, benchmark, migration, and canonical E2E checks after implementation.",
+      "status": "pending",
+      "activeForm": "Verifying all automated checks",
+      "metadata": {},
+      "blocks": [],
+      "blockedBy": [],
+      "createdAt": 1785779483705,
+      "updatedAt": 1785779483705
+    },
+    {
+      "id": "9",
+      "subject": "Review remediation independently",
+      "description": "Run a fresh security-sensitive FULL code review of the completed remediation and verify any serious findings.",
+      "status": "pending",
+      "activeForm": "Reviewing remediation independently",
+      "metadata": {},
+      "blocks": [],
+      "blockedBy": [],
+      "createdAt": 1785779487106,
+      "updatedAt": 1785779487106
+    }
+  ]
+}

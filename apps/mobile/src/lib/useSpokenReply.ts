@@ -1,7 +1,7 @@
 import { Audio } from "expo-av";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { api } from "@/lib/api";
+import { ApiError, api } from "@/lib/api";
 import { type Envelope, levelAt, smooth } from "@/lib/envelope";
 
 /**
@@ -16,6 +16,11 @@ import { type Envelope, levelAt, smooth } from "@/lib/envelope";
  * Failure is silent by design: if speech is not configured, or synthesis fails,
  * the reply is still on screen to read. Speaking is an addition to the text, never
  * a replacement for it.
+ *
+ * Silent, but not repeated. A server with no voice configured answers 503, and
+ * asking again on every reply costs a doomed round trip each time and logs a
+ * console error in a perfectly healthy deployment. The 503 is remembered for the
+ * session — it is a statement about the server, not about this request.
  */
 
 /** How often the level is recomputed. Matches the blob's own frame rate — sampling
@@ -38,6 +43,9 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
   const envelope = useRef<Envelope>({ levels: [], frameMs: 50 });
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const smoothed = useRef(0);
+  // Set once the server says it has no voice. A ref rather than state: nothing
+  // renders differently, and a re-render here would restart the level timer.
+  const unavailable = useRef(false);
 
   const stop = useCallback(() => {
     if (timer.current) clearInterval(timer.current);
@@ -57,7 +65,7 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
 
   const say = useCallback(
     async (text: string) => {
-      if (!token || !enabled || !text.trim()) return;
+      if (!token || !enabled || !text.trim() || unavailable.current) return;
       stop();
 
       try {
@@ -90,7 +98,13 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
           smoothed.current = smooth(smoothed.current, target, elapsed);
           setLevel(smoothed.current);
         }, SAMPLE_MS);
-      } catch {
+      } catch (error) {
+        // 503 means this server has no voice at all, so there is no point asking
+        // again. Any other failure might be transient — a dropped connection, a
+        // rate limit — and those are worth retrying on the next reply.
+        if (error instanceof ApiError && error.status === 503) {
+          unavailable.current = true;
+        }
         // The reply is already on screen to read. A failure to speak it is not
         // something to interrupt someone mid-thought about.
         stop();

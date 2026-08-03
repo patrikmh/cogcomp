@@ -1,0 +1,91 @@
+{
+  "nextId": 7,
+  "tasks": [
+    {
+      "id": "1",
+      "subject": "Plan patterns and agent-runs UI",
+      "description": "Inspect the feature worktree and produce an implementation plan for surfacing mined patterns and background-agent run history in the Expo mobile app, including tests and progress documentation.",
+      "status": "completed",
+      "activeForm": "Planning patterns and agent-runs UI",
+      "metadata": {
+        "agentType": "planner"
+      },
+      "blocks": [],
+      "blockedBy": [
+        "2"
+      ],
+      "createdAt": 1785698411892,
+      "updatedAt": 1785698685335
+    },
+    {
+      "id": "2",
+      "subject": "Restore required agent capacity",
+      "description": "User authorized using a Kimi coding subagent instead of the rate-limited default GLM-5.2 route.",
+      "status": "completed",
+      "activeForm": "Waiting for agent capacity",
+      "metadata": {},
+      "blocks": [
+        "1"
+      ],
+      "blockedBy": [],
+      "createdAt": 1785698449512,
+      "updatedAt": 1785698479859
+    },
+    {
+      "id": "3",
+      "subject": "Implement patterns and agent-runs UI",
+      "description": "Implement the approved plan in the feature worktree: typed API methods, navigation, patterns screen, agent activity screen, focused unit tests, relevant e2e coverage, progress documentation, and run available checks.",
+      "status": "completed",
+      "activeForm": "Implementing patterns and agent-runs UI",
+      "metadata": {
+        "agentType": "general-purpose"
+      },
+      "blocks": [],
+      "blockedBy": [],
+      "createdAt": 1785698695781,
+      "updatedAt": 1785700027966
+    },
+    {
+      "id": "4",
+      "subject": "Review patterns and agent-runs UI",
+      "description": "FULL review completed with degraded dispatch: both required GLM critics were unavailable due rate limit. Parent independently reviewed the complete diff and relevant contracts; no critical/high defects found. Verified 389 backend tests, 90 mobile tests, Ruff, TypeScript, and diff check. Verdict: PASS with reviewer-capacity degradation recorded.",
+      "status": "completed",
+      "activeForm": "Reviewing patterns and agent-runs UI",
+      "metadata": {
+        "agentType": "critic"
+      },
+      "blocks": [],
+      "blockedBy": [],
+      "createdAt": 1785700033242,
+      "updatedAt": 1785700132503
+    },
+    {
+      "id": "5",
+      "subject": "Plan identity graph feature",
+      "description": "Plan completed. User explicitly selected the recommended user-curated projection architecture: existing provenance-backed Value, Belief, Need, and Activity nodes, with user selection/status/removal and no new Identity ontology kind.",
+      "status": "completed",
+      "activeForm": "Planning identity graph feature",
+      "metadata": {
+        "agentType": "Plan"
+      },
+      "blocks": [],
+      "blockedBy": [],
+      "createdAt": 1785700169773,
+      "updatedAt": 1785700610496
+    },
+    {
+      "id": "6",
+      "subject": "Implement user-curated identity graph",
+      "description": "Implement the approved user-curated projection architecture in the identity-graph worktree: ADR, migration, pure rules, persistence/API, consolidation protection, mobile UI/API, comprehensive tests, and progress docs.",
+      "status": "in_progress",
+      "activeForm": "Implementing user-curated identity graph",
+      "metadata": {
+        "agentType": "general-purpose"
+      },
+      "blocks": [],
+      "blockedBy": [],
+      "createdAt": 1785700617101,
+      "updatedAt": 1785700619591
+    }
+  ]
+}

@@ -1,0 +1,128 @@
+- generic [ref=e9]:
+  - generic [ref=e10]:
+    - banner [ref=e11]:
+      - generic [ref=e12]: Varv
+      - generic [ref=e13]: ett varv i taget
+      - button "patrik · logga ut" [ref=e14] [cursor=pointer]
+    - generic [ref=e15]:
+      - text: Ingen tankekoll idag än — hur går dagen?
+      - generic [ref=e16]:
+        - button "Öppna tankekoll" [ref=e17] [cursor=pointer]
+        - button "ej nu" [ref=e18] [cursor=pointer]
+    - generic [ref=e19]:
+      - generic [ref=e20]:
+        - generic [ref=e21]:
+          - heading "Hej! Idag är tisdag" [level=2] [ref=e22]
+          - paragraph [ref=e23]: Stadig · Normal kapacitet. Planera nästa halvdag.
+        - generic [ref=e24]:
+          - generic [ref=e25]:
+            - generic [ref=e26]: Fokus just nu
+            - generic [ref=e27]: Ingen aktivt fokus
+          - generic [ref=e28]:
+            - generic [ref=e30]: Energi idag
+            - generic [ref=e31]:
+              - text: "20"
+              - generic [ref=e32]: av 20 ⚡
+            - generic [ref=e33]: 0 uttagen · 0 återhämtad
+          - generic [ref=e34]:
+            - generic [ref=e35]: Till nedvarvning
+            - generic [ref=e36]: 5h 41m
+            - generic [ref=e37]: klockan 22:00
+          - generic [ref=e38]:
+            - generic [ref=e39]: Dagens progression
+            - generic [ref=e40]: 62%
+        - generic [ref=e43]:
+          - generic [ref=e44]: 📋 1 uppgifter kvar
+          - generic [ref=e45] [cursor=pointer]: 🔔 Kolla in saknas idag
+      - generic [ref=e46]:
+        - button "Stadig" [ref=e47] [cursor=pointer]
+        - button "Lågt batteri" [ref=e48] [cursor=pointer]
+        - button "Återhämtning" [ref=e49] [cursor=pointer]
+      - generic [ref=e51]:
+        - generic [ref=e52]: 16:19
+        - generic [ref=e53]: "Nedvarvning: 5tim 41min"
+        - generic [ref=e57]: 62%
+      - generic [ref=e58]:
+        - generic [ref=e59]: Medicin idag
+        - generic [ref=e60]:
+          - button "Tagen" [ref=e61] [cursor=pointer]
+          - button "Hoppade över" [ref=e62] [cursor=pointer]
+          - button "Inte idag" [ref=e63] [cursor=pointer]
+    - generic [ref=e64]:
+      - button "🗓️ Hämta kalendern" [ref=e65] [cursor=pointer]
+      - button "✉️ Kolla mejlen" [ref=e66] [cursor=pointer]
+    - generic [ref=e67]: Den här integrationen är inte kopplad till servern än.
+    - generic [ref=e68]: kalender – · mejl – · oura – · notion – · 16:17, sedan var 3:e h
+    - generic [ref=e69]:
+      - generic [ref=e70]:
+        - generic [ref=e71]: Morgonvarv · 2 min
+        - button "hoppa över idag" [ref=e72] [cursor=pointer]
+      - paragraph [ref=e73]: Tryck på upp till tre uppgifter i den ordning de betyder något idag. Första trycket = A, sedan B, sedan C. Resten kan vänta utan skuld.
+      - button "· Ge bubba Medicin · inkorg" [ref=e75] [cursor=pointer]:
+        - generic [ref=e76]: ·
+        - generic [ref=e77]: Ge bubba Medicin · inkorg
+      - button "Sätt dagen" [disabled] [ref=e78] [cursor=pointer]
+    - generic [ref=e79]:
+      - generic [ref=e80]: En tydlig nästa sak
+      - generic [ref=e81]:
+        - generic [ref=e82]: 📌
+        - generic [ref=e83]: Ge bubba Medicin
+        - button "Markera klar" [ref=e84] [cursor=pointer]: ✓
+      - generic [ref=e86]: 2⚡
+      - generic [ref=e87]:
+        - button "Starta ett fokusvarv" [ref=e88] [cursor=pointer]
+        - button "Jag kommer inte igång" [ref=e89] [cursor=pointer]
+    - generic [ref=e90]:
+      - generic [ref=e91]: Nästa halvdag
+      - paragraph [ref=e92]: Inga tidsatta punkter de närmaste timmarna. Oschemalagda uppgifter finns nedanför.
+    - generic [ref=e93]:
+      - generic [ref=e94]: 0 klara idag
+      - generic [ref=e95]: 1 kvar
+      - generic [ref=e96]:
+        - generic [ref=e97]: 0⚡
+        - text: förbrukat ·
+        - generic [ref=e98]: 0⚡
+        - text: återladdat
+      - generic [ref=e99]: 0 vinster
+    - generic [ref=e100]:
+      - generic [ref=e101]:
+        - generic [ref=e102]: Uppgifter
+        - button "+ lägg till" [ref=e103] [cursor=pointer]
+      - generic [ref=e104]:
+        - button "sön 19" [ref=e105] [cursor=pointer]:
+          - generic [ref=e106]: sön
+          - generic [ref=e107]: "19"
+        - button "mån 20" [ref=e108] [cursor=pointer]:
+          - generic [ref=e109]: mån
+          - generic [ref=e110]: "20"
+        - button "tis 21" [ref=e111] [cursor=pointer]:
+          - generic [ref=e112]: tis
+          - generic [ref=e113]: "21"
+        - button "ons 22" [ref=e114] [cursor=pointer]:
+          - generic [ref=e115]: ons
+          - generic [ref=e116]: "22"
+        - button "tors 23" [ref=e117] [cursor=pointer]:
+          - generic [ref=e118]: tors
+          - generic [ref=e119]: "23"
+        - button "fre 24" [ref=e120] [cursor=pointer]:
+          - generic [ref=e121]: fre
+          - generic [ref=e122]: "24"
+      - generic [ref=e125] [cursor=pointer]:
+        - button "Visa detaljer" [ref=e126]:
+          - generic [ref=e127]: 📌
+          - generic [ref=e128]:
+            - text: Ge bubba Medicin
+            - generic [ref=e129]: 2⚡ · tryck för mer
+        - button "Markera klar" [ref=e130]: ✓
+    - contentinfo [ref=e131]: Inga streaks. Varje dag börjar på noll.
+  - generic [ref=e171]: 🤖 sorterar…
+  - generic [ref=e172]:
+    - generic [ref=e175]: Sorteraren klassificerar (fallback)
+    - generic [ref=e176]: "Klassificerad som: task — Mata katten"
+  - navigation [ref=e132]:
+    - button "Idag" [ref=e133] [cursor=pointer]: Idag
+    - button "Idéer" [ref=e135] [cursor=pointer]: Idéer
+    - button "Fånga en tanke" [ref=e137] [cursor=pointer]: +
+    - button "Listor" [ref=e138] [cursor=pointer]: Listor
+    - button "Verktyg" [ref=e140] [cursor=pointer]: Verktyg
+  - button "Visa systemstatus" [ref=e153] [cursor=pointer]

@@ -1,0 +1,20 @@
+{
+  "nextId": 5,
+  "tasks": [
+    {
+      "id": "4",
+      "subject": "Implement Milestone 2 experiment engine",
+      "description": "Implement the user-approved user-authored relational Experiment Engine. Contract: no Experiment ontology kind and no agent/model proposals; optional provenance-backed graph links with Pattern-only mobile picker; opaque user-written hypothesis/action/success criterion; 1–42 inclusive local-date duration with IANA timezone; daily/weekly/end-only cadence and no reminders; check-ins are ordinary Observations; qualitative outcome met/partly met/not met/unclear with final check-in; deterministic lifecycle, strict user isolation, optimistic concurrency/idempotency, neutral non-medical framing. Include migration, domain/persistence/API, mobile UI/API, tests, isolated browser E2E, ADR/docs, verification, and fresh review. Preserve unrelated uncommitted work.",
+      "status": "in_progress",
+      "activeForm": "Implementing user-authored experiments",
+      "metadata": {
+        "agentType": "coder"
+      },
+      "blocks": [],
+      "blockedBy": [],
+      "createdAt": 1785710693554,
+      "updatedAt": 1785711123044,
+      "owner": "parent"
+    }
+  ]
+}

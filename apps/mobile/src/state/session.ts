@@ -41,7 +41,9 @@ export const useSession = create<SessionState>((set) => ({
   },
 
   signOut: async () => {
-    await Promise.all([deleteItem(TOKEN_KEY), deleteItem(USER_KEY)]);
+    // Clear the auth boundary before awaiting storage so the app swaps to the
+    // signed-out QueryClient immediately.
     set({ token: null, userId: null });
+    await Promise.all([deleteItem(TOKEN_KEY), deleteItem(USER_KEY)]);
   },
 }));

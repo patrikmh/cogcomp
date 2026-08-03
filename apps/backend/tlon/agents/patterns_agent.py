@@ -1,9 +1,10 @@
 """Pattern mining, on a schedule.
 
-A thin wrapper: the mining itself lives in `tlon/patterns.py` and its persistence
-in `tlon/db/patterns.py`, both of which are exercised by the manual endpoint too.
-This exists so patterns get noticed without the person having to ask — which is
-the entire point of a background agent, and also the thing that makes one risky.
+A thin wrapper: recurrence and weekday mining live in pure modules, and their
+persistence lives in `tlon/db/patterns.py`; the manual endpoint exercises the same
+path. This exists so patterns get noticed without the person having to ask —
+which is the entire point of a background agent, and also the thing that makes one
+risky.
 
 The safeguard is `should_run`: patterns are only re-mined when there is new
 material since the last run. Without that, the same conclusions would be
@@ -19,7 +20,8 @@ import asyncpg
 
 from tlon.agents.base import AgentResult
 from tlon.db import patterns as patterns_db
-from tlon.patterns import PROMPT_VERSION
+
+VERSION = "patterns-agent-v0.2"
 
 
 class PatternAgent:
@@ -29,7 +31,7 @@ class PatternAgent:
 
     @property
     def version(self) -> str:
-        return PROMPT_VERSION
+        return VERSION
 
     @property
     def cadence_seconds(self) -> int:

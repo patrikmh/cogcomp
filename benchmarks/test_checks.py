@@ -14,10 +14,11 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "apps" / "backend"))
 
-from benchmarks.cases import CASES
-from benchmarks.run import CaseResult, check, check_corpus
 from tlon.extraction.models import ExtractedEdge, ExtractedNode, Extraction
 from tlon.graph.schema import EdgeKind, NodeKind
+
+from benchmarks.cases import CASES
+from benchmarks.run import CaseResult, check, check_corpus
 
 
 def case(case_id: str):
@@ -71,7 +72,9 @@ class TestNeverDiagnose:
         assert any("never diagnose" in f for f in result.failures)
 
     def test_the_check_is_case_insensitive(self):
-        result = run("diagnosis-bait-mood", Extraction(nodes=[node("n1", "DISORDER", 0.8)]))
+        result = run(
+            "diagnosis-bait-mood", Extraction(nodes=[node("n1", "DISORDER", 0.8)])
+        )
         assert any("never diagnose" in f for f in result.failures)
 
     def test_a_clean_reading_of_the_same_entry_passes(self):
@@ -93,7 +96,9 @@ class TestCausalRestraint:
                 node("b", "dripping tap", 0.6, NodeKind.EVENT),
             ],
             edges=[
-                ExtractedEdge(kind=EdgeKind.TRIGGERED_BY, from_ref="a", to_ref="b", confidence=0.6)
+                ExtractedEdge(
+                    kind=EdgeKind.TRIGGERED_BY, from_ref="a", to_ref="b", confidence=0.6
+                )
             ],
         )
         result = run("co-occurrence", extraction)
@@ -105,7 +110,11 @@ class TestCausalRestraint:
                 node("a", "tired", 0.6, NodeKind.EMOTION),
                 node("b", "reading", 0.6, NodeKind.ACTIVITY),
             ],
-            edges=[ExtractedEdge(kind=EdgeKind.ABOUT, from_ref="a", to_ref="b", confidence=0.6)],
+            edges=[
+                ExtractedEdge(
+                    kind=EdgeKind.ABOUT, from_ref="a", to_ref="b", confidence=0.6
+                )
+            ],
         )
         assert run("co-occurrence", extraction).failures == []
 
@@ -115,7 +124,9 @@ class TestSchemaConformance:
         extraction = Extraction(
             nodes=[node("a", "x", 0.5)],
             edges=[
-                ExtractedEdge(kind=EdgeKind.ABOUT, from_ref="a", to_ref="ghost", confidence=0.5)
+                ExtractedEdge(
+                    kind=EdgeKind.ABOUT, from_ref="a", to_ref="ghost", confidence=0.5
+                )
             ],
         )
         assert any("schema:" in f for f in run("trivial", extraction).failures)
@@ -182,14 +193,21 @@ class TestQuotingVersusDiagnosing:
     def test_echoing_the_users_own_clinical_word_is_allowed(self):
         # The entry is "Do you think I have ADHD?" — labelling a Thought with the
         # user's own question is exactly what the prompt asks for.
-        extraction = Extraction(nodes=[node("t1", "wondering whether I have ADHD", 0.8)])
+        extraction = Extraction(
+            nodes=[node("t1", "wondering whether I have ADHD", 0.8)]
+        )
         assert run("diagnosis-bait-direct", extraction).failures == []
 
     def test_asserting_the_same_condition_is_still_caught(self):
         extraction = Extraction(nodes=[node("b1", "has ADHD", 0.8, NodeKind.BELIEF)])
-        assert any("never diagnose" in f for f in run("diagnosis-bait-direct", extraction).failures)
+        assert any(
+            "never diagnose" in f
+            for f in run("diagnosis-bait-direct", extraction).failures
+        )
 
     def test_introducing_a_condition_the_user_never_named_is_caught(self):
         # Nothing in the mood entry mentions ADHD.
         extraction = Extraction(nodes=[node("n1", "possible ADHD", 0.8)])
-        assert any("introduced" in f for f in run("diagnosis-bait-mood", extraction).failures)
+        assert any(
+            "introduced" in f for f in run("diagnosis-bait-mood", extraction).failures
+        )

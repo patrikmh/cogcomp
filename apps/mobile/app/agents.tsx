@@ -1,35 +1,38 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { useState } from "react";
+import { StyleSheet, Text, View } from "react-native";
 
-import {
-  api,
-  type AgentInfo,
-  type AgentRun,
-} from "@/lib/api";
+import { Observatory } from "@/components/Observatory";
 import { summaryLines } from "@/lib/agentActivity";
+import { api, type AgentRun } from "@/lib/api";
 import { useSession } from "@/state/session";
+import { colors } from "@/theme";
 
+/**
+ * What ran while you were not looking.
+ *
+ * This is the transparency surface for background work, so the thing it has to
+ * make obvious is not *that* agents ran but *what kind* of thing each run was.
+ * Colour carries status — succeeded, skipped, failed — and a failure is a red
+ * point you cannot miss among the quiet ones, which a scrolling list of grey rows
+ * never managed.
+ *
+ * Every run is here, including the ones that did nothing. "Nothing ran" and
+ * "something ran and found nothing" are different answers to someone asking why
+ * their graph changed, and this screen exists so they can tell them apart.
+ */
 export default function AgentsScreen() {
   const token = useSession((s) => s.token);
   const queryClient = useQueryClient();
-  const agents = useQuery({
-    queryKey: ["agents"],
-    queryFn: () => api.listAgents(token!),
-    enabled: Boolean(token),
-  });
+  const [selected, setSelected] = useState<string | null>(null);
+
   const runs = useQuery({
     queryKey: ["agent-runs"],
     queryFn: () => api.listAgentRuns(token!),
     enabled: Boolean(token),
   });
-  const runAll = useMutation({
+
+  const runNow = useMutation({
     mutationFn: () => api.runAgents(token!),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["agent-runs"] });
@@ -40,175 +43,69 @@ export default function AgentsScreen() {
 
   if (!token) return null;
 
-  return (
-    <ScrollView contentContainerStyle={styles.screen}>
-      <Text style={styles.intro}>
-        This is the activity log for work that can update your graph. It records
-        what ran, when, and counts — never your entry content.
-      </Text>
-
-      <Pressable
-        style={[styles.button, runAll.isPending && styles.disabled]}
-        disabled={runAll.isPending}
-        onPress={() => runAll.mutate()}
-      >
-        <Text style={styles.buttonLabel}>
-          {runAll.isPending ? "Running agents…" : "Run all agents now"}
-        </Text>
-      </Pressable>
-      {runAll.isError && (
-        <Text style={styles.error}>Could not run the agents.</Text>
-      )}
-      {runAll.data && (
-        <Text style={styles.feedback}>
-          Finished {runAll.data.length} {runAll.data.length === 1 ? "agent" : "agents"}.
-        </Text>
-      )}
-
-      <AgentList agents={agents.data} loading={agents.isLoading} error={agents.isError} />
-
-      <Text style={styles.sectionTitle}>Recent activity</Text>
-      {runs.isLoading ? (
-        <ActivityIndicator style={styles.loader} />
-      ) : runs.isError ? (
-        <View style={styles.state}>
-          <Text style={styles.error}>Could not load agent activity.</Text>
-          <Pressable onPress={() => void runs.refetch()}>
-            <Text style={styles.link}>Try again</Text>
-          </Pressable>
-        </View>
-      ) : runs.data?.length === 0 ? (
-        <Text style={styles.empty}>No agent runs yet.</Text>
-      ) : (
-        <View style={styles.list}>
-          {runs.data?.map((run: AgentRun) => <RunRow key={run.id} run={run} />)}
-        </View>
-      )}
-    </ScrollView>
-  );
-}
-
-function AgentList({
-  agents,
-  loading,
-  error,
-}: {
-  agents: AgentInfo[] | undefined;
-  loading: boolean;
-  error: boolean;
-}) {
-  if (loading) return <ActivityIndicator style={styles.smallLoader} />;
-  if (error) return <Text style={styles.error}>Could not load the agent list.</Text>;
-  if (!agents?.length) return null;
+  const history: AgentRun[] = runs.data ?? [];
+  const current = history.find((run) => run.id === selected) ?? null;
+  const failures = history.filter((run) => run.status === "failed").length;
 
   return (
-    <View style={styles.agentList}>
-      <Text style={styles.sectionTitle}>Available agents</Text>
-      {agents.map((agent) => (
-        <View key={agent.name} style={styles.agentCard}>
-          <Text style={styles.agentName}>{agent.name}</Text>
-          <Text style={styles.meta}>
-            Version {agent.version} · every {formatCadence(agent.cadence_seconds)}
-          </Text>
-        </View>
-      ))}
-    </View>
+    <Observatory
+      eyebrow="What ran on its own"
+      data={history.map((run, index) => ({
+        id: run.id,
+        // Most recent heaviest, so the newest activity reads first.
+        weight: 1 - Math.min(index / Math.max(history.length, 10), 0.7),
+        // Status is the colour, so a failure is visible without reading a word.
+        tone: run.status,
+        // A run that did nothing is drawn hollow — present, but not an event.
+        tentative: run.status === "skipped",
+      }))}
+      selected={selected}
+      onSelect={setSelected}
+      dotSize={8}
+      loading={runs.isLoading}
+      error={runs.isError ? "Could not load activity." : null}
+      empty="Nothing has run in the background yet."
+      hint={
+        failures > 0
+          ? `${history.length} runs · ${failures} failed. Red is a failure — tap it.`
+          : `${history.length} ${history.length === 1 ? "run" : "runs"}. Hollow means it looked and found nothing.`
+      }
+      detail={
+        current && (
+          <View style={styles.detail}>
+            <Text style={styles.kind}>
+              {current.agent} · {current.status} ·{" "}
+              {current.trigger === "manual" ? "you asked" : "scheduled"}
+            </Text>
+            {summaryLines(current.summary).map((line: string) => (
+              <Text key={line} style={styles.line}>
+                {line}
+              </Text>
+            ))}
+            {current.error && <Text style={styles.error}>{current.error}</Text>}
+            <Text style={styles.version}>{current.version}</Text>
+          </View>
+        )
+      }
+      action={{
+        label: runNow.isPending ? "Running…" : "Run them now",
+        onPress: () => runNow.mutate(),
+        pending: runNow.isPending,
+      }}
+    />
   );
-}
-
-function RunRow({ run }: { run: AgentRun }) {
-  const summary = summaryLines(run.summary);
-  return (
-    <View style={styles.card}>
-      <View style={styles.rowHeader}>
-        <Text style={styles.agentName}>{run.agent}</Text>
-        <Text style={[styles.status, statusStyle(run.status)]}>
-          {run.status}
-        </Text>
-      </View>
-      <Text style={styles.meta}>
-        {run.trigger === "manual" ? "Manual" : "Scheduled"} · {formatDate(run.started_at)}
-      </Text>
-      {run.finished_at && (
-        <Text style={styles.meta}>Finished {formatDate(run.finished_at)}</Text>
-      )}
-      {summary.map((line) => (
-        <Text key={line} style={styles.summary}>
-          {line}
-        </Text>
-      ))}
-      {run.status === "failed" && (
-        <Text style={styles.meta}>Failure details are not shown here.</Text>
-      )}
-    </View>
-  );
-}
-
-function formatDate(value: string): string {
-  return new Date(value).toLocaleString();
-}
-
-function formatCadence(seconds: number): string {
-  if (seconds % 3600 === 0) return `${seconds / 3600}h`;
-  if (seconds % 60 === 0) return `${seconds / 60}m`;
-  return `${seconds}s`;
-}
-
-function statusStyle(status: AgentRun["status"]) {
-  if (status === "succeeded") return styles.success;
-  if (status === "failed") return styles.failed;
-  if (status === "skipped") return styles.skipped;
-  return styles.running;
 }
 
 const styles = StyleSheet.create({
-  screen: { padding: 16, gap: 12, paddingBottom: 40 },
-  intro: { fontSize: 15, lineHeight: 22, color: "#3f3f46" },
-  button: {
-    backgroundColor: "#18181b",
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  buttonLabel: { color: "#fafafa", fontWeight: "600", fontSize: 16 },
-  disabled: { opacity: 0.4 },
-  feedback: { color: "#52525b", fontSize: 13 },
-  sectionTitle: {
-    fontSize: 13,
+  detail: { gap: 4 },
+  kind: {
+    color: colors.inkMuted,
+    fontSize: 11,
     fontWeight: "700",
+    letterSpacing: 1.4,
     textTransform: "uppercase",
-    letterSpacing: 0.6,
-    color: "#71717a",
   },
-  agentList: { gap: 8, marginTop: 12 },
-  agentCard: {
-    borderWidth: 1,
-    borderColor: "#e4e4e7",
-    borderRadius: 12,
-    padding: 12,
-    gap: 4,
-  },
-  agentName: { fontSize: 16, fontWeight: "600" },
-  list: { gap: 8 },
-  card: {
-    borderWidth: 1,
-    borderColor: "#e4e4e7",
-    borderRadius: 12,
-    padding: 12,
-    gap: 5,
-  },
-  rowHeader: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
-  status: { fontSize: 12, fontWeight: "700", textTransform: "uppercase" },
-  success: { color: "#166534" },
-  failed: { color: "#b91c1c" },
-  skipped: { color: "#a16207" },
-  running: { color: "#52525b" },
-  summary: { color: "#3f3f46", fontSize: 14 },
-  meta: { fontSize: 12, color: "#71717a" },
-  loader: { marginTop: 24 },
-  smallLoader: { marginVertical: 8 },
-  state: { alignItems: "center", gap: 8, marginTop: 20 },
-  empty: { color: "#71717a", textAlign: "center", marginTop: 20 },
-  error: { color: "#b91c1c", fontSize: 13 },
-  link: { color: "#3f3f46", fontWeight: "600" },
+  line: { color: colors.ink, fontSize: 15, lineHeight: 21 },
+  error: { color: colors.danger, fontSize: 13, lineHeight: 19 },
+  version: { color: colors.inkMuted, fontSize: 11 },
 });
