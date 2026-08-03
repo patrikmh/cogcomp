@@ -51,7 +51,9 @@ async def list_agents(_: UUID = Depends(current_user)) -> list[AgentInfo]:
     """Everything that may run in the background, named."""
     return [
         AgentInfo(
-            name=agent.name, version=agent.version, cadence_seconds=agent.cadence_seconds
+            name=agent.name,
+            version=agent.version,
+            cadence_seconds=agent.cadence_seconds,
         )
         for agent in REGISTRY
     ]

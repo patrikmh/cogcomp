@@ -4,7 +4,7 @@ A pattern is the first claim this system makes about someone across time rather
 than about one entry, so most of these tests are about what it refuses to claim.
 """
 
-from datetime import date
+from datetime import date, timedelta
 from uuid import UUID, uuid4
 
 from tlon.graph.schema import NodeKind
@@ -107,18 +107,81 @@ class TestConfidence:
     def test_confidence_never_exceeds_the_weakest_input(self):
         # Recurrence does not launder the uncertainty underneath it. A pattern
         # built from shaky guesses is a shaky pattern, however often it appears.
+        # Weak, but still above MIN_CONFIDENCE: this is about the arithmetic of
+        # combining evidence, not about the separate decision of whether the
+        # result is worth reporting. That one is covered below.
         members = [
             candidate("dread", 1, confidence=0.9),
-            candidate("dread", 2, confidence=0.3),
+            candidate("dread", 2, confidence=0.4),
             candidate("dread", 3, confidence=0.8),
         ]
-        assert mine(members)[0].confidence == 0.3
+        assert mine(members)[0].confidence == 0.4
 
     def test_frequent_recurrence_does_not_inflate_confidence(self):
         members = [candidate("dread", day, confidence=0.4) for day in range(1, 11)]
         pattern = mine(members)[0]
         assert pattern.occurrences == 10
         assert pattern.confidence == 0.4
+
+    def test_a_recurrence_too_weak_to_act_on_is_not_reported(self):
+        # Repetition is not a substitute for evidence. Ten hesitant readings are
+        # ten hesitant readings, and raising the subject would attach a claim
+        # about someone to material that never supported one.
+        members = [candidate("unsure", day, confidence=0.2) for day in range(1, 11)]
+        assert mine(members) == []
+
+
+class TestDormancy:
+    """A pattern is present tense, so it has to be able to end."""
+
+    #: Day offsets from an arbitrary start, so a test can span months without
+    #: running out of days in one of them.
+    START = date(2026, 3, 1)
+
+    def on(
+        self,
+        label: str,
+        *offsets: int,
+        kind: NodeKind = NodeKind.EMOTION,
+        confidence: float = 0.8,
+    ) -> list[Candidate]:
+        return [
+            Candidate(
+                node_id=uuid4(),
+                kind=kind,
+                label=label,
+                confidence=confidence,
+                observation_id=uuid4(),
+                observed_on=self.START + timedelta(days=offset),
+            )
+            for offset in offsets
+        ]
+
+    def test_a_pattern_that_stopped_coming_up_is_withdrawn(self):
+        # It ran for a week, months ago, and has not come up since. Counting all
+        # of history without this rule meant the system went on reporting it as
+        # something that keeps happening.
+        old = self.on("dread", 0, 1, 2, 3)
+        recent = self.on("running", 80, 81, 82, kind=NodeKind.ACTIVITY)
+
+        assert [pattern.label for pattern in mine(old + recent)] == ["running"]
+
+    def test_the_whole_history_still_counts_toward_a_live_pattern(self):
+        # Recency decides whether it is still true, not how strong it is. A
+        # pattern going back months is stronger than one going back a fortnight,
+        # and dating it only from the recent window would throw that away.
+        pattern = mine(self.on("dread", 0, 1, 2, 60, 88, 90))[0]
+        assert pattern.occurrences == 6
+
+    def test_dormancy_is_measured_from_the_last_entry_not_today(self):
+        # Someone who stopped writing has not stopped feeling things. If recency
+        # were dated from today, putting the app down for a month would silently
+        # retire every true thing the system knew about them.
+        assert len(mine(self.on("dread", 0, 1, 2))) == 1
+
+    def test_as_of_can_be_given_explicitly(self):
+        members = self.on("dread", 0, 1, 2)
+        assert mine(members, as_of=self.START + timedelta(days=60)) == []
 
 
 class TestProvenance:

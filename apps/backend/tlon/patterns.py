@@ -20,7 +20,17 @@ separate days is what makes it a pattern rather than an echo.
 
 **Confidence never exceeds its weakest input.** A pattern built from three
 low-confidence guesses is a low-confidence pattern, however many times it
-appears — the recurrence count does not launder the uncertainty underneath.
+appears — the recurrence count does not launder the uncertainty underneath. Below
+`MIN_CONFIDENCE` it is not reported at all: a claim nobody should act on is not
+improved by being made repeatedly.
+
+**A pattern is present tense, so it can end.** Counting all of history without a
+recency rule meant evidence never aged out, and something that had not come up in
+two months was still reported as recurring. Strength still comes from the whole
+record; being *current* comes from the last `RECENCY_DAYS`. A pattern that stops
+coming up goes dormant rather than being deleted — "this used to keep happening"
+is worth being able to say, and it is only sayable if the claim was withdrawn
+honestly when it stopped.
 """
 
 from __future__ import annotations
@@ -28,13 +38,20 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from uuid import UUID
 
 from tlon.domain.inference import derived_confidence
 from tlon.graph.schema import NodeKind
 
 PROMPT_VERSION = "patterns-v0.1"
+
+#: Which method made the claim. Recorded on every pattern so that later detectors
+#: — co-occurrence, periodicity, semantic clustering — can coexist with this one
+#: without their findings being read as the same kind of statement. This one
+#: counts identical labels, which is the weakest claim available and therefore
+#: the one that needs the least trust from the reader.
+DETECTOR = "exact-label"
 
 #: Kinds worth looking for recurrence in. Thoughts and Events are excluded on
 #: purpose: a Thought recurring verbatim is usually a phrasing coincidence, and
@@ -59,6 +76,27 @@ MIN_OBSERVATIONS = 3
 #: not a pattern.
 MIN_DISTINCT_DAYS = 2
 
+#: Below this, a recurrence is not reported at all. Recurrence must not launder
+#: weak evidence: five hesitant readings at 0.2 are not one confident finding,
+#: they are five hesitant readings, and presenting their repetition as a pattern
+#: about someone attaches a claim to material that never supported one. The
+#: derived confidence already stays low — this is the separate decision not to
+#: raise the subject.
+MIN_CONFIDENCE = 0.35
+
+#: How long a pattern goes unmentioned before it stops being claimed.
+#:
+#: A pattern is present tense. "This keeps happening to you" is a statement about
+#: someone's life now, and until this existed the system could not withdraw one:
+#: mining counted all of history, so evidence never aged out and a thing that had
+#: not come up in two months was still being reported as recurring. That is the
+#: failure mode with the longest half-life, because it gets worse the longer
+#: someone uses the product.
+#:
+#: Four weeks is long enough that an ordinary quiet fortnight does not retire
+#: something real, and short enough that a finished chapter closes.
+RECENCY_DAYS = 28
+
 
 @dataclass(frozen=True)
 class Candidate:
@@ -77,6 +115,10 @@ class MinedPattern:
     kind: NodeKind
     label: str
     confidence: float
+    #: Stable across runs. Built from the normalised label rather than the
+    #: displayed one, so re-phrasing the same recurring thing keeps it the same
+    #: pattern instead of retiring one claim and announcing a new one.
+    key: str
     #: Every observation this pattern rests on. The explain screen shows all of
     #: them, which is the whole point: a pattern is only meaningful alongside the
     #: entries that produced it.
@@ -101,13 +143,26 @@ def normalise(label: str) -> str:
     return re.sub(r"[^\w\s]", "", label.strip().lower())
 
 
-def mine(candidates: list[Candidate]) -> list[MinedPattern]:
-    """Find recurrences. Returns patterns strongest-first.
+def mine(candidates: list[Candidate], as_of: date | None = None) -> list[MinedPattern]:
+    """Find recurrences that still hold. Returns patterns strongest-first.
 
-    Pure and deterministic: the same graph always yields the same patterns, which
-    matters because a pattern that appears and disappears between runs is worse
-    than no pattern at all.
+    Pure and deterministic: the same graph and the same `as_of` always yield the
+    same patterns, which matters because a pattern that appears and disappears
+    between runs is worse than no pattern at all.
+
+    `as_of` defaults to the most recent entry rather than today, and that is a
+    deliberate reading of silence. Someone who has not written for three months
+    has not stopped feeling things — they have stopped writing. Dating recency
+    from the last entry means a pattern goes dormant when the person keeps writing
+    and this stops coming up, not when they put the app down. Silence is not
+    evidence, here as everywhere else in the system.
     """
+    if not candidates:
+        return []
+    if as_of is None:
+        as_of = max(candidate.observed_on for candidate in candidates)
+    cutoff = as_of - timedelta(days=RECENCY_DAYS)
+
     grouped: dict[tuple[NodeKind, str], list[Candidate]] = defaultdict(list)
     for candidate in candidates:
         if candidate.kind not in PATTERNABLE_KINDS:
@@ -118,11 +173,21 @@ def mine(candidates: list[Candidate]) -> list[MinedPattern]:
         grouped[key].append(candidate)
 
     patterns: list[MinedPattern] = []
-    for (kind, _), members in grouped.items():
+    for (kind, normalised), members in grouped.items():
         observation_ids = {member.observation_id for member in members}
         days = {member.observed_on for member in members}
 
         if len(observation_ids) < MIN_OBSERVATIONS or len(days) < MIN_DISTINCT_DAYS:
+            continue
+
+        # Still going, or finished? The whole history is counted — a pattern's
+        # strength is everything it ever rested on — but it has to have come up
+        # recently to still be claimed in the present tense.
+        if max(days) < cutoff:
+            continue
+
+        confidence = derived_confidence([member.confidence for member in members])
+        if confidence < MIN_CONFIDENCE:
             continue
 
         # The user's own most recent phrasing, rather than a normalised or
@@ -133,9 +198,12 @@ def mine(candidates: list[Candidate]) -> list[MinedPattern]:
             MinedPattern(
                 kind=kind,
                 label=label,
+                # Kind-qualified: the same word can recur as an Emotion and as an
+                # Activity, and those are two findings, not one.
+                key=f"{kind}:{normalised}",
                 # Never stronger than the weakest thing it rests on. Recurrence
                 # does not launder the uncertainty underneath it.
-                confidence=derived_confidence([m.confidence for m in members]),
+                confidence=confidence,
                 observation_ids=tuple(sorted(observation_ids)),
                 node_ids=tuple(sorted(member.node_id for member in members)),
                 distinct_days=len(days),

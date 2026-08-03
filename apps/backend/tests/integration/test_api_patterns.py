@@ -103,10 +103,13 @@ async def listed(client: AsyncClient, account: Account) -> list[dict]:
 
 
 class TestMining:
-    async def test_an_empty_graph_yields_no_patterns(
-        self, client: AsyncClient, account: Account
-    ):
-        assert await mine(client, account) == {"patterns": 0, "considered": 0}
+    async def test_an_empty_graph_yields_no_patterns(self, client: AsyncClient, account: Account):
+        assert await mine(client, account) == {
+            "patterns": 0,
+            "added": 0,
+            "confirmed": 0,
+            "considered": 0,
+        }
         assert await listed(client, account) == []
 
     async def test_a_recurrence_becomes_a_pattern(
@@ -238,8 +241,7 @@ class TestRemining:
         # The person deletes the entries the pattern rested on. It must stop being
         # claimed, not linger as something nobody can retract.
         await pool.execute(
-            "UPDATE graph_nodes SET deleted_at = now() "
-            "WHERE user_id = $1 AND kind = 'Observation'",
+            "UPDATE graph_nodes SET deleted_at = now() WHERE user_id = $1 AND kind = 'Observation'",
             account.user_id,
         )
         await mine(client, account)
@@ -258,6 +260,119 @@ class TestRemining:
         assert patterns[0]["occurrences"] == 5
 
 
+class TestDurableIdentity:
+    """A pattern is the same claim from one run to the next.
+
+    Re-mining used to tombstone every Pattern and insert new ones, which meant a
+    pattern's id, its age, and any verdict the person had passed on it were all
+    discarded every six hours. These tests pin down the three consequences of
+    that having changed.
+    """
+
+    async def test_a_pattern_keeps_its_id_across_remining(
+        self, client: AsyncClient, pool: asyncpg.Pool, account: Account
+    ):
+        await recurring(client, pool, account, "dread")
+        await mine(client, account)
+        first = (await listed(client, account))[0]
+
+        await mine(client, account)
+        assert (await listed(client, account))[0]["id"] == first["id"]
+
+    async def test_age_is_measured_from_first_sighting_not_last_run(
+        self, client: AsyncClient, pool: asyncpg.Pool, account: Account
+    ):
+        await recurring(client, pool, account, "dread")
+        await mine(client, account)
+        first_seen = (await listed(client, account))[0]["first_seen_at"]
+
+        # More evidence arrives and the pattern is re-derived. It is still the
+        # same pattern, so it does not get to be new again.
+        await recurring(client, pool, account, "dread", days=(5, 6))
+        await mine(client, account)
+
+        patterns = await listed(client, account)
+        assert patterns[0]["first_seen_at"] == first_seen
+        assert patterns[0]["occurrences"] == 5
+
+    async def test_a_rejected_pattern_stays_rejected(
+        self, client: AsyncClient, pool: asyncpg.Pool, account: Account
+    ):
+        await recurring(client, pool, account, "dread")
+        await mine(client, account)
+        pattern_id = (await listed(client, account))[0]["id"]
+
+        # The person says this is not true of them.
+        await pool.execute(
+            "UPDATE graph_nodes SET epistemic_status = 'user_rejected' WHERE id = $1",
+            UUID(pattern_id),
+        )
+
+        # Recurring again is not an argument. Re-mining must not launder the
+        # rejection away by re-asserting the claim as a fresh hypothesis.
+        await recurring(client, pool, account, "dread", days=(5, 6))
+        await mine(client, account)
+
+        status = await pool.fetchval(
+            "SELECT epistemic_status FROM graph_nodes WHERE id = $1", UUID(pattern_id)
+        )
+        assert status == "user_rejected"
+
+    async def test_a_pattern_that_returns_is_the_same_pattern(
+        self, client: AsyncClient, pool: asyncpg.Pool, account: Account
+    ):
+        observations = await recurring(client, pool, account, "dread")
+        await mine(client, account)
+        original = (await listed(client, account))[0]
+
+        # It stops holding: the entries behind it go away.
+        await pool.execute(
+            "UPDATE graph_nodes SET deleted_at = now() WHERE id = ANY($1::uuid[])",
+            observations,
+        )
+        await mine(client, account)
+        assert await listed(client, account) == []
+
+        # Months later the same recurrence comes back. It is the thing returning,
+        # not a discovery, and the record should say so.
+        await pool.execute(
+            "UPDATE graph_nodes SET deleted_at = NULL WHERE id = ANY($1::uuid[])",
+            observations,
+        )
+        result = await mine(client, account)
+
+        returned = (await listed(client, account))[0]
+        assert returned["id"] == original["id"]
+        assert returned["first_seen_at"] == original["first_seen_at"]
+        assert result["added"] == 0
+        assert result["confirmed"] == 1
+
+    async def test_every_pattern_records_which_method_claimed_it(
+        self, client: AsyncClient, pool: asyncpg.Pool, account: Account
+    ):
+        await recurring(client, pool, account, "dread")
+        await mine(client, account)
+        assert (await listed(client, account))[0]["detector"] == "exact-label"
+
+    async def test_a_new_pattern_is_reported_separately_from_a_standing_one(
+        self, client: AsyncClient, pool: asyncpg.Pool, account: Account
+    ):
+        await recurring(client, pool, account, "dread")
+        assert await mine(client, account) == {
+            "patterns": 1,
+            "added": 1,
+            "confirmed": 0,
+            "considered": 3,
+        }
+
+        # Nothing new was found the second time, and saying "1 pattern" again
+        # would read as a fresh finding rather than the same one still holding.
+        await recurring(client, pool, account, "hollowed out")
+        second = await mine(client, account)
+        assert second["added"] == 1
+        assert second["confirmed"] == 1
+
+
 class TestConfidence:
     async def test_a_pattern_is_no_stronger_than_its_weakest_evidence(
         self, client: AsyncClient, pool: asyncpg.Pool, account: Account
@@ -266,12 +381,15 @@ class TestConfidence:
         second = await entry(client, account, DAY_ONE + timedelta(days=1))
         third = await entry(client, account, DAY_ONE + timedelta(days=2))
         await inferred(pool, account, first, "dread", confidence=0.9)
-        await inferred(pool, account, second, "dread", confidence=0.35)
+        # Above MIN_CONFIDENCE, and not sitting on it: `confidence` is a REAL
+        # column, so a value written exactly at the floor reads back a hair under
+        # it. This test is about the arithmetic, not the reporting threshold.
+        await inferred(pool, account, second, "dread", confidence=0.4)
         await inferred(pool, account, third, "dread", confidence=0.9)
 
         await mine(client, account)
         pattern = (await listed(client, account))[0]
-        assert pattern["confidence"] == pytest.approx(0.35)
+        assert pattern["confidence"] == pytest.approx(0.4)
         # And it is rendered as the guess it is.
         assert pattern["tentative"] is True
 

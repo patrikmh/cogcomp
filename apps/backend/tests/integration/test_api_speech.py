@@ -43,7 +43,9 @@ class TestValidation:
         assert response.status_code == 401
 
     async def test_empty_text_is_rejected(self, client: AsyncClient, account: Account):
-        response = await client.post("/v1/voice/speak", headers=account.auth, json={"text": ""})
+        response = await client.post(
+            "/v1/voice/speak", headers=account.auth, json={"text": ""}
+        )
         assert response.status_code == 422
 
     async def test_an_unbounded_reply_is_rejected(

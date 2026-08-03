@@ -25,6 +25,9 @@ class NodeKind(StrEnum):
     EVENT = "Event"
     # Recurring structure across observations. Nothing produces these in Milestone 1.
     PATTERN = "Pattern"
+    # A region of a life: a cluster of things that keep turning up together.
+    # Derived from CO_OCCURS_WITH structure, never from causal edges.
+    THEME = "Theme"
 
     @property
     def is_observed(self) -> bool:
@@ -58,7 +61,9 @@ class EdgeKind(StrEnum):
 
 
 #: Kinds an extractor is allowed to produce. Observation is excluded because
-#: observations are captured, never inferred; Pattern because nothing mines them yet.
+#: observations are captured, never inferred; Pattern and Theme because they are
+#: mined from the graph across many entries, which a single-entry extractor
+#: cannot see and must not guess at.
 EXTRACTABLE_NODE_KINDS = [
     NodeKind.THOUGHT,
     NodeKind.EMOTION,

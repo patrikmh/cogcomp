@@ -3,7 +3,7 @@
 
 The ontology necessarily exists in four places, each doing a job the others cannot:
 
-  migrations/0001_init.sql      enforces it (CHECK constraints — the real backstop)
+  migrations/*.sql             enforces it (CHECK constraints — the real backstop)
   tlon/graph/schema.py          the backend's enums
   packages/ontology/schema.json the language-neutral record
   packages/ontology/index.ts    the mobile app's types
@@ -24,7 +24,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SQL = ROOT / "apps" / "backend" / "migrations" / "0001_init.sql"
+MIGRATIONS = ROOT / "apps" / "backend" / "migrations"
 PY = ROOT / "apps" / "backend" / "tlon" / "graph" / "schema.py"
 JSON_FILE = ROOT / "packages" / "ontology" / "schema.json"
 INFERENCE = ROOT / "apps" / "backend" / "tlon" / "domain" / "inference.py"
@@ -44,17 +44,28 @@ problems: list[str] = []
 
 
 def sql_check_values(constraint: str) -> set[str]:
-    """Pull the quoted values out of a `CHECK (col IN ('a', 'b', ...))` constraint."""
-    text = SQL.read_text()
-    match = re.search(
-        rf"CONSTRAINT\s+{constraint}\s+CHECK\s*\((.*?)\)\s*(?:,|\n\s*\))",
-        text,
-        re.DOTALL,
-    )
-    if not match:
-        fail(f"could not find constraint {constraint} in {SQL.name}")
+    """Pull the quoted values out of the *current* `CHECK (col IN (...))`.
+
+    Every migration is scanned in order and the last definition wins, because a
+    constraint can be dropped and re-added by a later migration and it is the
+    latest one the database is actually enforcing. Reading only `0001_init.sql`
+    was right while the vocabulary was closed; once a kind could be added later,
+    it would have compared the code against a constraint that no longer existed
+    and reported agreement that was not true.
+    """
+    found: set[str] | None = None
+    for path in sorted(MIGRATIONS.glob("*.sql")):
+        for match in re.finditer(
+            rf"CONSTRAINT\s+{constraint}\s+CHECK\s*\((.*?)\)\s*(?:,|\n?\s*\)\s*;|\n\s*\))",
+            path.read_text(),
+            re.DOTALL,
+        ):
+            found = set(re.findall(r"'([A-Z_a-z]+)'", match.group(1)))
+
+    if found is None:
+        fail(f"could not find constraint {constraint} in any migration")
         return set()
-    return set(re.findall(r"'([A-Z_a-z]+)'", match.group(1)))
+    return found
 
 
 def python_enum_values(name: str, path: Path = PY) -> set[str]:
@@ -102,7 +113,7 @@ def main() -> int:
         "Node kinds",
         {
             "schema.json": json_nodes,
-            "0001_init.sql": sql_check_values("graph_nodes_kind_known"),
+            "migrations": sql_check_values("graph_nodes_kind_known"),
             "schema.py": python_enum_values("NodeKind"),
             "index.ts": ts_const_values("OBSERVED_NODE_KINDS")
             | ts_const_values("INFERRED_NODE_KINDS"),
@@ -113,7 +124,7 @@ def main() -> int:
         "Edge kinds",
         {
             "schema.json": json_edges,
-            "0001_init.sql": sql_check_values("graph_edges_kind_known"),
+            "migrations": sql_check_values("graph_edges_kind_known"),
             "schema.py": python_enum_values("EdgeKind"),
             "index.ts": ts_const_values("EDGE_KINDS"),
         },
@@ -123,7 +134,7 @@ def main() -> int:
         "Epistemic statuses",
         {
             "schema.json": set(ontology["epistemicStatus"]),
-            "0001_init.sql": sql_check_values("graph_nodes_epistemic_status_known"),
+            "migrations": sql_check_values("graph_nodes_epistemic_status_known"),
             # EpistemicStatus is a domain concept, not a graph-schema one, so it
             # lives in inference.py rather than graph/schema.py.
             "inference.py": python_enum_values("EpistemicStatus", INFERENCE),
@@ -132,7 +143,7 @@ def main() -> int:
     )
 
     print("\nDiagnostic vocabulary is absent")
-    for path in (SQL, PY, JSON_FILE, TS):
+    for path in (*sorted(MIGRATIONS.glob("*.sql")), PY, JSON_FILE, TS):
         text = path.read_text()
         for word in FORBIDDEN:
             # schema.json lists them under `forbidden` on purpose — that is a

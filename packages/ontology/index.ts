@@ -13,6 +13,7 @@ export const INFERRED_NODE_KINDS = [
   "Activity",
   "Event",
   "Pattern",
+  "Theme",
 ] as const;
 
 export const EDGE_KINDS = [

@@ -16,6 +16,13 @@ dependencies = [
     "argon2-cffi>=23.1",
     "email-validator>=2.2",
     "python-multipart>=0.0.20",
+    # Graph projection and community clustering. Postgres stays the source of
+    # truth; see tlon/graph/graphiti_client.py for the two defaults we override.
+    "graphiti-core[falkordb]>=0.29.3",
+    # falkordb 1.6.2 passes an async-only connection kwarg to the sync Redis
+    # client, which redis 8.x rejects with a TypeError on `himport_registry`.
+    # Pinned below 8 until falkordb catches up.
+    "redis>=7.1,<8",
 ]
 
 [project.optional-dependencies]
@@ -27,7 +34,7 @@ dev = [
 ]
 
 [tool.setuptools]
-packages = ["tlon", "tlon.api", "tlon.db", "tlon.domain", "tlon.graph", "tlon.extraction"]
+packages = ["tlon", "tlon.api", "tlon.db", "tlon.domain", "tlon.graph", "tlon.extraction", "tlon.agents"]
 
 [build-system]
 requires = ["setuptools>=68"]
@@ -46,4 +53,7 @@ ignore = ["B008"]
 testpaths = ["tests"]
 # Integration tests need a live Postgres; unit tests do not. `-m "not integration"`
 # skips the ones that do.
-markers = ["integration: requires a running Postgres"]
+markers = [
+    "integration: requires a running Postgres",
+    "graph: requires a running FalkorDB",
+]

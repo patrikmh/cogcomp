@@ -5,7 +5,9 @@ testing is not "does it work" but "can the person find out what it did", and "do
 a failure leave a mess".
 """
 
+import asyncio
 from datetime import UTC, datetime, timedelta
+from time import monotonic
 from uuid import UUID, uuid4
 
 import asyncpg
@@ -94,9 +96,7 @@ class TestTheRunLog:
         await run_agent(pool, ConsolidationAgent(), account.user_id, trigger="scheduled")
         assert (await recent_runs(pool, account.user_id))[0]["trigger"] == "scheduled"
 
-    async def test_doing_nothing_is_recorded_too(
-        self, pool: asyncpg.Pool, account: Account
-    ):
+    async def test_doing_nothing_is_recorded_too(self, pool: asyncpg.Pool, account: Account):
         # Silently doing nothing is indistinguishable, from outside, from being
         # broken.
         await run_agent(pool, ConsolidationAgent(), account.user_id, trigger="scheduled")
@@ -214,6 +214,48 @@ class TestConsolidation:
         )
         assert {row["observation_id"] for row in cited} == {first, second}
 
+    async def test_concurrent_runs_record_one_merge(
+        self, client: AsyncClient, pool: asyncpg.Pool, account: Account
+    ):
+        first = await entry(client, account, DAY_ONE)
+        second = await entry(client, account, DAY_ONE + timedelta(days=1))
+        await inferred(pool, account, first, "tired")
+        await inferred(pool, account, second, "tired")
+
+        entered = 0
+        both_discovered = asyncio.Event()
+
+        class Coordinated(ConsolidationAgent):
+            async def _merge(self, pool, user_id, group):
+                nonlocal entered
+                entered += 1
+                if entered == 2:
+                    both_discovered.set()
+                await both_discovered.wait()
+                return await super()._merge(pool, user_id, group)
+
+        agent = Coordinated()
+        results = await asyncio.gather(
+            run_agent(pool, agent, account.user_id, force=True),
+            run_agent(pool, agent, account.user_id, force=True),
+        )
+
+        assert {result["summary"]["nodes_merged"] for result in results} == {0, 1}
+        assert (
+            await pool.fetchval(
+                "SELECT count(*) FROM node_merges WHERE user_id = $1", account.user_id
+            )
+            == 1
+        )
+        assert (
+            await pool.fetchval(
+                "SELECT count(*) FROM graph_nodes "
+                "WHERE user_id = $1 AND kind = 'Emotion' AND deleted_at IS NULL",
+                account.user_id,
+            )
+            == 1
+        )
+
     async def test_the_merge_is_recorded(
         self, client: AsyncClient, pool: asyncpg.Pool, account: Account
     ):
@@ -242,8 +284,7 @@ class TestConsolidation:
 
         await run_agent(pool, ConsolidationAgent(), account.user_id, force=True)
         gone = await pool.fetchval(
-            "SELECT count(*) FROM graph_nodes "
-            "WHERE user_id = $1 AND deleted_at IS NOT NULL",
+            "SELECT count(*) FROM graph_nodes WHERE user_id = $1 AND deleted_at IS NOT NULL",
             account.user_id,
         )
         assert gone == 1
@@ -360,6 +401,162 @@ class TestConsolidation:
         )
         assert loops == 0
 
+    async def test_selection_wins_when_it_races_consolidation(
+        self, client: AsyncClient, pool: asyncpg.Pool, account: Account
+    ):
+        first = await entry(client, account, DAY_ONE)
+        await inferred(pool, account, first, "a selected value", kind="Value")
+        duplicate = await inferred(pool, account, first, "a selected value", kind="Value")
+
+        # Hold the duplicate's row lock as a selection transaction would.
+        # Consolidation must wait before its final selection check, rather than
+        # checking first and allowing the selection to lose the race.
+        conn = await pool.acquire()
+        transaction = conn.transaction()
+        await transaction.start()
+        consolidation = None
+        committed = False
+        try:
+            await conn.fetchrow("SELECT id FROM graph_nodes WHERE id = $1 FOR UPDATE", duplicate)
+
+            consolidation = asyncio.create_task(ConsolidationAgent().run(pool, account.user_id))
+            deadline = monotonic() + 2
+            while monotonic() < deadline:
+                waiting = await pool.fetchval(
+                    """
+                    SELECT count(*) FROM pg_stat_activity
+                    WHERE datname = current_database() AND wait_event_type = 'Lock'
+                    """
+                )
+                if waiting:
+                    break
+                await asyncio.sleep(0.01)
+            else:
+                raise AssertionError("consolidation did not wait for the selection lock")
+
+            await conn.execute(
+                """
+                INSERT INTO identity_selections (id, user_id, node_id, status)
+                VALUES ($1, $2, $3, 'selected')
+                """,
+                uuid4(),
+                account.user_id,
+                duplicate,
+            )
+            await transaction.commit()
+            committed = True
+            result = await consolidation
+        finally:
+            if consolidation is not None and not consolidation.done():
+                consolidation.cancel()
+                await consolidation
+            if not committed:
+                await transaction.rollback()
+            await pool.release(conn)
+
+        assert result.summary == {"groups": 1, "nodes_merged": 0}
+        assert await pool.fetchval(
+            "SELECT deleted_at IS NULL FROM graph_nodes WHERE id = $1", duplicate
+        )
+
+    async def test_reselection_wins_when_patch_races_consolidation(
+        self, client: AsyncClient, pool: asyncpg.Pool, account: Account
+    ):
+        first = await entry(client, account, DAY_ONE)
+        keeper = await inferred(pool, account, first, "a selected value", kind="Value")
+        duplicate = await inferred(pool, account, first, "a selected value", kind="Value")
+
+        selected = await client.post(
+            "/v1/identity/selections",
+            headers=account.auth,
+            json={"node_id": str(duplicate)},
+        )
+        assert selected.status_code == 200
+        removed = await client.patch(
+            f"/v1/identity/selections/{duplicate}",
+            headers=account.auth,
+            json={"status": "removed"},
+        )
+        assert removed.status_code == 200
+
+        # Hold the node lock, then queue the PATCH before consolidation. Once the
+        # lock is released, the PATCH must reactivate the tombstone first; the
+        # consolidation check then sees the selected membership and keeps it.
+        conn = await pool.acquire()
+        transaction = conn.transaction()
+        await transaction.start()
+        patch = None
+        consolidation = None
+        committed = False
+        try:
+            await conn.fetchrow("SELECT id FROM graph_nodes WHERE id = $1 FOR UPDATE", duplicate)
+            patch = asyncio.create_task(
+                client.patch(
+                    f"/v1/identity/selections/{duplicate}",
+                    headers=account.auth,
+                    json={"status": "selected"},
+                )
+            )
+            deadline = monotonic() + 2
+            while monotonic() < deadline:
+                waiting = await pool.fetchval(
+                    """
+                    SELECT count(*) FROM pg_stat_activity
+                    WHERE datname = current_database() AND wait_event_type = 'Lock'
+                    """
+                )
+                if waiting:
+                    break
+                await asyncio.sleep(0.01)
+            else:
+                raise AssertionError("PATCH did not wait for the node lock")
+
+            consolidation = asyncio.create_task(ConsolidationAgent().run(pool, account.user_id))
+            deadline = monotonic() + 2
+            while monotonic() < deadline:
+                waiting = await pool.fetchval(
+                    """
+                    SELECT count(*) FROM pg_stat_activity
+                    WHERE datname = current_database() AND wait_event_type = 'Lock'
+                    """
+                )
+                if waiting >= 2:
+                    break
+                await asyncio.sleep(0.01)
+            else:
+                raise AssertionError("consolidation did not wait behind the PATCH")
+
+            await transaction.commit()
+            committed = True
+            patch_response, result = await asyncio.gather(patch, consolidation)
+        finally:
+            if patch is not None and not patch.done():
+                patch.cancel()
+                await patch
+            if consolidation is not None and not consolidation.done():
+                consolidation.cancel()
+                await consolidation
+            if not committed:
+                await transaction.rollback()
+            await pool.release(conn)
+
+        assert patch_response.status_code == 200, patch_response.text
+        assert result.summary == {"groups": 1, "nodes_merged": 0}
+        assert await pool.fetchval(
+            "SELECT deleted_at IS NULL FROM graph_nodes WHERE id = $1", duplicate
+        )
+        assert (
+            await pool.fetchval(
+                "SELECT status FROM identity_selections WHERE user_id = $1 AND node_id = $2",
+                account.user_id,
+                duplicate,
+            )
+            == "selected"
+        )
+        assert await pool.fetchval(
+            "SELECT deleted_at IS NULL FROM graph_nodes WHERE id = $1", keeper
+        )
+
     async def test_consolidation_never_crosses_users(
         self,
         client: AsyncClient,
@@ -395,14 +592,10 @@ class TestScheduling:
     async def test_an_agent_skips_when_there_is_nothing_new(
         self, pool: asyncpg.Pool, account: Account
     ):
-        result = await run_agent(
-            pool, ConsolidationAgent(), account.user_id, trigger="scheduled"
-        )
+        result = await run_agent(pool, ConsolidationAgent(), account.user_id, trigger="scheduled")
         assert result["status"] == "skipped"
 
-    async def test_asking_directly_always_runs_it(
-        self, client: AsyncClient, account: Account
-    ):
+    async def test_asking_directly_always_runs_it(self, client: AsyncClient, account: Account):
         # Two different skips live here and they must stay distinguishable. The
         # scheduler's skip means "I did not look". The agent's own means "I looked
         # and there was nothing". Pressing the button must always produce the
@@ -421,16 +614,14 @@ class TestScheduling:
     async def test_the_scheduler_skip_says_it_did_not_look(
         self, pool: asyncpg.Pool, account: Account
     ):
-        result = await run_agent(
-            pool, ConsolidationAgent(), account.user_id, trigger="scheduled"
-        )
+        result = await run_agent(pool, ConsolidationAgent(), account.user_id, trigger="scheduled")
         assert result["summary"]["reason"] == "nothing new to work on"
 
 
 class TestApi:
     async def test_the_registry_is_listed(self, client: AsyncClient, account: Account):
         names = {a["name"] for a in (await client.get("/v1/agents", headers=account.auth)).json()}
-        assert names == {"consolidation", "patterns"}
+        assert names == {"consolidation", "patterns", "cooccurrence", "themes"}
 
     async def test_an_unknown_agent_is_a_404(self, client: AsyncClient, account: Account):
         response = await client.post("/v1/agents/nonsense/run", headers=account.auth)
