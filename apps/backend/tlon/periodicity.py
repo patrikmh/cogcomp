@@ -1,9 +1,11 @@
 """Calendar-shaped recurrence, without interpreting what it means.
 
 Exact-label mining can count that ``drained`` came up repeatedly. This detector
-can make the narrower claim that it only came up on Thursdays. The distinction
-matters: one is frequency and the other is a shape in time, so each gets its own
-detector identity and can be accepted or rejected independently.
+can make the narrower claim that it only came up on Thursdays in UTC. The
+timezone is explicit because observations do not yet retain a user's IANA
+timezone; silently presenting a server-calendar day as a local one would be a
+false precision. One claim is frequency and the other is a shape in time, so each
+gets its own detector identity and can be accepted or rejected independently.
 
 The first version is deliberately strict. It only reports a weekday when the
 same normalized label appears in four distinct weeks, every occurrence falls on
@@ -28,7 +30,7 @@ from tlon.patterns import (
     normalise,
 )
 
-DETECTOR = "weekday"
+DETECTOR = "weekday-utc"
 VERSION = "periodicity-v0.1"
 
 #: A calendar claim needs more evidence than generic recurrence. Four sightings
@@ -120,7 +122,7 @@ def mine_weekdays(
         patterns.append(
             MinedPattern(
                 kind=kind,
-                label=f"{display_label} · {WEEKDAYS[weekday]}",
+                label=f"{display_label} · {WEEKDAYS[weekday]} (UTC)",
                 confidence=confidence,
                 key=f"{kind}:{normalised}:weekday:{weekday}",
                 observation_ids=tuple(sorted(occurrence_days)),

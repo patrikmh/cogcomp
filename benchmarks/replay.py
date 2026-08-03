@@ -41,20 +41,23 @@ from uuid import UUID, uuid4
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "apps" / "backend"))
 
 import asyncpg
+from tlon.db import cooccurrence as cooccurrence_db
+from tlon.db import patterns as patterns_db
+from tlon.db.engine import run_migrations
+from tlon.lag import mine as mine_lags
+from tlon.patterns import RECENCY_DAYS
 
 from benchmarks.history import (
     EXPECTED,
+    EXPECTED_LAGS,
     EXPECTED_PAIRS,
     EXPECTED_PERIODICITY,
     FORBIDDEN,
+    FORBIDDEN_LAGS,
     FORBIDDEN_PAIRS,
     HORIZON_DAYS,
     entries_on,
 )
-from tlon.db import cooccurrence as cooccurrence_db
-from tlon.db import patterns as patterns_db
-from tlon.db.engine import run_migrations
-from tlon.patterns import RECENCY_DAYS
 
 DEV_URL = "postgres://tlon:tlon@localhost:5433/tlon"
 REPLAY_DB = "tlon_replay"
@@ -218,6 +221,7 @@ async def replay(days: int) -> dict:
 
         tracks: dict[PatternIdentity, Track] = defaultdict(Track)
         pair_tracks: dict[frozenset[str], Track] = defaultdict(Track)
+        lag_tracks: dict[str, Track] = defaultdict(Track)
         churn_events = 0
 
         for day in range(days):
@@ -226,6 +230,16 @@ async def replay(days: int) -> dict:
             # person sees when they open the app, and that is a daily rhythm.
             await patterns_db.remine(pool, user_id)
             await cooccurrence_db.remine(pool, user_id)
+            candidates = await patterns_db.load_candidates(pool, user_id)
+            observed_days = await patterns_db.load_observed_days(pool, user_id)
+            for finding in mine_lags(candidates, observed_days):
+                track = lag_tracks[finding.key]
+                if track.first_reported_day is None:
+                    track.first_reported_day = day
+                # Dark-launch findings do not have database identity yet. The
+                # stable semantic key is what this tracer can verify.
+                track.node_ids.add(f"dark-launch:{finding.key}")
+                track.live_days.append(day)
 
             for identity, node_id in (await _live_patterns(pool, user_id)).items():
                 track = tracks[identity]
@@ -243,7 +257,7 @@ async def replay(days: int) -> dict:
                 track.node_ids.add(pair["id"])
                 track.live_days.append(day)
 
-        return _report(tracks, pair_tracks, churn_events, days)
+        return _report(tracks, pair_tracks, lag_tracks, churn_events, days)
     finally:
         await pool.close()
 
@@ -251,6 +265,7 @@ async def replay(days: int) -> dict:
 def _report(
     tracks: dict[PatternIdentity, Track],
     pair_tracks: dict[frozenset[str], Track],
+    lag_tracks: dict[str, Track],
     churn_events: int,
     days: int,
 ) -> dict:
@@ -304,6 +319,7 @@ def _report(
         "churned_patterns": churned,
         "periodicity": _periodicity_report(tracks, days),
         "associations": _pair_report(pair_tracks),
+        "lags": _lag_report(lag_tracks, days),
     }
 
 
@@ -315,7 +331,7 @@ def _periodicity_report(
     reported = {
         key: track.first_reported_day
         for (detector, key), track in tracks.items()
-        if detector == "weekday" and track.first_reported_day is not None
+        if detector == "weekday-utc" and track.first_reported_day is not None
     }
     expected = {
         key: thread
@@ -365,6 +381,33 @@ def _pair_report(pair_tracks: dict[frozenset[str], Track]) -> dict:
             " + ".join(sorted(pair)): day
             for pair, day in reported.items()
             if pair not in EXPECTED_PAIRS
+        },
+    }
+
+
+def _lag_report(lag_tracks: dict[str, Track], days: int) -> dict:
+    """Ordered timing claims, separate from recurrence and co-occurrence."""
+    reported = {
+        key: track.first_reported_day
+        for key, track in lag_tracks.items()
+        if track.first_reported_day is not None
+    }
+    # The fourth planted match completes on day 30. Keep the benchmark threshold
+    # independent of detector constants so lowering the implementation's bar
+    # cannot make its own benchmark pass.
+    expected = EXPECTED_LAGS if days >= 31 else {}
+    return {
+        "found": {key: reported[key] for key in expected if key in reported},
+        "missed": {
+            key: {"eligible_on": 30, "probes": probes}
+            for key, probes in expected.items()
+            if key not in reported
+        },
+        "planted_decoys_reported": {
+            key: reported[key] for key in FORBIDDEN_LAGS if key in reported
+        },
+        "unaccounted": {
+            key: day for key, day in reported.items() if key not in expected
         },
     }
 
@@ -429,6 +472,18 @@ def _print(report: dict) -> None:
             )
             print(f"  {label:<28} day {day}{decoy}")
 
+    lags = report["lags"]
+    print("\nordered timing found (dark launch):")
+    for key, day in sorted(lags["found"].items()):
+        print(f"  {key:<56} day {day}")
+    for key, detail in sorted(lags["missed"].items()):
+        print(f"  {key:<56} MISSED (eligible day {detail['eligible_on']})")
+    if lags["unaccounted"]:
+        print("\nordered timing reported that was not planted:")
+        for key, day in sorted(lags["unaccounted"].items()):
+            decoy = " (planted decoy)" if key in lags["planted_decoys_reported"] else ""
+            print(f"  {key:<56} day {day}{decoy}")
+
     print(f"\nidentity churn events: {report['identity_churn_events']}")
     if report["churned_patterns"]:
         for key in report["churned_patterns"]:
@@ -448,6 +503,7 @@ def main() -> int:
 
     pairs = report["associations"]
     periodicity = report["periodicity"]
+    lags = report["lags"]
     failed = (
         bool(report["false_positives"])
         or report["identity_churn_events"] > 0
@@ -457,6 +513,8 @@ def main() -> int:
         # by arithmetic, and it is the failure the person is least able to catch.
         or bool(pairs["unaccounted"])
         or bool(pairs["missed"])
+        or bool(lags["unaccounted"])
+        or bool(lags["missed"])
     )
     print("\nFAIL" if failed else "\nOK")
     return 1 if failed else 0

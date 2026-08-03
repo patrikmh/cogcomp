@@ -19,6 +19,8 @@ declared shapes, chosen because each one probes a different failure:
 - **weekly** — only ever on the same weekday. Exact-label counting sees that it
   recurs but cannot see the calendar shape; detector-specific ground truth keeps
   those two claims separate.
+- **lagged** — one thread repeatedly appears a day before another, across varied
+  weekdays. This tests ordered timing without turning it into cause.
 - **noise** — mentioned once or twice, never a pattern. Any detector that reports
   these is manufacturing findings, which is the failure that matters most.
 """
@@ -153,6 +155,23 @@ THREADS: tuple[Thread, ...] = (
         "often as its own rate predicts. Pairing them would mean the detector is "
         "counting rather than measuring.",
     ),
+    # ---- Lag ground truth. ---------------------------------------------------
+    Thread(
+        label="sleeping badly",
+        kind="Activity",
+        days=(2, 10, 19, 29, 42),
+        expected=True,
+        probes="lag source: repeatedly written one UTC day before foggy, across "
+        "different weekdays rather than a shared weekly calendar.",
+    ),
+    Thread(
+        label="foggy",
+        kind="Emotion",
+        days=(3, 11, 20, 30, 43),
+        expected=True,
+        probes="lag target: repeatedly written one UTC day after sleeping badly. "
+        "This is an ordering claim, not a causal one.",
+    ),
 )
 
 #: Pairs that must be reported, keyed by the two labels.
@@ -180,6 +199,22 @@ EXPECTED_PERIODICITY: dict[str, Thread] = {
         thread for thread in THREADS if thread.label == "drained"
     )
 }
+
+#: Ordered timing claims have their own detector-specific truth.
+EXPECTED_LAGS: dict[str, str] = {
+    "Activity:sleeping badly->Emotion:foggy:lag:1": (
+        "repeated one-day ordering across five weeks and five source weekdays"
+    )
+}
+
+#: Plausible-looking timing claims planted specifically to remain unreported.
+FORBIDDEN_LAGS: frozenset[str] = frozenset(
+    {
+        # Both are frequent, so raw matches are plentiful; the conditional rate
+        # and lift are not strong enough to license an ordered finding.
+        "Emotion:dread->Activity:coffee:lag:1",
+    }
+)
 
 
 def entries_on(day: int) -> list[Thread]:

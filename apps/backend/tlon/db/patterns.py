@@ -12,7 +12,7 @@ shown, not linger as a claim nobody can retract.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import UTC, date
 from uuid import UUID, uuid4
 
 import asyncpg
@@ -59,7 +59,10 @@ async def load_candidates(pool: asyncpg.Pool, user_id: UUID) -> list[Candidate]:
             label=row["label"],
             confidence=row["confidence"],
             observation_id=row["observation_id"],
-            observed_on=row["captured_at"].date(),
+            # Observations do not yet persist a user timezone. Weekday claims
+            # therefore use UTC explicitly rather than pretending the database's
+            # calendar is the person's local one.
+            observed_on=row["captured_at"].astimezone(UTC).date(),
         )
         for row in rows
     ]
@@ -69,7 +72,7 @@ async def load_observed_days(pool: asyncpg.Pool, user_id: UUID) -> set[date]:
     """Every day the person wrote something that is still in their graph."""
     rows = await pool.fetch(
         """
-        SELECT DISTINCT o.captured_at::date AS observed_on
+        SELECT DISTINCT (o.captured_at AT TIME ZONE 'UTC')::date AS observed_on
         FROM observations o
         JOIN graph_nodes n ON n.id = o.node_id
         WHERE o.user_id = $1 AND n.deleted_at IS NULL

@@ -58,7 +58,7 @@ class TestWhatCountsAsWeekdayPeriodicity:
 
         assert len(patterns) == 1
         assert patterns[0].key == "Emotion:drained:weekday:3"
-        assert patterns[0].label == "drained · Thursdays"
+        assert patterns[0].label == "drained · Thursdays (UTC)"
 
     def test_three_matching_weekdays_are_not_enough(self):
         members = thursdays(count=MIN_OCCURRENCES - 1)

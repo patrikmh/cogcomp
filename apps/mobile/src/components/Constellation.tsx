@@ -9,7 +9,7 @@ import {
   Skia,
   vec,
 } from "@shopify/react-native-skia";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PanResponder, StyleSheet, View } from "react-native";
 
 import {
@@ -24,9 +24,10 @@ import {
   ringPoints,
 } from "@/lib/orbital";
 import {
-  craniumPath,
+  flowArcPaths,
   headClipPath,
   headPath,
+  neuralTracePaths,
   skullCentre,
 } from "@/lib/headSilhouette";
 import { useReducedMotion } from "@/lib/motion";
@@ -169,12 +170,25 @@ export default function Constellation({
   // selected point, so nothing lands where it cannot be tapped.
   const radius = inHead ? skull.radius : (size / 2) * 0.62;
 
-  const outline = inHead ? headPath({ size }) : "";
-  // The vault line, drawn fainter than the outline — it is structure, not edge.
-  const vault = inHead ? craniumPath({ size }) : "";
-  // Built once per size. A null path would blank the canvas silently, so the
-  // clip is only applied when Skia actually parsed it.
-  const clip = inHead ? Skia.Path.MakeFromSVGString(headClipPath({ size })) : null;
+  // These are static geometry for a given frame and size. Keeping their string
+  // identities stable avoids reparsing them while the constellation turns.
+  const outline = useMemo(
+    () => (inHead ? headPath({ size }) : ""),
+    [inHead, size],
+  );
+  const flowArcs = useMemo(
+    () => (inHead ? flowArcPaths({ size }) : []),
+    [inHead, size],
+  );
+  const neuralTraces = useMemo(
+    () => (inHead ? neuralTracePaths({ size }) : []),
+    [inHead, size],
+  );
+  // A null path would blank the canvas silently, so only apply a parsed clip.
+  const clip = useMemo(
+    () => (inHead ? Skia.Path.MakeFromSVGString(headClipPath({ size })) : null),
+    [inHead, size],
+  );
 
   const placed = place(data);
   const projected = project(placed, time, { cx: centre, cy: centreY, radius }, {
@@ -253,6 +267,33 @@ export default function Constellation({
         {/* Everything below is clipped to the skull, so the thoughts are inside
             the head rather than drawn on top of a picture of one. */}
         <Group clip={clip ?? undefined}>
+        {/* Quiet inner currents sit behind the constellation and never compete
+            with its points, links, or horizons. */}
+        <Group>
+          {flowArcs.map((path, i) => (
+            <Path
+              key={`flow-${i}`}
+              path={path}
+              style="stroke"
+              strokeWidth={[1, 0.85, 0.7][i]}
+              strokeCap="round"
+              color="#c4b5fd"
+              opacity={[0.18, 0.12, 0.07][i]}
+            />
+          ))}
+          {neuralTraces.map((path, i) => (
+            <Path
+              key={`trace-${i}`}
+              path={path}
+              style="stroke"
+              strokeWidth={i === 0 ? 0.7 : 0.6}
+              strokeCap="round"
+              color="#c4b5fd"
+              opacity={[0.13, 0.09, 0.06, 0.04][i]}
+            />
+          ))}
+        </Group>
+
         {/* The horizon. */}
         <Group>
           {rings.map((ring, r) =>
@@ -340,30 +381,28 @@ export default function Constellation({
         </Group>
 
         {inHead && (
-          <Path
-            path={vault}
-            style="stroke"
-            strokeWidth={1}
-            strokeCap="round"
-            color="#a78bfa"
-            opacity={0.22}
-          >
-            <BlurMask blur={3} style="solid" />
-          </Path>
-        )}
-
-        {inHead && (
-          <Path
-            path={outline}
-            style="stroke"
-            strokeWidth={1.6}
-            strokeCap="round"
-            color="#a78bfa"
-            opacity={0.5}
-          >
-            {/* Blurred outward so the edge glows rather than looking cut out. */}
-            <BlurMask blur={5} style="solid" />
-          </Path>
+          <>
+            {/* Structure gets a restrained halo and a precise line, so it stays
+                legible without competing with the constellation. */}
+            <Path
+              path={outline}
+              style="stroke"
+              strokeWidth={2.8}
+              strokeCap="round"
+              color="#a78bfa"
+              opacity={0.16}
+            >
+              <BlurMask blur={5} style="solid" />
+            </Path>
+            <Path
+              path={outline}
+              style="stroke"
+              strokeWidth={1.25}
+              strokeCap="round"
+              color="#c4b5fd"
+              opacity={0.52}
+            />
+          </>
         )}
       </Canvas>
     </View>

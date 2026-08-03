@@ -183,10 +183,10 @@ class TestWeekdayPeriodicity:
         patterns = {pattern["detector"]: pattern for pattern in await listed(client, account)}
 
         assert patterns["exact-label"]["label"] == "drained"
-        assert patterns["weekday"]["label"] == "drained · Thursdays"
-        assert patterns["weekday"]["occurrences"] == 4
+        assert patterns["weekday-utc"]["label"] == "drained · Thursdays (UTC)"
+        assert patterns["weekday-utc"]["occurrences"] == 4
 
-        periodic_id = UUID(patterns["weekday"]["id"])
+        periodic_id = UUID(patterns["weekday-utc"]["id"])
         assert (
             await pool.fetchval(
                 "SELECT extractor FROM graph_nodes WHERE id = $1",
@@ -217,13 +217,13 @@ class TestWeekdayPeriodicity:
 
         await pool.execute(
             "UPDATE graph_nodes SET epistemic_status = 'user_rejected' WHERE id = $1",
-            UUID(first["weekday"]["id"]),
+            UUID(first["weekday-utc"]["id"]),
         )
         await mine(client, account)
         second = {pattern["detector"]: pattern for pattern in await listed(client, account)}
 
-        assert second["weekday"]["id"] == first["weekday"]["id"]
-        assert second["weekday"]["epistemic_status"] == "user_rejected"
+        assert second["weekday-utc"]["id"] == first["weekday-utc"]["id"]
+        assert second["weekday-utc"]["epistemic_status"] == "user_rejected"
         assert second["exact-label"]["epistemic_status"] == "hypothesis"
 
     async def test_an_off_weekday_occurrence_lapses_only_the_calendar_claim(

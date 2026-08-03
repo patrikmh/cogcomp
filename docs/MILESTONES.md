@@ -113,8 +113,19 @@ IANA timezone, with DST-safe bounds, seven buckets, explainable hypotheses, and
 counted recurrence. No report persistence, generated prose, score, trend, diagnosis,
 or engagement prompt is involved (ADR-0004).
 
-## Milestone 3
+## Milestone 3 (complete)
 
-Multi-agent system, observability engine, temporal graph reasoning, digital twin
-prototype. Graphiti is to be evaluated as the graph layer here — see ADR-0002 when
-it is written.
+The multi-agent system runs four explicitly ordered agents: consolidation,
+patterns, co-occurrence, and themes. Every attempt is observable, background work
+is off by default, and scheduled work avoids users who are actively writing.
+
+Temporal reasoning compares adjacent equal windows with explicit IANA timezones
+and counted descriptions only. The digital-twin prototype lets a person confirm,
+reject, or withdraw any reading; rejection removes it from downstream patterns,
+temporal changes, and graph projection. The mobile node detail and e2e journey
+exercise that control.
+
+Graphiti was evaluated and adopted for one narrow role: structural community
+clustering over a disposable FalkorDB projection. PostgreSQL remains authoritative,
+projection is one-directional and idempotent, and Graphiti's telemetry, default
+OpenAI clients, and semantic node resolution are refused. See ADR-0006.
