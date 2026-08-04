@@ -44,7 +44,7 @@ checkboxes but standing gates, so they are tracked once:
 
 | Feature | Status | Notes |
 |---|---|---|
-| Pattern mining | ✅ | Exact-label recurrence plus strict weekday-UTC periodicity through `POST /v1/patterns/mine`, the background agent, and mobile Patterns screen. Detector identity, provenance, dormancy, and user verdicts remain separate. |
+| Pattern mining | ✅ | Exact-label recurrence, strict weekday-UTC periodicity, and conservative lag-UTC ordering through `POST /v1/patterns/mine` and the background agent. Detector identity, provenance, dormancy, and user verdicts remain separate. |
 | Memory consolidation | ✅ | `tlon/agents/consolidation.py`. Merges duplicate inferred nodes on exact normalised labels; survivor inherits all provenance, `node_merges` records what was absorbed. Observations are never merged |
 | Identity graph | ✅ | User-curated projection API and mobile screen over existing Value/Belief/Need/Activity nodes; selected nodes are protected from consolidation |
 | Weekly reports | ✅ | Read-only `GET /v1/summary/week/{week_start}?tz=...`; Monday–Sunday local windows, seven buckets, provenance/source IDs, recurrence counts, and mobile `/week` screen. |
@@ -70,7 +70,7 @@ as the thing being audited — not after.
 | Agent | Cadence | What it does |
 |---|---|---|
 | `consolidation` | hourly | Merges duplicate inferred nodes. Runs *before* patterns, since merging changes what recurs |
-| `patterns` | 6-hourly | Re-mines exact-label and strict weekday-UTC patterns, only when something has been written since the last success |
+| `patterns` | 6-hourly | Re-mines exact-label, strict weekday-UTC, and conservative lag-UTC patterns, only when something has been written since the last success |
 | `cooccurrence` | daily | Measures associations with support floors and lift, after consolidation and patterns |
 | `themes` | daily | Rebuilds the disposable FalkorDB projection and clusters association communities |
 
@@ -105,7 +105,7 @@ Built because the product needed them, not because the spec asked:
 | Continuous voice conversation | ✅ | Energy-based VAD (`src/lib/vad.ts`, 24 tests) drives listen → transcribe → reply → speak → listen. Mic shut while the agent talks. Barge-in not implemented |
 | Voice/shape sync | ✅ | Server-measured RMS envelope, interpolated by playback position — works identically on web and native |
 | Association mining | ✅ | Deterministic lift over shared entries; emits adjacency only, never causality |
-| Lag/precedence mining | 🟡 | Conservative 1–3 day UTC detector and detector-specific 120-day replay truth are green in dark launch. It reports ordering only, treats missing writing days as unknown, and suppresses fixed schedules, same-day pairs, common bystanders, and bidirectional ambiguity. Persistence and UI intentionally await the representation decision below |
+| Lag/precedence mining | ✅ | Conservative 1–3 day UTC findings persist as detector-specific Pattern nodes with durable identity, verdicts, dormancy, pair-count occurrences, flat provenance, and exact directed observation matches. It reports ordering only and suppresses fixed schedules, same-day pairs, common bystanders, missing-day guesses, and bidirectional ambiguity |
 | Theme clustering | ✅ | Graphiti communities over the disposable FalkorDB projection; structure only, three-member floor, PostgreSQL persistence |
 | Ontology drift check | ✅ | `scripts/check_ontology_sync.py` verifies four definitions of the ontology agree |
 | e2e suite | ✅ | `scripts/e2e.sh`, 31 checks, credentials cleared so runs stay deterministic |
@@ -129,7 +129,7 @@ Things that are genuinely not done, stated plainly rather than left to be discov
    separate safety decision.
 5. **Web storage is weaker than native.** `expo-secure-store` has no web
    implementation, so the web build falls back to localStorage. Test surface only.
-6. **Lag findings are dark-launch only.** Persisting them as Pattern nodes reuses
-   judgement and dormancy but flattens a relational claim; a `PRECEDES` edge is
-   semantically cleaner but requires an ontology, migration, API, and judgement
-   change. Neither representation has been chosen yet.
+6. **Lag dates are UTC and the mobile card is generic.** Observation-time IANA
+   timezones are still unavailable, and the existing Pattern card displays the
+   factual lag label rather than a dedicated ordered-evidence view. The API and
+   database preserve the detector identity and exact source/target matches.

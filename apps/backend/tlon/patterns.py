@@ -126,9 +126,12 @@ class MinedPattern:
     #: The inferred nodes that recurred, so SUPPORTS edges can be drawn.
     node_ids: tuple[UUID, ...]
     distinct_days: int
+    occurrence_count: int | None = None
 
     @property
     def occurrences(self) -> int:
+        if self.occurrence_count is not None:
+            return self.occurrence_count
         return len(self.observation_ids)
 
 

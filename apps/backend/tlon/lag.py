@@ -21,10 +21,12 @@ from tlon.patterns import (
     PATTERNABLE_KINDS,
     RECENCY_DAYS,
     Candidate,
+    MinedPattern,
     normalise,
 )
 
 DETECTOR = "lag-utc"
+VERSION = "lag-v0.1"
 LAGS = (1, 2, 3)
 MIN_MATCHES = 4
 MIN_MATCH_WEEKS = 3
@@ -251,4 +253,26 @@ def describe(finding: LagFinding) -> str:
     return (
         f"{finding.source_label} came up {finding.lag_days} {day} before "
         f"{finding.target_label} · {finding.matches} {times} (UTC)"
+    )
+
+
+def to_pattern(finding: LagFinding) -> MinedPattern:
+    """Adapt an ordered finding to the shared durable Pattern contract."""
+    observation_ids = {
+        observation_id
+        for pair in finding.pairs
+        for observation_id in (
+            *pair.source_observation_ids,
+            *pair.target_observation_ids,
+        )
+    }
+    return MinedPattern(
+        kind=NodeKind.PATTERN,
+        label=describe(finding),
+        confidence=finding.confidence,
+        key=finding.key,
+        observation_ids=tuple(sorted(observation_ids)),
+        node_ids=tuple(sorted((finding.source_node_id, finding.target_node_id))),
+        distinct_days=len({pair.source_day for pair in finding.pairs}),
+        occurrence_count=finding.matches,
     )

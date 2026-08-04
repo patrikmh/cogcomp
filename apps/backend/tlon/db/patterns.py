@@ -19,6 +19,11 @@ import asyncpg
 
 from tlon.domain.inference import EpistemicStatus
 from tlon.graph.schema import EdgeKind, NodeKind
+from tlon.lag import DETECTOR as LAG_DETECTOR
+from tlon.lag import VERSION as LAG_VERSION
+from tlon.lag import LagFinding
+from tlon.lag import mine as mine_lags
+from tlon.lag import to_pattern as lag_to_pattern
 from tlon.patterns import DETECTOR, PROMPT_VERSION, Candidate, MinedPattern, mine
 from tlon.periodicity import DETECTOR as WEEKDAY_DETECTOR
 from tlon.periodicity import VERSION as PERIODICITY_VERSION
@@ -253,6 +258,15 @@ async def _attach_evidence(
     # Every contributing entry, not a representative one. A pattern citing only
     # its first observation would be unfalsifiable from the explain screen.
     # ON CONFLICT because a confirmed pattern already cites most of them.
+    await conn.execute(
+        """
+        DELETE FROM node_provenance
+        WHERE node_id = $1
+          AND NOT (observation_id = ANY($2::uuid[]))
+        """,
+        pattern_id,
+        list(pattern.observation_ids),
+    )
     for observation_id in pattern.observation_ids:
         await conn.execute(
             """
@@ -346,10 +360,12 @@ async def remine(pool: asyncpg.Pool, user_id: UUID) -> dict:
     observed_days = await load_observed_days(pool, user_id)
     exact_patterns = mine(candidates)
     weekday_patterns = mine_weekdays(candidates, observed_days)
+    lag_findings = mine_lags(candidates, observed_days)
+    lag_patterns = [lag_to_pattern(finding) for finding in lag_findings]
 
-    # Both views describe the same graph at the same instant. Reconcile them in
-    # one transaction so a failed weekday write cannot leave exact recurrence
-    # refreshed while the calendar claims still describe the previous run.
+    # All three views describe the same graph at the same instant. Reconcile them
+    # in one transaction so one failed detector cannot leave the others current
+    # while its claims still describe the previous run.
     async with pool.acquire() as conn, conn.transaction():
         exact = await _persist_detector(
             conn,
@@ -365,9 +381,17 @@ async def remine(pool: asyncpg.Pool, user_id: UUID) -> dict:
             detector=WEEKDAY_DETECTOR,
             extractor=PERIODICITY_VERSION,
         )
+        lag = await _persist_detector(
+            conn,
+            user_id,
+            lag_patterns,
+            detector=LAG_DETECTOR,
+            extractor=LAG_VERSION,
+        )
+        await _replace_lag_matches(conn, user_id, lag_findings)
 
-    added = exact["added"] + weekday["added"]
-    confirmed = exact["confirmed"] + weekday["confirmed"]
+    added = exact["added"] + weekday["added"] + lag["added"]
+    confirmed = exact["confirmed"] + weekday["confirmed"] + lag["confirmed"]
     return {
         "patterns": len(added) + len(confirmed),
         # Reported separately because they mean different things to a reader: one
@@ -380,18 +404,56 @@ async def remine(pool: asyncpg.Pool, user_id: UUID) -> dict:
     }
 
 
+async def _replace_lag_matches(
+    conn: asyncpg.Connection,
+    user_id: UUID,
+    findings: list[LagFinding],
+) -> None:
+    await conn.execute("DELETE FROM pattern_lag_matches WHERE user_id = $1", user_id)
+    if not findings:
+        return
+
+    pattern_ids = {
+        row["pattern_key"]: row["node_id"]
+        for row in await conn.fetch(
+            "SELECT pattern_key, node_id FROM patterns WHERE user_id = $1 AND detector = $2",
+            user_id,
+            LAG_DETECTOR,
+        )
+    }
+    for finding in findings:
+        pattern_id = pattern_ids[finding.key]
+        for match in finding.pairs:
+            for source_observation_id in match.source_observation_ids:
+                for target_observation_id in match.target_observation_ids:
+                    await conn.execute(
+                        """
+                        INSERT INTO pattern_lag_matches
+                            (user_id, pattern_id,
+                             source_observation_id, target_observation_id,
+                             source_day, target_day, lag_days)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7)
+                        """,
+                        user_id,
+                        pattern_id,
+                        source_observation_id,
+                        target_observation_id,
+                        match.source_day,
+                        match.target_day,
+                        finding.lag_days,
+                    )
+
+
 async def list_for_user(pool: asyncpg.Pool, user_id: UUID) -> list[dict]:
     rows = await pool.fetch(
         """
         SELECT n.id, n.label, n.confidence, n.epistemic_status, n.extractor,
                n.created_at, pat.detector, pat.first_seen_at, pat.distinct_days,
-               count(DISTINCT p.observation_id) AS occurrences
+               pat.occurrences
         FROM graph_nodes n
         JOIN patterns pat ON pat.node_id = n.id
-        LEFT JOIN node_provenance p ON p.node_id = n.id
         WHERE n.user_id = $1 AND n.kind = 'Pattern' AND n.deleted_at IS NULL
-        GROUP BY n.id, pat.detector, pat.first_seen_at, pat.distinct_days
-        ORDER BY count(DISTINCT p.observation_id) DESC, n.confidence DESC, n.label
+        ORDER BY pat.occurrences DESC, n.confidence DESC, n.label
         """,
         user_id,
     )

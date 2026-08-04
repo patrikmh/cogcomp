@@ -44,7 +44,6 @@ import asyncpg
 from tlon.db import cooccurrence as cooccurrence_db
 from tlon.db import patterns as patterns_db
 from tlon.db.engine import run_migrations
-from tlon.lag import mine as mine_lags
 from tlon.patterns import RECENCY_DAYS
 
 from benchmarks.history import (
@@ -230,16 +229,6 @@ async def replay(days: int) -> dict:
             # person sees when they open the app, and that is a daily rhythm.
             await patterns_db.remine(pool, user_id)
             await cooccurrence_db.remine(pool, user_id)
-            candidates = await patterns_db.load_candidates(pool, user_id)
-            observed_days = await patterns_db.load_observed_days(pool, user_id)
-            for finding in mine_lags(candidates, observed_days):
-                track = lag_tracks[finding.key]
-                if track.first_reported_day is None:
-                    track.first_reported_day = day
-                # Dark-launch findings do not have database identity yet. The
-                # stable semantic key is what this tracer can verify.
-                track.node_ids.add(f"dark-launch:{finding.key}")
-                track.live_days.append(day)
 
             for identity, node_id in (await _live_patterns(pool, user_id)).items():
                 track = tracks[identity]
@@ -249,6 +238,14 @@ async def replay(days: int) -> dict:
                     churn_events += 1
                 track.node_ids.add(node_id)
                 track.live_days.append(day)
+
+                detector, key = identity
+                if detector == "lag-utc":
+                    lag_track = lag_tracks[key]
+                    if lag_track.first_reported_day is None:
+                        lag_track.first_reported_day = day
+                    lag_track.node_ids.add(node_id)
+                    lag_track.live_days.append(day)
 
             for pair in await cooccurrence_db.list_for_user(pool, user_id):
                 track = pair_tracks[frozenset((pair["a_label"], pair["b_label"]))]
@@ -473,7 +470,7 @@ def _print(report: dict) -> None:
             print(f"  {label:<28} day {day}{decoy}")
 
     lags = report["lags"]
-    print("\nordered timing found (dark launch):")
+    print("\nordered timing found:")
     for key, day in sorted(lags["found"].items()):
         print(f"  {key:<56} day {day}")
     for key, detail in sorted(lags["missed"].items()):

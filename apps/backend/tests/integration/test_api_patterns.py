@@ -242,6 +242,195 @@ class TestWeekdayPeriodicity:
         ]
 
 
+class TestLagPersistence:
+    async def test_a_lag_finding_persists_its_pairs_without_claiming_causation(
+        self, client: AsyncClient, pool: asyncpg.Pool, account: Account
+    ):
+        source_offsets = (0, 8, 17, 27)
+        source_observations = []
+        target_observations = []
+        source_nodes = []
+        target_nodes = []
+
+        for offset in range(32):
+            observation_id = await entry(client, account, DAY_ONE + timedelta(days=offset))
+            if offset in source_offsets:
+                source_observations.append(observation_id)
+                source_nodes.append(
+                    await inferred(
+                        pool,
+                        account,
+                        observation_id,
+                        "sleeping badly",
+                        kind="Activity",
+                    )
+                )
+            if offset - 1 in source_offsets:
+                target_observations.append(observation_id)
+                target_nodes.append(
+                    await inferred(pool, account, observation_id, "foggy", kind="Emotion")
+                )
+
+        await mine(client, account)
+        lag_patterns = [
+            pattern for pattern in await listed(client, account) if pattern["detector"] == "lag-utc"
+        ]
+
+        assert len(lag_patterns) == 1
+        pattern = lag_patterns[0]
+        assert pattern["label"] == "sleeping badly came up 1 day before foggy · 4 times (UTC)"
+        assert all(
+            causal_term not in pattern["label"].lower()
+            for causal_term in ("because", "cause", "trigger", "leads to", "makes", "due to")
+        )
+        assert pattern["occurrences"] == 4
+        assert pattern["distinct_days"] == 4
+        assert pattern["extractor"] == "lag-v0.1"
+
+        pattern_id = UUID(pattern["id"])
+        stored_pattern = await pool.fetchrow(
+            """
+            SELECT n.kind, n.extractor, p.occurrences, p.distinct_days
+            FROM graph_nodes n
+            JOIN patterns p ON p.node_id = n.id
+            WHERE n.id = $1
+            """,
+            pattern_id,
+        )
+        assert dict(stored_pattern) == {
+            "kind": "Pattern",
+            "extractor": "lag-v0.1",
+            "occurrences": 4,
+            "distinct_days": 4,
+        }
+
+        cited = await pool.fetch(
+            "SELECT observation_id FROM node_provenance WHERE node_id = $1",
+            pattern_id,
+        )
+        assert {row["observation_id"] for row in cited} == {
+            *source_observations,
+            *target_observations,
+        }
+
+        matches = await pool.fetch(
+            """
+            SELECT source_observation_id, target_observation_id,
+                   lag_days, source_day, target_day
+            FROM pattern_lag_matches
+            WHERE pattern_id = $1
+            """,
+            pattern_id,
+        )
+        expected_matches = {
+            (
+                source_observation,
+                target_observation,
+                1,
+                (DAY_ONE + timedelta(days=offset)).date(),
+                (DAY_ONE + timedelta(days=offset + 1)).date(),
+            )
+            for offset, source_observation, target_observation in zip(
+                source_offsets,
+                source_observations,
+                target_observations,
+                strict=True,
+            )
+        }
+        assert {
+            (
+                row["source_observation_id"],
+                row["target_observation_id"],
+                row["lag_days"],
+                row["source_day"],
+                row["target_day"],
+            )
+            for row in matches
+        } == expected_matches
+
+        precedence_edges = await pool.fetch(
+            """
+            SELECT kind
+            FROM graph_edges
+            WHERE user_id = $1
+              AND (
+                (from_id = ANY($2::uuid[]) AND to_id = ANY($3::uuid[]))
+                OR (from_id = ANY($3::uuid[]) AND to_id = ANY($2::uuid[]))
+              )
+            """,
+            account.user_id,
+            source_nodes,
+            target_nodes,
+        )
+        assert precedence_edges == []
+
+    async def test_remining_a_lag_replaces_stale_pair_evidence(
+        self, client: AsyncClient, pool: asyncpg.Pool, account: Account
+    ):
+        source_offsets = (0, 8, 17, 27, 38)
+        source_observations = []
+        target_observations = []
+        source_nodes = []
+
+        for offset in range(43):
+            observation_id = await entry(client, account, DAY_ONE + timedelta(days=offset))
+            if offset in source_offsets:
+                source_observations.append(observation_id)
+                source_nodes.append(
+                    await inferred(
+                        pool,
+                        account,
+                        observation_id,
+                        "sleeping badly",
+                        kind="Activity",
+                    )
+                )
+            if offset - 1 in source_offsets:
+                target_observations.append(observation_id)
+                await inferred(pool, account, observation_id, "foggy", kind="Emotion")
+
+        await mine(client, account)
+        first_lag = next(
+            pattern for pattern in await listed(client, account) if pattern["detector"] == "lag-utc"
+        )
+        pattern_id = UUID(first_lag["id"])
+
+        await pool.execute(
+            "UPDATE graph_nodes SET epistemic_status = 'user_rejected' WHERE id = $1",
+            source_nodes[0],
+        )
+        second_mine = await mine(client, account)
+        second_lag = next(
+            pattern for pattern in await listed(client, account) if pattern["detector"] == "lag-utc"
+        )
+
+        current_pairs = set(zip(source_observations[1:], target_observations[1:], strict=True))
+        stored_pairs = await pool.fetch(
+            """
+            SELECT source_observation_id, target_observation_id
+            FROM pattern_lag_matches
+            WHERE pattern_id = $1
+            """,
+            pattern_id,
+        )
+        cited = await pool.fetch(
+            "SELECT observation_id FROM node_provenance WHERE node_id = $1",
+            pattern_id,
+        )
+
+        assert second_lag["id"] == first_lag["id"]
+        assert second_lag["occurrences"] == 4
+        assert second_mine["added"] == 0
+        assert second_mine["confirmed"] == 3
+        assert {
+            (row["source_observation_id"], row["target_observation_id"]) for row in stored_pairs
+        } == current_pairs
+        assert {row["observation_id"] for row in cited} == {
+            *source_observations[1:],
+            *target_observations[1:],
+        }
+
+
 class TestWhatTheDatabaseEnforces:
     async def test_a_pattern_is_stored_as_an_inference(
         self, client: AsyncClient, pool: asyncpg.Pool, account: Account

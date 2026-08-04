@@ -3,9 +3,10 @@
 from datetime import date, timedelta
 from uuid import UUID, uuid4
 
+from tlon import lag
 from tlon.graph.schema import NodeKind
 from tlon.lag import MIN_MATCHES, describe, mine
-from tlon.patterns import Candidate
+from tlon.patterns import Candidate, MinedPattern
 
 START = date(2026, 1, 5)
 MATCH_DAYS = (0, 8, 17, 27)
@@ -166,3 +167,27 @@ def test_description_states_order_without_cause():
     assert text == "sleeping badly came up 1 day before foggy · 4 times (utc)"
     for causal_word in ("because", "cause", "trigger", "leads to", "makes", "due to"):
         assert causal_word not in text
+
+
+def test_to_pattern_preserves_lag_claim_and_pair_count():
+    journal = Journal()
+    for day in MATCH_DAYS:
+        journal.write(day, NodeKind.ACTIVITY, "sleeping badly")
+        journal.write(day + 1, NodeKind.EMOTION, "foggy")
+    journal.blank(*range(32))
+    finding = mine(journal.candidates, journal.observed_days)[0]
+
+    pattern = lag.to_pattern(finding)
+
+    assert isinstance(pattern, MinedPattern)
+    assert pattern.kind is NodeKind.PATTERN
+    assert pattern.label == describe(finding)
+    assert pattern.key == finding.key
+    assert pattern.occurrences == finding.matches == 4
+    assert len(pattern.observation_ids) == 8
+    assert set(pattern.observation_ids) == {
+        candidate.observation_id for candidate in journal.candidates
+    }
+    assert set(pattern.node_ids) == {finding.source_node_id, finding.target_node_id}
+    assert pattern.distinct_days == 4
+    assert pattern.confidence == finding.confidence
