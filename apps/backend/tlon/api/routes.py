@@ -43,6 +43,9 @@ class ObservationResponse(BaseModel):
     source: Source
     captured_at: datetime
     created_at: datetime
+    #: Null for entries written before the app recorded one. The client shows a
+    #: day boundary, so it needs to know when the server is guessing at UTC.
+    timezone: str | None = None
 
     @classmethod
     def of(cls, observation: Observation) -> "ObservationResponse":
@@ -100,6 +103,7 @@ async def create_voice_observation(
     id: UUID = Form(..., description="Client-generated UUIDv7, as for text entries."),
     audio: UploadFile = File(...),
     captured_at: datetime | None = Form(None),
+    timezone: str | None = Form(None),
     user_id: UUID = Depends(current_user),
 ) -> ObservationResponse:
     """Transcribe a recording and store the transcript as an observation.
@@ -127,7 +131,11 @@ async def create_voice_observation(
 
     try:
         new = NewObservation(
-            id=id, content=transcript, source=Source.VOICE, captured_at=captured_at
+            id=id,
+            content=transcript,
+            source=Source.VOICE,
+            captured_at=captured_at,
+            timezone=timezone,
         )
     except ValueError as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc

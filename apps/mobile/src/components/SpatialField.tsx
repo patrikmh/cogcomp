@@ -1,6 +1,7 @@
 import { Link } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { ReactNode } from "react";
+import { dockDestinations } from "@/lib/destinations";
 import { colors } from "@/theme";
 import { constellationPoint } from "@/lib/spatial";
 
@@ -55,9 +56,10 @@ export function FieldFrame({ children, label = "Living Observatory field" }: { c
   return <View accessibilityLabel={label} style={styles.fieldFrame}><Orbit /><Orbit small />{children}</View>;
 }
 
+/** The dock on detail screens. Same destinations as the Journal's orbit — see
+ *  `@/lib/destinations` for why that is one list and not two. */
 export function SpatialDock() {
-  const routes = [["/", "Journal"], ["/today", "Today"], ["/graph", "Graph"], ["/patterns", "Patterns"], ["/agents", "Activity"]] as const;
-  return <View accessibilityRole="toolbar" accessibilityLabel="Observatory routes" style={styles.dock}>{routes.map(([href, label]) => <Link key={href} href={href} asChild><Pressable accessibilityRole="link" style={({ pressed }) => [styles.dockItem, pressed && styles.pressed]}><View style={styles.dockMark} /><Text style={styles.dockLabel}>{label}</Text></Pressable></Link>)}</View>;
+  return <View accessibilityRole="toolbar" accessibilityLabel="Observatory routes" style={styles.dock}>{dockDestinations().map(({ href, label, tone }) => <Link key={href} href={href} asChild><Pressable accessibilityRole="link" style={({ pressed }) => [styles.dockItem, pressed && styles.pressed]}><View style={[styles.dockMark, { backgroundColor: tone }]} /><Text style={styles.dockLabel}>{label}</Text></Pressable></Link>)}</View>;
 }
 
 export function LoadingLens({ label = "Reading the field…" }: { label?: string }) { return <View accessibilityRole="progressbar" style={styles.state}><View style={styles.loadingRing} /><Text style={styles.stateText}>{label}</Text></View>; }

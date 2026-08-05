@@ -2,6 +2,7 @@ import { useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
 import { MotionSurface } from "@/components/MotionSurface";
+import { orbitDestinations } from "@/lib/destinations";
 import { usePreferences } from "@/state/preferences";
 import { colors } from "@/theme";
 
@@ -22,22 +23,19 @@ import { colors } from "@/theme";
  * something you reach for while trying to write down a thought. The graph and
  * patterns became lenses inside Headspace, because they were never separate
  * places so much as separate ways of looking at the same material.
+ *
+ * The list itself lives in `@/lib/destinations`, shared with the dock, so the
+ * app cannot offer one set of destinations here and a different set two screens
+ * away.
  */
-const DESTINATIONS: { href: string; label: string; tone: string }[] = [
-  // First, because "where do things stand" is the question people arrive with.
-  { href: "/headspace", label: "Headspace", tone: colors.pink },
-  { href: "/today", label: "Today", tone: colors.cyan },
-  { href: "/week", label: "Week", tone: colors.cyan },
-  { href: "/identity", label: "Identity", tone: colors.violet },
-];
-
 export function NavOrbit(_: { onSignOut?: () => void }) {
   const router = useRouter();
   const developer = usePreferences((s) => s.developer);
+  const destinations = orbitDestinations(developer);
 
   return (
     <View style={styles.row}>
-      {DESTINATIONS.map((destination) => (
+      {destinations.map((destination) => (
         <MotionSurface
           key={destination.href}
           style={styles.station}
@@ -45,28 +43,11 @@ export function NavOrbit(_: { onSignOut?: () => void }) {
           accessibilityRole="link"
         >
           <View style={[styles.dot, { backgroundColor: destination.tone }]} />
-          <Text style={styles.label}>{destination.label}</Text>
+          <Text style={[styles.label, destination.quiet && styles.quiet]}>
+            {destination.label}
+          </Text>
         </MotionSurface>
       ))}
-      <MotionSurface
-        style={styles.station}
-        onPress={() => router.push("/settings")}
-        accessibilityRole="link"
-      >
-        <View style={[styles.dot, styles.dotQuiet]} />
-        <Text style={[styles.label, styles.quiet]}>Settings</Text>
-      </MotionSurface>
-
-      {developer && (
-        <MotionSurface
-          style={styles.station}
-          onPress={() => router.push("/dev")}
-          accessibilityRole="link"
-        >
-          <View style={[styles.dot, styles.dotQuiet]} />
-          <Text style={[styles.label, styles.quiet]}>Dev</Text>
-        </MotionSurface>
-      )}
     </View>
   );
 }
@@ -81,7 +62,6 @@ const styles = StyleSheet.create({
   },
   station: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 34 },
   dot: { width: 6, height: 6, borderRadius: 3 },
-  dotQuiet: { backgroundColor: colors.lineStrong },
   label: { color: colors.inkSoft, fontSize: 13, fontWeight: "600" },
   quiet: { color: colors.inkMuted },
 });

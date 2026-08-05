@@ -1,11 +1,12 @@
 """Calendar-shaped recurrence, without interpreting what it means.
 
 Exact-label mining can count that ``drained`` came up repeatedly. This detector
-can make the narrower claim that it only came up on Thursdays in UTC. The
-timezone is explicit because observations do not yet retain a user's IANA
-timezone; silently presenting a server-calendar day as a local one would be a
-false precision. One claim is frequency and the other is a shape in time, so each
-gets its own detector identity and can be accepted or rejected independently.
+can make the narrower claim that it only came up on Thursdays. Days are counted
+in the timezone each entry was written in; entries captured before the app
+recorded one fall back to UTC, and a claim resting on any of those says "(UTC)"
+rather than presenting a server-calendar day as the person's own. One claim is
+frequency and the other is a shape in time, so each gets its own detector
+identity and can be accepted or rejected independently.
 
 The first version is deliberately strict. It only reports a weekday when the
 same normalized label appears in four distinct weeks, every occurrence falls on
@@ -27,10 +28,14 @@ from tlon.patterns import (
     RECENCY_DAYS,
     Candidate,
     MinedPattern,
+    calendar_note,
     normalise,
 )
 
-DETECTOR = "weekday-utc"
+#: Named for what it measures rather than for whose calendar it had. It reads
+#: local days when the entry recorded a zone and UTC when it did not, and the
+#: label is where that difference is stated.
+DETECTOR = "weekday"
 VERSION = "periodicity-v0.1"
 
 #: A calendar claim needs more evidence than generic recurrence. Four sightings
@@ -122,7 +127,7 @@ def mine_weekdays(
         patterns.append(
             MinedPattern(
                 kind=kind,
-                label=f"{display_label} · {WEEKDAYS[weekday]} (UTC)",
+                label=f"{display_label} · {WEEKDAYS[weekday]}{calendar_note(members)}",
                 confidence=confidence,
                 key=f"{kind}:{normalised}:weekday:{weekday}",
                 observation_ids=tuple(sorted(occurrence_days)),

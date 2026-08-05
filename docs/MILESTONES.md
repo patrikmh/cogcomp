@@ -44,8 +44,11 @@ write more.
 `scripts/e2e.sh` drives the real app in a real browser (React Native Web, via
 Playwright) against the real backend: auth gate, signup, writing an entry, the daily
 summary, tentative-inference rendering, the explain screen, the dashboard, the
-Skia explorer, the empty day, and sign-out. Thirty-one checks. It clears API keys
-before starting the backend, so a real key in `.env` cannot make the run
+Skia explorer, the empty day, and sign-out. It also drives the ordered-evidence
+screen: a month of dense writing is seeded through the real API, mined, and the
+resulting lag finding opened in the browser to check that every occasion it
+counted is readable and that the screen says an order is not a reason. It clears
+API keys before starting the backend, so a real key in `.env` cannot make the run
 nondeterministic or expensive.
 
 The graph read API (`GET /v1/graph`, `GET /v1/graph/nodes/{id}/neighbours`) is the
@@ -116,7 +119,10 @@ or engagement prompt is involved (ADR-0004).
 ## Milestone 3 (complete)
 
 The multi-agent system runs four explicitly ordered agents: consolidation,
-patterns, co-occurrence, and themes. Every attempt is observable, background work
+patterns, co-occurrence, and themes. The patterns agent carries five detectors:
+exact-label recurrence, weekday periodicity, ordered lag, within-day ordering,
+and stated-vs-recorded separation — the last of which reports a gap between what someone names as
+mattering and what their days contain, as arithmetic rather than as a verdict. Every attempt is observable, background work
 is off by default, and scheduled work avoids users who are actively writing.
 
 Temporal reasoning compares adjacent equal windows with explicit IANA timezones
@@ -128,4 +134,7 @@ exercise that control.
 Graphiti was evaluated and adopted for one narrow role: structural community
 clustering over a disposable FalkorDB projection. PostgreSQL remains authoritative,
 projection is one-directional and idempotent, and Graphiti's telemetry, default
-OpenAI clients, and semantic node resolution are refused. See ADR-0006.
+OpenAI clients, and semantic node resolution are refused. The projection also
+collapses duplicate associations to one edge per pair, because Graphiti's label
+propagation never terminates when a node sees the same neighbour twice. See
+ADR-0006.

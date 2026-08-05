@@ -7,13 +7,23 @@ from datetime import datetime
 from uuid import UUID
 
 import httpx
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
-from pydantic import BaseModel, Field
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+    status,
+)
+from pydantic import BaseModel, Field, field_validator
 
 from tlon.auth import current_user
 from tlon.conversation import ConversationError
 from tlon.db import conversations as conversations_db
 from tlon.domain.observation import MAX_CONTENT_CHARS
+from tlon.domain.weekly import timezone_for
 from tlon.speech import MAX_CHARS as MAX_SPOKEN_CHARS
 from tlon.speech import SpeechError
 from tlon.transcription import AudioTooLarge, TranscriptionError
@@ -37,6 +47,16 @@ class TurnRequest(BaseModel):
     #: Whether this turn was spoken or typed. Carried through to the observation,
     #: because a spoken turn passed through transcription and a typed one did not.
     source: str = Field(default="text", pattern="^(text|voice)$")
+    #: The IANA zone this was said in. Kept on the turn because the turn is what
+    #: becomes an entry, and an entry's day is a local fact.
+    timezone: str | None = None
+
+    @field_validator("timezone")
+    @classmethod
+    def timezone_is_known(cls, value: str | None) -> str | None:
+        if value is not None:
+            timezone_for(value)
+        return value
 
 
 class TurnResponse(BaseModel):
@@ -106,7 +126,13 @@ async def add_turn(
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "turn cannot be blank")
 
     await conversations_db.add_turn(
-        pool, user_id, conversation_id, "user", payload.content, payload.source
+        pool,
+        user_id,
+        conversation_id,
+        "user",
+        payload.content,
+        payload.source,
+        payload.timezone,
     )
 
     turns = conversation["turns"] + [{"speaker": "user", "content": payload.content}]
@@ -136,6 +162,7 @@ async def add_voice_turn(
     request: Request,
     conversation_id: UUID,
     audio: UploadFile = File(...),
+    timezone: str | None = Form(None),
     user_id: UUID = Depends(current_user),
 ) -> TurnResponse:
     """Speak a turn instead of typing it.
@@ -159,7 +186,7 @@ async def add_voice_turn(
     return await add_turn(
         request,
         conversation_id,
-        TurnRequest(content=transcript, source="voice"),
+        TurnRequest(content=transcript, source="voice", timezone=timezone),
         user_id,
     )
 

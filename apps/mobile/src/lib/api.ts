@@ -1,6 +1,8 @@
 import * as Crypto from "expo-crypto";
 import type { EdgeKind, EpistemicStatus, NodeKind } from "@tlon/ontology";
 
+import { deviceTimezone } from "./dates";
+
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080";
 
 export interface AuthResponse {
@@ -20,6 +22,9 @@ export interface ObservationResponse {
   source: "text" | "voice";
   captured_at: string;
   created_at: string;
+  /** Null for entries written before the app recorded one — the server counted
+   *  their day in UTC and says so wherever that matters. */
+  timezone: string | null;
 }
 
 export interface ListResponse {
@@ -217,6 +222,15 @@ export interface TemporalChanges {
   not_enough_material: boolean;
 }
 
+/** The detectors the backend can attribute a pattern to. Each is entitled to a
+ *  different claim, so the screen renders them differently. */
+export type Detector =
+  | "exact-label"
+  | "weekday"
+  | "lag"
+  | "same-day-order"
+  | "stated-vs-recorded";
+
 export interface Pattern {
   id: string;
   label: string;
@@ -224,6 +238,11 @@ export interface Pattern {
   epistemic_status: string;
   extractor: string;
   occurrences: number;
+  /** Across how many distinct days. Three mentions in one evening is a mood. */
+  distinct_days: number;
+  detector: Detector;
+  /** When this first held, not when the node was last written. */
+  first_seen_at: string;
   tentative: boolean;
   created_at: string;
 }
@@ -231,7 +250,78 @@ export interface Pattern {
 /** Matches the response from POST /v1/patterns/mine. */
 export interface MinePatternsResponse {
   patterns: number;
+  /** Split out because they read differently: `added` is something new, `confirmed`
+   *  is the same things still holding. */
+  added: number;
+  confirmed: number;
   considered: number;
+}
+
+/** Matches the response from GET /v1/themes. A region of someone's life: a
+ *  group of things that keep turning up in the same entries. */
+export interface Theme {
+  id: string;
+  /** The member labels joined — the region is named by what is in it, never by
+   *  an invented phrase. */
+  label: string;
+  members: string[];
+  member_count: number;
+  confidence: number;
+  epistemic_status: string;
+  detector: string;
+  first_seen_at: string;
+  tentative: boolean;
+  created_at: string;
+}
+
+export interface ThemeMember {
+  id: string;
+  kind: NodeKind;
+  label: string;
+  confidence: number;
+  epistemic_status: string;
+}
+
+/** Adjacency only. `from`/`to` are storage order, not direction. */
+export interface ThemeAssociation {
+  from_id: string;
+  to_id: string;
+  confidence: number;
+}
+
+/** Matches the response from GET /v1/themes/{id}. */
+export interface ThemeDetail extends Omit<Theme, "members"> {
+  members: ThemeMember[];
+  associations: ThemeAssociation[];
+  last_confirmed_at: string;
+}
+
+/** One entry, in the person's own words. */
+export interface Written {
+  id: string;
+  content: string;
+  source: string;
+  captured_at: string;
+}
+
+/** One pair of writing days behind an ordered finding. */
+export interface Occasion {
+  source_day: string;
+  target_day: string;
+  before: Written[];
+  after: Written[];
+}
+
+/** Matches the response from GET /v1/patterns/{id}/ordering. Only lag patterns
+ *  have one — the other detectors make no claim about order. */
+export interface Ordering {
+  pattern_id: string;
+  label: string;
+  lag_days: number;
+  /** These days were counted in UTC because an entry never recorded its zone.
+   *  The screen shows the caveat only then. */
+  utc_fallback: boolean;
+  occasions: Occasion[];
 }
 
 export type ExperimentState = "draft" | "active" | "paused" | "completed" | "cancelled";
@@ -411,6 +501,9 @@ export const api = {
         content: input.content,
         source: input.source,
         captured_at: input.capturedAt,
+        // Attached here rather than by each caller, so no capture path can
+        // forget it and leave the server guessing which day this belongs to.
+        timezone: deviceTimezone(),
       }),
     });
   },
@@ -426,6 +519,7 @@ export const api = {
     const form = await audioForm(input.uri);
     form.append("id", input.id);
     form.append("captured_at", input.capturedAt);
+    form.append("timezone", deviceTimezone());
     return uploadAudio<ObservationResponse>("/v1/observations/voice", token, form);
   },
 
@@ -437,6 +531,7 @@ export const api = {
     uri: string,
   ): Promise<TurnReply> {
     const form = await audioForm(uri);
+    form.append("timezone", deviceTimezone());
     return uploadAudio<TurnReply>(
       `/v1/conversations/${conversationId}/turns/voice`,
       token,
@@ -530,7 +625,7 @@ export const api = {
   say(token: string, id: string, content: string, source: "text" | "voice" = "text") {
     return request<TurnReply>(`/v1/conversations/${id}/turns`, token, {
       method: "POST",
-      body: JSON.stringify({ content, source }),
+      body: JSON.stringify({ content, source, timezone: deviceTimezone() }),
     });
   },
 
@@ -612,6 +707,18 @@ export const api = {
 
   listPatterns(token: string) {
     return request<Pattern[]>("/v1/patterns", token);
+  },
+
+  listThemes(token: string) {
+    return request<Theme[]>("/v1/themes", token);
+  },
+
+  theme(token: string, themeId: string) {
+    return request<ThemeDetail>(`/v1/themes/${encodeURIComponent(themeId)}`, token);
+  },
+
+  patternOrdering(token: string, patternId: string) {
+    return request<Ordering>(`/v1/patterns/${encodeURIComponent(patternId)}/ordering`, token);
   },
 
   minePatterns(token: string) {

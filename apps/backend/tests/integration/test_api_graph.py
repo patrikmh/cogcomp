@@ -50,6 +50,53 @@ class TestObservations:
         )
         assert response.status_code == 409
 
+    async def test_an_entry_keeps_the_timezone_it_was_written_in(
+        self, client: AsyncClient, account: Account
+    ):
+        response = await client.post(
+            "/v1/observations",
+            headers=account.auth,
+            json={
+                "id": str(uuid4()),
+                "content": "late one tonight",
+                "source": "text",
+                "captured_at": "2026-03-05T23:30:00Z",
+                "timezone": "Europe/Stockholm",
+            },
+        )
+
+        assert response.status_code == 201, response.text
+        assert response.json()["timezone"] == "Europe/Stockholm"
+
+    async def test_an_entry_without_a_timezone_records_no_guess(
+        self, client: AsyncClient, account: Account
+    ):
+        # Not defaulted to UTC: "we never asked" and "they were in UTC" are
+        # different facts, and only one of them is true.
+        observation_id = await write_entry(client, account)
+        listed = await client.get("/v1/observations", headers=account.auth)
+        entry = next(o for o in listed.json()["observations"] if o["id"] == observation_id)
+
+        assert entry["timezone"] is None
+
+    async def test_an_unknown_timezone_is_refused_at_capture(
+        self, client: AsyncClient, account: Account
+    ):
+        # Refused here rather than discovered later inside a detector, where the
+        # only available response would be to fail mining for everything else.
+        response = await client.post(
+            "/v1/observations",
+            headers=account.auth,
+            json={
+                "id": str(uuid4()),
+                "content": "somewhere",
+                "source": "text",
+                "timezone": "Mars/Olympus_Mons",
+            },
+        )
+
+        assert response.status_code == 422
+
     async def test_blank_content_is_rejected(self, client: AsyncClient, account: Account):
         response = await client.post(
             "/v1/observations",

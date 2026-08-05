@@ -12,7 +12,7 @@ shown, not linger as a claim nobody can retract.
 
 from __future__ import annotations
 
-from datetime import UTC, date
+from datetime import date
 from uuid import UUID, uuid4
 
 import asyncpg
@@ -28,6 +28,14 @@ from tlon.patterns import DETECTOR, PROMPT_VERSION, Candidate, MinedPattern, min
 from tlon.periodicity import DETECTOR as WEEKDAY_DETECTOR
 from tlon.periodicity import VERSION as PERIODICITY_VERSION
 from tlon.periodicity import mine_weekdays
+from tlon.sameday import DETECTOR as SAMEDAY_DETECTOR
+from tlon.sameday import VERSION as SAMEDAY_VERSION
+from tlon.sameday import mine as mine_samedays
+from tlon.sameday import to_pattern as sameday_to_pattern
+from tlon.tension import DETECTOR as TENSION_DETECTOR
+from tlon.tension import VERSION as TENSION_VERSION
+from tlon.tension import mine as mine_tensions
+from tlon.tension import to_pattern as tension_to_pattern
 
 
 async def load_candidates(pool: asyncpg.Pool, user_id: UUID) -> list[Candidate]:
@@ -40,7 +48,15 @@ async def load_candidates(pool: asyncpg.Pool, user_id: UUID) -> list[Candidate]:
     rows = await pool.fetch(
         """
         SELECT n.id, n.kind, n.label, n.confidence,
-               o.node_id AS observation_id, o.captured_at
+               o.node_id AS observation_id, o.timezone,
+               -- The moment, in the same calendar as the day below, for the
+               -- within-day detector. Naive on purpose: it is only ever
+               -- compared with other moments from the same person's day.
+               (o.captured_at AT TIME ZONE COALESCE(o.timezone, 'UTC')) AS observed_at,
+               -- The day in the writer's own calendar, or UTC where they never
+               -- recorded one. Computed here rather than in Python so every
+               -- detector sees the same day for the same entry.
+               (o.captured_at AT TIME ZONE COALESCE(o.timezone, 'UTC'))::date AS observed_on
         FROM graph_nodes n
         JOIN node_provenance p ON p.node_id = n.id
         JOIN observations o ON o.node_id = p.observation_id
@@ -64,10 +80,12 @@ async def load_candidates(pool: asyncpg.Pool, user_id: UUID) -> list[Candidate]:
             label=row["label"],
             confidence=row["confidence"],
             observation_id=row["observation_id"],
-            # Observations do not yet persist a user timezone. Weekday claims
-            # therefore use UTC explicitly rather than pretending the database's
-            # calendar is the person's local one.
-            observed_on=row["captured_at"].astimezone(UTC).date(),
+            observed_on=row["observed_on"],
+            # Entries written before the app recorded a zone are counted in UTC,
+            # and the calendar detectors keep saying so rather than presenting a
+            # server day as the person's own.
+            zoned=row["timezone"] is not None,
+            observed_at=row["observed_at"],
         )
         for row in rows
     ]
@@ -77,7 +95,8 @@ async def load_observed_days(pool: asyncpg.Pool, user_id: UUID) -> set[date]:
     """Every day the person wrote something that is still in their graph."""
     rows = await pool.fetch(
         """
-        SELECT DISTINCT (o.captured_at AT TIME ZONE 'UTC')::date AS observed_on
+        SELECT DISTINCT
+            (o.captured_at AT TIME ZONE COALESCE(o.timezone, 'UTC'))::date AS observed_on
         FROM observations o
         JOIN graph_nodes n ON n.id = o.node_id
         WHERE o.user_id = $1 AND n.deleted_at IS NULL
@@ -362,9 +381,15 @@ async def remine(pool: asyncpg.Pool, user_id: UUID) -> dict:
     weekday_patterns = mine_weekdays(candidates, observed_days)
     lag_findings = mine_lags(candidates, observed_days)
     lag_patterns = [lag_to_pattern(finding) for finding in lag_findings]
+    tension_patterns = [
+        tension_to_pattern(finding) for finding in mine_tensions(candidates, observed_days)
+    ]
+    sameday_patterns = [
+        sameday_to_pattern(finding) for finding in mine_samedays(candidates, observed_days)
+    ]
 
-    # All three views describe the same graph at the same instant. Reconcile them
-    # in one transaction so one failed detector cannot leave the others current
+    # Every view describes the same graph at the same instant. Reconcile them in
+    # one transaction so one failed detector cannot leave the others current
     # while its claims still describe the previous run.
     async with pool.acquire() as conn, conn.transaction():
         exact = await _persist_detector(
@@ -389,9 +414,24 @@ async def remine(pool: asyncpg.Pool, user_id: UUID) -> dict:
             extractor=LAG_VERSION,
         )
         await _replace_lag_matches(conn, user_id, lag_findings)
+        tension = await _persist_detector(
+            conn,
+            user_id,
+            tension_patterns,
+            detector=TENSION_DETECTOR,
+            extractor=TENSION_VERSION,
+        )
+        sameday = await _persist_detector(
+            conn,
+            user_id,
+            sameday_patterns,
+            detector=SAMEDAY_DETECTOR,
+            extractor=SAMEDAY_VERSION,
+        )
 
-    added = exact["added"] + weekday["added"] + lag["added"]
-    confirmed = exact["confirmed"] + weekday["confirmed"] + lag["confirmed"]
+    runs = (exact, weekday, lag, tension, sameday)
+    added = [pattern_id for run in runs for pattern_id in run["added"]]
+    confirmed = [pattern_id for run in runs for pattern_id in run["confirmed"]]
     return {
         "patterns": len(added) + len(confirmed),
         # Reported separately because they mean different things to a reader: one
@@ -442,6 +482,104 @@ async def _replace_lag_matches(
                         match.target_day,
                         finding.lag_days,
                     )
+
+
+async def ordering_for_pattern(
+    pool: asyncpg.Pool,
+    user_id: UUID,
+    pattern_id: UUID,
+) -> dict | None:
+    """The entries behind an ordered lag finding, grouped by occasion.
+
+    One occasion is one pair of writing days: what was written first, and what
+    was written `lag_days` later. Grouped rather than returned as stored pairs
+    because two entries on the same day produce a cross-product of rows, and a
+    reader should see one occasion, not four.
+
+    `None` for anything that is not this user's lag pattern — including a
+    pattern found by a detector that makes no claim about order.
+    """
+    pattern = await pool.fetchrow(
+        """
+        SELECT n.label, p.detector
+        FROM patterns p
+        JOIN graph_nodes n ON n.id = p.node_id
+        WHERE p.node_id = $1 AND p.user_id = $2 AND n.deleted_at IS NULL
+        """,
+        pattern_id,
+        user_id,
+    )
+    if pattern is None or pattern["detector"] != LAG_DETECTOR:
+        return None
+
+    rows = await pool.fetch(
+        """
+        SELECT m.source_day, m.target_day, m.lag_days,
+               before.node_id AS before_id, before.content AS before_content,
+               before.source AS before_source, before.captured_at AS before_captured_at,
+               before.timezone AS before_timezone, after.timezone AS after_timezone,
+               after.node_id AS after_id, after.content AS after_content,
+               after.source AS after_source, after.captured_at AS after_captured_at
+        FROM pattern_lag_matches m
+        JOIN observations before ON before.node_id = m.source_observation_id
+        JOIN observations after ON after.node_id = m.target_observation_id
+        JOIN graph_nodes before_node ON before_node.id = before.node_id
+        JOIN graph_nodes after_node ON after_node.id = after.node_id
+        WHERE m.user_id = $1 AND m.pattern_id = $2
+          AND before_node.deleted_at IS NULL
+          AND after_node.deleted_at IS NULL
+        ORDER BY m.source_day, before.captured_at, after.captured_at
+        """,
+        user_id,
+        pattern_id,
+    )
+    if not rows:
+        return None
+
+    occasions: dict[tuple[date, date], dict] = {}
+    for row in rows:
+        occasion = occasions.setdefault(
+            (row["source_day"], row["target_day"]),
+            {
+                "source_day": row["source_day"],
+                "target_day": row["target_day"],
+                "before": {},
+                "after": {},
+            },
+        )
+        occasion["before"].setdefault(row["before_id"], _written(row, "before"))
+        occasion["after"].setdefault(row["after_id"], _written(row, "after"))
+
+    return {
+        "pattern_id": str(pattern_id),
+        "label": pattern["label"],
+        "lag_days": rows[0]["lag_days"],
+        # True while any entry behind this predates timezone capture, so its
+        # days were counted in UTC. The screen shows the caveat only then —
+        # repeating it under evidence that does not need it teaches people to
+        # skip it under evidence that does.
+        "utc_fallback": any(
+            row["before_timezone"] is None or row["after_timezone"] is None for row in rows
+        ),
+        "occasions": [
+            {
+                "source_day": occasion["source_day"],
+                "target_day": occasion["target_day"],
+                "before": list(occasion["before"].values()),
+                "after": list(occasion["after"].values()),
+            }
+            for occasion in occasions.values()
+        ],
+    }
+
+
+def _written(row: asyncpg.Record, side: str) -> dict:
+    return {
+        "id": str(row[f"{side}_id"]),
+        "content": row[f"{side}_content"],
+        "source": row[f"{side}_source"],
+        "captured_at": row[f"{side}_captured_at"],
+    }
 
 
 async def list_for_user(pool: asyncpg.Pool, user_id: UUID) -> list[dict]:

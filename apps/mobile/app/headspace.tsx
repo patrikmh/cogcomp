@@ -25,12 +25,16 @@ import { colors } from "@/theme";
  * than presenting all three as equally solid.
  */
 
-type Lens = "today" | "all" | "patterns" | "changed";
+type Lens = "today" | "all" | "patterns" | "regions" | "changed";
 
 const LENSES: { id: Lens; label: string }[] = [
   { id: "today", label: "Today" },
   { id: "all", label: "Everything" },
   { id: "patterns", label: "Recurring" },
+  // Furthest of all from the words: a region is built on associations between
+  // things that already recurred, so it sits after Recurring in the same
+  // argument the other lenses make about distance from what was written.
+  { id: "regions", label: "Regions" },
   { id: "changed", label: "Changed" },
 ];
 
@@ -69,15 +73,21 @@ export default function HeadspaceScreen() {
     queryFn: () => api.temporalChanges(token!, tz),
     enabled: Boolean(token),
   });
+  const themes = useQuery({
+    queryKey: ["themes", userId],
+    queryFn: () => api.listThemes(token!),
+    enabled: Boolean(token),
+  });
 
   if (!token) return null;
 
-  const points = pointsFor(lens, today.data, graph.data, patterns.data, changed.data);
+  const points = pointsFor(lens, today.data, graph.data, patterns.data, changed.data, themes.data);
   const current = points.find((p) => p.id === selected) ?? null;
   const loading =
     (lens === "today" && today.isLoading) ||
     (lens === "all" && graph.isLoading) ||
     (lens === "patterns" && patterns.isLoading) ||
+    (lens === "regions" && themes.isLoading) ||
     (lens === "changed" && changed.isLoading);
 
   return (
@@ -146,6 +156,16 @@ export default function HeadspaceScreen() {
             : EMPTY[lens]
         }
         hint={hintFor(lens, points.length)}
+        secondaryAction={
+          // Only under the lens it belongs to. The Patterns screen says more
+          // about a recurrence than a point can — how many entries and days it
+          // rests on, and, for an ordered finding, the occasions themselves —
+          // and until now nothing in the app led there from the place someone
+          // was actually looking at their recurrences.
+          lens === "patterns" && points.length > 0
+            ? { label: "Open patterns", onPress: () => router.push("/patterns") }
+            : undefined
+        }
         detail={
           current && (
             <Readout
@@ -153,8 +173,13 @@ export default function HeadspaceScreen() {
               label={current.label}
               meta={current.meta}
               tentative={current.tentative}
+              openLabel={lens === "regions" ? "See what is in it →" : undefined}
               onOpen={
-                lens === "changed" ? undefined : () => router.push(`/node/${current.id}`)
+                lens === "changed"
+                  ? undefined
+                  : lens === "regions"
+                    ? () => router.push(`/theme/${current.id}`)
+                    : () => router.push(`/node/${current.id}`)
               }
             />
           )
@@ -179,6 +204,9 @@ const EMPTY: Record<Lens, string> = {
   today: "Nothing recorded today.",
   all: "Nothing here yet. It fills in as you write.",
   patterns: "Nothing has come back often enough to call recurring.",
+  // Not "no regions found": a region needs three things that keep appearing
+  // together, which is a lot of writing, and saying so is the honest empty.
+  regions: "No group of things has turned up together often enough yet.",
   // Two possible reasons, and they mean different things — resolved below.
   changed: "Nothing moved between this week and last.",
 };
@@ -190,6 +218,9 @@ function hintFor(lens: Lens, count: number): string {
   }
   if (lens === "patterns") {
     return `${count} ${count === 1 ? "thing" : "things"} recurred. Bigger means more often.`;
+  }
+  if (lens === "regions") {
+    return `${count} ${count === 1 ? "region" : "regions"}. Bigger holds more things — tap to see what is in one.`;
   }
   if (lens === "all") {
     return `${count} in view. Filled is what you wrote, hollow is a guess.`;
@@ -205,7 +236,23 @@ function pointsFor(
   graph: Awaited<ReturnType<typeof api.graph>> | undefined,
   patterns: Awaited<ReturnType<typeof api.listPatterns>> | undefined,
   changed: Awaited<ReturnType<typeof api.temporalChanges>> | undefined,
+  themes: Awaited<ReturnType<typeof api.listThemes>> | undefined,
 ): Point[] {
+  if (lens === "regions") {
+    if (!themes) return [];
+    const largest = Math.max(...themes.map((theme) => theme.member_count), 1);
+    return themes.map((theme) => ({
+      id: theme.id,
+      // The membership is the name. Nothing here invents a heading for a region
+      // of someone's life.
+      label: theme.label,
+      kind: "region",
+      meta: `${theme.member_count} things · ${Math.round(theme.confidence * 100)}% confident`,
+      weight: theme.member_count / largest,
+      tone: "Theme",
+      tentative: theme.tentative,
+    }));
+  }
   if (lens === "changed") {
     if (!changed) return [];
     return changed.changes.map((change) => ({

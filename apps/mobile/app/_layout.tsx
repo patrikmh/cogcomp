@@ -89,17 +89,26 @@ function Gate() {
       >
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="index" options={{ title: "Journal" }} />
+        <Stack.Screen name="headspace" options={{ title: "Headspace" }} />
         <Stack.Screen name="today" options={{ title: "Today" }} />
         <Stack.Screen name="week" options={{ title: "This week" }} />
         <Stack.Screen name="talk" options={{ title: "Talk it through" }} />
         <Stack.Screen name="graph" options={{ title: "Graph" }} />
         <Stack.Screen name="identity" options={{ title: "Identity" }} />
         <Stack.Screen name="patterns" options={{ title: "Patterns" }} />
+        <Stack.Screen name="pattern/[id]" options={{ title: "What came first" }} />
+        <Stack.Screen name="theme/[id]" options={{ title: "A region" }} />
         <Stack.Screen name="experiments" options={{ title: "Experiments" }} />
         <Stack.Screen name="experiment/[id]" options={{ title: "Experiment" }} />
         <Stack.Screen name="agents" options={{ title: "Agent activity" }} />
         <Stack.Screen name="explore" options={{ title: "Explore" }} />
         <Stack.Screen name="node/[id]" options={{ title: "Where this came from" }} />
+        <Stack.Screen name="settings" options={{ title: "Settings" }} />
+        {/* Registered like any other screen. The developer switch decides
+            whether it can be reached, not whether it has a name — an
+            unregistered route falls back to its filename, which reads as a bug
+            rather than as a deliberately quiet corner. */}
+        <Stack.Screen name="dev" options={{ title: "Developer" }} />
       </Stack>
     </>
   );

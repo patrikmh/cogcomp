@@ -7,10 +7,10 @@ be — the person asks, and then it looks.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from tlon.auth import current_user
@@ -54,10 +54,57 @@ class MineResponse(BaseModel):
     considered: int
 
 
+class Written(BaseModel):
+    """One entry, in the person's own words."""
+
+    id: UUID
+    content: str
+    source: str
+    captured_at: datetime
+
+
+class Occasion(BaseModel):
+    """One pair of writing days behind an ordered finding."""
+
+    source_day: date
+    target_day: date
+    before: list[Written]
+    after: list[Written]
+
+
+class Ordering(BaseModel):
+    #: Days, not hours: the detector works on calendar days and the response must
+    #: not imply a precision it does not have.
+    lag_days: int
+    pattern_id: UUID
+    label: str
+    #: Whether these days were counted in UTC because an entry never recorded
+    #: the zone it was written in.
+    utc_fallback: bool
+    occasions: list[Occasion]
+
+
 @router.get("")
 async def list_patterns(request: Request, user_id: UUID = Depends(current_user)) -> list[Pattern]:
     rows = await patterns_db.list_for_user(request.app.state.pool, user_id)
     return [Pattern(**row) for row in rows]
+
+
+@router.get("/{pattern_id}/ordering")
+async def pattern_ordering(
+    request: Request,
+    pattern_id: UUID,
+    user_id: UUID = Depends(current_user),
+) -> Ordering:
+    """The entries an ordered finding rests on, oldest occasion first.
+
+    404 for a pattern found by any other detector. Only this one claims that one
+    thing was written before another, so only this one owes the evidence.
+    """
+    ordering = await patterns_db.ordering_for_pattern(request.app.state.pool, user_id, pattern_id)
+    if ordering is None:
+        raise HTTPException(status_code=404, detail="not found")
+    return Ordering(**ordering)
 
 
 @router.post("/mine")

@@ -53,7 +53,7 @@ async def find(pool: asyncpg.Pool, user_id: UUID, conversation_id: UUID) -> dict
 
     turns = await pool.fetch(
         """
-        SELECT id, speaker, content, source, spoken_at, observation_id
+        SELECT id, speaker, content, source, spoken_at, timezone, observation_id
         FROM conversation_turns
         WHERE conversation_id = $1 AND user_id = $2
         ORDER BY spoken_at, id
@@ -75,6 +75,7 @@ async def find(pool: asyncpg.Pool, user_id: UUID, conversation_id: UUID) -> dict
                 "content": t["content"],
                 "source": t["source"],
                 "spoken_at": t["spoken_at"],
+                "timezone": t["timezone"],
                 # Present only once the conversation is closed and this turn was
                 # converted. Lets the client link a turn to its explain screen.
                 "observation_id": str(t["observation_id"]) if t["observation_id"] else None,
@@ -91,13 +92,14 @@ async def add_turn(
     speaker: str,
     content: str,
     source: str = "text",
+    timezone: str | None = None,
 ) -> dict:
     turn_id = uuid4()
     row = await pool.fetchrow(
         """
         INSERT INTO conversation_turns
-            (id, conversation_id, user_id, speaker, content, source)
-        VALUES ($1, $2, $3, $4, $5, $6)
+            (id, conversation_id, user_id, speaker, content, source, timezone)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING id, speaker, content, source, spoken_at
         """,
         turn_id,
@@ -106,6 +108,7 @@ async def add_turn(
         speaker,
         content.strip(),
         source,
+        timezone,
     )
     return {
         "id": str(row["id"]),
@@ -154,6 +157,9 @@ async def close(pool: asyncpg.Pool, user_id: UUID, conversation_id: UUID) -> dic
             # The moment it was said, not the moment the conversation ended, so
             # it lands on the right day in the summary.
             captured_at=turn["spoken_at"],
+            # The zone it was said in, so a late-night turn lands on the day the
+            # person had, not the day the server was having.
+            timezone=turn["timezone"],
         )
         await observations_db.insert(pool, user_id, new)
         await pool.execute(

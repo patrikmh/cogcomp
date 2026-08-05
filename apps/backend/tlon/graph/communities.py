@@ -307,3 +307,89 @@ async def list_for_user(pool: asyncpg.Pool, user_id: UUID) -> list[dict]:
         }
         for row in rows
     ]
+
+
+async def detail(pool: asyncpg.Pool, user_id: UUID, theme_id: UUID) -> dict | None:
+    """One theme, with its members and the associations that formed it.
+
+    The associations are the point. A theme is a *community* — it exists because
+    those things kept turning up in the same entries, and without the edges the
+    membership list is a claim with its working hidden. Every member is returned
+    with its node id so the reader can open any of them and follow it back to
+    the entries it came from, which is the only way this claim is checkable.
+    """
+    row = await pool.fetchrow(
+        """
+        SELECT n.id, n.label, n.confidence, n.epistemic_status, n.created_at,
+               t.detector, t.first_seen_at, t.last_confirmed_at, t.member_count
+        FROM graph_nodes n
+        JOIN themes t ON t.node_id = n.id
+        WHERE n.id = $1 AND n.user_id = $2 AND n.kind = 'Theme' AND n.deleted_at IS NULL
+        """,
+        theme_id,
+        user_id,
+    )
+    if row is None:
+        return None
+
+    members = await pool.fetch(
+        """
+        SELECT m.id, m.kind, m.label, m.confidence, m.epistemic_status
+        FROM theme_members tm
+        JOIN graph_nodes m ON m.id = tm.node_id
+        WHERE tm.theme_id = $1 AND m.user_id = $2 AND m.deleted_at IS NULL
+        ORDER BY m.label
+        """,
+        theme_id,
+        user_id,
+    )
+    member_ids = [member["id"] for member in members]
+
+    # Only associations *within* the region. An edge to something outside it is
+    # true but not part of why these things are one theme.
+    links = await pool.fetch(
+        """
+        SELECT e.from_id, e.to_id, e.confidence
+        FROM graph_edges e
+        WHERE e.user_id = $1
+          AND e.kind = 'CO_OCCURS_WITH'
+          AND e.deleted_at IS NULL
+          AND e.epistemic_status <> 'user_rejected'
+          AND e.from_id = ANY($2::uuid[])
+          AND e.to_id = ANY($2::uuid[])
+        ORDER BY e.confidence DESC
+        """,
+        user_id,
+        member_ids,
+    )
+
+    return {
+        "id": str(row["id"]),
+        "label": row["label"],
+        "confidence": row["confidence"],
+        "epistemic_status": row["epistemic_status"],
+        "detector": row["detector"],
+        "first_seen_at": row["first_seen_at"],
+        "last_confirmed_at": row["last_confirmed_at"],
+        "member_count": row["member_count"],
+        "tentative": row["confidence"] < 0.5,
+        "created_at": row["created_at"],
+        "members": [
+            {
+                "id": str(member["id"]),
+                "kind": member["kind"],
+                "label": member["label"],
+                "confidence": member["confidence"],
+                "epistemic_status": member["epistemic_status"],
+            }
+            for member in members
+        ],
+        "associations": [
+            {
+                "from_id": str(link["from_id"]),
+                "to_id": str(link["to_id"]),
+                "confidence": link["confidence"],
+            }
+            for link in links
+        ],
+    }

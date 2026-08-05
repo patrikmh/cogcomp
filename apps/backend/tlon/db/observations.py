@@ -30,6 +30,7 @@ def _to_observation(row: asyncpg.Record) -> Observation:
         source=Source(row["source"]),
         captured_at=row["captured_at"],
         created_at=row["created_at"],
+        timezone=row["timezone"],
         deleted_at=row["deleted_at"],
     )
 
@@ -55,14 +56,16 @@ async def insert(pool: asyncpg.Pool, user_id: UUID, new: NewObservation) -> Obse
         )
         await conn.execute(
             """
-            INSERT INTO observations (node_id, user_id, content, source, captured_at)
-            VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO observations
+                (node_id, user_id, content, source, captured_at, timezone)
+            VALUES ($1, $2, $3, $4, $5, $6)
             """,
             new.id,
             user_id,
             new.content,
             str(new.source),
             captured_at,
+            new.timezone,
         )
 
     return Observation(
@@ -72,11 +75,12 @@ async def insert(pool: asyncpg.Pool, user_id: UUID, new: NewObservation) -> Obse
         source=new.source,
         captured_at=captured_at,
         created_at=created_at,
+        timezone=new.timezone,
     )
 
 
 _SELECT = """
-    SELECT o.node_id, o.user_id, o.content, o.source, o.captured_at,
+    SELECT o.node_id, o.user_id, o.content, o.source, o.captured_at, o.timezone,
            n.created_at, n.deleted_at
     FROM observations o
     JOIN graph_nodes n ON n.id = o.node_id

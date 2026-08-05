@@ -20,10 +20,13 @@ async def upload(
     audio: bytes = AUDIO,
     filename: str = "recording.m4a",
     captured_at: str | None = None,
+    timezone: str | None = None,
 ):
     data = {"id": observation_id or str(uuid4())}
     if captured_at:
         data["captured_at"] = captured_at
+    if timezone:
+        data["timezone"] = timezone
     return await client.post(
         "/v1/observations/voice",
         headers=account.auth,
@@ -37,6 +40,12 @@ class TestVoiceCapture:
         response = await upload(client, account)
         assert response.status_code == 201, response.text
         assert response.json()["source"] == "voice"
+
+    async def test_a_spoken_entry_keeps_its_timezone_like_a_typed_one(
+        self, client: AsyncClient, account: Account
+    ):
+        response = await upload(client, account, timezone="Europe/Stockholm")
+        assert response.json()["timezone"] == "Europe/Stockholm"
 
     async def test_the_transcript_is_the_content(self, client: AsyncClient, account: Account):
         response = await upload(client, account)

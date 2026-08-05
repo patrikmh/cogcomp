@@ -10,7 +10,7 @@ import { colors } from "@/theme";
 /**
  * Settings.
  *
- * Four switches and a way out. Everything that used to sit in the main navigation
+ * Two switches and a way out. Everything that used to sit in the main navigation
  * because it had nowhere else to go now lives either here or behind the developer
  * switch — a journal should not open onto a control panel.
  *

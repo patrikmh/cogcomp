@@ -37,8 +37,9 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
+from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from uuid import UUID
 
 from tlon.domain.inference import derived_confidence
@@ -107,7 +108,29 @@ class Candidate:
     label: str
     confidence: float
     observation_id: UUID
+    #: The day this belongs to in the writer's own calendar where that is known,
+    #: and in UTC where it is not.
     observed_on: date
+    #: Whether `observed_on` came from a timezone the person actually recorded.
+    #: False for everything written before entries carried one, which is why the
+    #: calendar detectors still hedge their labels on that evidence.
+    zoned: bool = False
+    #: The moment it was written, in the same calendar as `observed_on`. Every
+    #: detector above the day level ignores it; the within-day one cannot exist
+    #: without it. Optional so a detector that only needs days can build a
+    #: Candidate without inventing a time.
+    observed_at: datetime | None = None
+
+
+def calendar_note(members: Iterable[Candidate]) -> str:
+    """The hedge a calendar claim owes its reader.
+
+    A weekday or a gap between days is only a fact about the person's week if
+    the days were counted in their own timezone. While any of the evidence
+    predates timezone capture, the claim says so; once all of it carries a zone,
+    the hedge disappears rather than being repeated out of habit.
+    """
+    return "" if all(member.zoned for member in members) else " (UTC)"
 
 
 @dataclass(frozen=True)

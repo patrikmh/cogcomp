@@ -18,11 +18,18 @@ async def start(client: AsyncClient, account: Account) -> str:
     return response.json()["id"]
 
 
-async def say(client: AsyncClient, account: Account, cid: str, text: str, source="text"):
+async def say(
+    client: AsyncClient,
+    account: Account,
+    cid: str,
+    text: str,
+    source="text",
+    timezone: str | None = None,
+):
     return await client.post(
         f"/v1/conversations/{cid}/turns",
         headers=account.auth,
-        json={"content": text, "source": source},
+        json={"content": text, "source": source, "timezone": timezone},
     )
 
 
@@ -148,6 +155,21 @@ class TestOnlyUserTurnsBecomeObservations:
                 assert turn["observation_id"]
             else:
                 assert turn["observation_id"] is None
+
+    async def test_a_turn_carries_its_timezone_into_the_entry_it_becomes(
+        self, client: AsyncClient, account: Account
+    ):
+        # The turn is the moment that becomes an entry, so the zone travels with
+        # the turn rather than with the conversation: a conversation left open
+        # across a flight would otherwise date its later turns from where it
+        # started.
+        cid = await start(client, account)
+        await say(client, account, cid, "I said this at midnight", timezone="Europe/Stockholm")
+        await client.post(f"/v1/conversations/{cid}/close", headers=account.auth)
+
+        listed = await client.get("/v1/observations", headers=account.auth)
+
+        assert listed.json()["observations"][0]["timezone"] == "Europe/Stockholm"
 
     async def test_a_spoken_turn_is_recorded_as_a_voice_observation(
         self, client: AsyncClient, account: Account

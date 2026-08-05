@@ -20,7 +20,7 @@ def test_the_generic_recurrence_does_not_satisfy_periodicity_truth():
 
 def test_an_unplanted_periodicity_is_reported():
     tracks = {
-        ("weekday-utc", "Emotion:dread:weekday:1"): Track(
+        ("weekday", "Emotion:dread:weekday:1"): Track(
             first_reported_day=24,
             node_ids={"invented"},
             live_days=[24],

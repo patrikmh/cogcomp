@@ -45,6 +45,27 @@ def graphiti_uuid(node_id: UUID) -> str:
     return str(uuid5(_NAMESPACE, str(node_id)))
 
 
+def association_uuid(a: UUID, b: UUID) -> str:
+    """The Graphiti uuid for the association between two nodes.
+
+    Derived from the *pair*, not from the Postgres edge id, and this is
+    load-bearing rather than tidy. Two things can accumulate more than one
+    association row in Postgres — a second run of the detector, a row left by an
+    older version — and projecting each of them would leave the graph store with
+    two edges between the same two nodes. Graphiti clusters with label
+    propagation, which does not terminate when a node sees the same neighbour
+    twice: the two communities swap places forever, and the caller is a
+    background agent with no timeout.
+
+    Keying on the pair makes a duplicate impossible to express. Whichever row
+    the read happens to pick, it lands on the same edge and replaces it. Nothing
+    maps a projected edge back to a Postgres row — Postgres is authoritative and
+    the projection is disposable — so the edge id is free to mean "this pair".
+    """
+    first, second = sorted((str(a), str(b)))
+    return str(uuid5(_NAMESPACE, f"{first}|{second}"))
+
+
 def group_id(user_id: UUID) -> str:
     """Graphiti's isolation unit, one per person.
 
@@ -78,16 +99,32 @@ async def _live_edges(pool: asyncpg.Pool, user_id: UUID) -> list[asyncpg.Record]
     right and only sound basis for community structure: a community built partly
     from causal hypotheses would launder them into something that looks like an
     established region of someone's life.
+
+    **One edge per pair, and this is load-bearing.** Graphiti clusters with label
+    propagation, and that algorithm does not terminate when a node sees the same
+    neighbour across two or more edges — it swaps the two communities back and
+    forth forever. A pair, a path of three, a star and a four-cycle all hang on a
+    doubled edge; only single-edge shapes converge. The co-occurrence detector
+    already writes one row per unordered pair, so today this holds by
+    construction — but "holds by construction somewhere else" is not a property,
+    and the thing it protects is a background agent with no timeout, which would
+    spin a core until the process was killed. `DISTINCT ON` makes it a property
+    of the projection itself, whatever ends up upstream of it.
     """
     return await pool.fetch(
         """
-        SELECT e.id, e.from_id, e.to_id, e.confidence, a.label AS a_label, b.label AS b_label
+        SELECT DISTINCT ON (least(e.from_id, e.to_id), greatest(e.from_id, e.to_id))
+               e.id, e.from_id, e.to_id, e.confidence,
+               a.label AS a_label, b.label AS b_label
         FROM graph_edges e
         JOIN graph_nodes a ON a.id = e.from_id
         JOIN graph_nodes b ON b.id = e.to_id
         WHERE e.user_id = $1 AND e.kind = $2 AND e.deleted_at IS NULL
           AND a.deleted_at IS NULL AND b.deleted_at IS NULL
           AND e.epistemic_status <> 'user_rejected'
+        -- Deterministic pick among duplicates: the same run twice must project
+        -- the same edge, or a theme's membership would wobble between runs.
+        ORDER BY least(e.from_id, e.to_id), greatest(e.from_id, e.to_id), e.id
         """,
         user_id,
         str(EdgeKind.CO_OCCURS_WITH),
@@ -124,7 +161,7 @@ async def project(pool: asyncpg.Pool, user_id: UUID, graphiti: Graphiti) -> dict
 
     for row in edge_rows:
         edge = EntityEdge(
-            uuid=graphiti_uuid(row["id"]),
+            uuid=association_uuid(row["from_id"], row["to_id"]),
             group_id=group,
             source_node_uuid=graphiti_uuid(row["from_id"]),
             target_node_uuid=graphiti_uuid(row["to_id"]),

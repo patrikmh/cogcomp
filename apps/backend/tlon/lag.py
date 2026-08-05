@@ -1,7 +1,10 @@
 """Things that repeatedly appear in the same order on nearby writing days.
 
 This detector measures precedence, never cause.  A finding says only that one
-thing was written about a fixed number of UTC calendar days before another.
+thing was written about a fixed number of calendar days before another. Days are
+counted in the timezone each entry was written in, falling back to UTC for
+entries captured before the app recorded one — and a finding resting on any of
+those says "(UTC)" rather than implying it knows the person's own calendar.
 Missing journal days are unknown: a source day contributes to the denominator
 only when the person also wrote on the comparison day.
 """
@@ -22,10 +25,12 @@ from tlon.patterns import (
     RECENCY_DAYS,
     Candidate,
     MinedPattern,
+    calendar_note,
     normalise,
 )
 
-DETECTOR = "lag-utc"
+#: Named for what it measures, not for whose calendar it had. See `calendar_note`.
+DETECTOR = "lag"
 VERSION = "lag-v0.1"
 LAGS = (1, 2, 3)
 MIN_MATCHES = 4
@@ -58,6 +63,10 @@ class LagFinding:
     pairs: tuple[LagMatch, ...]
     lift: float
     precision: float
+    #: "" when every contributing entry recorded its timezone, " (UTC)" while any
+    #: of them predates that. Carried on the finding because the label is built
+    #: from it and the pairs no longer know where they came from.
+    note: str = " (UTC)"
 
     @property
     def matches(self) -> int:
@@ -77,6 +86,7 @@ class _Item:
     label: str
     confidence: float
     by_day: dict[date, tuple[UUID, ...]]
+    note: str
 
     @property
     def days(self) -> frozenset[date]:
@@ -105,6 +115,7 @@ def _items(candidates: list[Candidate]) -> list[_Item]:
                 by_day={
                     day: tuple(sorted(observation_ids)) for day, observation_ids in by_day.items()
                 },
+                note=calendar_note(members),
             )
         )
     return sorted(items, key=lambda item: (str(item.kind), normalise(item.label)))
@@ -128,8 +139,10 @@ def _candidate(
     if len(matched_source_days) < MIN_MATCHES:
         return None
     if len(source.days & target.days) >= MIN_MATCHES:
-        # A strong same-day relationship belongs to co-occurrence. Repeated
-        # entries can otherwise make its next cycle look directional.
+        # A strong same-day relationship is not this detector's finding: if the
+        # two land on the same day that often, what looks like a one-day lag is
+        # the next cycle of something happening within a day. Same-day adjacency
+        # belongs to co-occurrence, and same-day *ordering* to `sameday.py`.
         return None
     if len({day.isocalendar()[:2] for day in matched_source_days}) < MIN_MATCH_WEEKS:
         return None
@@ -178,6 +191,9 @@ def _candidate(
         pairs=pairs,
         lift=lift,
         precision=precision,
+        # Either side being unzoned is enough to hedge: the gap between them is
+        # only as local as its vaguer end.
+        note=source.note or target.note,
     )
 
 
@@ -252,7 +268,7 @@ def describe(finding: LagFinding) -> str:
     times = "time" if finding.matches == 1 else "times"
     return (
         f"{finding.source_label} came up {finding.lag_days} {day} before "
-        f"{finding.target_label} · {finding.matches} {times} (UTC)"
+        f"{finding.target_label} · {finding.matches} {times}{finding.note}"
     )
 
 

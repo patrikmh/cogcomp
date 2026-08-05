@@ -240,7 +240,7 @@ async def replay(days: int) -> dict:
                 track.live_days.append(day)
 
                 detector, key = identity
-                if detector == "lag-utc":
+                if detector == "lag":
                     lag_track = lag_tracks[key]
                     if lag_track.first_reported_day is None:
                         lag_track.first_reported_day = day
@@ -328,7 +328,7 @@ def _periodicity_report(
     reported = {
         key: track.first_reported_day
         for (detector, key), track in tracks.items()
-        if detector == "weekday-utc" and track.first_reported_day is not None
+        if detector == "weekday" and track.first_reported_day is not None
     }
     expected = {
         key: thread

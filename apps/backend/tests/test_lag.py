@@ -24,6 +24,7 @@ class Journal:
         kind: NodeKind,
         label: str,
         confidence: float = 0.8,
+        zoned: bool = False,
     ) -> None:
         observed_on = START + timedelta(days=day)
         self.observed_days.add(observed_on)
@@ -35,6 +36,7 @@ class Journal:
                 confidence=confidence,
                 observation_id=uuid4(),
                 observed_on=observed_on,
+                zoned=zoned,
             )
         )
 
@@ -167,6 +169,32 @@ def test_description_states_order_without_cause():
     assert text == "sleeping badly came up 1 day before foggy · 4 times (utc)"
     for causal_word in ("because", "cause", "trigger", "leads to", "makes", "due to"):
         assert causal_word not in text
+
+
+def test_the_utc_hedge_goes_away_once_both_sides_know_their_timezone():
+    journal = Journal()
+    for day in MATCH_DAYS:
+        journal.write(day, NodeKind.ACTIVITY, "sleeping badly", zoned=True)
+        journal.write(day + 1, NodeKind.EMOTION, "foggy", zoned=True)
+    journal.blank(*range(32))
+
+    text = describe(mine(journal.candidates, journal.observed_days)[0])
+
+    assert text == "sleeping badly came up 1 day before foggy · 4 times"
+
+
+def test_an_unzoned_side_keeps_the_hedge():
+    # A gap is only as local as its vaguer end: if either thing was written
+    # before the app recorded a zone, the day count is still the server's.
+    journal = Journal()
+    for day in MATCH_DAYS:
+        journal.write(day, NodeKind.ACTIVITY, "sleeping badly", zoned=True)
+        journal.write(day + 1, NodeKind.EMOTION, "foggy")
+    journal.blank(*range(32))
+
+    text = describe(mine(journal.candidates, journal.observed_days)[0])
+
+    assert text.endswith("· 4 times (UTC)")
 
 
 def test_to_pattern_preserves_lag_claim_and_pair_count():

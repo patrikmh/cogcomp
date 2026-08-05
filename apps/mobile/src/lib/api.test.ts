@@ -31,6 +31,41 @@ describe("experiment API wrappers", () => {
   });
 });
 
+describe("capture carries the device timezone", () => {
+  const fetchMock = jest.fn();
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    global.fetch = fetchMock as unknown as typeof fetch;
+  });
+
+  // Attached inside the client rather than by each screen: a day is a local
+  // fact, and a capture path that forgot to say where it happened would put the
+  // entry on the wrong day for anyone writing late at night.
+  it("sends the zone with a typed entry", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({}, 201));
+
+    await api.createObservation("token", {
+      id: "entry-1",
+      content: "late one tonight",
+      source: "text",
+      capturedAt: "2026-03-05T23:30:00.000Z",
+    });
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.timezone).toBe(Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
+  });
+
+  it("sends the zone with a conversation turn", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ reply: "mm" }));
+
+    await api.say("token", "conversation-1", "I said this at midnight");
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.timezone).toBe(Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
+  });
+});
+
 describe("patterns and agent API wrappers", () => {
   const fetchMock = jest.fn();
 
@@ -50,6 +85,27 @@ describe("patterns and agent API wrappers", () => {
         Authorization: "Bearer token",
       },
     });
+  });
+
+  it("fetches the ordered evidence behind one pattern", async () => {
+    const ordering = {
+      pattern_id: "pattern-1",
+      label: "sleeping badly came up 1 day before foggy · 4 times (UTC)",
+      lag_days: 1,
+      occasions: [],
+    };
+    fetchMock.mockResolvedValue(jsonResponse(ordering));
+
+    expect(await api.patternOrdering("token", "pattern-1")).toEqual(ordering);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:8080/v1/patterns/pattern-1/ordering",
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer token",
+        },
+      },
+    );
   });
 
   it("mines patterns with POST and preserves the mining response", async () => {

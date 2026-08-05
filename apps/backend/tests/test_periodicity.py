@@ -25,6 +25,7 @@ def candidate(
     *,
     kind: NodeKind = NodeKind.EMOTION,
     confidence: float = 0.8,
+    zoned: bool = False,
 ) -> Candidate:
     return Candidate(
         node_id=uuid4(),
@@ -33,6 +34,7 @@ def candidate(
         confidence=confidence,
         observation_id=uuid4(),
         observed_on=START + timedelta(days=offset),
+        zoned=zoned,
     )
 
 
@@ -58,6 +60,33 @@ class TestWhatCountsAsWeekdayPeriodicity:
 
         assert len(patterns) == 1
         assert patterns[0].key == "Emotion:drained:weekday:3"
+        # Hedged, because none of these entries recorded the zone they were
+        # written in — so "Thursdays" is the server's week, not the person's.
+        assert patterns[0].label == "drained · Thursdays (UTC)"
+
+    def test_the_hedge_goes_away_once_every_entry_knows_its_timezone(self):
+        members = [
+            candidate("drained", 3 + week * 7, zoned=True) for week in range(MIN_OCCURRENCES)
+        ]
+        patterns = mine_weekdays(
+            members,
+            {member.observed_on for member in members} | comparison_days(),
+        )
+
+        assert patterns[0].label == "drained · Thursdays"
+
+    def test_one_unzoned_entry_is_enough_to_keep_the_hedge(self):
+        # The claim is only as local as its vaguest evidence, and a label that
+        # dropped the hedge here would be asserting something about the person's
+        # week that one of its own entries cannot support.
+        members = [
+            candidate("drained", 3 + week * 7, zoned=week > 0) for week in range(MIN_OCCURRENCES)
+        ]
+        patterns = mine_weekdays(
+            members,
+            {member.observed_on for member in members} | comparison_days(),
+        )
+
         assert patterns[0].label == "drained · Thursdays (UTC)"
 
     def test_three_matching_weekdays_are_not_enough(self):

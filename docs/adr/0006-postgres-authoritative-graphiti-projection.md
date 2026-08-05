@@ -68,10 +68,23 @@ configuration, and separate safety decision.
   identity, and user verdict behavior of other derived claims.
 - The deterministic embedder must never be used as evidence that semantic search
   works. It exists only to satisfy Graphiti's storage interface.
-- Graphiti-dependent pytest cases remain skipped because FalkorDB's synchronous
-  cluster probe deadlocks inside pytest's running event loop. The same projection,
-  idempotence, clustering, and isolation paths have been exercised against live
-  FalkorDB outside that harness.
+- Graphiti-dependent pytest cases run against a live FalkorDB (2026-08-04). They
+  were previously skipped on the belief that FalkorDB's synchronous cluster probe
+  deadlocked inside pytest's running event loop; that is no longer true of the
+  pinned client, which builds in milliseconds inside a running loop.
+- **The projection must emit at most one edge per pair, and this is load-bearing.**
+  Graphiti clusters with label propagation, which does not terminate when a node
+  sees the same neighbour across two or more edges — the two communities swap
+  forever. A pair, a path of three, a star and a four-cycle all hang on a doubled
+  edge; only single-edge shapes converge. The co-occurrence detector already
+  writes one row per unordered pair, so this held by construction, but the caller
+  is a background agent with no timeout, so it is enforced twice: `_live_edges`
+  deduplicates the read with a deterministic `DISTINCT ON`, and the projected
+  edge's uuid is derived from the *pair* rather than from a Postgres row id, so
+  a second edge between the same two nodes cannot be expressed. The second guard
+  is the necessary one — deduplicating each run still let two runs that picked
+  different duplicate rows leave two edges behind. Anything that later projects
+  a second edge kind must preserve that invariant or bound the clustering call.
 - `redis` remains pinned below 8 while FalkorDB 1.6.2 passes an async-only
   connection argument to the synchronous Redis client.
 

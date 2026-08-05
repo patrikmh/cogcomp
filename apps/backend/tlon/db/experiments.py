@@ -176,7 +176,7 @@ async def edit(pool, user_id, experiment_id, revision, data):
             data.timezone,
             data.cadence,
         )
-    return _item(row)
+        return await _detail_conn(conn, user_id, experiment_id)
 
 
 async def set_state(
@@ -226,13 +226,17 @@ async def set_state(
                 note,
                 final_checkin_observation_id,
             )
-        row = await conn.fetchrow(
-            f"UPDATE experiments SET state=$3,revision=revision+1,updated_at=now() WHERE id=$2 AND user_id=$1 RETURNING {_FIELDS}",
+        await conn.execute(
+            "UPDATE experiments SET state=$3,revision=revision+1,updated_at=now() WHERE id=$2 AND user_id=$1",
             user_id,
             experiment_id,
             target,
         )
-    return _item(row)
+        # The whole experiment, not the bare row. A mutation answers with the
+        # same shape a read does, because the client writes this response into
+        # the cache the screen renders from — a reply without `outcome`,
+        # `links` or `checkins` does not omit them, it erases them.
+        return await _detail_conn(conn, user_id, experiment_id)
 
 
 async def soft_delete(pool, user_id, experiment_id, revision):

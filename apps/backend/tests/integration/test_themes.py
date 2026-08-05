@@ -24,32 +24,31 @@ pytestmark = [
     pytest.mark.anyio,
     pytest.mark.integration,
     pytest.mark.graph,
-    # KNOWN ISSUE — these hang rather than fail, so they are skipped by default.
-    #
-    # `FalkorDB.__init__` runs a *synchronous* `Is_Cluster` probe (a blocking
-    # redis call) while constructing the async client. Under `asyncio.run` that
-    # is merely rude; inside pytest's already-running loop it never returns. The
-    # same code paths are verified to work — projection, clustering, idempotence
-    # and user isolation were all exercised against a live FalkorDB — so this is
-    # a harness problem rather than a product one, and the tests below are
-    # correct and ready for when it is fixed.
-    #
-    # Fix is likely to construct the driver in a worker thread, or pass a
-    # pre-built `falkor_db` instance to `FalkorDriver`, which skips the probe.
-    pytest.mark.skip(reason="FalkorDB client deadlocks inside pytest's event loop"),
 ]
 
 DAY_ONE = datetime(2026, 3, 1, 9, 0, tzinfo=UTC)
 
 
-async def ring(pool: asyncpg.Pool, account: Account, labels: list[str]) -> dict[str, UUID]:
+async def ring(
+    pool: asyncpg.Pool,
+    account: Account,
+    labels: list[str],
+    existing: dict[str, UUID] | None = None,
+) -> dict[str, UUID]:
     """A set of nodes wired into a cycle of associations.
 
     A ring rather than a star: every member has two neighbours, so the community
     is unambiguous and the test is not really testing a clustering tie-break.
+
+    `existing` names things the person already had. Without it a second call
+    builds a *parallel* region out of new nodes that happen to share labels,
+    which is a different claim from the one under test: a region gaining a
+    member is the same region, and only reusing the ids says that.
     """
-    nodes: dict[str, UUID] = {}
+    nodes: dict[str, UUID] = dict(existing or {})
     for label in labels:
+        if label in nodes:
+            continue
         node_id = uuid4()
         await pool.execute(
             """
@@ -63,7 +62,7 @@ async def ring(pool: asyncpg.Pool, account: Account, labels: list[str]) -> dict[
         )
         nodes[label] = node_id
 
-    ids = list(nodes.values())
+    ids = [nodes[label] for label in labels]
     for index, from_id in enumerate(ids):
         to_id = ids[(index + 1) % len(ids)]
         await pool.execute(
@@ -142,14 +141,19 @@ class TestDurableIdentity:
     async def test_a_theme_keeps_its_id_as_the_region_grows(
         self, pool: asyncpg.Pool, account: Account
     ):
-        await ring(pool, account, ["dread", "the office", "sleeping badly", "my manager"])
+        members = await ring(pool, account, ["dread", "the office", "sleeping badly", "my manager"])
         clusters = await run_clustering(pool, account)
         await communities.reconcile(pool, account.user_id, clusters)
         original = (await communities.list_for_user(pool, account.user_id))[0]
 
         # The region gains a member. It is the same region with one more thing in
         # it, not a different one that happens to look similar.
-        await ring(pool, account, ["dread", "the office", "sleeping badly", "the commute"])
+        await ring(
+            pool,
+            account,
+            ["dread", "the office", "sleeping badly", "the commute"],
+            existing=members,
+        )
         clusters = await run_clustering(pool, account)
         result = await communities.reconcile(pool, account.user_id, clusters)
 
@@ -176,6 +180,80 @@ class TestDurableIdentity:
             "SELECT epistemic_status FROM graph_nodes WHERE id = $1", theme_id
         )
         assert status == "user_rejected"
+
+
+class TestTheProjectionCannotHangClustering:
+    """One projected edge per pair, because clustering does not survive two.
+
+    Graphiti clusters with label propagation, and that algorithm does not
+    terminate when a node sees the same neighbour twice — the two communities
+    swap places forever. It is not an exotic shape either: a pair, a path of
+    three, a star and a four-cycle all hang on a doubled edge. The projection is
+    where that is prevented, because it is the last place this codebase controls
+    before the loop starts, and the caller is a background agent with no timeout.
+    """
+
+    async def test_a_doubled_association_reaches_the_graph_store_once(
+        self, pool: asyncpg.Pool, account: Account
+    ):
+        members = await ring(pool, account, ["dread", "the office", "sleeping badly"])
+        # The same three things associated again — a second run of the detector,
+        # or a row left over from an older version of it.
+        await ring(pool, account, ["dread", "the office", "sleeping badly"], existing=members)
+
+        edges = await pool.fetchval(
+            "SELECT count(*) FROM graph_edges WHERE user_id = $1 AND kind = 'CO_OCCURS_WITH'",
+            account.user_id,
+        )
+        projected = await projection._live_edges(pool, account.user_id)
+
+        assert edges == 6, "the fixture must actually duplicate the associations"
+        assert len(projected) == 3
+        # And it still terminates and still finds the region.
+        clusters = await run_clustering(pool, account)
+        assert len(clusters) == 1
+        assert len(clusters[0]) == 3
+
+    async def test_a_duplicated_association_lands_on_one_edge_in_the_graph_store(
+        self, pool: asyncpg.Pool, account: Account
+    ):
+        # Deduplicating the read is not enough on its own: each run picks one row
+        # and, if the projected edge were keyed on that row's id, a later run
+        # picking a different duplicate would leave *two* edges between the same
+        # pair in FalkorDB — which is the shape label propagation cannot finish.
+        # Keying on the pair makes the second edge impossible to express.
+        members = await ring(pool, account, ["dread", "the office", "sleeping badly"])
+        await run_clustering(pool, account)
+        await ring(pool, account, ["dread", "the office", "sleeping badly"], existing=members)
+        await run_clustering(pool, account)
+
+        graphiti = graphiti_client.build()
+        try:
+            records, _, _ = await graphiti.driver.execute_query(
+                """
+                MATCH (n:Entity {group_id: $group})-[e:RELATES_TO]-(m:Entity {group_id: $group})
+                RETURN count(e) AS edges
+                """,
+                group=projection.group_id(account.user_id),
+            )
+        finally:
+            await graphiti.close()
+
+        # Three pairs, counted from both ends.
+        assert records[0]["edges"] == 6
+
+    async def test_the_same_duplicate_projects_the_same_edge_every_run(
+        self, pool: asyncpg.Pool, account: Account
+    ):
+        # A theme's membership must not wobble between runs because the
+        # projection picked a different duplicate to keep.
+        members = await ring(pool, account, ["dread", "the office", "sleeping badly"])
+        await ring(pool, account, ["dread", "the office", "sleeping badly"], existing=members)
+
+        first = [row["id"] for row in await projection._live_edges(pool, account.user_id)]
+        second = [row["id"] for row in await projection._live_edges(pool, account.user_id)]
+
+        assert first == second
 
 
 class TestWhatTheDatabaseEnforces:

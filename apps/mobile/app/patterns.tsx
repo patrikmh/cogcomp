@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { Observatory, Readout } from "@/components/Observatory";
 import { api, type Pattern } from "@/lib/api";
+import { patternDestination, patternMeta } from "@/lib/patterns";
 import { useSession } from "@/state/session";
 
 /**
@@ -71,9 +72,10 @@ export default function PatternsScreen() {
           <Readout
             tone="pattern"
             label={current.label}
-            meta={`${current.occurrences} ${current.occurrences === 1 ? "entry" : "entries"} · ${Math.round(current.confidence * 100)}% confident`}
+            meta={patternMeta(current)}
             tentative={current.tentative}
-            onOpen={() => router.push(`/node/${current.id}`)}
+            openLabel={patternDestination(current).label}
+            onOpen={() => router.push(patternDestination(current).href)}
           />
         )
       }

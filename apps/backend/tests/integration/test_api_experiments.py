@@ -88,6 +88,74 @@ class TestExperimentAPI:
         )
         assert stale.status_code == 409
 
+    async def test_a_transition_answers_with_the_whole_experiment(self, client, account: Account):
+        """A transition returns what `GET` returns, not a thinner object.
+
+        The client writes this response straight into its cache, so a reply
+        missing `outcome`, `links` or `checkins` does not just omit them — it
+        erases them from the screen the person is looking at. Completing an
+        experiment appeared to do nothing at all until they navigated away and
+        back, because the outcome they had just recorded was not in the answer.
+        """
+        created = await create(client, account)
+        experiment_id = created["id"]
+        observation_id = str(uuid4())
+        assert (
+            await client.post(
+                "/v1/observations",
+                headers=account.auth,
+                json={"id": observation_id, "content": "walked today", "source": "text"},
+            )
+        ).status_code == 201
+
+        started = await client.post(
+            f"/v1/experiments/{experiment_id}/start",
+            headers=account.auth,
+            json={"revision": 0},
+        )
+        assert started.status_code == 200
+        attached = await client.post(
+            f"/v1/experiments/{experiment_id}/checkins",
+            headers=account.auth,
+            json={"observation_id": observation_id, "revision": started.json()["revision"]},
+        )
+        assert attached.status_code == 200, attached.text
+        assert len(attached.json()["checkins"]) == 1
+
+        paused = await client.post(
+            f"/v1/experiments/{experiment_id}/pause",
+            headers=account.auth,
+            json={"revision": attached.json()["revision"]},
+        )
+        assert paused.status_code == 200
+        # The check-in did not go anywhere just because the state changed.
+        assert len(paused.json()["checkins"]) == 1
+
+        resumed = await client.post(
+            f"/v1/experiments/{experiment_id}/resume",
+            headers=account.auth,
+            json={"revision": paused.json()["revision"]},
+        )
+        completed = await client.post(
+            f"/v1/experiments/{experiment_id}/complete",
+            headers=account.auth,
+            json={
+                "revision": resumed.json()["revision"],
+                "assessment": "met",
+                "final_checkin_observation_id": observation_id,
+            },
+        )
+
+        assert completed.status_code == 200, completed.text
+        body = completed.json()
+        assert body["state"] == "completed"
+        assert body["outcome"]["assessment"] == "met"
+        assert body["outcome"]["final_checkin_observation_id"] == observation_id
+        assert len(body["checkins"]) == 1
+        # And it is the same object a fresh read gives.
+        fresh = await client.get(f"/v1/experiments/{experiment_id}", headers=account.auth)
+        assert fresh.json() == body
+
     async def test_other_user_cannot_read_or_mutate(
         self, client, account: Account, other_account: Account
     ):

@@ -62,6 +62,21 @@ snapshot_contains() {
   grep -qF "$1" "$(latest_snapshot)" 2>/dev/null
 }
 
+# The ref of the thing you tap to reach some text.
+#
+# A card's label is often a `- text:` child of the pressable rather than the
+# pressable itself, and a child line carries no ref of its own — so matching the
+# label and grepping the same line for a ref finds nothing. Walking back to the
+# nearest ref at or above the match lands on the node that actually handles the
+# press. `ref_for` still exists for labels that sit on the pressable directly.
+ref_for_tappable() {
+  local label="$1" snapshot line
+  snapshot="$(latest_snapshot)"
+  line="$(grep -nF "$label" "$snapshot" 2>/dev/null | tail -1 | cut -d: -f1)"
+  [ -n "$line" ] || return 1
+  sed -n "1,${line}p" "$snapshot" | grep -oE 'ref=e[0-9]+' | tail -1 | cut -d= -f2
+}
+
 # Experiment screens intentionally name the safety boundary. Allow those negated
 # disclosures, but reject affirmative tracking or medical language.
 experiment_language_clean() {
@@ -273,7 +288,7 @@ snapshot_has_section "Less sure about" \
 
 # The footnote promises this. It is the concrete form of "every inference must be
 # explainable", so it is the single most important thing in the app to verify.
-GUESS_REF="$(grep -F 'I told Sara' "$(latest_snapshot)" | tail -1 | grep -oE 'ref=e[0-9]+' | cut -d= -f2)"
+GUESS_REF="$(ref_for_tappable 'I told Sara')"
 [ -n "$GUESS_REF" ] \
   && playwright-cli click "$GUESS_REF" >/dev/null 2>&1 \
   || fail "tentative inference card was not clickable"
@@ -740,6 +755,112 @@ else
       || fail "judgement could not be withdrawn"
   fi
   console_clean "the explanation screen"
+fi
+
+step "An ordered finding shows the entries it counted"
+# The only claim in the app that puts two things in an order, and the one most
+# easily misread as cause. Reaching one needs a month of dense writing, so the
+# journal is seeded through the real API and its two readings are inserted the
+# same way as the exact-label pattern above.
+LAG_DAYS=()
+while IFS= read -r day; do LAG_DAYS+=("$day"); done < <(python3 - <<'PY'
+from datetime import UTC, datetime, timedelta
+today = datetime.now(UTC).date()
+for offset in range(32):
+    print((today - timedelta(days=31 - offset)).isoformat())
+PY
+)
+LAG_SOURCE_IDS=()
+LAG_TARGET_IDS=()
+for offset in $(seq 0 31); do
+  OID="$(python3 -c 'import uuid; print(uuid.uuid4())')"
+  curl -sf -o /dev/null -X POST "${API_URL}/v1/observations" \
+    -H "Authorization: Bearer ${TOKEN}" -H 'Content-Type: application/json' \
+    -d "{\"id\":\"${OID}\",\"content\":\"a quiet day, ${LAG_DAYS[$offset]}\",\"source\":\"text\",\"captured_at\":\"${LAG_DAYS[$offset]}T12:00:00+00:00\",\"timezone\":\"UTC\"}" \
+    || fail "could not seed lag journal entry ${offset}"
+  case " 0 8 17 27 " in *" ${offset} "*) LAG_SOURCE_IDS+=("$OID") ;; esac
+  case " 1 9 18 28 " in *" ${offset} "*) LAG_TARGET_IDS+=("$OID") ;; esac
+done
+
+DATABASE_URL="$DB_URL" uv run --env-file "${ROOT}/apps/backend/.env" --project "${ROOT}/apps/backend" python - "$EMAIL" "${LAG_SOURCE_IDS[@]-}" -- "${LAG_TARGET_IDS[@]-}" <<'PYSEED'
+import asyncio
+import os
+import sys
+from uuid import uuid4
+import asyncpg
+
+async def main():
+    email, *rest = sys.argv[1:]
+    split = rest.index("--")
+    sources, targets = rest[:split], rest[split + 1:]
+    if len(sources) != 4 or len(targets) != 4:
+        raise RuntimeError("lag journal did not seed four ordered pairs")
+
+    pool = await asyncpg.create_pool(dsn=os.environ["DATABASE_URL"])
+    async with pool.acquire() as conn:
+        user_id = await conn.fetchval("SELECT id FROM users WHERE email = $1", email)
+        if user_id is None:
+            raise RuntimeError("could not resolve seeded account")
+        for observation_ids, kind, label in (
+            (sources, "Activity", "sleeping badly"),
+            (targets, "Emotion", "foggy"),
+        ):
+            for observation_id in observation_ids:
+                node_id = uuid4()
+                await conn.execute("""
+                    INSERT INTO graph_nodes
+                        (id, user_id, kind, label, confidence, epistemic_status, extractor)
+                    VALUES ($1, $2, $3, $4, 0.9, 'hypothesis', 'e2e-seed')
+                """, node_id, user_id, kind, label)
+                await conn.execute(
+                    "INSERT INTO node_provenance (node_id, observation_id) VALUES ($1, $2)",
+                    node_id, observation_id,
+                )
+    await pool.close()
+
+asyncio.run(main())
+PYSEED
+if [ "$?" -ne 0 ]; then
+  fail "could not seed the ordered journal"
+else
+  curl -sf -X POST "${API_URL}/v1/patterns/mine" -H "Authorization: Bearer ${TOKEN}" >/dev/null \
+    || fail "re-mining after the ordered journal failed"
+  LAG_JSON="$(curl -sf "${API_URL}/v1/patterns" -H "Authorization: Bearer ${TOKEN}")"
+  LAG_ID="$(echo "$LAG_JSON" | python3 -c 'import json,sys; p=[x for x in json.load(sys.stdin) if x["detector"]=="lag"]; print(p[0]["id"] if p else "")')"
+  LAG_LABEL="$(echo "$LAG_JSON" | python3 -c 'import json,sys; p=[x for x in json.load(sys.stdin) if x["detector"]=="lag"]; print(p[0]["label"] if p else "")')"
+
+  if [ -z "$LAG_ID" ]; then
+    fail "a month of ordered writing produced no ordered finding"
+  else
+    pass "the ordered finding is visible through the API"
+    # It states an order and nothing more. This is the assertion the whole
+    # detector exists to keep true.
+    case "$(printf '%s' "$LAG_LABEL" | tr 'A-Z' 'a-z')" in
+      *because*|*cause*|*trigger*|*"leads to"*|*makes*|*"due to"*)
+        fail "the ordered finding claimed a cause: ${LAG_LABEL}" ;;
+      *"came up 1 day before"*)
+        pass "the label states order without cause" ;;
+      *) fail "unexpected ordered label: ${LAG_LABEL}" ;;
+    esac
+
+    playwright-cli goto "${WEB_URL}/pattern/${LAG_ID}" >/dev/null 2>&1
+    wait_for_snapshot "WHAT CAME FIRST" 30 \
+      && pass "the ordered evidence screen opens" \
+      || fail "the ordered evidence screen did not render"
+    snapshot_contains "1 day later" \
+      && pass "the gap between the two entries is named" \
+      || fail "the screen did not name the gap"
+    snapshot_contains "That is an order, not a" \
+      && pass "the screen says an order is not a reason" \
+      || fail "the screen did not disclaim causation"
+    # Every occasion, not a representative one: four pairs were counted, so four
+    # pairs have to be readable.
+    OCCASIONS="$(grep -cF "1 day later" "$(latest_snapshot)" 2>/dev/null)"
+    [ "$OCCASIONS" = "4" ] \
+      && pass "all four counted occasions are shown" \
+      || fail "expected 4 occasions on the screen, found ${OCCASIONS}"
+    console_clean "the ordered evidence screen"
+  fi
 fi
 
 step "Signing out"

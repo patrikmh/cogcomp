@@ -1,8 +1,8 @@
 """Pattern mining, on a schedule.
 
-A thin wrapper: recurrence, weekday, and ordered-lag mining live in pure modules,
-and their persistence lives in `tlon/db/patterns.py`; the manual endpoint
-exercises the same path. This exists so patterns get noticed without the person
+A thin wrapper: recurrence, weekday, ordered-lag, within-day and
+stated-vs-recorded mining live in pure modules, and their persistence lives in `tlon/db/patterns.py`; the
+manual endpoint exercises the same path. This exists so patterns get noticed without the person
 having to ask — which is the entire point of a background agent, and also the
 thing that makes one risky.
 
@@ -21,7 +21,10 @@ import asyncpg
 from tlon.agents.base import AgentResult
 from tlon.db import patterns as patterns_db
 
-VERSION = "patterns-agent-v0.3"
+#: Bumped whenever the set of detectors changes. `agent_runs` stores it, so a
+#: person asking why a new kind of claim appeared can see which version first
+#: produced it. v0.4 added stated-vs-recorded, v0.5 within-day ordering.
+VERSION = "patterns-agent-v0.5"
 
 
 class PatternAgent:

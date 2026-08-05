@@ -20,7 +20,13 @@ pytestmark = [pytest.mark.anyio, pytest.mark.integration]
 DAY_ONE = datetime(2026, 3, 1, 9, 0, tzinfo=UTC)
 
 
-async def entry(client: AsyncClient, account: Account, captured_at: datetime) -> UUID:
+async def entry(
+    client: AsyncClient,
+    account: Account,
+    captured_at: datetime,
+    *,
+    timezone: str | None = None,
+) -> UUID:
     observation_id = uuid4()
     response = await client.post(
         "/v1/observations",
@@ -30,6 +36,7 @@ async def entry(client: AsyncClient, account: Account, captured_at: datetime) ->
             "content": f"an entry written at {captured_at.isoformat()}",
             "source": "text",
             "captured_at": captured_at.isoformat(),
+            "timezone": timezone,
         },
     )
     assert response.status_code == 201, response.text
@@ -88,6 +95,41 @@ async def recurring(
         await inferred(pool, account, observation_id, label, **kwargs)
         observations.append(observation_id)
     return observations
+
+
+async def lag_journal(
+    client: AsyncClient,
+    pool: asyncpg.Pool,
+    account: Account,
+    *,
+    source_offsets: tuple[int, ...] = (0, 8, 17, 27),
+    span: int = 32,
+) -> tuple[list[UUID], list[UUID], list[UUID], list[UUID]]:
+    """A densely written journal where one thing precedes another by a day.
+
+    Dense on purpose: the lag detector only counts a source day when the person
+    also wrote on the comparison day, so a sparse journal would prove nothing.
+    Returns the source and target observations followed by their inferred nodes.
+    """
+    source_observations: list[UUID] = []
+    target_observations: list[UUID] = []
+    source_nodes: list[UUID] = []
+    target_nodes: list[UUID] = []
+
+    for offset in range(span):
+        observation_id = await entry(client, account, DAY_ONE + timedelta(days=offset))
+        if offset in source_offsets:
+            source_observations.append(observation_id)
+            source_nodes.append(
+                await inferred(pool, account, observation_id, "sleeping badly", kind="Activity")
+            )
+        if offset - 1 in source_offsets:
+            target_observations.append(observation_id)
+            target_nodes.append(
+                await inferred(pool, account, observation_id, "foggy", kind="Emotion")
+            )
+
+    return source_observations, target_observations, source_nodes, target_nodes
 
 
 async def mine(client: AsyncClient, account: Account) -> dict:
@@ -183,10 +225,10 @@ class TestWeekdayPeriodicity:
         patterns = {pattern["detector"]: pattern for pattern in await listed(client, account)}
 
         assert patterns["exact-label"]["label"] == "drained"
-        assert patterns["weekday-utc"]["label"] == "drained · Thursdays (UTC)"
-        assert patterns["weekday-utc"]["occurrences"] == 4
+        assert patterns["weekday"]["label"] == "drained · Thursdays (UTC)"
+        assert patterns["weekday"]["occurrences"] == 4
 
-        periodic_id = UUID(patterns["weekday-utc"]["id"])
+        periodic_id = UUID(patterns["weekday"]["id"])
         assert (
             await pool.fetchval(
                 "SELECT extractor FROM graph_nodes WHERE id = $1",
@@ -199,6 +241,39 @@ class TestWeekdayPeriodicity:
             periodic_id,
         )
         assert {row["observation_id"] for row in cited} == set(observations)
+
+    async def test_the_weekday_is_the_writers_own_not_the_servers(
+        self, client: AsyncClient, pool: asyncpg.Pool, account: Account
+    ):
+        """Late-night entries belong to the day the person was having.
+
+        Each of these was written at 23:30 UTC on a Wednesday, which in
+        Stockholm is half past midnight on Thursday. Counting them in UTC would
+        tell someone their week has a Wednesday shape it does not have.
+        """
+        stockholm = "Europe/Stockholm"
+        # 2026-03-04, 11, 18, 25 — Wednesdays in UTC.
+        for offset in (3, 10, 17, 24):
+            late = (DAY_ONE + timedelta(days=offset)).replace(hour=23, minute=30)
+            assert late.weekday() == 2, "the fixture must be a UTC Wednesday to prove anything"
+            observation_id = await entry(client, account, late, timezone=stockholm)
+            await inferred(pool, account, observation_id, "drained")
+        for offset in (5, 6, 7):
+            await entry(client, account, DAY_ONE + timedelta(days=offset), timezone=stockholm)
+
+        await mine(client, account)
+        patterns = {pattern["detector"]: pattern for pattern in await listed(client, account)}
+
+        # Thursdays, and unhedged: every entry behind the claim recorded a zone,
+        # so the app is no longer guessing at which day these belong to.
+        assert patterns["weekday"]["label"] == "drained · Thursdays"
+        assert (
+            await pool.fetchval(
+                "SELECT pattern_key FROM patterns WHERE node_id = $1",
+                UUID(patterns["weekday"]["id"]),
+            )
+            == "Emotion:drained:weekday:3"
+        )
 
     async def test_a_thursday_only_writer_gets_no_weekday_claim(
         self, client: AsyncClient, pool: asyncpg.Pool, account: Account
@@ -217,13 +292,13 @@ class TestWeekdayPeriodicity:
 
         await pool.execute(
             "UPDATE graph_nodes SET epistemic_status = 'user_rejected' WHERE id = $1",
-            UUID(first["weekday-utc"]["id"]),
+            UUID(first["weekday"]["id"]),
         )
         await mine(client, account)
         second = {pattern["detector"]: pattern for pattern in await listed(client, account)}
 
-        assert second["weekday-utc"]["id"] == first["weekday-utc"]["id"]
-        assert second["weekday-utc"]["epistemic_status"] == "user_rejected"
+        assert second["weekday"]["id"] == first["weekday"]["id"]
+        assert second["weekday"]["epistemic_status"] == "user_rejected"
         assert second["exact-label"]["epistemic_status"] == "hypothesis"
 
     async def test_an_off_weekday_occurrence_lapses_only_the_calendar_claim(
@@ -247,33 +322,16 @@ class TestLagPersistence:
         self, client: AsyncClient, pool: asyncpg.Pool, account: Account
     ):
         source_offsets = (0, 8, 17, 27)
-        source_observations = []
-        target_observations = []
-        source_nodes = []
-        target_nodes = []
-
-        for offset in range(32):
-            observation_id = await entry(client, account, DAY_ONE + timedelta(days=offset))
-            if offset in source_offsets:
-                source_observations.append(observation_id)
-                source_nodes.append(
-                    await inferred(
-                        pool,
-                        account,
-                        observation_id,
-                        "sleeping badly",
-                        kind="Activity",
-                    )
-                )
-            if offset - 1 in source_offsets:
-                target_observations.append(observation_id)
-                target_nodes.append(
-                    await inferred(pool, account, observation_id, "foggy", kind="Emotion")
-                )
+        (
+            source_observations,
+            target_observations,
+            source_nodes,
+            target_nodes,
+        ) = await lag_journal(client, pool, account, source_offsets=source_offsets)
 
         await mine(client, account)
         lag_patterns = [
-            pattern for pattern in await listed(client, account) if pattern["detector"] == "lag-utc"
+            pattern for pattern in await listed(client, account) if pattern["detector"] == "lag"
         ]
 
         assert len(lag_patterns) == 1
@@ -367,31 +425,17 @@ class TestLagPersistence:
     async def test_remining_a_lag_replaces_stale_pair_evidence(
         self, client: AsyncClient, pool: asyncpg.Pool, account: Account
     ):
-        source_offsets = (0, 8, 17, 27, 38)
-        source_observations = []
-        target_observations = []
-        source_nodes = []
-
-        for offset in range(43):
-            observation_id = await entry(client, account, DAY_ONE + timedelta(days=offset))
-            if offset in source_offsets:
-                source_observations.append(observation_id)
-                source_nodes.append(
-                    await inferred(
-                        pool,
-                        account,
-                        observation_id,
-                        "sleeping badly",
-                        kind="Activity",
-                    )
-                )
-            if offset - 1 in source_offsets:
-                target_observations.append(observation_id)
-                await inferred(pool, account, observation_id, "foggy", kind="Emotion")
+        source_observations, target_observations, source_nodes, _ = await lag_journal(
+            client,
+            pool,
+            account,
+            source_offsets=(0, 8, 17, 27, 38),
+            span=43,
+        )
 
         await mine(client, account)
         first_lag = next(
-            pattern for pattern in await listed(client, account) if pattern["detector"] == "lag-utc"
+            pattern for pattern in await listed(client, account) if pattern["detector"] == "lag"
         )
         pattern_id = UUID(first_lag["id"])
 
@@ -401,7 +445,7 @@ class TestLagPersistence:
         )
         second_mine = await mine(client, account)
         second_lag = next(
-            pattern for pattern in await listed(client, account) if pattern["detector"] == "lag-utc"
+            pattern for pattern in await listed(client, account) if pattern["detector"] == "lag"
         )
 
         current_pairs = set(zip(source_observations[1:], target_observations[1:], strict=True))
@@ -429,6 +473,294 @@ class TestLagPersistence:
             *source_observations[1:],
             *target_observations[1:],
         }
+
+
+class TestWithinDayOrder:
+    """The finest-grained ordering claim, and the only one that reads the clock.
+
+    Everything else here truncates to a day. This one needs the moment, so what
+    matters over HTTP is that the timestamp survives capture, that the day it
+    falls in is the writer's own, and that the claim still refuses to say why.
+    """
+
+    async def test_a_morning_thing_before_an_evening_thing(
+        self, client: AsyncClient, pool: asyncpg.Pool, account: Account
+    ):
+        for week in range(4):
+            day = DAY_ONE + timedelta(days=week * 7)
+            morning = await entry(client, account, day.replace(hour=7, minute=30))
+            await inferred(pool, account, morning, "wired")
+            evening = await entry(client, account, day.replace(hour=19, minute=0))
+            await inferred(pool, account, evening, "skipping dinner", kind="Activity")
+
+        await mine(client, account)
+        found = [
+            pattern
+            for pattern in await listed(client, account)
+            if pattern["detector"] == "same-day-order"
+        ]
+
+        assert len(found) == 1
+        assert found[0]["label"] == (
+            "wired came up earlier in the day than skipping dinner · "
+            "4 times, about 12 hours apart (UTC)"
+        )
+        assert found[0]["extractor"] == "sameday-v0.1"
+        for causal in ("because", "cause", "trigger", "leads to", "due to"):
+            assert causal not in found[0]["label"].lower()
+
+    async def test_the_day_the_moments_belong_to_is_the_writers_own(
+        self, client: AsyncClient, pool: asyncpg.Pool, account: Account
+    ):
+        # An afternoon and a late evening in New York straddle UTC midnight, so
+        # in UTC they are two different days and the pair never shares one.
+        # Counting in the writer's calendar is what makes the ordering visible
+        # at all — the detector is not merely more accurate here, it is the
+        # difference between a finding and silence.
+        new_york = "America/New_York"
+        for week in range(4):
+            day = DAY_ONE + timedelta(days=week * 7)
+            afternoon = await entry(
+                client, account, day.replace(hour=21, minute=0), timezone=new_york
+            )
+            await inferred(pool, account, afternoon, "wired")
+            evening = await entry(
+                client,
+                account,
+                (day + timedelta(days=1)).replace(hour=2, minute=0),
+                timezone=new_york,
+            )
+            await inferred(pool, account, evening, "skipping dinner", kind="Activity")
+
+        await mine(client, account)
+        found = [
+            pattern
+            for pattern in await listed(client, account)
+            if pattern["detector"] == "same-day-order"
+        ]
+
+        assert len(found) == 1
+        # Every entry recorded its zone, so the claim drops the hedge as well.
+        assert found[0]["label"] == (
+            "wired came up earlier in the day than skipping dinner · 4 times, about 5 hours apart"
+        )
+
+
+class TestStatedVersusRecorded:
+    """The detector that reports a gap rather than a repetition.
+
+    It is the only claim here built on an absence, so what matters over HTTP is
+    that it arrives as arithmetic — two counts and an overlap — carrying its own
+    detector identity, its own evidence, and no verdict about the person.
+    """
+
+    async def test_something_named_and_something_done_that_stay_apart(
+        self, client: AsyncClient, pool: asyncpg.Pool, account: Account
+    ):
+        stated = (0, 2, 4, 6, 8, 10, 12, 14, 16)
+        recorded = (1, 3, 5, 7, 9, 11, 13, 15, 17)
+        for offset in range(24):
+            observation_id = await entry(client, account, DAY_ONE + timedelta(days=offset))
+            if offset in stated:
+                await inferred(pool, account, observation_id, "rest", kind="Value")
+            if offset in recorded:
+                await inferred(pool, account, observation_id, "working late", kind="Activity")
+
+        await mine(client, account)
+        found = [
+            pattern
+            for pattern in await listed(client, account)
+            if pattern["detector"] == "stated-vs-recorded"
+        ]
+
+        assert len(found) == 1
+        pattern = found[0]
+        assert pattern["label"] == (
+            "rest came up on 9 days, working late on 9 days, never in the same entry (UTC)"
+        )
+        assert pattern["extractor"] == "tension-v0.1"
+        # `occurrences` means what it means everywhere else — the entries this
+        # rests on. What happened zero times is the overlap, and that is in the
+        # label rather than smuggled into a count the schema reserves for weight.
+        assert pattern["occurrences"] == len(stated) + len(recorded)
+        assert pattern["distinct_days"] == len(stated) + len(recorded)
+
+        # It cites every entry behind both sides, like any other inference here.
+        cited = await pool.fetchval(
+            "SELECT count(*) FROM node_provenance WHERE node_id = $1",
+            UUID(pattern["id"]),
+        )
+        assert cited == len(stated) + len(recorded)
+
+    async def test_it_never_tells_someone_they_are_failing(
+        self, client: AsyncClient, pool: asyncpg.Pool, account: Account
+    ):
+        stated = (0, 2, 4, 6, 8, 10, 12, 14, 16)
+        recorded = (1, 3, 5, 7, 9, 11, 13, 15, 17)
+        for offset in range(24):
+            observation_id = await entry(client, account, DAY_ONE + timedelta(days=offset))
+            if offset in stated:
+                await inferred(pool, account, observation_id, "rest", kind="Value")
+            if offset in recorded:
+                await inferred(pool, account, observation_id, "working late", kind="Activity")
+
+        await mine(client, account)
+        label = next(
+            pattern["label"]
+            for pattern in await listed(client, account)
+            if pattern["detector"] == "stated-vs-recorded"
+        ).lower()
+
+        for judgement in (
+            "should",
+            "but ",
+            "despite",
+            "even though",
+            "fail",
+            "neglect",
+            "ignore",
+            "avoid",
+            "instead",
+        ):
+            assert judgement not in label
+
+    async def test_a_rejected_reading_stops_feeding_the_gap(
+        self, client: AsyncClient, pool: asyncpg.Pool, account: Account
+    ):
+        # Disagreeing with a reading has to remove it from a claim built on its
+        # absence too, not only from claims built on its presence.
+        stated = (0, 2, 4, 6, 8, 10, 12, 14, 16)
+        recorded = (1, 3, 5, 7, 9, 11, 13, 15, 17)
+        value_nodes = []
+        for offset in range(24):
+            observation_id = await entry(client, account, DAY_ONE + timedelta(days=offset))
+            if offset in stated:
+                value_nodes.append(
+                    await inferred(pool, account, observation_id, "rest", kind="Value")
+                )
+            if offset in recorded:
+                await inferred(pool, account, observation_id, "working late", kind="Activity")
+
+        await mine(client, account)
+        assert any(p["detector"] == "stated-vs-recorded" for p in await listed(client, account))
+
+        # Six of the nine "rest" readings were wrong, leaving too few to claim a
+        # separation from.
+        await pool.execute(
+            "UPDATE graph_nodes SET epistemic_status = 'user_rejected' WHERE id = ANY($1::uuid[])",
+            value_nodes[:6],
+        )
+        await mine(client, account)
+
+        assert not any(p["detector"] == "stated-vs-recorded" for p in await listed(client, account))
+
+
+class TestOrderedEvidence:
+    """`GET /v1/patterns/{id}/ordering` — the entries behind an ordered finding.
+
+    The pattern label states the ordering as a sentence. This endpoint is what
+    lets someone check it: the actual entries, in the order they were written,
+    with the gap between them. Without it, "came up a day before" is a claim
+    about a person that they cannot audit.
+    """
+
+    async def test_it_returns_each_occasion_as_the_two_entries_it_rests_on(
+        self, client: AsyncClient, pool: asyncpg.Pool, account: Account
+    ):
+        source_offsets = (0, 8, 17, 27)
+        source_observations, target_observations, _, _ = await lag_journal(
+            client, pool, account, source_offsets=source_offsets
+        )
+        await mine(client, account)
+        pattern = next(p for p in await listed(client, account) if p["detector"] == "lag")
+
+        response = await client.get(f"/v1/patterns/{pattern['id']}/ordering", headers=account.auth)
+
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["pattern_id"] == pattern["id"]
+        assert body["label"] == pattern["label"]
+        assert body["lag_days"] == 1
+        # These entries never recorded a zone, so the days behind them are the
+        # server's and the screen has to say so.
+        assert body["utc_fallback"] is True
+        # Oldest first: the point of the screen is to read the occasions as a
+        # sequence, and a reverse-chronological list reads as a feed instead.
+        assert [
+            (occasion["source_day"], occasion["target_day"]) for occasion in body["occasions"]
+        ] == [
+            (
+                (DAY_ONE + timedelta(days=offset)).date().isoformat(),
+                (DAY_ONE + timedelta(days=offset + 1)).date().isoformat(),
+            )
+            for offset in source_offsets
+        ]
+        assert [
+            [written["id"] for written in occasion["before"]] for occasion in body["occasions"]
+        ] == [[str(observation_id)] for observation_id in source_observations]
+        assert [
+            [written["id"] for written in occasion["after"]] for occasion in body["occasions"]
+        ] == [[str(observation_id)] for observation_id in target_observations]
+
+        first = body["occasions"][0]["before"][0]
+        assert first["content"] == f"an entry written at {DAY_ONE.isoformat()}"
+        assert first["source"] == "text"
+
+    async def test_zoned_evidence_drops_the_utc_caveat(
+        self, client: AsyncClient, pool: asyncpg.Pool, account: Account
+    ):
+        source_offsets = (0, 8, 17, 27)
+        for offset in range(32):
+            observation_id = await entry(
+                client,
+                account,
+                DAY_ONE + timedelta(days=offset),
+                timezone="Europe/Stockholm",
+            )
+            if offset in source_offsets:
+                await inferred(pool, account, observation_id, "sleeping badly", kind="Activity")
+            if offset - 1 in source_offsets:
+                await inferred(pool, account, observation_id, "foggy", kind="Emotion")
+
+        await mine(client, account)
+        pattern = next(p for p in await listed(client, account) if p["detector"] == "lag")
+        body = (
+            await client.get(f"/v1/patterns/{pattern['id']}/ordering", headers=account.auth)
+        ).json()
+
+        assert body["utc_fallback"] is False
+        assert pattern["label"] == "sleeping badly came up 1 day before foggy · 4 times"
+
+    async def test_a_pattern_from_another_detector_has_no_ordering(
+        self, client: AsyncClient, pool: asyncpg.Pool, account: Account
+    ):
+        # Exact-label recurrence makes no claim about order, so there is nothing
+        # honest to show here — better a 404 than an empty list implying there
+        # could have been ordered evidence.
+        await recurring(client, pool, account, "dread")
+        await mine(client, account)
+        pattern = next(p for p in await listed(client, account) if p["detector"] == "exact-label")
+
+        response = await client.get(f"/v1/patterns/{pattern['id']}/ordering", headers=account.auth)
+
+        assert response.status_code == 404
+
+    async def test_ordering_is_private_to_its_user(
+        self,
+        client: AsyncClient,
+        pool: asyncpg.Pool,
+        account: Account,
+        other_account: Account,
+    ):
+        await lag_journal(client, pool, account)
+        await mine(client, account)
+        pattern = next(p for p in await listed(client, account) if p["detector"] == "lag")
+
+        response = await client.get(
+            f"/v1/patterns/{pattern['id']}/ordering", headers=other_account.auth
+        )
+
+        assert response.status_code == 404
 
 
 class TestWhatTheDatabaseEnforces:
@@ -724,3 +1056,6 @@ class TestAuth:
 
     async def test_mining_requires_a_token(self, client: AsyncClient):
         assert (await client.post("/v1/patterns/mine")).status_code == 401
+
+    async def test_ordering_requires_a_token(self, client: AsyncClient):
+        assert (await client.get(f"/v1/patterns/{uuid4()}/ordering")).status_code == 401
