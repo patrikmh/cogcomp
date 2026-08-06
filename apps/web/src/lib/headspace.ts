@@ -30,6 +30,7 @@ const R = 0.115;
 export interface Whorl {
   id: string;
   label: string;
+  /** The datum etched along the contours, survey-map style ("9 / 14", "0.91"). */
   meta: string;
   /** 0–1. Drives radius, ring count and how solid the ink reads. */
   weight: number;
@@ -37,6 +38,12 @@ export interface Whorl {
   tint: number;
   href?: string;
   group: "pattern" | "reading" | "today" | "you";
+  /** What the readout says about this kind of thing. A pattern and a reading
+   *  are different claims and are read out differently. */
+  kicker: string;
+  readout: string;
+  /** 0–1 for the readout's bar, or 0 for no bar. */
+  bar: number;
 }
 
 export interface Stage {
@@ -60,7 +67,7 @@ function seeded(str: string) {
 export function mountHeadspace(
   host: HTMLElement,
   whorls: Whorl[],
-  onFocus: (id: string | null) => void,
+  onFocus: (whorl: Whorl | null) => void,
 ): Stage {
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -289,10 +296,17 @@ export function mountHeadspace(
   // apart until no contour fields touch. Neighbours keep their ridge, but every
   // peak owns its ground.
   const placed = whorls.map((w) => {
-    const radius = R * (0.16 + w.weight * 0.3) * (w.group === "you" ? 1.5 : 1);
+    const you = w.group === "you";
+    const radius = R * (you ? 0.42 : 0.16 + w.weight * 0.3);
     const angle = seeded(w.id + "a") * Math.PI * 2;
-    const dist = R * (0.35 + 1.5 * Math.sqrt(seeded(w.id + "r")));
-    return { whorl: w, radius, x: Math.cos(angle) * dist, z: Math.sin(angle) * dist };
+    const dist = you ? 0 : R * (0.75 + 1.6 * Math.sqrt(seeded(w.id + "r")));
+    return {
+      whorl: w,
+      radius,
+      x: Math.cos(angle) * dist,
+      z: Math.sin(angle) * dist,
+      pinned: you,
+    };
   });
 
   for (let pass = 0; pass < 90; pass++) {
@@ -305,11 +319,16 @@ export function mountHeadspace(
         const dist = Math.hypot(dx, dz) || 0.0001;
         const want = (a.radius + b.radius) * 1.45;
         if (dist < want) {
-          const push = (want - dist) / 2;
-          a.x -= (dx / dist) * push;
-          a.z -= (dz / dist) * push;
-          b.x += (dx / dist) * push;
-          b.z += (dz / dist) * push;
+          // You do not move; the map arranges itself around the point of view.
+          const push = (want - dist) / (a.pinned || b.pinned ? 1 : 2);
+          if (!a.pinned) {
+            a.x -= (dx / dist) * push;
+            a.z -= (dz / dist) * push;
+          }
+          if (!b.pinned) {
+            b.x += (dx / dist) * push;
+            b.z += (dz / dist) * push;
+          }
         }
       }
     }
@@ -348,7 +367,7 @@ export function mountHeadspace(
       .filter((o) => o !== p)
       .map((o) => ({ dx: o.x - p.x, dz: o.z - p.z, m: o.radius * o.radius * 0.5, soft: R * R * 0.02 }));
 
-    const levels = 5 + Math.round(p.whorl.weight * 6);
+    const levels = p.whorl.group === "you" ? 11 : 5 + Math.round(p.whorl.weight * 6);
     const group = contour(p.whorl.id, p.radius, levels, {
       top: p.whorl.tentative ? 0.34 : 0.62,
       lift: 0.1,
@@ -441,11 +460,15 @@ export function mountHeadspace(
     }
 
     raycaster.setFromCamera(pointer, camera);
-    const hits = raycaster.intersectObjects(picks.map((p) => p.hit), false);
-    const next = hits.length ? picks.find((p) => p.hit === hits[0]!.object)?.whorl.id ?? null : null;
-    if (next !== focused) {
-      focused = next;
-      onFocus(next);
+    const pickable = picks.filter((p) => visible.includes(p.whorl.group));
+    const hits = raycaster.intersectObjects(pickable.map((p) => p.hit), false);
+    const hitWhorl = hits.length
+      ? (pickable.find((p) => p.hit === hits[0]!.object)?.whorl ?? null)
+      : null;
+    renderer.domElement.style.cursor = hitWhorl ? "pointer" : "";
+    if ((hitWhorl?.id ?? null) !== focused) {
+      focused = hitWhorl?.id ?? null;
+      onFocus(hitWhorl);
     }
     for (const pick of picks) {
       const lit = pick.whorl.id === focused;

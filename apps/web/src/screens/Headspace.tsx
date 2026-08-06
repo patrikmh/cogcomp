@@ -1,47 +1,39 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { Empty } from "@/components/States";
-import { api } from "@/lib/api";
-import { deviceTimezone, localDay } from "@/lib/format";
 import { mountHeadspace, type Stage, type Whorl } from "@/lib/headspace";
+import { api } from "@/lib/api";
+import { DETECTOR_LABEL, deviceTimezone, fmt, localDay } from "@/lib/format";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
 
 /**
- * Headspace — where things stand.
+ * Headspace — a contour map of the record.
  *
- * Four lenses over one picture: a day is a fact, the whole record is a record,
- * a recurrence is a claim, a change is a comparison between two windows. Each
- * step is further from what was actually written, and the row makes that
- * distance visible rather than presenting them as equally solid.
+ * One scene, four kinds of thing in it: the patterns, the readings you have
+ * kept, today's fresh notes, and you at the centre. The lenses do not navigate
+ * and do not rebuild — they change what is *visible*, which is why switching
+ * one repopulates the head instead of taking you somewhere else.
  *
- * The contour whorls are the same harmonic language as the entry seals, one
- * scale up. The three.js topographic stage from the prototype lands next; this
- * renders the same shapes in SVG so the screen is real and data-backed now.
+ * The order of the lenses is the argument. A day is a fact, the whole record is
+ * a record, a recurrence is a claim, a change is a comparison between windows.
+ * Each step is further from what was actually written.
+ *
+ * You never leave the map. The point of view stays put under every lens.
  */
-type Lens = "today" | "all" | "patterns" | "changed";
-
-const LENSES: { id: Lens; label: string; finding: boolean }[] = [
-  { id: "today", label: "Today", finding: false },
-  { id: "all", label: "Everything", finding: false },
-  { id: "patterns", label: "Recurring", finding: true },
-  { id: "changed", label: "Changed", finding: true },
-];
+type Lens = "today" | "everything" | "recurring" | "changed";
 
 export function Headspace() {
   const tz = deviceTimezone();
   const userId = useSession((s) => s.userId);
   const showFindings = usePreferences((s) => s.findings);
-  const [lens, setLens] = useState<Lens>("today");
-  const [focus, setFocus] = useState<string | null>(null);
-  const host = useRef<HTMLDivElement>(null);
-  const stage = useRef<Stage | null>(null);
   const motion = usePreferences((s) => s.motion);
   const setMotion = usePreferences((s) => s.setMotion);
-  const available = LENSES.filter((l) => showFindings || !l.finding);
-  const active = available.some((l) => l.id === lens) ? lens : "today";
+  const [lens, setLens] = useState<Lens>("everything");
+  const [focus, setFocus] = useState<Whorl | null>(null);
+  const host = useRef<HTMLDivElement>(null);
+  const stage = useRef<Stage | null>(null);
 
   const today = useQuery({
     queryKey: ["summary", localDay(), tz],
@@ -59,192 +51,233 @@ export function Headspace() {
     enabled: showFindings,
   });
 
-  const points = pointsFor(active, today.data, graph.data, patterns.data, changes.data);
-  const current = points.find((p) => p.id === focus) ?? null;
+  /* Everything in the map, built once from all four sources. */
+  const whorls = useMemo<Whorl[]>(() => {
+    const busiest = Math.max(1, ...(patterns.data ?? []).map((p) => p.occurrences));
+    const todayIds = new Set((today.data?.inferred ?? []).map((i) => i.id));
 
-  // One scene, rebuilt when the material changes; the lens only toggles what is
-  // visible, so switching lens repopulates the head rather than navigating.
-  useEffect(() => {
-    if (!host.current || points.length === 0) return;
-    const whorls: Whorl[] = points.map((p) => ({
+    const asPattern: Whorl[] = (patterns.data ?? []).map((p) => ({
       id: p.id,
       label: p.label,
-      meta: p.meta,
-      weight: p.weight,
+      // The datum the whorl is shaped by, etched along its contours.
+      meta: `${p.distinct_days} / ${p.occurrences}`,
+      weight: p.occurrences / busiest,
       tentative: p.tentative,
-      tint: TINT[p.kind] ?? 0xa7c3c8,
-      href: p.href,
-      group: "reading",
+      tint: 0xe6b95c,
+      href:
+        p.detector === "lag" || p.detector === "same-day-order"
+          ? `/pattern/${p.id}`
+          : `/node/${p.id}`,
+      group: "pattern",
+      kicker: `Pattern · ${DETECTOR_LABEL[p.detector] ?? p.detector}`,
+      readout: `${p.distinct_days} of ${p.occurrences}`,
+      bar: p.occurrences / busiest,
     }));
-    const mounted = mountHeadspace(host.current, whorls, (id) => setFocus(id));
+
+    const asReading: Whorl[] = (graph.data?.nodes ?? [])
+      .filter((n) => n.kind !== "Observation" && n.kind !== "Pattern" && !todayIds.has(n.id))
+      .slice(0, 26)
+      .map((n) => ({
+        id: n.id,
+        label: n.label,
+        meta: n.confidence ? fmt(n.confidence) : "",
+        weight: n.confidence ?? 0.5,
+        tentative: n.tentative,
+        tint: n.tentative ? 0xd8c79a : 0xa7c3c8,
+        href: `/node/${n.id}`,
+        group: "reading",
+        kicker: `${n.kind} · ${n.tentative ? "less sure" : "kept"}`,
+        readout: n.confidence ? fmt(n.confidence) : "",
+        bar: n.confidence ?? 0,
+      }));
+
+    const asToday: Whorl[] = (today.data?.inferred ?? []).map((i) => ({
+      id: i.id,
+      label: i.label,
+      meta: fmt(i.confidence),
+      weight: Math.max(0.25, i.confidence * 0.7),
+      tentative: i.tentative,
+      tint: 0xc6e070,
+      href: `/node/${i.id}`,
+      group: "today",
+      kicker: `${i.kind} · today`,
+      readout: `${i.cites_entries} ${i.cites_entries === 1 ? "entry" : "entries"}`,
+      bar: i.confidence,
+    }));
+
+    // The point of view. Bigger than anything drawn around it, and it never
+    // leaves the map.
+    const you: Whorl = {
+      id: "you",
+      label: "everything ever suggested",
+      meta: "",
+      weight: 1,
+      tentative: false,
+      tint: 0xeef1ec,
+      href: "/identity",
+      group: "you",
+      kicker: "You · the point of view",
+      readout: "open identity",
+      bar: 0,
+    };
+
+    return [you, ...asPattern, ...asToday, ...asReading];
+  }, [patterns.data, graph.data, today.data]);
+
+  /* One scene. Rebuilt only when the material itself changes. */
+  useEffect(() => {
+    if (!host.current || whorls.length <= 1) return;
+    const mounted = mountHeadspace(host.current, whorls, setFocus);
     stage.current = mounted;
     mounted.setPaused(!motion);
     return () => {
       stage.current = null;
       mounted.dispose();
     };
-    // The scene is rebuilt when the lens changes, because the lens changes what
-    // is in it. Motion is applied through the handle instead, below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, points.length]);
+  }, [whorls]);
+
+  // The lens changes what is visible, never what exists.
+  useEffect(() => {
+    stage.current?.setVisible(VISIBLE[lens]);
+  }, [lens, whorls]);
 
   useEffect(() => {
     stage.current?.setPaused(!motion);
   }, [motion]);
 
+  const counts: Record<Lens, number> = {
+    today: whorls.filter((w) => w.group === "today").length,
+    everything: whorls.length - 1,
+    recurring: whorls.filter((w) => w.group === "pattern").length,
+    changed: changes.data?.changes.length ?? 0,
+  };
+
+  const lenses = LENSES.filter((l) => showFindings || !l.finding);
+  const active = lenses.some((l) => l.id === lens) ? lens : "today";
+
   return (
     <>
+      <span className="kicker">Headspace</span>
+      <h1 id="lensTitle">{LENS_LABEL[active]}</h1>
+      <p className="sub" id="lensNote">
+        {noteFor(active, counts, tz, changes.data?.not_enough_material ?? false)}
+      </p>
+
       <div className="tabs" id="lenses">
-        {available.map((option) => (
+        {lenses.map((option) => (
           <button
             key={option.id}
-            className="btn"
             data-on={active === option.id ? "" : undefined}
             onClick={() => {
               setLens(option.id);
-              // The previous selection is not in the new lens, and a readout
-              // describing something no longer on screen is worse than none.
               setFocus(null);
             }}
           >
             {option.label}
+            <span className="count">{counts[option.id]}</span>
           </button>
         ))}
       </div>
 
       <div id="orbwrap" ref={host}>
-        {points.length === 0 && <Empty label={EMPTY[active]} />}
-      <div id="readout">
-        {current ? (
-          <>
-            <span className="kicker">{current.kind}</span>
-            <b>{current.label}</b>
-            <div className="mono" style={{ color: "var(--dim)" }}>
-              {current.meta}
-            </div>
-            {current.href && (
-              <Link className="btn" to={current.href}>
-                WHERE THIS CAME FROM →
-              </Link>
-            )}
-          </>
-        ) : (
-          <span className="mono" style={{ color: "var(--faint)" }}>
-            {HINT[active]}
-          </span>
-        )}
-      </div>
-
         <button
           id="motion-toggle"
+          className="mtog"
+          type="button"
           aria-pressed={!motion}
+          title="Pause the headspace's ambient motion"
           onClick={() => setMotion(!motion)}
-          title="Ambient motion"
         >
-          {motion ? "PAUSE" : "RESUME"}
+          <span className="dot" aria-hidden />
+          <span className="lbl">{motion ? "Pause" : "Resume"}</span>
         </button>
+
+        <p id="readout" className={focus ? "hover" : undefined}>
+          {focus ? (
+            <>
+              <span className="rk">{focus.kicker}</span>
+              <span className="ln">
+                <b>{focus.label}</b>
+                {focus.bar > 0 && (
+                  <s>
+                    <i
+                      className={focus.tentative ? "t" : undefined}
+                      style={{ width: `${Math.round(focus.bar * 100)}%` }}
+                    />
+                  </s>
+                )}
+                <span className="k">{focus.readout}</span>
+              </span>
+            </>
+          ) : (
+            <span className="rk">
+              Headspace · {counts.recurring}{" "}
+              {counts.recurring === 1 ? "pattern" : "patterns"} circling · hover a whorl
+            </span>
+          )}
+        </p>
       </div>
 
+      {/* The contextual way onward, exactly where the design puts it. */}
+      <div id="lensAction" style={{ marginTop: 18 }}>
+        {active === "recurring" && counts.recurring > 0 && (
+          <Link className="btn ghost" to="/patterns">
+            OPEN PATTERNS
+          </Link>
+        )}
+        {active === "changed" && (
+          <p className="mono" style={{ margin: 0 }}>
+            {counts.changed === 0 ? "Nothing to open yet." : "Counts only — what it means is yours."}
+          </p>
+        )}
+        {active === "today" && counts.today === 0 && (
+          <Link className="btn ghost" to="/journal">
+            WRITE SOMETHING
+          </Link>
+        )}
+      </div>
     </>
   );
 }
 
-const EMPTY: Record<Lens, string> = {
-  today: "Nothing recorded today.",
-  all: "Nothing here yet. It fills in as you write.",
-  patterns: "Nothing has come back often enough to call recurring.",
-  changed: "Nothing moved between this week and last.",
+const LENSES: { id: Lens; label: string; finding: boolean }[] = [
+  { id: "today", label: "Today", finding: false },
+  { id: "everything", label: "Everything", finding: false },
+  { id: "recurring", label: "Recurring", finding: true },
+  { id: "changed", label: "Changed", finding: true },
+];
+
+const LENS_LABEL: Record<Lens, string> = {
+  today: "Today",
+  everything: "Everything",
+  recurring: "Recurring",
+  changed: "Changed",
 };
 
-const HINT: Record<Lens, string> = {
-  today: "Today, as it stands. Point at one to read it.",
-  all: "Everything drawn from your entries. Filled is confident, hollow is a guess.",
-  patterns: "What keeps returning. Bigger means more often.",
-  changed: "Counts only — what it means is yours.",
+/** Which groups each lens shows. You are in every one of them. */
+const VISIBLE: Record<Lens, Whorl["group"][]> = {
+  today: ["you", "today"],
+  everything: ["you", "today", "reading", "pattern"],
+  recurring: ["you", "pattern"],
+  changed: ["you"],
 };
 
-/** The whorl takes the colour of what it is, on hover only. */
-const TINT: Record<string, number> = {
-  pattern: 0xe6b95c,
-  emotion: 0xa7c3c8,
-  need: 0xc6e070,
-  value: 0xc6e070,
-  activity: 0xa7c3c8,
-  person: 0xd8c79a,
-  place: 0xd8c79a,
-  new: 0xc6e070,
-  more: 0xc6e070,
-  less: 0xd8c79a,
-  absent: 0x5f6b68,
-};
-
-interface Point {
-  id: string;
-  label: string;
-  kind: string;
-  meta: string;
-  weight: number;
-  tone: string;
-  tentative: boolean;
-  href?: string;
-}
-
-function pointsFor(
-  lens: Lens,
-  today: Awaited<ReturnType<typeof api.daily>> | undefined,
-  graph: Awaited<ReturnType<typeof api.graph>> | undefined,
-  patterns: Awaited<ReturnType<typeof api.patterns>> | undefined,
-  changes: Awaited<ReturnType<typeof api.changes>> | undefined,
-): Point[] {
+function noteFor(lens: Lens, counts: Record<Lens, number>, tz: string, thin: boolean) {
   if (lens === "today") {
-    return (today?.inferred ?? []).map((i) => ({
-      id: i.id,
-      label: i.label,
-      kind: i.kind.toLowerCase(),
-      meta: `${i.cites_entries} ${i.cites_entries === 1 ? "entry" : "entries"} · ${i.confidence.toFixed(2)}`,
-      weight: i.confidence,
-      tone: i.tentative ? "var(--sand)" : "var(--kept)",
-      tentative: i.tentative,
-      href: `/node/${i.id}`,
-    }));
+    return counts.today === 0
+      ? `Nothing recorded today (${tz}).`
+      : `${counts.today} ${counts.today === 1 ? "note" : "notes"} since midnight (${tz}). Nothing else is shown.`;
   }
-  if (lens === "all") {
-    return (graph?.nodes ?? [])
-      .filter((n) => n.kind !== "Observation")
-      .slice(0, 24)
-      .map((n) => ({
-        id: n.id,
-        label: n.label,
-        kind: n.kind.toLowerCase(),
-        meta: n.confidence ? n.confidence.toFixed(2) : "",
-        weight: n.confidence ?? 0.5,
-        tone: n.tentative ? "var(--sand)" : "var(--kept)",
-        tentative: n.tentative,
-        href: `/node/${n.id}`,
-      }));
+  if (lens === "everything") {
+    return `${counts.everything} in the record. Each whorl is drawn like the wordmark — a contour map shaped by what it is: a pattern by how often it returns, a reading by how sure; fainter where still tentative.`;
   }
-  if (lens === "patterns") {
-    const busiest = Math.max(1, ...(patterns ?? []).map((p) => p.occurrences));
-    return (patterns ?? []).map((p) => ({
-      id: p.id,
-      label: p.label,
-      kind: "pattern",
-      meta: `${p.distinct_days} days · ${p.confidence.toFixed(2)}`,
-      weight: p.occurrences / busiest,
-      tone: "var(--pattern)",
-      tentative: p.tentative,
-      href: p.detector === "lag" || p.detector === "same-day-order" ? `/pattern/${p.id}` : `/node/${p.id}`,
-    }));
+  if (lens === "recurring") {
+    return counts.recurring === 0
+      ? "Nothing has come back often enough to call recurring."
+      : `${counts.recurring} ${counts.recurring === 1 ? "pattern" : "patterns"} returned in more than one week. Counts, not verdicts.`;
   }
-  return (changes?.changes ?? []).map((c) => ({
-    // A change is a comparison between windows, not a node — there is nothing
-    // to open, and the readout is the whole of it.
-    id: `${c.kind}:${c.label}`,
-    label: c.label,
-    kind: c.shift,
-    meta: c.description,
-    weight: Math.min(1, Math.abs(c.recent_days - c.earlier_days) / 7 + 0.3),
-    tone: "var(--live)",
-    tentative: c.shift === "absent",
-  }));
+  return thin
+    ? "Not enough written across both weeks to compare them yet."
+    : `${counts.changed} moved between this week and last.`;
 }
