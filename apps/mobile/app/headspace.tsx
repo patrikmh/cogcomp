@@ -7,6 +7,8 @@ import { MotionSurface } from "@/components/MotionSurface";
 import { Observatory, Readout } from "@/components/Observatory";
 import { api } from "@/lib/api";
 import { deviceTimezone, localToday } from "@/lib/dates";
+import { type Lens, lensesFor, resolveLens } from "@/lib/lenses";
+import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
 import { colors } from "@/theme";
 
@@ -25,24 +27,17 @@ import { colors } from "@/theme";
  * than presenting all three as equally solid.
  */
 
-type Lens = "today" | "all" | "patterns" | "regions" | "changed";
 
-const LENSES: { id: Lens; label: string }[] = [
-  { id: "today", label: "Today" },
-  { id: "all", label: "Everything" },
-  { id: "patterns", label: "Recurring" },
-  // Furthest of all from the words: a region is built on associations between
-  // things that already recurred, so it sits after Recurring in the same
-  // argument the other lenses make about distance from what was written.
-  { id: "regions", label: "Regions" },
-  { id: "changed", label: "Changed" },
-];
 
 export default function HeadspaceScreen() {
   const token = useSession((s) => s.token);
   const userId = useSession((s) => s.userId);
   const router = useRouter();
-  const [lens, setLens] = useState<Lens>("today");
+  const showFindings = usePreferences((s) => s.findings);
+  const [chosen, setChosen] = useState<Lens>("today");
+  // Someone who turns findings off while looking at one must not be left on a
+  // lens that no longer exists.
+  const lens = resolveLens(chosen, showFindings);
   const [selected, setSelected] = useState<string | null>(null);
 
   const tz = deviceTimezone();
@@ -61,7 +56,10 @@ export default function HeadspaceScreen() {
   const patterns = useQuery({
     queryKey: ["patterns", userId],
     queryFn: () => api.listPatterns(token!),
-    enabled: Boolean(token),
+    // Not fetched at all when findings are off. Asking the server for
+    // conclusions the person has said they do not want to see would make the
+    // switch a piece of stagecraft.
+    enabled: Boolean(token) && showFindings,
   });
   const model = useQuery({
     queryKey: ["self-model", userId],
@@ -71,12 +69,18 @@ export default function HeadspaceScreen() {
   const changed = useQuery({
     queryKey: ["temporal", userId, tz],
     queryFn: () => api.temporalChanges(token!, tz),
-    enabled: Boolean(token),
+    // Not fetched at all when findings are off. Asking the server for
+    // conclusions the person has said they do not want to see would make the
+    // switch a piece of stagecraft.
+    enabled: Boolean(token) && showFindings,
   });
   const themes = useQuery({
     queryKey: ["themes", userId],
     queryFn: () => api.listThemes(token!),
-    enabled: Boolean(token),
+    // Not fetched at all when findings are off. Asking the server for
+    // conclusions the person has said they do not want to see would make the
+    // switch a piece of stagecraft.
+    enabled: Boolean(token) && showFindings,
   });
 
   if (!token) return null;
@@ -114,13 +118,23 @@ export default function HeadspaceScreen() {
         </View>
       )}
 
+      {!showFindings && (
+        // Stated where the lenses used to be, so the absence reads as a choice
+        // rather than as an empty app. Nothing has been deleted, and the
+        // sentence says so.
+        <Text style={styles.findingsOff}>
+          Patterns, regions and changes are turned off. Everything you write is
+          still kept, and they are here when you want them — Settings.
+        </Text>
+      )}
+
       <View style={styles.lenses}>
-        {LENSES.map((option) => (
+        {lensesFor(showFindings).map((option) => (
           <MotionSurface
             key={option.id}
             style={[styles.lens, lens === option.id && styles.lensOn]}
             onPress={() => {
-              setLens(option.id);
+              setChosen(option.id);
               // The previous selection is not in the new lens, and a readout
               // describing something no longer on screen is worse than none.
               setSelected(null);
@@ -333,6 +347,13 @@ function edgesOf(graph: Awaited<ReturnType<typeof api.graph>> | undefined) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.room },
+  findingsOff: {
+    color: colors.inkMuted,
+    fontSize: 13,
+    lineHeight: 19,
+    paddingHorizontal: 4,
+    paddingBottom: 6,
+  },
   lenses: {
     flexDirection: "row",
     gap: 8,

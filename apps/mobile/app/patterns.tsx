@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Observatory, Readout } from "@/components/Observatory";
 import { api, type Pattern } from "@/lib/api";
 import { patternDestination, patternMeta } from "@/lib/patterns";
+import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
 
 /**
@@ -24,11 +25,13 @@ export default function PatternsScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [selected, setSelected] = useState<string | null>(null);
+  const showFindings = usePreferences((s) => s.findings);
+  const setFindings = usePreferences((s) => s.setFindings);
 
   const patterns = useQuery({
     queryKey: ["patterns", userId],
     queryFn: () => api.listPatterns(token!),
-    enabled: Boolean(token && userId),
+    enabled: Boolean(token && userId) && showFindings,
   });
 
   const mine = useMutation({
@@ -40,6 +43,23 @@ export default function PatternsScreen() {
   });
 
   if (!token) return null;
+
+  if (!showFindings) {
+    // A screen that says what it is not showing, and undoes it in one tap. The
+    // person turned this off; nothing here should argue with that, and nothing
+    // should make finding the way back a hunt through settings.
+    return (
+      <Observatory
+        eyebrow="What keeps returning"
+        data={[]}
+        selected={null}
+        onSelect={() => undefined}
+        detail={null}
+        empty="Patterns are turned off. Everything you have written is still kept, and nothing here has been deleted."
+        action={{ label: "Show patterns again", onPress: () => void setFindings(true) }}
+      />
+    );
+  }
 
   const found: Pattern[] = patterns.data ?? [];
   const busiest = Math.max(...found.map((p) => p.occurrences), 1);

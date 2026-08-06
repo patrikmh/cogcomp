@@ -13,6 +13,7 @@ import { getItem, setItem } from "./storage";
 
 const VOICE_KEY = "tlon.voice";
 const DEVELOPER_KEY = "tlon.developer";
+const FINDINGS_KEY = "tlon.findings";
 
 interface PreferencesState {
   /** Whether the agent speaks its replies aloud. */
@@ -27,10 +28,27 @@ interface PreferencesState {
    * like a control panel.
    */
   developer: boolean;
+  /**
+   * Whether the app shows what it has concluded across time — patterns,
+   * regions, what changed.
+   *
+   * On by default, and turning it off is not the same as leaving. Capture keeps
+   * working, nothing is deleted, and the findings are still there when someone
+   * turns this back on.
+   *
+   * It exists because the evidence says it has to. Reviews of mood monitoring
+   * report that being shown recurring negative material can make things worse
+   * for some people some of the time, and this app has no clinician in the loop
+   * to notice that. Someone who finds the readings unhelpful this week should be
+   * able to stop reading them without abandoning the writing — which is the only
+   * part with evidence of helping on its own.
+   */
+  findings: boolean;
   ready: boolean;
   restore: () => Promise<void>;
   setVoice: (on: boolean) => Promise<void>;
   setDeveloper: (on: boolean) => Promise<void>;
+  setFindings: (on: boolean) => Promise<void>;
 }
 
 /** Stored as strings, since the storage adapter is a string map on both
@@ -43,15 +61,22 @@ function read(value: string | null, fallback: boolean): boolean {
 export const usePreferences = create<PreferencesState>((set) => ({
   voice: true,
   developer: false,
+  findings: true,
   ready: false,
 
   restore: async () => {
     try {
-      const [voice, developer] = await Promise.all([
+      const [voice, developer, findings] = await Promise.all([
         getItem(VOICE_KEY),
         getItem(DEVELOPER_KEY),
+        getItem(FINDINGS_KEY),
       ]);
-      set({ voice: read(voice, true), developer: read(developer, false), ready: true });
+      set({
+        voice: read(voice, true),
+        developer: read(developer, false),
+        findings: read(findings, true),
+        ready: true,
+      });
     } catch {
       // Preferences failing to load is not worth blocking the app for. Defaults
       // are safe: voice on, developer surfaces hidden.
@@ -67,5 +92,10 @@ export const usePreferences = create<PreferencesState>((set) => ({
   setDeveloper: async (on) => {
     set({ developer: on });
     await setItem(DEVELOPER_KEY, String(on)).catch(() => undefined);
+  },
+
+  setFindings: async (on) => {
+    set({ findings: on });
+    await setItem(FINDINGS_KEY, String(on)).catch(() => undefined);
   },
 }));

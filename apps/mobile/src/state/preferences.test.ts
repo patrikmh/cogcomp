@@ -12,7 +12,7 @@ const wrote = setItem as jest.MockedFunction<typeof setItem>;
 
 beforeEach(() => {
   jest.clearAllMocks();
-  usePreferences.setState({ voice: true, developer: false, ready: false });
+  usePreferences.setState({ voice: true, developer: false, findings: true, ready: false });
 });
 
 describe("defaults", () => {
@@ -23,6 +23,31 @@ describe("defaults", () => {
   it("hides developer surfaces by default", () => {
     // A journal should not open onto a control panel.
     expect(usePreferences.getState().developer).toBe(false);
+  });
+
+  it("shows findings by default", () => {
+    // The thing the app is for. Off is a choice someone makes, never the
+    // starting state.
+    expect(usePreferences.getState().findings).toBe(true);
+  });
+
+  it("keeps findings off across a restart once turned off", async () => {
+    // Someone who switched this off in a bad week must not be shown patterns
+    // again simply because they closed the app.
+    stored.mockImplementation(async (key: string) =>
+      key === "tlon.findings" ? "false" : null,
+    );
+
+    await usePreferences.getState().restore();
+
+    expect(usePreferences.getState().findings).toBe(false);
+  });
+
+  it("writes the findings choice where a restart will find it", async () => {
+    await usePreferences.getState().setFindings(false);
+
+    expect(wrote).toHaveBeenCalledWith("tlon.findings", "false");
+    expect(usePreferences.getState().findings).toBe(false);
   });
 
   it("is not ready until storage has been read", () => {

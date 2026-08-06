@@ -10,7 +10,7 @@ import { colors } from "@/theme";
 /**
  * Settings.
  *
- * Two switches and a way out. Everything that used to sit in the main navigation
+ * Three switches and a way out. Everything that used to sit in the main navigation
  * because it had nowhere else to go now lives either here or behind the developer
  * switch — a journal should not open onto a control panel.
  *
@@ -22,7 +22,7 @@ export default function SettingsScreen() {
   const router = useRouter();
   const token = useSession((s) => s.token);
   const signOut = useSession((s) => s.signOut);
-  const { voice, developer, setVoice, setDeveloper } = usePreferences();
+  const { voice, developer, findings, setVoice, setDeveloper, setFindings } = usePreferences();
 
   if (!token) return null;
 
@@ -33,6 +33,13 @@ export default function SettingsScreen() {
         note="The agent reads its side aloud."
         on={voice}
         onToggle={() => void setVoice(!voice)}
+      />
+
+      <Switch
+        label="Patterns and regions"
+        note="What has been noticed across time. Turning this off keeps every entry."
+        on={findings}
+        onToggle={() => void setFindings(!findings)}
       />
 
       <Switch

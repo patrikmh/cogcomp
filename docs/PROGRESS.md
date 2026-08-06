@@ -16,7 +16,7 @@ checkboxes but standing gates, so they are tracked once:
 
 | Gate | Status | Notes |
 |---|---|---|
-| Unit tests pass | ✅ | 660 backend tests and 232 mobile tests green, nothing skipped; the nine live Graphiti tests now run against a real FalkorDB. Ruff clean; mobile checks remain part of the app workflow |
+| Unit tests pass | ✅ | 660 backend tests and 241 mobile tests green, nothing skipped; the nine live Graphiti tests now run against a real FalkorDB. Ruff clean; mobile checks remain part of the app workflow |
 | Explainability available | ✅ | `/v1/nodes/{id}/explain`; every inference traces to the entry that produced it |
 | Confidence scores included | ✅ | Enforced by CHECK constraint, not convention — an inference without one cannot be inserted |
 | Provenance retained | ✅ | `node_provenance` / `edge_provenance` are tables with FKs into `observations` |
@@ -103,6 +103,7 @@ Built because the product needed them, not because the spec asked:
 | Skull avatar | ✅ | Profile with occipital bulge, brow ridge, nasion recess, projecting chin and gonial jaw angle, plus an interior cranial vault line. Constellation clipped to the braincase |
 | 3D sphere avatar | ✅ | Real 3D projection in Skia, depth-sorted arcs, drag to spin |
 | Continuous voice conversation | ✅ | Energy-based VAD (`src/lib/vad.ts`, 24 tests) drives listen → transcribe → reply → speak → listen. Mic shut while the agent talks. Barge-in not implemented |
+| Findings can be switched off | ✅ | Patterns, regions and changes can be turned off while capture keeps working and nothing is deleted — the counterpart to "silence is never punished". Reviews of mood monitoring report that being shown recurring negative material harms some people some of the time, and this app has no clinician in the loop to notice. The queries stop firing too, so the switch is not stagecraft |
 | Local calendars | ✅ | Every capture path records the IANA zone it was written in (`observations.timezone`, `conversation_turns.timezone`); the weekday and lag detectors count days in the writer's own calendar and only say `(UTC)` when some of their evidence predates that |
 | Voice/shape sync | ✅ | Server-measured RMS envelope, interpolated by playback position — works identically on web and native |
 | Association mining | ✅ | Deterministic lift over shared entries; emits adjacency only, never causality |
