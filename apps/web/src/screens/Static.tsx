@@ -14,6 +14,7 @@ export function Words() {
           <h1>What happens to your words</h1>
         </div>
       </div>
+      <div className="cards">
       <div className="card">
         <p>
           What you write is stored on your account and shown back to you. It is not shared with
@@ -39,9 +40,15 @@ export function Words() {
           you can check, and stops.
         </p>
       </div>
-      <Link className="btn go on" to="/journal">
-        START WRITING →
-      </Link>
+      </div>
+      <div className="row" style={{ marginTop: 18 }}>
+        <Link className="btn" to="/journal">
+          START WRITING →
+        </Link>
+        <Link className="btn ghost" to="/settings">
+          SETTINGS
+        </Link>
+      </div>
     </>
   );
 }
@@ -79,8 +86,15 @@ export function First() {
         what it has.
       </p>
 
-      <Accrual label="Entries kept" have={written} need={12} />
-      <Accrual label="Weeks with writing in them" have={days} need={4} />
+      <div className="cards">
+        <Accrual label="Entries kept" have={written} need={12} />
+        <Accrual label="Weeks with writing in them" have={days} need={4} />
+      </div>
+      <div className="row" style={{ marginTop: 18 }}>
+        <Link className="btn" to="/journal">
+          WRITE SOMETHING
+        </Link>
+      </div>
 
       <p className="rest mono">
         These are thresholds the detectors need, not targets you owe anyone. A quiet week is a quiet

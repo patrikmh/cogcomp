@@ -1,5 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { Link } from "react-router-dom";
+
+import { Meter } from "@/components/Meter";
 
 import { Empty, Failed, Loading } from "@/components/States";
 import { api } from "@/lib/api";
@@ -73,37 +76,60 @@ const summarise = (summary: Record<string, unknown>) =>
 /** The dashboard: what is in the graph, and a way into any of it. */
 export function Graph() {
   const summary = useQuery({ queryKey: ["graph-summary"], queryFn: api.graphSummary });
+  const graph = useQuery({ queryKey: ["graph"], queryFn: () => api.graph(200) });
+  const [tentativeOnly, setTentativeOnly] = useState(false);
 
   if (summary.isLoading) return <Loading />;
   if (summary.isError || !summary.data) return <Failed />;
 
   const total = summary.data.counts.reduce((n, c) => n + c.count, 0);
+  const nodes = (graph.data?.nodes ?? []).filter((n) => n.kind !== "Observation");
+  const tentative = nodes.filter((n) => n.tentative);
+  const shown = tentativeOnly ? tentative : nodes;
+
   return (
     <>
-      <div className="p-head">
-        <div>
-          <span className="kicker">Machinery</span>
-          <h1>Graph</h1>
-        </div>
-        <span className="mono">{total} nodes</span>
+      <span className="kicker">Graph · developer</span>
+      <h1>
+        {total} {total === 1 ? "node" : "nodes"}
+      </h1>
+
+      <div className="row" style={{ gap: 10 }}>
+        {summary.data.counts.map((c) => (
+          <span className="pill" key={c.kind}>
+            {c.kind.toLowerCase()} <span className="mono">{c.count}</span>
+          </span>
+        ))}
       </div>
-      {summary.data.counts.map((c) => (
-        <div className="card" key={c.kind}>
-          <div className="row" style={{ justifyContent: "space-between" }}>
-            <b>{c.kind.toLowerCase()}</b>
-            <span className="mono">{c.count}</span>
-          </div>
-          <div className="p-stripwrap">
-            <span
-              className="p-bar"
-              style={{ width: `${Math.round((c.count / Math.max(1, total)) * 100)}%` }}
-            />
-          </div>
-        </div>
-      ))}
-      <Link className="btn" to="/explore">
-        OPEN THE EXPLORER →
-      </Link>
+
+      <div className="row" style={{ marginTop: 16 }}>
+        <button
+          className={`pill${tentativeOnly ? " tent" : ""}`}
+          aria-pressed={tentativeOnly}
+          onClick={() => setTentativeOnly(!tentativeOnly)}
+        >
+          tentative only · {tentative.length}
+        </button>
+        <Link className="btn ghost" to="/explore">
+          OPEN EXPLORER
+        </Link>
+      </div>
+
+      <h2>Any node, by name</h2>
+      <div className="cards">
+        {shown.map((n) => (
+          <Link key={n.id} className={`card${n.tentative ? " hollow" : ""}`} to={`/node/${n.id}`}>
+            <div className="row" style={{ justifyContent: "space-between" }}>
+              <b>{n.label}</b>
+              <span className="mono">{n.kind.toLowerCase()}</span>
+            </div>
+            <div className="row" style={{ marginTop: 10 }}>
+              <Meter confidence={n.confidence ?? 0} />
+              <span className="mono">{(n.confidence ?? 0).toFixed(2)}</span>
+            </div>
+          </Link>
+        ))}
+      </div>
     </>
   );
 }
@@ -139,6 +165,11 @@ export function Explore() {
         </div>
         <span className="mono">{nodes.length} in view</span>
       </div>
+      <p className="sub">
+        Points sit where their id puts them, never where a force settled them — a spring layout
+        places things near each other for reasons that have nothing to do with meaning, and people
+        read adjacency as significance. The threads are the relationships.
+      </p>
       <svg id="explore" viewBox="0 0 800 540" role="img" aria-label="The graph, as points and threads">
         {graph.data.edges.map((e, i) => {
           const a = at.get(e.from_id);
@@ -164,10 +195,7 @@ export function Explore() {
           );
         })}
       </svg>
-      <p className="rest mono">
-        Position means nothing here — points sit where their id puts them. The threads are the
-        relationships.
-      </p>
+
     </>
   );
 }

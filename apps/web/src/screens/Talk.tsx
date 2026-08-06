@@ -116,22 +116,27 @@ export function Talk() {
     <div className="talk-stage">
       <canvas id="avatar" ref={canvas} width={720} height={720} aria-hidden />
 
-      <div className="talk-caption mono">
-        {mode === "idle" && conversation && "Listening."}
-        {mode === "thinking" && "Thinking."}
-        {mode === "speaking" && "Speaking."}
-        {mode === "stopped" && "Stopped asking."}
-        {!conversation && "Not started."}
-      </div>
+      <p className="talk-caption mono" aria-live="polite">
+        {!conversation
+          ? ""
+          : mode === "thinking"
+            ? "Thinking."
+            : mode === "speaking"
+              ? "Speaking."
+              : mode === "stopped"
+                ? "Stopped asking. Nothing more will be asked of you."
+                : "Listening."}
+      </p>
 
       {!conversation ? (
-        <button
-          className="btn go on talk-begin"
-          disabled={begin.isPending}
-          onClick={() => begin.mutate()}
-        >
-          {begin.isPending ? "…" : "BEGIN"}
-        </button>
+        <div className="talk-begin">
+          <button className="btn" disabled={begin.isPending} onClick={() => begin.mutate()}>
+            {begin.isPending ? "…" : "BEGIN THE CONVERSATION"}
+          </button>
+          <span className="mono" style={{ color: "var(--faint)", marginTop: 14 }}>
+            Only your turns become entries. Nothing is interpreted here.
+          </span>
+        </div>
       ) : (
         <>
           <div className="t-main">
@@ -147,20 +152,12 @@ export function Talk() {
             ))}
           </div>
 
-          {crisis && (
-            <div className="talk-crisis card">
-              <b>If you are at risk right now</b>
-              {crisis.map((line) => (
-                <p key={line}>{line}</p>
-              ))}
-            </div>
-          )}
-
-          <div className="talk-input row">
+          <div className="talk-input">
             <input
-              className="f-field"
               value={draft}
-              placeholder="Say it however it comes out"
+              placeholder="Say what happened"
+              autoComplete="off"
+              disabled={mode === "stopped"}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && draft.trim()) {
@@ -169,21 +166,57 @@ export function Talk() {
                 }
               }}
             />
-            <button
-              className="btn"
-              onClick={() => {
-                audio.current?.pause();
-                close.mutate();
-              }}
-            >
-              CLOSE
-            </button>
           </div>
-          <p className="mono" style={{ color: "var(--faint)" }}>
-            Closing keeps your turns as entries. The agent's phrasing never becomes evidence about
-            you.
-          </p>
         </>
+      )}
+
+      {/* Always reachable, both of them: stopping and leaving are the two
+          things someone may need most and should never have to hunt for. */}
+      <div className="talk-corners">
+        <button
+          className="talk-corner"
+          onClick={() => {
+            // Elicitation stops on the person's say-so, not only on the
+            // model's judgement. Anything being spoken stops too.
+            audio.current?.pause();
+            envelope.current = null;
+            setMode("stopped");
+            setCrisis(crisis ?? []);
+          }}
+        >
+          urgent
+        </button>
+        {conversation && (
+          <button
+            className="talk-corner"
+            onClick={() => {
+              audio.current?.pause();
+              close.mutate();
+            }}
+          >
+            close · keeps your turns
+          </button>
+        )}
+      </div>
+
+      {crisis && (
+        <div className="talk-crisis">
+          Elicitation is stopped. Nothing more will be asked of you.
+          <div className="row" style={{ marginTop: 10, justifyContent: "center" }}>
+            {crisis.length > 0 ? (
+              crisis.map((line) => (
+                <span className="pill" key={line}>
+                  {line}
+                </span>
+              ))
+            ) : (
+              <span className="mono">
+                No local services are configured on this server — a wrong-country number is worse
+                than none.
+              </span>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
