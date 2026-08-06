@@ -47,6 +47,10 @@ export interface SupportingObservation {
   content: string;
   source: string;
   captured_at: string;
+  /** Whole days between the moment this describes and the moment it was
+   *  written. Zero for something typed at the time. Recall is pulled toward
+   *  peaks and endings, so a reader weighing a claim deserves to know. */
+  recall_days: number;
 }
 
 /** What a person may say about a reading. `hypothesis` withdraws a judgement —

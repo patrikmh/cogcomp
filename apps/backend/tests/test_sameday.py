@@ -10,7 +10,7 @@ from uuid import UUID, uuid4
 
 from tlon.graph.schema import NodeKind
 from tlon.patterns import Candidate
-from tlon.sameday import MIN_MATCHES, describe, mine, to_pattern
+from tlon.sameday import MAX_RECALL_DELAY, MIN_MATCHES, describe, mine, to_pattern
 
 START = date(2026, 3, 2)  # Monday
 
@@ -30,6 +30,7 @@ class Journal:
         confidence: float = 0.8,
         zoned: bool = False,
         observation_id: UUID | None = None,
+        recall_delay: timedelta | None = None,
     ) -> UUID:
         observed_on = START + timedelta(days=day)
         self.observed_days.add(observed_on)
@@ -47,6 +48,7 @@ class Journal:
                 observed_on=observed_on,
                 zoned=zoned,
                 observed_at=moment,
+                recall_delay=recall_delay,
             )
         )
         return observation_id
@@ -125,6 +127,26 @@ class TestWhatCountsAsAWithinDayOrder:
 
         assert mine(*_of(journal)) == []
 
+    def test_a_day_written_up_a_week_later_is_not_evidence_of_its_shape(self):
+        # The order of two moments is exactly what recall distorts — accounts
+        # written after the fact are pulled toward peaks and endings. The day
+        # still counts everywhere else; only its *hours* are refused here.
+        journal = mornings_and_evenings(recall_delay=MAX_RECALL_DELAY + timedelta(hours=1))
+
+        assert mine(*_of(journal)) == []
+
+    def test_writing_the_morning_up_at_lunchtime_still_counts(self):
+        journal = mornings_and_evenings(recall_delay=MAX_RECALL_DELAY - timedelta(hours=1))
+
+        assert len(mine(*_of(journal))) == 1
+
+    def test_an_entry_with_no_recorded_delay_is_taken_at_its_word(self):
+        # Everything captured before the delay was computed. Refusing those
+        # would retire findings that were fine, on no evidence that they are not.
+        journal = mornings_and_evenings(recall_delay=None)
+
+        assert len(mine(*_of(journal))) == 1
+
     def test_an_ordering_nobody_writes_about_any_more_lapses(self):
         journal = mornings_and_evenings()
         journal.observed_days.add(START + timedelta(days=200))
@@ -140,7 +162,8 @@ class TestWhatItIsAllowedToSay:
         text = describe(mine(*_of(mornings_and_evenings(zoned=True)))[0])
 
         assert text == (
-            "wired came up earlier in the day than skipping dinner · 4 times, about 10 hours apart"
+            "wired came up earlier in the day than skipping dinner · "
+            "on 4 of the 4 days both came up, about 10 hours apart"
         )
 
     def test_the_description_claims_no_cause(self):

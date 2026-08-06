@@ -166,7 +166,7 @@ def test_description_states_order_without_cause():
 
     text = describe(mine(journal.candidates, journal.observed_days)[0]).lower()
 
-    assert text == "sleeping badly came up 1 day before foggy · 4 times (utc)"
+    assert text == "sleeping badly came up 1 day before foggy · 4 of 4 times (utc)"
     for causal_word in ("because", "cause", "trigger", "leads to", "makes", "due to"):
         assert causal_word not in text
 
@@ -180,7 +180,7 @@ def test_the_utc_hedge_goes_away_once_both_sides_know_their_timezone():
 
     text = describe(mine(journal.candidates, journal.observed_days)[0])
 
-    assert text == "sleeping badly came up 1 day before foggy · 4 times"
+    assert text == "sleeping badly came up 1 day before foggy · 4 of 4 times"
 
 
 def test_an_unzoned_side_keeps_the_hedge():
@@ -194,7 +194,7 @@ def test_an_unzoned_side_keeps_the_hedge():
 
     text = describe(mine(journal.candidates, journal.observed_days)[0])
 
-    assert text.endswith("· 4 times (UTC)")
+    assert text.endswith("· 4 of 4 times (UTC)")
 
 
 def test_to_pattern_preserves_lag_claim_and_pair_count():

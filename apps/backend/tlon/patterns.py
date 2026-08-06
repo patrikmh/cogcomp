@@ -120,6 +120,15 @@ class Candidate:
     #: without it. Optional so a detector that only needs days can build a
     #: Candidate without inventing a time.
     observed_at: datetime | None = None
+    #: How long after the moment it describes the entry was actually written.
+    #: Zero for something typed as it happened, days for something backfilled.
+    #:
+    #: Recall is not neutral: retrospective accounts are pulled toward peaks and
+    #: endings, so an entry written a week later is weaker evidence about *when*
+    #: things happened than one written at the time. Detectors that make claims
+    #: about within-day order have to know the difference; the ones that count
+    #: whole days can ignore it.
+    recall_delay: timedelta | None = None
 
 
 def calendar_note(members: Iterable[Candidate]) -> str:

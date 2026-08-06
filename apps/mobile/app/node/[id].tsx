@@ -205,6 +205,14 @@ function Body({
             <Text style={styles.meta}>
               {new Date(observation.captured_at).toLocaleString()} ·{" "}
               {observation.source}
+              {/* Said plainly where the evidence is read. An entry written days
+                  after the thing it describes is weaker evidence about when
+                  that thing happened, and the person is the only one who can
+                  weigh that against what they remember. */}
+              {observation.recall_days > 0 &&
+                ` · written ${observation.recall_days} ${
+                  observation.recall_days === 1 ? "day" : "days"
+                } later`}
             </Text>
           </View>
         ))

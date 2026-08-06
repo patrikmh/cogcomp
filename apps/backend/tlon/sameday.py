@@ -20,6 +20,14 @@ match needs two *different* entries, separated by real time.
 timezone-independent, but which day they fall on is not, so a finding built on
 any entry that predates timezone capture still says so.
 
+**Written at the time, or not counted.** This is the one detector whose claim is
+about the shape of a day, and a day reconstructed days later is not evidence of
+that shape — recall is pulled toward peaks and endings, and the order of two
+moments is exactly what it distorts. An entry backfilled more than
+`MAX_RECALL_DELAY` after the moment it describes is skipped here. It still
+counts everywhere else: the day it belongs to is a fact the person can supply
+long afterwards, but the hour is not.
+
 **Silence is not evidence.** The denominator is days where both things were
 written about at all. A day where only one appeared says nothing about order.
 """
@@ -66,6 +74,12 @@ MIN_PRECISION = 0.75
 #: How far apart the two entries must be. Ten minutes rules out one sitting
 #: split across two entries, which is a writing habit rather than a sequence.
 MIN_SEPARATION = timedelta(minutes=10)
+
+#: How long after the fact an entry may have been written and still say
+#: something about the order of a day. Six hours: long enough to write up the
+#: morning at lunchtime, short enough that the sequence is remembered rather
+#: than reconstructed.
+MAX_RECALL_DELAY = timedelta(hours=6)
 
 
 @dataclass(frozen=True)
@@ -136,6 +150,10 @@ def _items(candidates: list[Candidate]) -> list[_Item]:
     grouped: dict[tuple[NodeKind, str], list[Candidate]] = defaultdict(list)
     for candidate in candidates:
         if candidate.kind not in PATTERNABLE_KINDS or candidate.observed_at is None:
+            continue
+        # Written long after the moment it describes, so its position within the
+        # day is recall rather than record.
+        if candidate.recall_delay is not None and candidate.recall_delay > MAX_RECALL_DELAY:
             continue
         label = normalise(candidate.label)
         if label:
@@ -220,14 +238,21 @@ def _candidate(source: _Item, target: _Item, cutoff: date) -> SameDayFinding | N
 
 
 def describe(finding: SameDayFinding) -> str:
-    """Counts and a typical gap, phrased as sequence and nothing more."""
+    """Counts and a typical gap, phrased as sequence and nothing more.
+
+    The denominator is stated, not just the hits. "4 times" invites the reader
+    to supply their own denominator, and the one they supply is usually "always";
+    "4 of the 5 days" is the same finding with its strength attached. Directed
+    structure estimated from a handful of days is the least stable thing this
+    system produces, so it is the last place to be reporting a bare numerator.
+    """
     hours = finding.typical_gap.total_seconds() / 3600
     gap = f"{round(hours)} hours" if hours >= 1.5 else "under an hour"
-    times = "time" if finding.occasions == 1 else "times"
+    days = "day" if finding.shared_days == 1 else "days"
     return (
         f"{finding.source_label} came up earlier in the day than "
-        f"{finding.target_label} · {finding.occasions} {times}, "
-        f"about {gap} apart{finding.note}"
+        f"{finding.target_label} · on {finding.occasions} of the "
+        f"{finding.shared_days} {days} both came up, about {gap} apart{finding.note}"
     )
 
 

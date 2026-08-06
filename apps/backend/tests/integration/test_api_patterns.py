@@ -43,6 +43,22 @@ async def entry(
     return observation_id
 
 
+async def written_in_the_moment(
+    pool: asyncpg.Pool, observation_id: UUID, captured_at: datetime
+) -> None:
+    """Mark an entry as written when it happened rather than backfilled.
+
+    Every fixture here backdates `captured_at` by months, so by default the
+    server sees each entry as recalled long after the fact — which the within-day
+    detector refuses, correctly. Tests about the shape of a day have to say that
+    the day was written up as it happened, and the creation time is where that
+    is recorded.
+    """
+    await pool.execute(
+        "UPDATE graph_nodes SET created_at = $2 WHERE id = $1", observation_id, captured_at
+    )
+
+
 async def inferred(
     pool: asyncpg.Pool,
     account: Account,
@@ -336,7 +352,9 @@ class TestLagPersistence:
 
         assert len(lag_patterns) == 1
         pattern = lag_patterns[0]
-        assert pattern["label"] == "sleeping badly came up 1 day before foggy · 4 times (UTC)"
+        assert pattern["label"] == (
+            "sleeping badly came up 1 day before foggy · 4 of 4 times (UTC)"
+        )
         assert all(
             causal_term not in pattern["label"].lower()
             for causal_term in ("because", "cause", "trigger", "leads to", "makes", "due to")
@@ -488,9 +506,13 @@ class TestWithinDayOrder:
     ):
         for week in range(4):
             day = DAY_ONE + timedelta(days=week * 7)
-            morning = await entry(client, account, day.replace(hour=7, minute=30))
+            morning_at = day.replace(hour=7, minute=30)
+            morning = await entry(client, account, morning_at)
+            await written_in_the_moment(pool, morning, morning_at)
             await inferred(pool, account, morning, "wired")
-            evening = await entry(client, account, day.replace(hour=19, minute=0))
+            evening_at = day.replace(hour=19, minute=0)
+            evening = await entry(client, account, evening_at)
+            await written_in_the_moment(pool, evening, evening_at)
             await inferred(pool, account, evening, "skipping dinner", kind="Activity")
 
         await mine(client, account)
@@ -503,7 +525,7 @@ class TestWithinDayOrder:
         assert len(found) == 1
         assert found[0]["label"] == (
             "wired came up earlier in the day than skipping dinner · "
-            "4 times, about 12 hours apart (UTC)"
+            "on 4 of the 4 days both came up, about 12 hours apart (UTC)"
         )
         assert found[0]["extractor"] == "sameday-v0.1"
         for causal in ("because", "cause", "trigger", "leads to", "due to"):
@@ -520,16 +542,13 @@ class TestWithinDayOrder:
         new_york = "America/New_York"
         for week in range(4):
             day = DAY_ONE + timedelta(days=week * 7)
-            afternoon = await entry(
-                client, account, day.replace(hour=21, minute=0), timezone=new_york
-            )
+            afternoon_at = day.replace(hour=21, minute=0)
+            afternoon = await entry(client, account, afternoon_at, timezone=new_york)
+            await written_in_the_moment(pool, afternoon, afternoon_at)
             await inferred(pool, account, afternoon, "wired")
-            evening = await entry(
-                client,
-                account,
-                (day + timedelta(days=1)).replace(hour=2, minute=0),
-                timezone=new_york,
-            )
+            evening_at = (day + timedelta(days=1)).replace(hour=2, minute=0)
+            evening = await entry(client, account, evening_at, timezone=new_york)
+            await written_in_the_moment(pool, evening, evening_at)
             await inferred(pool, account, evening, "skipping dinner", kind="Activity")
 
         await mine(client, account)
@@ -542,7 +561,8 @@ class TestWithinDayOrder:
         assert len(found) == 1
         # Every entry recorded its zone, so the claim drops the hedge as well.
         assert found[0]["label"] == (
-            "wired came up earlier in the day than skipping dinner · 4 times, about 5 hours apart"
+            "wired came up earlier in the day than skipping dinner · "
+            "on 4 of the 4 days both came up, about 5 hours apart"
         )
 
 
@@ -729,7 +749,7 @@ class TestOrderedEvidence:
         ).json()
 
         assert body["utc_fallback"] is False
-        assert pattern["label"] == "sleeping badly came up 1 day before foggy · 4 times"
+        assert pattern["label"] == "sleeping badly came up 1 day before foggy · 4 of 4 times"
 
     async def test_a_pattern_from_another_detector_has_no_ordering(
         self, client: AsyncClient, pool: asyncpg.Pool, account: Account

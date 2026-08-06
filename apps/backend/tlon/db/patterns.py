@@ -53,6 +53,11 @@ async def load_candidates(pool: asyncpg.Pool, user_id: UUID) -> list[Candidate]:
                -- within-day detector. Naive on purpose: it is only ever
                -- compared with other moments from the same person's day.
                (o.captured_at AT TIME ZONE COALESCE(o.timezone, 'UTC')) AS observed_at,
+               -- How long after the fact it was written: the server's clock at
+               -- insert, minus the moment the client said it was about.
+               -- Negative for a clock skewed forward, which `greatest` flattens
+               -- to zero rather than treating as evidence of anything.
+               greatest(obs.created_at - o.captured_at, interval '0') AS recall_delay,
                -- The day in the writer's own calendar, or UTC where they never
                -- recorded one. Computed here rather than in Python so every
                -- detector sees the same day for the same entry.
@@ -86,6 +91,7 @@ async def load_candidates(pool: asyncpg.Pool, user_id: UUID) -> list[Candidate]:
             # server day as the person's own.
             zoned=row["timezone"] is not None,
             observed_at=row["observed_at"],
+            recall_delay=row["recall_delay"],
         )
         for row in rows
     ]

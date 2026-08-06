@@ -242,6 +242,50 @@ class TestExtraction:
 
 
 class TestExplain:
+    async def test_evidence_says_how_long_after_the_fact_it_was_written(
+        self, client: AsyncClient, account: Account
+    ):
+        """A backfilled entry is different evidence from one written at the time.
+
+        Recall is pulled toward peaks and endings, so an entry written days after
+        the moment it describes supports a claim differently — and only the
+        person reading it can weigh that, which means only they can be told.
+        """
+        observation_id = str(uuid4())
+        await client.post(
+            "/v1/observations",
+            headers=account.auth,
+            json={
+                "id": observation_id,
+                "content": "last Tuesday was heavy",
+                "source": "text",
+                # Backdated by a week relative to when the server stores it.
+                "captured_at": "2026-03-01T09:00:00Z",
+            },
+        )
+        await client.post(f"/v1/observations/{observation_id}/extract", headers=account.auth)
+
+        explained = await client.get(
+            f"/v1/graph/nodes/{observation_id}/explain", headers=account.auth
+        )
+
+        entry = explained.json()["derived_from"]
+        assert entry == [] or entry[0]["recall_days"] > 0
+
+    async def test_an_entry_written_now_carries_no_recall_distance(
+        self, client: AsyncClient, account: Account
+    ):
+        observation_id = await write_entry(client, account)
+        await client.post(f"/v1/observations/{observation_id}/extract", headers=account.auth)
+
+        node = (await client.get("/v1/graph?limit=50", headers=account.auth)).json()["nodes"]
+        inferred_id = next(n["id"] for n in node if n["kind"] != "Observation")
+        explained = (
+            await client.get(f"/v1/graph/nodes/{inferred_id}/explain", headers=account.auth)
+        ).json()
+
+        assert explained["derived_from"][0]["recall_days"] == 0
+
     async def test_an_inferred_node_explains_itself_with_the_users_own_words(
         self, client: AsyncClient, account: Account
     ):

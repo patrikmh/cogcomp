@@ -63,6 +63,10 @@ class LagFinding:
     pairs: tuple[LagMatch, ...]
     lift: float
     precision: float
+    #: Days the first thing came up *and* the person also wrote on the day the
+    #: second would have landed. The denominator behind `precision`, and the
+    #: number a reader needs to size the claim.
+    eligible_days: int
     #: "" when every contributing entry recorded its timezone, " (UTC)" while any
     #: of them predates that. Carried on the finding because the label is built
     #: from it and the pairs no longer know where they came from.
@@ -191,6 +195,7 @@ def _candidate(
         pairs=pairs,
         lift=lift,
         precision=precision,
+        eligible_days=len(source_days),
         # Either side being unzoned is enough to hedge: the gap between them is
         # only as local as its vaguer end.
         note=source.note or target.note,
@@ -264,11 +269,17 @@ def mine(
 
 
 def describe(finding: LagFinding) -> str:
+    """The ordering, and how often it held out of how many chances.
+
+    Stating the denominator matters more here than anywhere else: a bare "4
+    times" reads as a rule, and the reader's implied denominator is "always".
+    """
     day = "day" if finding.lag_days == 1 else "days"
-    times = "time" if finding.matches == 1 else "times"
+    times = "time" if finding.eligible_days == 1 else "times"
     return (
         f"{finding.source_label} came up {finding.lag_days} {day} before "
-        f"{finding.target_label} · {finding.matches} {times}{finding.note}"
+        f"{finding.target_label} · {finding.matches} of {finding.eligible_days} "
+        f"{times}{finding.note}"
     )
 
 

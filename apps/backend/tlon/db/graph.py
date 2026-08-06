@@ -30,7 +30,13 @@ async def explain(pool: asyncpg.Pool, user_id: UUID, node_id: UUID) -> dict | No
 
     supporting = await pool.fetch(
         """
-        SELECT o.node_id, o.content, o.source, o.captured_at
+        SELECT o.node_id, o.content, o.source, o.captured_at,
+               -- How long after the moment it describes this was written.
+               -- Retrospective accounts are pulled toward peaks and endings, so
+               -- an entry written days later is a different kind of evidence
+               -- from one typed at the time — and the reader is the only one who
+               -- can weigh that.
+               greatest(n.created_at - o.captured_at, interval '0') AS recall_delay
         FROM node_provenance p
         JOIN observations o ON o.node_id = p.observation_id
         JOIN graph_nodes n ON n.id = o.node_id
@@ -58,6 +64,10 @@ async def explain(pool: asyncpg.Pool, user_id: UUID, node_id: UUID) -> dict | No
                 "content": r["content"],
                 "source": r["source"],
                 "captured_at": r["captured_at"],
+                # Whole days, because that is the grain at which recall starts
+                # to matter and the grain a person can act on. Zero for anything
+                # written the same day.
+                "recall_days": r["recall_delay"].days,
             }
             for r in supporting
         ],
