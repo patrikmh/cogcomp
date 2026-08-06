@@ -261,6 +261,25 @@ export interface MinePatternsResponse {
   considered: number;
 }
 
+/** One week of vocabulary. Counts of the person's own words, never a score. */
+export interface VocabularyWeek {
+  week_start: string;
+  entry_count: number;
+  distinct_words: number;
+  /** The words themselves — a count nobody can check is a score. */
+  words: string[];
+  /** Of those, the ones not used in any earlier week of the window. */
+  first_time: string[];
+  /** Written by the server so every client says it the same way. */
+  description: string;
+}
+
+/** Matches the response from GET /v1/vocabulary/{week_start}. */
+export interface Vocabulary {
+  timezone: string;
+  weeks: VocabularyWeek[];
+}
+
 /** Matches the response from GET /v1/themes. A region of someone's life: a
  *  group of things that keep turning up in the same entries. */
 export interface Theme {
@@ -600,6 +619,13 @@ export const api = {
    * written at 00:30 belongs to that day in the writer's timezone, not the
    * previous one in UTC.
    */
+  vocabulary(token: string, weekStart: string, tz: string, weeks = 8) {
+    return request<Vocabulary>(
+      `/v1/vocabulary/${weekStart}?tz=${encodeURIComponent(tz)}&weeks=${weeks}`,
+      token,
+    );
+  },
+
   weeklySummary(token: string, weekStart: string, tz: string) {
     return request<WeeklySummary>(
       `/v1/summary/week/${weekStart}?tz=${encodeURIComponent(tz)}`,

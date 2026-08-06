@@ -12,6 +12,8 @@ import asyncpg
 from tlon.domain.inference import TENTATIVE_THRESHOLD
 from tlon.domain.weekly import UnknownTimezone, local_date, week_bounds, week_dates
 from tlon.graph.schema import NodeKind
+from tlon.vocabulary import FELT_KINDS, Mention, weeks_of
+from tlon.vocabulary import describe as describe_week
 
 ENTITY_KINDS = (NodeKind.PERSON, NodeKind.PLACE, NodeKind.ACTIVITY, NodeKind.EVENT)
 MIN_RECURRENCE = 2
@@ -218,3 +220,93 @@ async def weekly_summary(
         "inferred": items,
         "recurring": recurring,
     }
+
+
+async def vocabulary(
+    pool: asyncpg.Pool,
+    user_id: UUID,
+    week_start: Date,
+    weeks: int,
+    timezone: str = "UTC",
+) -> dict:
+    """How many different words for a state, per week, ending at `week_start`.
+
+    Read-only and unstored, like the weekly report: it is a count of the
+    person's own words, recomputed from the graph each time rather than kept as
+    a claim about them.
+
+    Rejected readings are excluded, as everywhere else — a word the person said
+    was not what they meant is not part of their vocabulary.
+    """
+    starts = [week_start - timedelta(days=7 * offset) for offset in reversed(range(weeks))]
+    window_start, _ = week_bounds(starts[0], timezone)
+    _, window_end = week_bounds(starts[-1], timezone)
+
+    rows = await pool.fetch(
+        """
+        SELECT n.kind, n.label, o.node_id AS observation_id, o.captured_at
+        FROM graph_nodes n
+        JOIN node_provenance p ON p.node_id = n.id
+        JOIN observations o ON o.node_id = p.observation_id
+        JOIN graph_nodes obs ON obs.id = o.node_id
+        WHERE n.user_id = $1
+          AND n.deleted_at IS NULL
+          AND obs.deleted_at IS NULL
+          AND n.kind = ANY($4::text[])
+          AND n.epistemic_status <> 'user_rejected'
+          AND o.captured_at >= $2 AND o.captured_at < $3
+        """,
+        user_id,
+        window_start,
+        window_end,
+        [str(kind) for kind in FELT_KINDS],
+    )
+    entry_rows = await pool.fetch(
+        """
+        SELECT o.captured_at
+        FROM observations o
+        JOIN graph_nodes n ON n.id = o.node_id
+        WHERE o.user_id = $1 AND n.deleted_at IS NULL
+          AND o.captured_at >= $2 AND o.captured_at < $3
+        """,
+        user_id,
+        window_start,
+        window_end,
+    )
+
+    entries: dict[Date, int] = dict.fromkeys(starts, 0)
+    for row in entry_rows:
+        start = _monday_of(local_date(row["captured_at"], timezone))
+        if start in entries:
+            entries[start] += 1
+
+    mentions = [
+        Mention(
+            kind=NodeKind(row["kind"]),
+            label=row["label"].strip(),
+            day=local_date(row["captured_at"], timezone),
+            observation_id=row["observation_id"],
+        )
+        for row in rows
+    ]
+
+    return {
+        "timezone": timezone,
+        "weeks": [
+            {
+                "week_start": week.start.isoformat(),
+                "entry_count": week.entries,
+                "distinct_words": week.distinct,
+                # The words themselves, because a count nobody can check is a
+                # score. These are the person's own labels.
+                "words": list(week.words),
+                "first_time": list(week.first_time),
+                "description": describe_week(week),
+            }
+            for week in weeks_of(mentions, starts, entries)
+        ],
+    }
+
+
+def _monday_of(day: Date) -> Date:
+    return day.fromordinal(day.toordinal() - day.weekday())

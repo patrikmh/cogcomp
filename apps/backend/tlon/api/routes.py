@@ -239,6 +239,36 @@ async def extract_observation(
     return ExtractionResponse(observation_id=observation_id, extractor=extractor.version, **counts)
 
 
+@router.get("/v1/vocabulary/{week_start}")
+async def vocabulary(
+    request: Request,
+    week_start: Date,
+    tz: str = "UTC",
+    weeks: int = 8,
+    user_id: UUID = Depends(current_user),
+) -> dict:
+    """How many different words the person has used for how they feel, by week.
+
+    The only reading here about capacity rather than content, and the only one
+    that can honestly be shown going up: putting words to states is a skill that
+    improves with practice, and the count is the person's own vocabulary rather
+    than a score assigned to them.
+
+    Counts arrive paired with the entries they came from, so a quiet week can
+    never be read as a decline.
+    """
+    if not 1 <= weeks <= 26:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, "weeks must be between 1 and 26"
+        )
+    try:
+        return await summary_db.vocabulary(
+            request.app.state.pool, user_id, week_start, weeks, tz
+        )
+    except (UnknownTimezone, NonMonday) as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
+
+
 @router.get("/v1/summary/week/{week_start}")
 async def weekly_summary(
     request: Request,

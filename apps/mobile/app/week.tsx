@@ -43,6 +43,13 @@ export default function WeekScreen() {
     queryFn: () => api.weeklySummary(token!, week, tz),
     enabled: Boolean(token),
   });
+  // Not a finding: these are the person's own words counted back to them, the
+  // way the entry count is. It stays when patterns are switched off.
+  const words = useQuery({
+    queryKey: ["vocabulary", week, tz],
+    queryFn: () => api.vocabulary(token!, week, tz, 1),
+    enabled: Boolean(token),
+  });
 
   if (!token) return null;
 
@@ -67,7 +74,14 @@ export default function WeekScreen() {
       ) : query.isError || !query.data ? (
         <Text style={styles.error}>Could not load this week.</Text>
       ) : (
-        <Body summary={query.data} />
+        <>
+          <Body summary={query.data} />
+          {/* Placed under the week rather than above it: what you wrote comes
+              first, and this is a remark about it. */}
+          {words.data?.weeks.at(-1) && (
+            <Text style={styles.vocabulary}>{words.data.weeks.at(-1)!.description}</Text>
+          )}
+        </>
       )}
     </ScrollView>
   );
@@ -271,6 +285,15 @@ const styles = StyleSheet.create({
   cellDay: { color: colors.inkMuted, fontSize: 11 },
   cellCount: { color: colors.inkSoft, fontSize: 12, fontWeight: "700" },
   sky: { alignItems: "center", justifyContent: "center" },
+  vocabulary: {
+    color: colors.inkMuted,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+  },
   loader: { marginTop: 40 },
   error: { color: colors.danger, fontSize: 14 },
   empty: { color: colors.inkMuted, fontSize: 15, paddingTop: 20 },
