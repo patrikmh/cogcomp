@@ -3,36 +3,46 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { Meter } from "@/components/Meter";
-import { Empty, Failed, Loading } from "@/components/States";
-import { api } from "@/lib/api";
+import { Failed, Loading } from "@/components/States";
+import { api, type Inference } from "@/lib/api";
+import { useDrawnFrom } from "@/lib/drawn-from";
 import { clockOf, deviceTimezone, fmt, localDay, shiftDay } from "@/lib/format";
+import { Seal } from "@/lib/seal";
 
 /**
- * One day, as an object.
+ * One day, as it happened.
  *
- * What you wrote, then what was noticed, then what is only suspected. That
- * split is the one distinction this product exists to keep: a guess sitting
- * beside a certainty reads as equally true however it is styled.
+ * The acts first, kept verbatim and stamped with their seals — then what they
+ * left behind, surest first, then the ones the app is less sure of, then what
+ * is circling above the day.
+ *
+ * The three sections are the argument, and they are never merged: an entry is
+ * something you wrote, a confident reading is a guess the app will stand
+ * behind, and a tentative one is a guess it will not. A reader must never have
+ * to work out which of the three they are looking at.
  */
 export function Today() {
   const tz = deviceTimezone();
   const [offset, setOffset] = useState(0);
   const day = shiftDay(localDay(), offset);
 
-  const summary = useQuery({
-    queryKey: ["summary", day, tz],
-    queryFn: () => api.daily(day, tz),
-  });
+  const summary = useQuery({ queryKey: ["summary", day, tz], queryFn: () => api.daily(day, tz) });
+  const drawnFrom = useDrawnFrom();
+  const patterns = useQuery({ queryKey: ["patterns"], queryFn: api.patterns });
 
-  const noticed = (summary.data?.inferred ?? []).filter((i) => !i.tentative);
-  const unsure = (summary.data?.inferred ?? []).filter((i) => i.tentative);
+  const inferred = summary.data?.inferred ?? [];
+  const kept = inferred.filter((i) => !i.tentative).sort((a, b) => b.confidence - a.confidence);
+  const faint = inferred.filter((i) => i.tentative).sort((a, b) => b.confidence - a.confidence);
+  const circling = (patterns.data ?? [])[0];
 
   return (
-    <>
+    <div className="scr">
       <div className="p-head">
         <div>
-          <span className="kicker">Today</span>
-          <h1>{offset === 0 ? "Today" : day}</h1>
+          <span className="kicker">
+            {offset === 0 ? "Today" : offset === -1 ? "Yesterday" : day} · {tz}
+          </span>
+          <h1>{new Date(`${day}T12:00:00`).toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" })}</h1>
         </div>
         <div className="row">
           <button className="btn" onClick={() => setOffset((o) => o - 1)}>
@@ -49,79 +59,140 @@ export function Today() {
       ) : summary.isError ? (
         <Failed />
       ) : summary.data!.entry_count === 0 ? (
-        <Empty label="Nothing recorded." />
+        <>
+          <p className="sub">
+            {offset > 0 ? "Tomorrow." : new Date(`${day}T12:00:00`).toLocaleDateString([], { weekday: "long" })}.
+          </p>
+          <div className="empty">Nothing recorded. The day stays empty until it isn&rsquo;t.</div>
+        </>
       ) : (
         <>
-          <div className="sub mono">
-            {summary.data!.entry_count} {summary.data!.entry_count === 1 ? "entry" : "entries"} ·{" "}
-            {summary.data!.timezone}
+          <p className="sub">
+            Not objects in space — a heterogeneous series of independent acts, as it happened.
+          </p>
+          <div className="t-sum">
+            {summary.data!.entry_count} {summary.data!.entry_count === 1 ? "act" : "acts"} ·{" "}
+            {inferred.length} {inferred.length === 1 ? "reading" : "readings"} drawn
+            {circling ? ` · ${(patterns.data ?? []).length} circling` : ""}
           </div>
 
-          <div className="grp">
-            <span className="kicker">What you wrote</span>
+          <div className="t-sec">
+            <span className="kicker">The acts</span>
+            <span className="rule" />
+            <span className="mono">kept verbatim</span>
           </div>
-          {summary.data!.observations.map((o) => (
-            <Link key={o.id} to={`/node/${o.id}`} className="card">
-              <p>{o.content}</p>
-              <span className="mono" style={{ color: "var(--faint)" }}>
-                {clockOf(o.captured_at)} · {o.source}
+          {summary.data!.observations.map((o, i) => (
+            <div className={`j-entry${i === 0 ? " latest" : ""}`} key={o.id}>
+              <span className="j-time">{clockOf(o.captured_at)}</span>
+              <span className="j-spine">
+                <span className="j-dot" />
               </span>
-            </Link>
+              <div className="j-act">
+                <Seal id={o.id} />
+                <div>
+                  <p>{o.content}</p>
+                  <div className="j-meta">
+                    <span className="j-from">
+                      {(drawnFrom.get(o.id)?.length ?? 0) > 0 ? "drawn from this" : "nothing drawn from this yet"}
+                    </span>
+                    {(drawnFrom.get(o.id) ?? []).map((r) => (
+                      <Link
+                        key={r.id}
+                        className={`j-chip${r.tentative ? " ghost" : ""}`}
+                        to={`/node/${r.id}`}
+                      >
+                        {r.label} · {fmt(r.confidence)}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
           ))}
 
-          {noticed.length > 0 && (
+          {kept.length > 0 && (
             <>
-              <div className="grp">
-                <span className="kicker">Noticed</span>
+              <div className="t-sec">
+                <span className="kicker">What they left behind</span>
+                <span className="rule" />
+                <span className="mono">surest first</span>
               </div>
-              {noticed.map((i) => (
-                <Reading key={i.id} reading={i} />
+              {kept.map((r) => (
+                <Reading key={r.id} reading={r} />
               ))}
             </>
           )}
 
-          {unsure.length > 0 && (
+          {faint.length > 0 && (
             <>
-              <div className="grp">
-                <span className="kicker">Less sure about</span>
+              <div className="t-sec">
+                <span className="kicker">Less sure</span>
+                <span className="rule" />
+                <span className="mono">unobserved, they grow vague</span>
               </div>
-              {unsure.map((i) => (
-                <Reading key={i.id} reading={i} />
+              {faint.map((r) => (
+                <Reading key={r.id} reading={r} />
               ))}
             </>
           )}
 
-          <p className="rest mono">
-            Everything under Noticed and Less sure about is a guess drawn from your entries, not a
-            conclusion about you. Open one to see which words it came from.
-          </p>
+          {summary.data!.recurring.length > 0 && (
+            <>
+              <div className="t-sec">
+                <span className="kicker">Came up more than once</span>
+                <span className="rule" />
+              </div>
+              {summary.data!.recurring.map((r) => (
+                <div className="t-read" key={`${r.kind}:${r.label}`}>
+                  <span className="t-main">
+                    <b>{r.label}</b>
+                    <span className="mono">
+                      {r.kind.toLowerCase()} · {r.entries} times today
+                    </span>
+                  </span>
+                </div>
+              ))}
+            </>
+          )}
+
+          {circling && (
+            <>
+              <div className="t-sec">
+                <span className="kicker">Circling</span>
+                <span className="rule" />
+              </div>
+              <Link className="t-circle" to="/patterns">
+                <b>{circling.label}</b>
+                <span className="mono">
+                  {circling.distinct_days} of {circling.occurrences} days
+                </span>
+                <span className="mono go">the pattern →</span>
+              </Link>
+            </>
+          )}
         </>
       )}
-    </>
+    </div>
   );
 }
 
-function Reading({
-  reading,
-}: {
-  reading: { id: string; kind: string; label: string; confidence: number; tentative: boolean; cites_entries: number };
-}) {
+function Reading({ reading }: { reading: Inference }) {
   return (
-    <div className={`card${reading.tentative ? " hollow" : ""}`}>
-      <div className="row" style={{ justifyContent: "space-between" }}>
-        <Link to={`/node/${reading.id}`}>
-          <b>{reading.label}</b>
-        </Link>
+    <Link className={`t-read${reading.tentative ? " ghost" : ""}`} to={`/node/${reading.id}`}>
+      <span className="t-seal">
+        <Seal id={reading.id} className="j-seal" />
+      </span>
+      <span className="t-main">
+        <b>{reading.label}</b>
         <span className="mono">
-          {reading.kind.toLowerCase()} · {fmt(reading.confidence)}
+          {reading.kind.toLowerCase()} · {reading.cites_entries}{" "}
+          {reading.cites_entries === 1 ? "entry" : "entries"}
         </span>
-      </div>
-      <div className="row" style={{ marginTop: 10 }}>
+      </span>
+      <span className="t-side">
         <Meter confidence={reading.confidence} />
-        <span className="mono">
-          {reading.cites_entries} {reading.cites_entries === 1 ? "entry" : "entries"}
-        </span>
-      </div>
-    </div>
+        <span className="mono">{fmt(reading.confidence)}</span>
+      </span>
+    </Link>
   );
 }

@@ -5,7 +5,8 @@ import { Link } from "react-router-dom";
 import { Empty, Failed, Loading } from "@/components/States";
 import { Seal } from "@/lib/seal";
 import { api, type Observation } from "@/lib/api";
-import { clockOf, dayLabelOf } from "@/lib/format";
+import { useDrawnFrom } from "@/lib/drawn-from";
+import { clockOf, dayLabelOf, fmt } from "@/lib/format";
 import { useSession } from "@/state/session";
 
 /**
@@ -33,6 +34,8 @@ export function Journal() {
     queryKey: ["observations", userId],
     queryFn: () => api.observations(60),
   });
+
+  const drawnFrom = useDrawnFrom();
 
   const save = useMutation({
     mutationFn: async (content: string) => {
@@ -150,12 +153,26 @@ export function Journal() {
                         </span>
                       )}
                       <p>{entry.content}</p>
-                      <div className="j-meta">
-                        <Link to={`/node/${entry.id}`} className="mono">
-                          what was drawn from this →
-                        </Link>
-                        {entry.source === "voice" && <span className="j-chip mono">spoken</span>}
-                      </div>
+                      {(drawnFrom.get(entry.id)?.length ?? 0) > 0 ? (
+                        <div className="j-meta">
+                          <span className="j-from">drawn from this</span>
+                          {drawnFrom.get(entry.id)!.map((r) => (
+                            <Link
+                              key={r.id}
+                              className={`j-chip${r.tentative ? " ghost" : ""}`}
+                              to={`/node/${r.id}`}
+                            >
+                              {r.label} · {fmt(r.confidence)}
+                            </Link>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="j-meta">
+                          <Link to={`/node/${entry.id}`} className="j-from">
+                            nothing drawn from this yet →
+                          </Link>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
