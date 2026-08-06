@@ -9,87 +9,142 @@ import { fmt } from "@/lib/format";
 import { useSession } from "@/state/session";
 
 /**
- * Identity, as something you assemble rather than something you are told.
+ * Identity, as a composition.
  *
- * Everything the extractor has ever suggested is here at once. What you have
- * kept is lit; what has only been suggested is hollow. Nothing moves between
- * those states except by you — a profile page states what you are, this shows
- * what has been noticed and leaves the rest visible but unclaimed.
+ * Not a profile. Each ring is a reading the record holds — the surer ones sit
+ * closer, the tentative ones drift out and lose detail, and the dense core is
+ * you. Nothing here is generated and no name is assigned: a profile page states
+ * what you are, this shows what has been noticed and leaves the rest visible
+ * but unclaimed.
+ *
+ * Removed readings stay as tombstones. The record that something *was* removed
+ * is part of the record, and losing it would make the removal unaccountable.
  */
 export function Identity() {
   const userId = useSession((s) => s.userId);
   const client = useQueryClient();
-
   const [hovered, setHovered] = useState<Ring | null>(null);
+
   const kept = useQuery({ queryKey: ["identity", userId], queryFn: api.identity });
   const offered = useQuery({
     queryKey: ["identity", "candidates", userId],
     queryFn: api.identityCandidates,
   });
 
-  const invalidate = () => {
-    void client.invalidateQueries({ queryKey: ["identity"] });
-  };
+  const invalidate = () => void client.invalidateQueries({ queryKey: ["identity"] });
   const keep = useMutation({ mutationFn: api.keep, onSuccess: invalidate });
   const unkeep = useMutation({ mutationFn: api.unkeep, onSuccess: invalidate });
 
   if (kept.isLoading || offered.isLoading) return <Loading />;
   if (kept.isError || offered.isError) return <Failed />;
 
-  const selected = (kept.data?.nodes ?? []).filter((n) => n.status === "selected");
+  const nodes = kept.data?.nodes ?? [];
+  const selected = nodes.filter((n) => n.status === "selected");
+  const removed = nodes.filter((n) => n.status === "removed");
   const candidates = offered.data?.candidates ?? [];
+  const tentative = [...selected, ...candidates].filter((n) => n.tentative);
+  const kinds = new Set([...selected, ...candidates].map((n) => n.kind)).size;
+
+  const rings: Ring[] = [
+    // Surest first, so the closer a ring sits to the core the more the record
+    // stands behind it.
+    ...[...selected, ...candidates]
+      .sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0))
+      .slice(0, 11)
+      .map((n) => ({
+        id: n.id,
+        label: n.label,
+        kind: n.kind,
+        confidence: n.confidence ?? 0,
+        kept: n.status === "selected",
+        tentative: n.tentative,
+        removed: false,
+        evidence: `${n.kind.toLowerCase()}${n.status === "selected" ? " · kept" : " · offered"}`,
+      })),
+    ...removed.slice(0, 2).map((n) => ({
+      id: n.id,
+      label: n.label,
+      kind: n.kind,
+      confidence: 0,
+      kept: false,
+      tentative: false,
+      removed: true,
+      evidence: "removed · reversible",
+    })),
+  ];
 
   return (
     <>
-      <div className="p-head">
-        <div>
-          <span className="kicker">Identity</span>
-          <h1>What you have kept</h1>
-        </div>
-        <span className="mono">{selected.length} kept</span>
+      <span className="kicker">Identity · a composition</span>
+      <h1>Drawn from everything you kept</h1>
+      <p className="sub">
+        Not a profile. Each ring is a reading the record holds — the surer ones sit closer, the
+        tentative ones drift out and lose detail. Nothing here is generated, and no name is
+        assigned.
+      </p>
+
+      <IdentityComposition rings={rings} onHover={setHovered} />
+      <div className="id-cap">
+        {hovered ? (
+          <>
+            <b>{hovered.label}</b>{" "}
+            <span className="mono">
+              {hovered.evidence}
+              {hovered.confidence > 0 ? ` · ${fmt(hovered.confidence)}` : ""}
+            </span>
+          </>
+        ) : (
+          <span className="rest">Hover a ring to see what it is. The dense core is you.</span>
+        )}
       </div>
 
-      {/* The picture is the data: what you kept is inked, what is merely
-          offered is ghosted, and only your tap moves anything between them. */}
-      <IdentityComposition
-        rings={[...selected, ...candidates].slice(0, 11).map((n) => ({
-          id: n.id,
-          label: n.label,
-          kind: n.kind,
-          confidence: n.confidence ?? 0,
-          kept: n.status === "selected",
-          tentative: n.tentative,
-        }))}
-        onHover={setHovered}
-      />
-      <div className="id-cap mono">
-        {hovered
-          ? `${hovered.label} · ${hovered.kind.toLowerCase()} · ${fmt(hovered.confidence)}${hovered.kept ? " · kept" : " · offered"}`
-          : "Point at a ring. Tap it to see where it came from."}
+      <div className="id-sum">
+        <Count n={selected.length} label="KEPT" />
+        <Count n={tentative.length} label="TENTATIVE" tent />
+        <Count n={kinds} label="KINDS" />
+        <Count n={removed.length} label="REMOVED" tent />
       </div>
 
-      {selected.length === 0 ? (
-        <p className="sub">
-          Nothing kept yet. Below is what has been noticed — keeping one says it is yours, and
-          protects it from being merged away.
-        </p>
-      ) : (
-        selected.map((node) => (
-          <Row key={node.id} node={node} action="REMOVE" onAction={() => unkeep.mutate(node.id)} />
-        ))
+      {candidates.length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">Offered, not claimed</span>
+            <span className="rule" />
+            <span className="mono">keeping one is yours to do</span>
+          </div>
+          {candidates.map((node) => (
+            <Row key={node.id} node={node} action="KEEP" onAction={() => keep.mutate(node.id)} />
+          ))}
+        </>
       )}
 
-      <div className="grp">
-        <span className="kicker">Offered, not claimed</span>
-      </div>
-      {candidates.length === 0 ? (
-        <p className="sub mono">Nothing to offer yet.</p>
-      ) : (
-        candidates.map((node) => (
-          <Row key={node.id} node={node} action="KEEP" onAction={() => keep.mutate(node.id)} />
-        ))
+      {selected.length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">Kept</span>
+            <span className="rule" />
+            <span className="mono">protected from consolidation</span>
+          </div>
+          {selected.map((node) => (
+            <Row key={node.id} node={node} action="REMOVE" onAction={() => unkeep.mutate(node.id)} />
+          ))}
+        </>
       )}
+
+      <p className="mono" style={{ margin: "22px auto 0", maxWidth: "60ch", textAlign: "center" }}>
+        Kept readings are protected from consolidation — they will not be absorbed into another
+        node. Removed ones stay as a tombstone, so the record that they were removed is never lost.
+      </p>
     </>
+  );
+}
+
+function Count({ n, label, tent }: { n: number; label: string; tent?: boolean }) {
+  return (
+    <div className={`id-kc${tent ? " tent" : ""}`}>
+      <div className="n">{n}</div>
+      <div className="k">{label}</div>
+    </div>
   );
 }
 
@@ -103,20 +158,20 @@ function Row({
   onAction: () => void;
 }) {
   return (
-    <div className={`card${node.tentative ? " hollow" : ""}`}>
-      <div className="row" style={{ justifyContent: "space-between" }}>
+    <div className={`t-read${node.tentative ? " ghost" : ""}`}>
+      <span className="t-main">
         <Link to={`/node/${node.id}`}>
           <b>{node.label}</b>
         </Link>
         <span className="mono">
           {node.kind.toLowerCase()} · {fmt(node.confidence ?? 0)}
         </span>
-      </div>
-      <div className="row" style={{ marginTop: 10 }}>
-        <button className="btn" onClick={onAction}>
+      </span>
+      <span className="t-side">
+        <button className="btn ghost" onClick={onAction}>
           {action}
         </button>
-      </div>
+      </span>
     </div>
   );
 }

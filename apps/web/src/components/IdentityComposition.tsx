@@ -22,6 +22,11 @@ export interface Ring {
   confidence: number;
   kept: boolean;
   tentative: boolean;
+  /** A reading the person took back. Drawn as a dashed tombstone rather than
+   *  deleted — the record that it was removed is part of the record. */
+  removed?: boolean;
+  /** What the caption says about it: its kind, and whether it is kept. */
+  evidence?: string;
 }
 
 export function IdentityComposition({
@@ -89,7 +94,9 @@ export function IdentityComposition({
         {rings.map((ring, i) => (
           <g
             key={ring.id}
-            className={`id-ring${ring.tentative ? " tent" : ""}${ring.kept ? "" : " obs"}`}
+            className={`id-ring${
+              ring.removed ? " tomb" : ring.tentative ? " tent" : ring.kept ? "" : " obs"
+            }`}
             onMouseEnter={() => onHover(ring)}
             onMouseLeave={() => onHover(null)}
             onFocus={() => onHover(ring)}
@@ -98,12 +105,22 @@ export function IdentityComposition({
             role="button"
             aria-label={`${ring.label}, ${ring.kind.toLowerCase()}`}
           >
-            <path className="id-path" d={loop(ring.id, 54 + i * 13, 0.86 + (i % 3) * 0.05)} />
+            {/* Kept readings are drawn with two loops, tentative and removed
+                ones with one — detail is confidence, made visible. */}
+            {(ring.kept && !ring.tentative && !ring.removed ? [0, 1] : [0]).map((k) => (
+              <path
+                key={k}
+                className="id-path"
+                d={loop(ring.id + k, 54 + i * 13 - k * 5, 0.86 + (i % 3) * 0.05)}
+              />
+            ))}
           </g>
         ))}
         {/* You, at the centre: inked heavier than anything drawn around it. */}
         <g className="id-ring id-core" aria-hidden>
-          <path className="id-path" d={loop("core", 34, 0.92)} />
+          <path className="id-path" d={loop("you-core", 14, 0.92)} />
+          <path className="id-path" d={loop("you-core2", 24, 0.9)} />
+          <path className="id-path" d={loop("you-core3", 34, 0.94)} />
           <circle className="id-eye" cx="220" cy="220" r="3.4" />
         </g>
       </svg>

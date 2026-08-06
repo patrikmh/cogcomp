@@ -11,8 +11,11 @@ import { create } from "zustand";
 interface PreferencesState {
   findings: boolean;
   motion: boolean;
+  /** Whether the agent reads its side aloud in Talk. */
+  voice: boolean;
   setFindings: (on: boolean) => void;
   setMotion: (on: boolean) => void;
+  setVoice: (on: boolean) => void;
 }
 
 const read = (key: string, fallback: boolean) => {
@@ -23,6 +26,7 @@ const read = (key: string, fallback: boolean) => {
 export const usePreferences = create<PreferencesState>((set) => ({
   findings: read("tlon.findings", true),
   motion: read("tlon:hspace-paused", false) === false,
+  voice: read("tlon.voice", true),
 
   setFindings: (on) => {
     localStorage.setItem("tlon.findings", String(on));
@@ -31,5 +35,9 @@ export const usePreferences = create<PreferencesState>((set) => ({
   setMotion: (on) => {
     localStorage.setItem("tlon:hspace-paused", String(!on));
     set({ motion: on });
+  },
+  setVoice: (on) => {
+    localStorage.setItem("tlon.voice", String(on));
+    set({ voice: on });
   },
 }));

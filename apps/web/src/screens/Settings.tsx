@@ -9,7 +9,7 @@ import { useSession } from "@/state/session";
 /** Switches and a way out. A journal should not open onto a control panel. */
 export function Settings() {
   const signOut = useSession((s) => s.signOut);
-  const { findings, motion, setFindings, setMotion } = usePreferences();
+  const { findings, motion, voice, setFindings, setMotion, setVoice } = usePreferences();
   const me = useQuery({ queryKey: ["me"], queryFn: api.me });
   const [exported, setExported] = useState(false);
 
@@ -36,54 +36,104 @@ export function Settings() {
 
   return (
     <>
-      <div className="p-head">
-        <div>
-          <span className="kicker">Settings</span>
-          <h1>{me.data?.email ?? "This account"}</h1>
-        </div>
-      </div>
+      <span className="kicker">Settings</span>
+      <h1>Three switches and a way out</h1>
+      <div style={{ maxWidth: 520 }}>
+        <Switch
+          label="Patterns and regions"
+          note="What has been noticed across time. Turning this off keeps every entry."
+          on={findings}
+          onToggle={() => setFindings(!findings)}
+        />
+        <Switch
+          label="Ambient motion"
+          note="The headspace map breathes. Turn it off for stillness."
+          on={motion}
+          onToggle={() => setMotion(!motion)}
+        />
+        <Switch
+          label="Spoken replies"
+          note="In Talk it through."
+          on={voice}
+          onToggle={() => setVoice(!voice)}
+        />
 
-      <Switch
-        label="Patterns and regions"
-        note="What has been noticed across time. Turning this off keeps every entry."
-        on={findings}
-        onToggle={() => setFindings(!findings)}
-      />
-      <Switch
-        label="Ambient motion"
-        note="The headspace map breathes. Turn it off for stillness."
-        on={motion}
-        onToggle={() => setMotion(!motion)}
-      />
+        <Action
+          label="Export everything"
+          note="Entries, readings and patterns, as JSON."
+          button={
+            <button className="btn ghost" onClick={() => void exportEverything()}>
+              {exported ? "EXPORTED" : "EXPORT"}
+            </button>
+          }
+        />
+        <Action
+          label="Delete the account"
+          note="Not built yet. When it exists it will erase entries, readings, patterns and the account itself — immediately, and not recoverably. Until then this says so rather than pretending."
+          button={
+            <button className="btn ghost warn" disabled title="Not available yet">
+              DELETE
+            </button>
+          }
+        />
+        <Action
+          label="What happens to your words"
+          note="Text is sent to a model to extract readings. Audio is transcribed, then discarded."
+          button={
+            <Link className="btn ghost" to="/words">
+              READ
+            </Link>
+          }
+        />
+        <Action
+          label="If things are hard right now"
+          note="Reachable here, not only mid-conversation."
+          button={
+            <Link className="btn ghost" to="/talk">
+              RESOURCES
+            </Link>
+          }
+        />
+        <Action
+          last
+          label="Sign out"
+          note="Revokes the session on the server."
+          button={
+            <button className="btn ghost" onClick={() => void signOut()}>
+              SIGN OUT
+            </button>
+          }
+        />
 
-      <div className="grp">
-        <span className="kicker">Your words</span>
+        <p className="mono" style={{ marginTop: 16 }}>
+          {me.data?.email ? `Signed in as ${me.data.email}. ` : ""}Entries are shared with nobody.
+        </p>
       </div>
-      <button className="btn" onClick={() => void exportEverything()}>
-        {exported ? "EXPORTED" : "EXPORT EVERYTHING"}
-      </button>
-      <p className="mono" style={{ color: "var(--faint)", marginTop: 8 }}>
-        A JSON file of your entries and everything drawn from them.
-      </p>
-      <Link className="btn" to="/words" style={{ marginTop: 10 }}>
-        WHAT HAPPENS TO YOUR WORDS →
-      </Link>
-
-      <div className="grp">
-        <span className="kicker">Account</span>
-      </div>
-      <button className="btn" onClick={() => void signOut()}>
-        SIGN OUT
-      </button>
-      {/* Deliberately disabled rather than faked: there is no endpoint behind
-          it yet, and a delete control that does not delete is worse than none. */}
-      <button className="btn" disabled title="Not available yet" style={{ marginTop: 10 }}>
-        DELETE ACCOUNT
-      </button>
-      <p className="mono" style={{ color: "var(--faint)", marginTop: 8 }}>
-        Deleting an account is not built yet. Until it is, this says so rather than pretending.
-      </p>
     </>
+  );
+}
+
+/** A row that does something rather than toggling something. */
+function Action({
+  label,
+  note,
+  button,
+  last,
+}: {
+  label: string;
+  note: string;
+  button: React.ReactNode;
+  last?: boolean;
+}) {
+  return (
+    <div className="switch" style={last ? { border: 0 } : undefined}>
+      <span>
+        <b>{label}</b>
+        <br />
+        <span className="mono">{note}</span>
+      </span>
+      {button}
+    </div>
   );
 }
 
@@ -99,23 +149,22 @@ function Switch({
   onToggle: () => void;
 }) {
   return (
-    <div className="card row" style={{ justifyContent: "space-between" }}>
-      <div>
+    <div className="switch">
+      <span>
         <b>{label}</b>
-        <div className="mono" style={{ color: "var(--faint)" }}>
-          {note}
-        </div>
-      </div>
+        <br />
+        <span className="mono">{note}</span>
+      </span>
+      {/* The knob is the control, so it is the button — a switch you cannot
+          reach by keyboard is a switch that is not there. */}
       <button
-        className="switch"
+        className="knob"
         role="switch"
         aria-checked={on}
         aria-label={label}
         data-on={on ? "" : undefined}
         onClick={onToggle}
-      >
-        <span className="knob" />
-      </button>
+      />
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 
 import { api } from "@/lib/api";
+import { usePreferences } from "@/state/preferences";
 
 /**
  * Talk it through.
@@ -41,6 +42,7 @@ export function Talk() {
   const [draft, setDraft] = useState("");
   const [mode, setMode] = useState<Mode>("idle");
   const [crisis, setCrisis] = useState<string[] | null>(null);
+  const speakAloud = usePreferences((s) => s.voice);
   const canvas = useRef<HTMLCanvasElement>(null);
   const envelope = useRef<Envelope | null>(null);
   const audio = useRef<HTMLAudioElement | null>(null);
@@ -64,6 +66,11 @@ export function Talk() {
         // Elicitation stops entirely. Nothing is spoken over the top of it.
         setCrisis(reply.crisis_resources);
         setMode("stopped");
+        return;
+      }
+      if (!speakAloud) {
+        // Spoken replies are switched off. The reply is still there to read.
+        setMode("idle");
         return;
       }
       setMode("speaking");
