@@ -145,7 +145,6 @@ export function Patterns() {
 
 function Row({ pattern, busiest }: { pattern: Pattern; busiest: number }) {
   const [peek, setPeek] = useState<string | null>(null);
-  const ordered = pattern.detector === "lag" || pattern.detector === "same-day-order";
   const strength = pattern.occurrences / busiest;
 
   return (
@@ -154,7 +153,9 @@ function Row({ pattern, busiest }: { pattern: Pattern; busiest: number }) {
           row rather than stated as a number nobody can calibrate. */}
       <span className="p-pow" style={{ width: `${Math.round(strength * 100)}%` }} />
 
-      <Link className="p-top" to={ordered ? `/pattern/${pattern.id}` : `/node/${pattern.id}`}>
+      {/* Every detector gets the same detail page — the page decides what kind
+          of evidence to lay out, not the list. */}
+      <Link className="p-top" to={`/pattern/${pattern.id}`}>
         <span className="t-seal">
           <Seal id={pattern.id} className="j-seal" />
         </span>

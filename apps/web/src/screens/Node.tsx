@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 
 import { Meter } from "@/components/Meter";
 import { Failed, Loading } from "@/components/States";
@@ -38,15 +38,13 @@ export function Node() {
   if (is_observed) {
     return (
       <>
-        <div className="p-head">
-          <div>
-            <span className="kicker">Your entry</span>
-            <h1>{node.label}</h1>
-          </div>
+        <span className="kicker">Where this came from</span>
+        <h1>{node.label}</h1>
+        <div className="row" style={{ gap: 12 }}>
+          <span className="pill">observation · makes no claim</span>
         </div>
-        <p className="rest">
-          This is something you wrote. Everything else in the graph is drawn from entries like this
-          one — it makes no claim, so there is nothing here to agree or disagree with.
+        <p className="sub" style={{ marginTop: 18 }}>
+          You wrote this down. Nothing was inferred, so there is nothing to justify.
         </p>
       </>
     );
@@ -54,28 +52,33 @@ export function Node() {
 
   const confidence = node.confidence ?? 0;
   const status = node.epistemic_status ?? "hypothesis";
+  const tentative = confidence < 0.5;
 
   return (
     <>
-      <div className="p-head">
-        <div>
-          <span className="kicker">Evidence chain</span>
-          <h1>{node.label}</h1>
-        </div>
-        <span className="mono">
-          {node.kind.toLowerCase()} · {fmt(confidence)}
+      <span className="kicker">Where this came from</span>
+      <h1>{node.label}</h1>
+
+      <div className="row" style={{ gap: 12 }}>
+        <span className="pill">{node.kind.toLowerCase()}</span>
+        <span className={`pill${tentative ? " tent" : ""}`}>
+          {tentative ? "growing vague" : "confident"} · {fmt(confidence)}
         </span>
       </div>
 
-      <div className="row">
+      {tentative && (
+        <p className="mono" style={{ marginTop: 12, color: "var(--faint)" }}>
+          Below the threshold, so it is drawn as a guess rather than as knowledge. Saying yes keeps
+          it.
+        </p>
+      )}
+
+      <div className="row" style={{ marginTop: 18, gap: 14 }}>
         <Meter confidence={confidence} />
-        <span className="mono">{confidence < 0.5 ? "a tentative guess" : "a guess"}</span>
+        <span className="mono">0.50 threshold marked</span>
       </div>
 
-      <div className="grp">
-        <span className="kicker">Does this match how it was?</span>
-      </div>
-      <div className="row">
+      <div className="row" style={{ marginTop: 18 }}>
         <button
           className={`btn${status === "user_confirmed" ? " go on" : ""}`}
           onClick={() => judge.mutate(status === "user_confirmed" ? "hypothesis" : "user_confirmed")}
@@ -83,47 +86,39 @@ export function Node() {
           YES
         </button>
         <button
-          className={`btn${status === "user_rejected" ? " on" : ""}`}
+          className={`btn ghost warn${status === "user_rejected" ? " on" : ""}`}
           onClick={() => judge.mutate(status === "user_rejected" ? "hypothesis" : "user_rejected")}
         >
           NOT REALLY
         </button>
       </div>
-      {status === "user_rejected" && (
-        // The consequence is stated where the action is — that is what makes
-        // disagreeing worth the tap.
-        <p className="sub mono">Kept on record, but no longer counted toward patterns or changes.</p>
-      )}
-
-      <p className="sub">
-        This is a hypothesis drawn from your own words, not a conclusion about you. It came from:
+      <p className="mono" style={{ marginTop: 12 }}>
+        {status === "user_rejected"
+          ? "Kept on record, but no longer feeding patterns, week comparisons or the graph. Tap again to withdraw."
+          : status === "user_confirmed"
+            ? "Kept. It will not be absorbed into another reading. Tap again to withdraw."
+            : "Saying “not really” stops this feeding patterns, week comparisons and the graph. Tap again to withdraw."}
       </p>
 
-      {derived_from.map((source) => (
-        <div className="quote" key={source.id}>
-          <p>{source.content}</p>
-          <span className="mono" style={{ color: "var(--faint)" }}>
-            {new Date(source.captured_at).toLocaleString()} · {source.source}
-            {source.recall_days > 0 &&
-              ` · written ${source.recall_days} ${source.recall_days === 1 ? "day" : "days"} later`}
-          </span>
-        </div>
-      ))}
+      <h2>Evidence · every citing entry</h2>
+      <div className="cards">
+        {derived_from.map((source) => (
+          <div className="card" key={source.id}>
+            <span className="kicker">
+              {new Date(source.captured_at).toLocaleString()} · {source.source}
+              {source.recall_days > 0 &&
+                ` · written ${source.recall_days} ${source.recall_days === 1 ? "day" : "days"} later`}
+            </span>
+            <p style={{ margin: "10px 0 0" }}>{source.content}</p>
+          </div>
+        ))}
+      </div>
 
-      <div className="card">
-        <span className="kicker">How this was produced</span>
-        <div className="row" style={{ justifyContent: "space-between" }}>
-          <span className="mono">Status</span>
-          <span className="mono">{status}</span>
-        </div>
-        <div className="row" style={{ justifyContent: "space-between" }}>
-          <span className="mono">Extracted by</span>
-          <span className="mono">{node.extractor ?? "unknown"}</span>
-        </div>
-        <div className="row" style={{ justifyContent: "space-between" }}>
-          <span className="mono">Recorded</span>
-          <span className="mono">{new Date(node.created_at).toLocaleString()}</span>
-        </div>
+      <div className="row" style={{ marginTop: 18 }}>
+        <span className="mono">extracted by {node.extractor ?? "unknown"}</span>
+        <Link className="btn ghost" to="/agents">
+          HOW THIS WAS PRODUCED
+        </Link>
       </div>
     </>
   );

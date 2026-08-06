@@ -1,9 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 
+import { Meter } from "@/components/Meter";
 import { Failed, Loading } from "@/components/States";
 import { api } from "@/lib/api";
-import { clockOf } from "@/lib/format";
+import { DETECTOR_LABEL, fmt } from "@/lib/format";
+import { Seal } from "@/lib/seal";
 
 /**
  * What came first.
@@ -15,69 +17,198 @@ import { clockOf } from "@/lib/format";
  */
 export function PatternDetail() {
   const { id = "" } = useParams();
-  const ordering = useQuery({ queryKey: ["ordering", id], queryFn: () => api.ordering(id) });
 
-  if (ordering.isLoading) return <Loading label="Reading the order…" />;
-  if (ordering.isError || !ordering.data) {
-    return <Failed label="This pattern has no ordered evidence." />;
-  }
+  const patterns = useQuery({ queryKey: ["patterns"], queryFn: api.patterns });
+  const pattern = (patterns.data ?? []).find((p) => p.id === id);
+  const ordered = pattern?.detector === "lag" || pattern?.detector === "same-day-order";
 
-  const { lag_days, occasions, label, utc_fallback } = ordering.data;
-  const gap = `${lag_days} ${lag_days === 1 ? "day" : "days"}`;
+  // Every finding has a detail page; only the ordered ones have occasions.
+  const ordering = useQuery({
+    queryKey: ["ordering", id],
+    queryFn: () => api.ordering(id),
+    enabled: ordered,
+  });
+  // What the finding is made of: the readings that support it.
+  const composition = useQuery({
+    queryKey: ["neighbours", id],
+    queryFn: () => api.neighbours(id),
+    enabled: Boolean(pattern),
+  });
+  // The entries behind it, for the detectors that do not lay out occasions.
+  const evidence = useQuery({
+    queryKey: ["explain", id],
+    queryFn: () => api.explain(id),
+    enabled: Boolean(pattern) && !ordered,
+  });
+
+  if (patterns.isLoading) return <Loading label="Reading the finding…" />;
+  if (!pattern) return <Failed label="No such finding." />;
+
+  const detector = DETECTOR_LABEL[pattern.detector] ?? pattern.detector;
+  const occasions = ordering.data?.occasions ?? [];
+  const gap = ordering.data
+    ? `${ordering.data.lag_days} ${ordering.data.lag_days === 1 ? "day" : "days"}`
+    : "";
 
   return (
     <>
-      <div className="p-head">
-        <div>
-          <span className="kicker">What came first</span>
-          <h1>{label}</h1>
-        </div>
+      <span className="kicker">
+        Pattern · {detector}
+        {pattern.tentative ? " · still forming" : ""}
+      </span>
+      <h1>{pattern.label}</h1>
+      <p className="sub">
+        {(INTRO[pattern.detector] ?? INTRO["exact-label"]!)(
+          pattern.distinct_days,
+          pattern.occurrences,
+        )}
+      </p>
+      <div className="t-sum">
+        {pattern.distinct_days} of {pattern.occurrences} · sized against your own record, no
+        absolute scale
       </div>
 
-      {/* Before the evidence, not in a footnote: someone reading a list of
-          "this, then that" will supply a cause if nobody says not to. */}
-      <p className="sub">
-        These entries were written {gap} apart, {occasions.length}{" "}
-        {occasions.length === 1 ? "time" : "times"}. That is an order, not a reason — nothing here
-        says one brought the other on.
-      </p>
-
-      {occasions.map((occasion) => (
-        <div className="card" key={occasion.source_day}>
-          <span className="kicker">First · {occasion.source_day}</span>
-          {occasion.before.map((e) => (
-            <Entry key={e.id} id={e.id} content={e.content} at={e.captured_at} />
-          ))}
-          <div className="mono" style={{ color: "var(--pattern)", margin: "10px 0" }}>
-            {gap} later
+      {(composition.data?.neighbours ?? []).length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">What it is made of</span>
+            <span className="rule" />
+            <span className="mono">
+              {composition.data!.neighbours.length}{" "}
+              {composition.data!.neighbours.length === 1 ? "reading" : "readings"}
+            </span>
           </div>
-          <span className="kicker">Then · {occasion.target_day}</span>
-          {occasion.after.map((e) => (
-            <Entry key={e.id} id={e.id} content={e.content} at={e.captured_at} />
+          {composition.data!.neighbours.map((r) => (
+            <Link
+              key={r.id}
+              className={`t-read${r.tentative ? " ghost" : ""}`}
+              to={`/node/${r.id}`}
+            >
+              <span className="t-seal">
+                <Seal id={r.id} className="j-seal" />
+              </span>
+              <span className="t-main">
+                <b>{r.label}</b>
+                <span className="mono">
+                  {r.kind.toLowerCase()} · {r.tentative ? "less sure" : "kept"}
+                </span>
+              </span>
+              <span className="t-side">
+                <Meter confidence={r.confidence ?? 0} />
+                <span className="mono">{fmt(r.confidence ?? 0)}</span>
+              </span>
+            </Link>
           ))}
-        </div>
-      ))}
+        </>
+      )}
 
-      {utc_fallback && (
-        <p className="rest mono">
+      {ordered ? (
+        ordering.isLoading ? (
+          <Loading label="Reading the order…" />
+        ) : occasions.length === 0 ? (
+          <Failed label="This finding has no ordered evidence." />
+        ) : (
+          <>
+            <div className="t-sec">
+              <span className="kicker">The acts behind it</span>
+              <span className="rule" />
+              <span className="mono">
+                {occasions.reduce((n, o) => n + o.before.length + o.after.length, 0)} entries ·
+                verbatim
+              </span>
+            </div>
+            {occasions.map((occasion) => (
+              <div key={occasion.source_day}>
+                <div className="t-sec">
+                  <span className="kicker">First · {occasion.source_day}</span>
+                  <span className="rule" />
+                  <span className="mono">then {gap} later</span>
+                </div>
+                {occasion.before.map((e) => (
+                  <Act key={e.id} id={e.id} content={e.content} at={e.captured_at} />
+                ))}
+                {occasion.after.map((e) => (
+                  <Act key={e.id} id={e.id} content={e.content} at={e.captured_at} after />
+                ))}
+              </div>
+            ))}
+          </>
+        )
+      ) : (
+        <>
+          <div className="t-sec">
+            <span className="kicker">The acts behind it</span>
+            <span className="rule" />
+            <span className="mono">
+              {evidence.data?.derived_from.length ?? 0} entries · verbatim
+            </span>
+          </div>
+          {evidence.isLoading ? (
+            <Loading />
+          ) : (
+            (evidence.data?.derived_from ?? []).map((e) => (
+              <Act key={e.id} id={e.id} content={e.content} at={e.captured_at} />
+            ))
+          )}
+        </>
+      )}
+
+      {ordering.data?.utc_fallback && (
+        <p className="mono" style={{ marginTop: 16, color: "var(--faint)" }}>
           Some of these entries never recorded the timezone they were written in, so their days were
           counted in UTC. Near midnight a gap may read as one day more or less than it felt.
         </p>
       )}
 
-      <Link className="btn" to={`/node/${ordering.data.pattern_id}`}>
-        HOW THIS WAS PRODUCED →
-      </Link>
+      <div className="row" style={{ marginTop: 20 }}>
+        <Link className="btn ghost" to="/patterns">
+          ← ALL PATTERNS
+        </Link>
+        <Link className="btn ghost" to="/agents">
+          HOW THIS WAS PRODUCED
+        </Link>
+      </div>
     </>
   );
 }
 
-function Entry({ id, content, at }: { id: string; content: string; at: string }) {
+/** What this kind of finding is, and what it is not. */
+const INTRO: Record<string, (days: number, all: number) => string> = {
+  "exact-label": (d, a) =>
+    `This came up on ${d} of the ${a} it rests on. Recurrence is not significance — only that it kept returning.`,
+  weekday: (d) =>
+    `It landed on the same weekday ${d} times. A shape in the calendar, not a reason for one.`,
+  lag: (d) =>
+    `One came before the other on ${d} occasions. That ordering is all this shows — nothing here says one produced the other.`,
+  "same-day-order": (d) =>
+    `One came earlier in the day than the other on ${d} of them. Order within a day, and nothing more.`,
+  "stated-vs-recorded": () =>
+    "You named this on more days than the record saw it, and the two rarely met. It stays a gap, not a verdict.",
+};
+
+/** One entry behind the finding, in the stream's own language. */
+function Act({
+  id,
+  content,
+  at,
+  after,
+}: {
+  id: string;
+  content: string;
+  at: string;
+  after?: boolean;
+}) {
   return (
-    <Link to={`/node/${id}`} className="quote">
-      <p>{content}</p>
-      <span className="mono" style={{ color: "var(--faint)" }}>
-        {clockOf(at)}
+    <Link className="t-read" to={`/node/${id}`}>
+      <span className="t-seal">
+        <Seal id={id} className="j-seal" />
+      </span>
+      <span className="t-main">
+        <b>{content}</b>
+        <span className="mono">
+          {after ? "then · " : "first · "}
+          {new Date(at).toLocaleString()}
+        </span>
       </span>
     </Link>
   );

@@ -334,6 +334,12 @@ export const api = {
   changes: (tz: string) =>
     request<TemporalChanges>(`/v1/temporal/changes?timezone=${encodeURIComponent(tz)}`),
 
+  /** The readings a finding is made of — its SUPPORTS neighbours. */
+  neighbours: (id: string) =>
+    request<{ node: GraphNode; neighbours: GraphNode[]; edges: { from_id: string; to_id: string }[] }>(
+      `/v1/graph/nodes/${id}/neighbours`,
+    ),
+
   /* one claim */
   explain: (id: string) => request<Explanation>(`/v1/graph/nodes/${id}/explain`),
   judge: (id: string, status: "hypothesis" | "user_confirmed" | "user_rejected") =>
@@ -370,6 +376,20 @@ export const api = {
     request<Experiment>(`/v1/experiments/${id}/${target}`, {
       method: "POST",
       body: JSON.stringify({ revision }),
+    }),
+  completeExperiment: (
+    id: string,
+    revision: number,
+    assessment: string,
+    finalCheckin: string,
+  ) =>
+    request<Experiment>(`/v1/experiments/${id}/complete`, {
+      method: "POST",
+      body: JSON.stringify({
+        revision,
+        assessment,
+        final_checkin_observation_id: finalCheckin,
+      }),
     }),
   deleteExperiment: (id: string, revision: number) =>
     request<void>(`/v1/experiments/${id}?revision=${revision}`, { method: "DELETE" }),

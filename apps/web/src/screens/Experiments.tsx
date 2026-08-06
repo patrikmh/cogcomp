@@ -1,4 +1,5 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { Empty, Failed, Loading } from "@/components/States";
@@ -145,10 +146,12 @@ function Arc({
   experiment,
   checkins,
   look,
+  big,
 }: {
   experiment: Experiment;
   checkins: number;
   look: string;
+  big?: boolean;
 }) {
   // The arc's shape is deterministic per experiment — illustrative of density
   // rather than a claim about which specific days were checked in on, which the
@@ -156,7 +159,7 @@ function Arc({
   const rnd = seed(experiment.id);
   const density = checkins / Math.max(1, experiment.duration_days);
   return (
-    <div className={`x-strip ${look}`}>
+    <div className={`x-strip ${look}${big ? " big" : ""}`}>
       {Array.from({ length: experiment.duration_days }, (_, i) => {
         const on = experiment.state !== "draft" && rnd() < density;
         return (
@@ -172,78 +175,187 @@ function Arc({
 export function ExperimentDetail() {
   const { id = "" } = useParams();
   const client = useQueryClient();
+  const navigate = useNavigate();
+  const [arming, setArming] = useState(false);
+  const [assessment, setAssessment] = useState<string | null>(null);
+  const [final, setFinal] = useState<string | null>(null);
+
   const detail = useQuery({ queryKey: ["experiment", id], queryFn: () => api.experiment(id) });
 
+  const took = (updated: Experiment) => {
+    // The transition answers with the whole experiment, so the cache takes it
+    // directly rather than refetching.
+    client.setQueryData(["experiment", id], updated);
+    void client.invalidateQueries({ queryKey: ["experiments"] });
+  };
   const move = useMutation({
     mutationFn: (target: "start" | "pause" | "resume" | "cancel") =>
       api.experimentTransition(id, target, detail.data!.revision),
-    onSuccess: (updated) => {
-      // The transition answers with the whole experiment, so the cache can take
-      // it directly rather than refetching.
-      client.setQueryData(["experiment", id], updated);
+    onSuccess: took,
+  });
+  const complete = useMutation({
+    mutationFn: () =>
+      api.completeExperiment(id, detail.data!.revision, assessment!, final!),
+    onSuccess: took,
+  });
+  const remove = useMutation({
+    mutationFn: () => api.deleteExperiment(id, detail.data!.revision),
+    onSuccess: () => {
       void client.invalidateQueries({ queryKey: ["experiments"] });
+      navigate("/experiments");
     },
   });
 
   if (detail.isLoading) return <Loading />;
   if (detail.isError || !detail.data) return <Failed />;
+
   const x = detail.data;
+  const look = LOOK[x.state];
+  const checkins = x.checkins ?? [];
 
   return (
     <>
-      <div className="p-head">
-        <div>
-          <span className="kicker">Experiment · {x.state}</span>
-          <h1>{x.title}</h1>
+      <span className="kicker">Experiment · {x.cadence}</span>
+      <h1>{x.title}</h1>
+      <div className="row" style={{ gap: 12 }}>
+        <span className={`x-state ${look}`}>{x.state}</span>
+        <span className="mono">
+          {x.duration_days} days · from {x.start_date} · {x.timezone}
+        </span>
+      </div>
+
+      <Arc experiment={x} checkins={checkins.length} look={look} big />
+      <p className="x-cap mono">
+        {checkins.length} of {x.duration_days} check-ins. The arc shows their shape, not exact
+        dates.
+      </p>
+
+      <div className="t-sec">
+        <span className="kicker">What you wrote down</span>
+        <span className="rule" />
+        <span className="mono">yours, unedited</span>
+      </div>
+      <div className="cards">
+        <div className="card">
+          <span className="kicker">Hypothesis</span>
+          <p>{x.hypothesis}</p>
+        </div>
+        <div className="card">
+          <span className="kicker">Action</span>
+          <p>{x.action}</p>
+        </div>
+        <div className="card">
+          <span className="kicker">What would count</span>
+          <p>{x.success_criterion}</p>
         </div>
       </div>
 
-      <div className="card">
-        <span className="kicker">Hypothesis</span>
-        <p>{x.hypothesis}</p>
-        <span className="kicker">Action</span>
-        <p>{x.action}</p>
-        <span className="kicker">What would count</span>
-        <p>{x.success_criterion}</p>
-      </div>
-
-      <div className="row">
+      <div className="row" style={{ marginTop: 18 }}>
         {x.state === "draft" && (
-          <button className="btn go on" onClick={() => move.mutate("start")}>
+          <button className="btn" onClick={() => move.mutate("start")}>
             START
           </button>
         )}
         {x.state === "active" && (
-          <button className="btn" onClick={() => move.mutate("pause")}>
+          <button className="btn ghost" onClick={() => move.mutate("pause")}>
             PAUSE
           </button>
         )}
         {x.state === "paused" && (
-          <button className="btn" onClick={() => move.mutate("resume")}>
+          <button className="btn ghost" onClick={() => move.mutate("resume")}>
             RESUME
           </button>
         )}
+        {(x.state === "active" || x.state === "paused") && (
+          <button className="btn ghost" onClick={() => move.mutate("cancel")}>
+            CANCEL
+          </button>
+        )}
+        {/* Two taps for anything that cannot be undone. */}
+        <button
+          className="btn ghost warn"
+          onClick={() => (arming ? remove.mutate() : setArming(true))}
+        >
+          {arming ? "TAP AGAIN TO CONFIRM" : "DELETE"}
+        </button>
       </div>
 
-      {(x.checkins ?? []).length > 0 && (
+      {checkins.length > 0 && (
         <>
-          <div className="grp">
+          <div className="t-sec">
             <span className="kicker">Check-ins</span>
+            <span className="rule" />
+            <span className="mono">ordinary journal entries</span>
           </div>
-          {x.checkins!.map((c) => (
-            <div className="quote" key={c.id}>
-              <p>{c.content}</p>
+          {checkins.map((c) => (
+            <div className="t-read" key={c.id}>
+              <span className="t-seal">
+                <Seal id={c.id} className="j-seal" />
+              </span>
+              <span className="t-main">
+                <b>{c.content}</b>
+                <span className="mono">{new Date(c.captured_at).toLocaleString()}</span>
+              </span>
+              {x.state === "active" && (
+                <span className="t-side">
+                  <button
+                    className={`btn ghost${final === c.id ? " on" : ""}`}
+                    onClick={() => setFinal(c.id)}
+                  >
+                    {final === c.id ? "SELECTED FINAL CHECK-IN" : "SELECT AS FINAL CHECK-IN"}
+                  </button>
+                </span>
+              )}
             </div>
           ))}
         </>
       )}
 
+      {x.state === "active" && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">Complete with a qualitative assessment</span>
+            <span className="rule" />
+            <span className="mono">your judgement, not a score</span>
+          </div>
+          <div className="row">
+            {(["met", "partly_met", "not_met", "unclear"] as const).map((value) => (
+              <button
+                key={value}
+                className={`btn ghost${assessment === value ? " on" : ""}`}
+                role="radio"
+                aria-checked={assessment === value}
+                onClick={() => setAssessment(value)}
+              >
+                {value.replace("_", " ")}
+              </button>
+            ))}
+          </div>
+          <div className="row" style={{ marginTop: 12 }}>
+            <button
+              className="btn"
+              disabled={!assessment || !final || complete.isPending}
+              onClick={() => complete.mutate()}
+            >
+              COMPLETE EXPERIMENT
+            </button>
+            <span className="mono">
+              {!final
+                ? "Choose the check-in that ends it."
+                : !assessment
+                  ? "Say how it went, in your words."
+                  : "Nothing is scored — this is your reading of it."}
+            </span>
+          </div>
+        </>
+      )}
+
       {x.outcome && (
-        <div className="card">
+        <div className="card" style={{ marginTop: 18 }}>
           <span className="kicker">Outcome</span>
           <p>{x.outcome.assessment.replace("_", " ")}</p>
-          <span className="mono" style={{ color: "var(--faint)" }}>
-            Final check-in selected by you. No score or interpretation.
+          <span className="mono">
+            Final check-in selected by you. No score, no interpretation.
           </span>
         </div>
       )}
