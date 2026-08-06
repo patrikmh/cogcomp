@@ -1,0 +1,62 @@
+/**
+ * The visual language, in one place.
+ *
+ * Lifted from the design prototype's `:root` block (Open Design project
+ * 7f66d608, `tlon.html`). Both clients read from here — the web app through
+ * `tokens.css`, the mobile app by importing this module — so the two cannot
+ * drift into being two different-looking products.
+ *
+ * A quiet room the colour of dark water, with small emissive signals. Colour
+ * appears only where something is live, kept, or wrong; everything structural
+ * is a step on the ink ramp.
+ */
+
+export const colors = {
+  /** Page ground. Black with green in it, not neutral black. */
+  room: "#0a0d0c",
+  surface: "#111716",
+  surface2: "#161e1d",
+  /** The bar behind a filled meter. */
+  track: "#1a2221",
+  line: "#232c2b",
+  line2: "#33403e",
+
+  /** Three steps of text, and no more. */
+  ink: "#eef1ec",
+  dim: "#9aa6a2",
+  faint: "#5f6b68",
+
+  /** Live, confident, the thing under your cursor. */
+  live: "#c6e070",
+  /** A reading you have kept. */
+  kept: "#a7c3c8",
+  /** A pattern — a claim across time. */
+  pattern: "#e6b95c",
+  /** Tentative: below the confidence threshold, drawn hollow. */
+  sand: "#d8c79a",
+  /** Destructive, failed, rejected. */
+  rust: "#c4603c",
+} as const;
+
+export const fonts = {
+  sans: '"IBM Plex Sans", system-ui, sans-serif',
+  mono: '"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace',
+} as const;
+
+/**
+ * Radii are tight and deliberate: 3px on anything that holds content, 2px on
+ * chips, and full round only on switches. Nothing here is a soft card.
+ */
+export const radii = { surface: 3, chip: 2, pill: 999 } as const;
+
+export const type = {
+  body: { size: 16, line: 23, weight: "400" },
+  title: { size: 25, line: 30, weight: "700", tracking: -0.4 },
+  heading: { size: 17, line: 24, weight: "600" },
+  meta: { size: 12, line: 17, weight: "400" },
+  /** Uppercase mono labels. The letter-spacing is what makes them read as
+   *  instrument markings rather than as shouting. */
+  kicker: { size: 11, line: 14, weight: "500", tracking: 1.8 },
+} as const;
+
+export type ColorToken = keyof typeof colors;

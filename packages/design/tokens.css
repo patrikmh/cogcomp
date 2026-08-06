@@ -1,0 +1,20 @@
+/* Generated from tokens.ts — the same values, as custom properties.
+   Keep the two in step: the web app reads this, the mobile app reads the .ts. */
+:root {
+  --room: #0a0d0c;
+  --surface: #111716;
+  --surface2: #161e1d;
+  --track: #1a2221;
+  --line: #232c2b;
+  --line2: #33403e;
+
+  --ink: #eef1ec;
+  --dim: #9aa6a2;
+  --faint: #5f6b68;
+
+  --live: #c6e070;
+  --kept: #a7c3c8;
+  --pattern: #e6b95c;
+  --sand: #d8c79a;
+  --rust: #c4603c;
+}

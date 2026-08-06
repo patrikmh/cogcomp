@@ -9,6 +9,9 @@
       ],
       "@tlon/ontology": [
         "../../packages/ontology/index.ts"
+      ],
+      "@tlon/design": [
+        "../../packages/design/tokens.ts"
       ]
     },
     "module": "esnext",

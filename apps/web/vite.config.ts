@@ -1,0 +1,28 @@
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import { fileURLToPath, URL } from "node:url";
+
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    // Order matters, and so does the exact match: a plain string alias for
+    // "@tlon/design" is a *prefix* rule, which would rewrite
+    // "@tlon/design/tokens.css" into "…/tokens.ts/tokens.css".
+    alias: [
+      {
+        find: "@tlon/design/tokens.css",
+        replacement: fileURLToPath(new URL("../../packages/design/tokens.css", import.meta.url)),
+      },
+      {
+        find: /^@tlon\/design$/,
+        replacement: fileURLToPath(new URL("../../packages/design/tokens.ts", import.meta.url)),
+      },
+      { find: "@", replacement: fileURLToPath(new URL("./src", import.meta.url)) },
+    ],
+  },
+  server: {
+    port: 5173,
+    // The API is same-origin in production; in development it lives on 8080.
+    proxy: { "/v1": "http://localhost:8080", "/health": "http://localhost:8080" },
+  },
+});

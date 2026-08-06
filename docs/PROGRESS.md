@@ -16,7 +16,7 @@ checkboxes but standing gates, so they are tracked once:
 
 | Gate | Status | Notes |
 |---|---|---|
-| Unit tests pass | ✅ | 680 backend tests and 241 mobile tests green, nothing skipped; the nine live Graphiti tests now run against a real FalkorDB. Ruff clean; mobile checks remain part of the app workflow |
+| Unit tests pass | ✅ | 680 backend tests and 241 mobile tests green; `apps/web` typechecks and builds, nothing skipped; the nine live Graphiti tests now run against a real FalkorDB. Ruff clean; mobile checks remain part of the app workflow |
 | Explainability available | ✅ | `/v1/nodes/{id}/explain`; every inference traces to the entry that produced it |
 | Confidence scores included | ✅ | Enforced by CHECK constraint, not convention — an inference without one cannot be inserted |
 | Provenance retained | ✅ | `node_provenance` / `edge_provenance` are tables with FKs into `observations` |
@@ -114,6 +114,20 @@ Built because the product needed them, not because the spec asked:
 | Theme clustering | ✅ | Graphiti communities over the disposable FalkorDB projection; structure only, three-member floor, PostgreSQL persistence. Regions are readable at last: `GET /v1/themes`, `GET /v1/themes/{id}` with members and the associations that formed them, a Regions lens in Headspace, and a `/theme/[id]` screen. The projection emits one edge per *pair* — keyed on the pair rather than on a row id, so a duplicate association cannot be expressed in the graph store at all. Graphiti's label propagation does not terminate when a node sees the same neighbour twice, and the caller is an agent with no timeout |
 | Ontology drift check | ✅ | `scripts/check_ontology_sync.py` verifies four definitions of the ontology agree |
 | e2e suite | ✅ | `scripts/e2e.sh` drives the real app in a real browser; 104 checks, all passing, credentials cleared so runs stay deterministic. Not immune to a cold web bundle: a first run after a rebuild has been seen to fail the Skia canvas and the first explain-screen click, then pass unchanged on a re-run. Treat a single red run as unconfirmed |
+
+---
+
+## Clients
+
+| Client | Stack | State |
+|---|---|---|
+| `apps/web` | Vite + React + TypeScript | The Open Design UX (`tlon.html`) ported and wired to the live API. All data-backed routes work; the three.js Headspace and TTS playback are the next pass |
+| `apps/mobile` | Expo / React Native Web | The original client, still what `scripts/e2e.sh` drives. Retheming to the shared palette landed; structural rework (seals, contour rings, the rail) has not |
+
+Both read their palette from `packages/design`, so the two cannot drift into
+looking like two products. Metro needs `apps/mobile/metro.config.js` to resolve
+that package — `@tlon/ontology` never did, because it is only imported as a
+type and is erased before the bundler sees it.
 
 ---
 

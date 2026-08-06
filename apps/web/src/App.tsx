@@ -1,0 +1,129 @@
+import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+
+import { Rail, type RailCounts } from "@/components/Rail";
+import { api, onSessionLost } from "@/lib/api";
+import { Headspace } from "@/screens/Headspace";
+import { Experiments, ExperimentDetail } from "@/screens/Experiments";
+import { Identity } from "@/screens/Identity";
+import { Journal } from "@/screens/Journal";
+import { Login } from "@/screens/Login";
+import { Agents, Explore, Graph } from "@/screens/Machinery";
+import { Node } from "@/screens/Node";
+import { PatternDetail } from "@/screens/PatternDetail";
+import { Patterns } from "@/screens/Patterns";
+import { Search } from "@/screens/Search";
+import { Settings } from "@/screens/Settings";
+import { First, Words } from "@/screens/Static";
+import { Talk } from "@/screens/Talk";
+import { Theme } from "@/screens/Theme";
+import { Today } from "@/screens/Today";
+import { Week } from "@/screens/Week";
+import { usePreferences } from "@/state/preferences";
+import { useSession } from "@/state/session";
+
+export function App() {
+  const { token, ready, restore } = useSession();
+  const location = useLocation();
+
+  useEffect(() => {
+    void restore();
+    // A token the server has forgotten must not leave someone inside the app
+    // with every screen showing its own unrelated error.
+    onSessionLost(() => useSession.setState({ token: null, userId: null }));
+  }, [restore]);
+
+  useEffect(() => {
+    // The landing goes full-bleed; everything else sits in the reading column.
+    document.getElementById("view")?.classList.toggle("wide", location.pathname === "/");
+  }, [location.pathname]);
+
+  if (!ready) {
+    return (
+      <div id="app">
+        <main id="screen">
+          <div className="wrap" id="view">
+            <div className="empty mono">…</div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (!token) return <Login />;
+
+  return (
+    <div id="app">
+      <RailWithCounts />
+      <main id="screen">
+        <div className="wrap" id="view">
+          <Routes>
+            <Route path="/" element={<Headspace />} />
+            <Route path="/journal" element={<Journal />} />
+            <Route path="/talk" element={<Talk />} />
+            <Route path="/today" element={<Today />} />
+            <Route path="/week" element={<Week />} />
+            <Route path="/search" element={<Search />} />
+            <Route path="/patterns" element={<Patterns />} />
+            <Route path="/pattern/:id" element={<PatternDetail />} />
+            <Route path="/theme/:id" element={<Theme />} />
+            <Route path="/identity" element={<Identity />} />
+            <Route path="/node/:id" element={<Node />} />
+            <Route path="/experiments" element={<Experiments />} />
+            <Route path="/experiment/:id" element={<ExperimentDetail />} />
+            <Route path="/agents" element={<Agents />} />
+            <Route path="/graph" element={<Graph />} />
+            <Route path="/explore" element={<Explore />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/words" element={<Words />} />
+            <Route path="/first" element={<First />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+/** The rail's counts are real: what it says beside each destination is what is
+ *  actually there. A count that lies is worse than no count. */
+function RailWithCounts() {
+  const showFindings = usePreferences((s) => s.findings);
+  const userId = useSession((s) => s.userId);
+
+  // The same key the Journal uses, so writing an entry updates the count beside
+  // it. A separate key would have left the rail quietly one entry behind.
+  const entries = useQuery({
+    queryKey: ["observations", userId],
+    queryFn: () => api.observations(200),
+  });
+  const patterns = useQuery({
+    queryKey: ["patterns", userId],
+    queryFn: api.patterns,
+    enabled: showFindings,
+  });
+  const experiments = useQuery({ queryKey: ["experiments"], queryFn: api.experiments });
+  const runs = useQuery({ queryKey: ["agent-runs"], queryFn: () => api.agentRuns(50) });
+  const graph = useQuery({ queryKey: ["graph-summary"], queryFn: api.graphSummary });
+  const identity = useQuery({
+    queryKey: ["identity", userId],
+    queryFn: api.identity,
+    enabled: showFindings,
+  });
+
+  const counts: RailCounts = {
+    journal: entries.data ? String(entries.data.observations.length) : "",
+    patterns: patterns.data ? String(patterns.data.length) : "",
+    identity: identity.data
+      ? String(identity.data.nodes.filter((n) => n.status === "selected").length)
+      : "",
+    exps: experiments.data ? String(experiments.data.experiments.length) : "",
+    agents: runs.data ? String(runs.data.length) : "",
+    graph: graph.data
+      ? String(graph.data.counts.reduce((n, c) => n + c.count, 0))
+      : "",
+  };
+
+  return <Rail counts={counts} />;
+}

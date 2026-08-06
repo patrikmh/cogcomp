@@ -1,26 +1,39 @@
 import { StyleSheet } from "react-native";
 
-/** Shared visual language: Tlön is a quiet dark room with small emissive signals. */
+import { colors as shared } from "@tlon/design";
+
+/**
+ * Shared visual language: Tlön is a quiet dark room with small emissive signals.
+ *
+ * The palette comes from `packages/design`, which both this app and the web
+ * client read. It used to live here as its own set of hexes, which is how two
+ * clients of one product drift into looking like two products.
+ *
+ * The names on the left are this app's; the values on the right are the
+ * product's. Where a name has no counterpart in the shared set it maps to the
+ * nearest one rather than inventing a colour — a screen needing a hue that the
+ * design does not have is a design question, not a constant.
+ */
 export const colors = {
-  room: "#08080c",
-  roomRaised: "#0e0e16",
-  surface: "#12121c",
-  surfaceBright: "#181827",
-  line: "#29293b",
-  lineStrong: "#454563",
-  ink: "#f1f0f8",
-  inkSoft: "#b5b3c7",
-  // Muted, but still readable on both the room and raised surfaces.
-  inkMuted: "#a09db4",
-  cyan: "#67e8f9",
-  violet: "#a78bfa",
-  pink: "#f0abfc",
-  danger: "#fb7185",
-  warning: "#fbbf24",
+  room: shared.room,
+  roomRaised: shared.surface,
+  surface: shared.surface,
+  surfaceBright: shared.surface2,
+  line: shared.line,
+  lineStrong: shared.line2,
+  ink: shared.ink,
+  inkSoft: shared.dim,
+  inkMuted: shared.faint,
+  /** Live and confident. Named for its old hue; the value is the product's. */
+  cyan: shared.live,
+  violet: shared.kept,
+  pink: shared.pattern,
+  danger: shared.rust,
+  warning: shared.sand,
   // Compatibility aliases for the experiment route's existing visual tokens.
-  muted: "#a09db4",
-  panel: "#12121c",
-  coral: "#fb7185",
+  muted: shared.faint,
+  panel: shared.surface,
+  coral: shared.rust,
 } as const;
 
 export const theme = StyleSheet.create({
