@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 
+import { IdentityComposition, type Ring } from "@/components/IdentityComposition";
 import { Failed, Loading } from "@/components/States";
 import { api, type IdentityNode } from "@/lib/api";
 import { fmt } from "@/lib/format";
@@ -18,6 +20,7 @@ export function Identity() {
   const userId = useSession((s) => s.userId);
   const client = useQueryClient();
 
+  const [hovered, setHovered] = useState<Ring | null>(null);
   const kept = useQuery({ queryKey: ["identity", userId], queryFn: api.identity });
   const offered = useQuery({
     queryKey: ["identity", "candidates", userId],
@@ -44,6 +47,25 @@ export function Identity() {
           <h1>What you have kept</h1>
         </div>
         <span className="mono">{selected.length} kept</span>
+      </div>
+
+      {/* The picture is the data: what you kept is inked, what is merely
+          offered is ghosted, and only your tap moves anything between them. */}
+      <IdentityComposition
+        rings={[...selected, ...candidates].slice(0, 11).map((n) => ({
+          id: n.id,
+          label: n.label,
+          kind: n.kind,
+          confidence: n.confidence ?? 0,
+          kept: n.status === "selected",
+          tentative: n.tentative,
+        }))}
+        onHover={setHovered}
+      />
+      <div className="id-cap mono">
+        {hovered
+          ? `${hovered.label} · ${hovered.kind.toLowerCase()} · ${fmt(hovered.confidence)}${hovered.kept ? " · kept" : " · offered"}`
+          : "Point at a ring. Tap it to see where it came from."}
       </div>
 
       {selected.length === 0 ? (

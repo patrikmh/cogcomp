@@ -50,11 +50,29 @@ npm run preview       # serve the bundle on :4173
 - **Fonts are self-hosted** (`public/fonts`) rather than loaded from Google, so
   the app renders identically with no network beyond its own API.
 
-## Not done yet
+## The animations
 
-- The three.js topographic Headspace. The stage file is here and the screen
-  renders the same harmonic contours in SVG from real data; mounting the 3D
-  scene is the next pass.
-- Talk speaks through the server's TTS (`/v1/voice/speak`) in the prototype's
-  design; today it holds a real conversation and animates the canvas, without
-  audio playback.
+All from the prototype, all honouring `prefers-reduced-motion`:
+
+- **Headspace** is a three.js topographic chart (`src/lib/headspace.ts`). Each
+  whorl is concentric contour rings — three harmonics and a seeded squash, with
+  every third ring inked heavier the way a survey map reads its index lines.
+  Radii and ring counts are the data. A gravity warp leans each peak's contours
+  toward its neighbours, a 90-pass settle keeps any two from touching, peaks
+  arrive on a staggered back-out ease, the rings breathe, and hovering lerps a
+  whorl toward its tint and lifts it. The camera frames the massif after the
+  settle, so nothing is cropped. PAUSE stops all ambient motion and puts every
+  ring back where it started rather than freezing it mid-swell.
+- **Identity** draws its rings on with `stroke-dashoffset`, staggered outward,
+  then breathes.
+- **Journal** entries rise and their seals draw themselves, staggered by day.
+- **Talk** animates the avatar from the server-measured amplitude envelope,
+  interpolated by playback position, so the shape moves *with* the voice rather
+  than beside it.
+
+## Still to come
+
+- The whorl groups are all rendered as one layer; the prototype's per-lens 3D
+  visibility toggle is wired (`setVisible`) but every lens currently rebuilds
+  the scene instead.
+- Voice capture works in the journal; the Talk screen is typed-only so far.

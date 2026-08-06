@@ -1,11 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { Empty } from "@/components/States";
 import { api } from "@/lib/api";
 import { deviceTimezone, localDay } from "@/lib/format";
-import { sealRings } from "@/lib/seal";
+import { mountHeadspace, type Stage, type Whorl } from "@/lib/headspace";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
 
@@ -36,6 +36,10 @@ export function Headspace() {
   const showFindings = usePreferences((s) => s.findings);
   const [lens, setLens] = useState<Lens>("today");
   const [focus, setFocus] = useState<string | null>(null);
+  const host = useRef<HTMLDivElement>(null);
+  const stage = useRef<Stage | null>(null);
+  const motion = usePreferences((s) => s.motion);
+  const setMotion = usePreferences((s) => s.setMotion);
   const available = LENSES.filter((l) => showFindings || !l.finding);
   const active = available.some((l) => l.id === lens) ? lens : "today";
 
@@ -58,6 +62,36 @@ export function Headspace() {
   const points = pointsFor(active, today.data, graph.data, patterns.data, changes.data);
   const current = points.find((p) => p.id === focus) ?? null;
 
+  // One scene, rebuilt when the material changes; the lens only toggles what is
+  // visible, so switching lens repopulates the head rather than navigating.
+  useEffect(() => {
+    if (!host.current || points.length === 0) return;
+    const whorls: Whorl[] = points.map((p) => ({
+      id: p.id,
+      label: p.label,
+      meta: p.meta,
+      weight: p.weight,
+      tentative: p.tentative,
+      tint: TINT[p.kind] ?? 0xa7c3c8,
+      href: p.href,
+      group: "reading",
+    }));
+    const mounted = mountHeadspace(host.current, whorls, (id) => setFocus(id));
+    stage.current = mounted;
+    mounted.setPaused(!motion);
+    return () => {
+      stage.current = null;
+      mounted.dispose();
+    };
+    // The scene is rebuilt when the lens changes, because the lens changes what
+    // is in it. Motion is applied through the handle instead, below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, points.length]);
+
+  useEffect(() => {
+    stage.current?.setPaused(!motion);
+  }, [motion]);
+
   return (
     <>
       <div className="tabs" id="lenses">
@@ -78,43 +112,8 @@ export function Headspace() {
         ))}
       </div>
 
-      <div id="orbwrap">
-        {points.length === 0 ? (
-          <Empty label={EMPTY[active]} />
-        ) : (
-          <svg viewBox="0 0 900 520" role="img" aria-label="Your headspace as a contour map">
-            {points.map((point, i) => {
-              const x = 120 + ((i * 173) % 660);
-              const y = 90 + ((i * 97) % 340);
-              return (
-                <g
-                  key={point.id}
-                  transform={`translate(${x} ${y}) scale(${0.7 + point.weight * 1.1})`}
-                  onMouseEnter={() => setFocus(point.id)}
-                  onFocus={() => setFocus(point.id)}
-                  tabIndex={0}
-                  role="button"
-                  aria-label={point.label}
-                  style={{ cursor: "pointer" }}
-                >
-                  {sealRings(point.id).map((d, k) => (
-                    <path
-                      key={k}
-                      d={d}
-                      transform="translate(-32 -32)"
-                      fill="none"
-                      stroke={point.tone}
-                      strokeWidth={focus === point.id ? 1.6 : 1}
-                      opacity={point.tentative ? 0.45 : 0.9}
-                    />
-                  ))}
-                </g>
-              );
-            })}
-          </svg>
-        )}
-      </div>
-
+      <div id="orbwrap" ref={host}>
+        {points.length === 0 && <Empty label={EMPTY[active]} />}
       <div id="readout">
         {current ? (
           <>
@@ -135,6 +134,17 @@ export function Headspace() {
           </span>
         )}
       </div>
+
+        <button
+          id="motion-toggle"
+          aria-pressed={!motion}
+          onClick={() => setMotion(!motion)}
+          title="Ambient motion"
+        >
+          {motion ? "PAUSE" : "RESUME"}
+        </button>
+      </div>
+
     </>
   );
 }
@@ -151,6 +161,21 @@ const HINT: Record<Lens, string> = {
   all: "Everything drawn from your entries. Filled is confident, hollow is a guess.",
   patterns: "What keeps returning. Bigger means more often.",
   changed: "Counts only — what it means is yours.",
+};
+
+/** The whorl takes the colour of what it is, on hover only. */
+const TINT: Record<string, number> = {
+  pattern: 0xe6b95c,
+  emotion: 0xa7c3c8,
+  need: 0xc6e070,
+  value: 0xc6e070,
+  activity: 0xa7c3c8,
+  person: 0xd8c79a,
+  place: 0xd8c79a,
+  new: 0xc6e070,
+  more: 0xc6e070,
+  less: 0xd8c79a,
+  absent: 0x5f6b68,
 };
 
 interface Point {

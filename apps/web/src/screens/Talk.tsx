@@ -20,6 +20,15 @@ import { api } from "@/lib/api";
  */
 type Mode = "idle" | "thinking" | "speaking" | "stopped";
 
+/** Loudness at this instant, 0–1, read from the server-measured envelope by
+ *  playback position. Shared with the canvas through a ref so the animation
+ *  never re-renders React on a frame. */
+interface Envelope {
+  values: number[];
+  frameMs: number;
+  startedAt: number;
+}
+
 interface Turn {
   speaker: "user" | "assistant";
   content: string;
@@ -33,8 +42,10 @@ export function Talk() {
   const [mode, setMode] = useState<Mode>("idle");
   const [crisis, setCrisis] = useState<string[] | null>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
+  const envelope = useRef<Envelope | null>(null);
+  const audio = useRef<HTMLAudioElement | null>(null);
 
-  useAvatar(canvas, mode);
+  useAvatar(canvas, mode, envelope);
 
   const begin = useMutation({
     mutationFn: () => api.startConversation(),
@@ -47,11 +58,35 @@ export function Talk() {
       setMode("thinking");
       return api.say(conversation!, content);
     },
-    onSuccess: (reply) => {
+    onSuccess: async (reply) => {
       setTurns((t) => [...t, { speaker: "assistant", content: reply.reply }]);
-      setMode(reply.crisis ? "stopped" : "speaking");
-      if (reply.crisis) setCrisis(reply.crisis_resources);
-      setTimeout(() => setMode((m) => (m === "speaking" ? "idle" : m)), 1200);
+      if (reply.crisis) {
+        // Elicitation stops entirely. Nothing is spoken over the top of it.
+        setCrisis(reply.crisis_resources);
+        setMode("stopped");
+        return;
+      }
+      setMode("speaking");
+      try {
+        const clip = await api.speak(reply.reply);
+        const el = new Audio(`data:audio/wav;base64,${clip.audio}`);
+        audio.current = el;
+        envelope.current = {
+          values: clip.envelope,
+          frameMs: clip.frame_ms,
+          startedAt: performance.now(),
+        };
+        el.onended = () => {
+          envelope.current = null;
+          setMode("idle");
+        };
+        await el.play();
+      } catch {
+        // Speech is optional: with no voice configured the server says so, and
+        // the reply is still there to read.
+        envelope.current = null;
+        setTimeout(() => setMode((m) => (m === "speaking" ? "idle" : m)), 900);
+      }
     },
     onError: () => setMode("idle"),
   });
@@ -127,7 +162,13 @@ export function Talk() {
                 }
               }}
             />
-            <button className="btn" onClick={() => close.mutate()}>
+            <button
+              className="btn"
+              onClick={() => {
+                audio.current?.pause();
+                close.mutate();
+              }}
+            >
               CLOSE
             </button>
           </div>
@@ -141,8 +182,13 @@ export function Talk() {
   );
 }
 
-/** Nested harmonic rings, amplitude driven by what the conversation is doing. */
-function useAvatar(ref: React.RefObject<HTMLCanvasElement | null>, mode: Mode) {
+/** Nested harmonic rings, amplitude driven by what the conversation is doing —
+ *  and, while it speaks, by the actual loudness of the words being said. */
+function useAvatar(
+  ref: React.RefObject<HTMLCanvasElement | null>,
+  mode: Mode,
+  envelope: React.RefObject<Envelope | null>,
+) {
   useEffect(() => {
     const canvas = ref.current;
     const ctx = canvas?.getContext("2d");
@@ -154,7 +200,20 @@ function useAvatar(ref: React.RefObject<HTMLCanvasElement | null>, mode: Mode) {
     const draw = () => {
       frame += 1;
       const t = frame / 60;
-      const energy = mode === "speaking" ? 1 : mode === "thinking" ? 0.55 : mode === "stopped" ? 0.15 : 0.32;
+      let energy = mode === "thinking" ? 0.55 : mode === "stopped" ? 0.15 : 0.32;
+      const env = envelope.current;
+      if (env) {
+        // Interpolated by playback position rather than stepped, so the shape
+        // moves with the voice instead of ticking along beside it.
+        const at = (performance.now() - env.startedAt) / env.frameMs;
+        const i = Math.floor(at);
+        const lerp = at - i;
+        const a = env.values[Math.min(i, env.values.length - 1)] ?? 0;
+        const b = env.values[Math.min(i + 1, env.values.length - 1)] ?? a;
+        energy = 0.3 + (a + (b - a) * lerp) * 1.5;
+      } else if (mode === "speaking") {
+        energy = 1;
+      }
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.strokeStyle = mode === "stopped" ? "#5f6b68" : "#a7c3c8";
       for (let ring = 0; ring < 9; ring++) {
@@ -181,5 +240,5 @@ function useAvatar(ref: React.RefObject<HTMLCanvasElement | null>, mode: Mode) {
     };
     draw();
     return () => cancelAnimationFrame(raf);
-  }, [ref, mode]);
+  }, [ref, mode, envelope]);
 }

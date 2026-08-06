@@ -397,6 +397,17 @@ export const api = {
       { method: "POST" },
     ),
 
+  /** Synthesise a reply so it can be listened to.
+   *
+   *  The envelope arrives with the audio because the shape has to move in time
+   *  with the voice, and measuring loudness in the browser is not possible for
+   *  audio it did not generate. See `tlon/speech.py`. */
+  speak: (text: string) =>
+    request<{ audio: string; envelope: number[]; frame_ms: number; duration_ms: number }>(
+      "/v1/voice/speak",
+      { method: "POST", body: JSON.stringify({ text }) },
+    ),
+
   /* machinery */
   agentRuns: (limit = 50) => request<AgentRun[]>(`/v1/agents/runs?limit=${limit}`),
   runAgents: () => request<{ agent: string; status: string }[]>("/v1/agents/run", { method: "POST" }),
