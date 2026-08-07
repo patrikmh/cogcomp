@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
 import { api } from "@/lib/api";
-import { deviceTimezone, localDay, mondayOf } from "@/lib/format";
+import { localDay, mondayOf } from "@/lib/format";
 
 /** What the app does with what you write, in content rather than a consent wall. */
 export function Words() {
@@ -61,35 +61,84 @@ export function Words() {
  * it is not a nudge. Nobody owes the system material.
  */
 export function First() {
-  const tz = deviceTimezone();
-  const monday = mondayOf(localDay());
-  const words = useQuery({
-    queryKey: ["vocabulary", monday, tz, 4],
-    queryFn: () => api.vocabulary(monday, tz, 4),
-  });
+  const entries = useQuery({ queryKey: ["observations"], queryFn: () => api.observations(500) });
+  const patterns = useQuery({ queryKey: ["patterns"], queryFn: api.patterns });
 
-  const written = (words.data?.weeks ?? []).reduce((n, w) => n + w.entry_count, 0);
-  const days = (words.data?.weeks ?? []).filter((w) => w.entry_count > 0).length;
+  const written = entries.data?.observations ?? [];
+  const days = new Set(written.map((o) => localDay(new Date(o.captured_at))));
+  const weeks = new Set([...days].map((d) => mondayOf(d)));
+  const found = patterns.data ?? [];
+  const has = (detector: string) => found.some((p) => p.detector === detector);
+
+  // What each detector is actually waiting for, in its own terms. The numbers
+  // are the thresholds in the backend, not round ones chosen to look tidy:
+  // recurrence wants the same thing on two days, calendar shape wants four
+  // distinct weeks, ordering wants three, stated-against-recorded wants ten
+  // days of material before it will compare anything.
+  const waiting = [
+    {
+      name: "Recurrence",
+      needs: "the same thing written on two different days",
+      standing: has("exact-label")
+        ? "found"
+        : `you have written on ${days.size} ${days.size === 1 ? "day" : "days"}`,
+      ready: has("exact-label") || days.size >= 2,
+    },
+    {
+      name: "Calendar shape",
+      needs: "writing in four different weeks",
+      standing: has("weekday")
+        ? "found"
+        : `you have ${weeks.size} ${weeks.size === 1 ? "week" : "weeks"}`,
+      ready: has("weekday") || weeks.size >= 4,
+    },
+    {
+      name: "Ordering",
+      needs: "two things recorded apart, across three weeks",
+      standing: has("lag")
+        ? "found"
+        : `you have ${weeks.size} ${weeks.size === 1 ? "week" : "weeks"}`,
+      ready: has("lag") || weeks.size >= 3,
+    },
+    {
+      name: "Stated vs recorded",
+      needs: "something you said you would do, and ten days to check it against",
+      // Never "ready": this one also needs an intention you actually stated,
+      // which is not something the day count can tell us. Claiming ready when
+      // the second condition may be unmet would be the app promising a finding
+      // it has no way to know is coming.
+      standing: has("stated-vs-recorded")
+        ? "found"
+        : days.size >= 10
+          ? "waiting on something you said you would do"
+          : `you have written on ${days.size} ${days.size === 1 ? "day" : "days"}`,
+      ready: has("stated-vs-recorded"),
+    },
+  ];
 
   return (
     <>
-      <div className="p-head">
-        <div>
-          <span className="kicker">Early days</span>
-          <h1>What is accruing</h1>
-        </div>
-      </div>
-
+      <span className="kicker">First fortnight</span>
+      <h1>The machinery is filling</h1>
       <p className="sub">
-        Writing things down repeatedly tends to make them clearer on its own, and that does not
-        depend on how often you write. The rest needs material before it can say anything — here is
-        what it has.
+        Some findings need more days than you have written. Nothing is owed — this is what each
+        detector is waiting for.
       </p>
 
       <div className="cards">
-        <Accrual label="Entries kept" have={written} need={12} />
-        <Accrual label="Weeks with writing in them" have={days} need={4} />
+        {waiting.map((w) => (
+          <div className={`card${w.ready ? "" : " hollow"}`} key={w.name}>
+            <div className="row" style={{ justifyContent: "space-between" }}>
+              <b>{w.name}</b>
+              <span className="mono">{w.ready ? "ready" : w.standing}</span>
+            </div>
+            <p className="mono" style={{ margin: "8px 0 0" }}>
+              needs {w.needs}
+            </p>
+          </div>
+        ))}
       </div>
+
       <div className="row" style={{ marginTop: 18 }}>
         <Link className="btn" to="/journal">
           WRITE SOMETHING
@@ -104,18 +153,3 @@ export function First() {
   );
 }
 
-function Accrual({ label, have, need }: { label: string; have: number; need: number }) {
-  return (
-    <div className="card">
-      <div className="row" style={{ justifyContent: "space-between" }}>
-        <b>{label}</b>
-        <span className="mono">
-          {have} of {need}
-        </span>
-      </div>
-      <div className="p-stripwrap">
-        <span className="p-bar" style={{ width: `${Math.min(100, Math.round((have / need) * 100))}%` }} />
-      </div>
-    </div>
-  );
-}
