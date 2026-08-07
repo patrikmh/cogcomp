@@ -214,7 +214,7 @@ export interface Experiment {
   cadence: "daily" | "weekly" | "end_only";
   state: "draft" | "active" | "paused" | "completed" | "cancelled";
   revision: number;
-  links?: { node_id: string; kind: string | null; label: string | null }[];
+  links?: { node_id: string; kind: string | null; label: string | null; availability: boolean }[];
   checkins?: Written[];
   outcome?: { assessment: string; note: string | null; final_checkin_observation_id: string } | null;
 }
@@ -386,12 +386,14 @@ export const api = {
     revision: number,
     assessment: string,
     finalCheckin: string,
+    note?: string,
   ) =>
     request<Experiment>(`/v1/experiments/${id}/complete`, {
       method: "POST",
       body: JSON.stringify({
         revision,
         assessment,
+        note: note?.trim() || null,
         final_checkin_observation_id: finalCheckin,
       }),
     }),

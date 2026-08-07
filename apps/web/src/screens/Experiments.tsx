@@ -179,6 +179,7 @@ export function ExperimentDetail() {
   const navigate = useNavigate();
   const [arming, setArming] = useState(false);
   const [assessment, setAssessment] = useState<string | null>(null);
+  const [note, setNote] = useState("");
   const [final, setFinal] = useState<string | null>(null);
 
   const detail = useQuery({ queryKey: ["experiment", id], queryFn: () => api.experiment(id) });
@@ -196,7 +197,7 @@ export function ExperimentDetail() {
   });
   const complete = useMutation({
     mutationFn: () =>
-      api.completeExperiment(id, detail.data!.revision, assessment!, final!),
+      api.completeExperiment(id, detail.data!.revision, assessment!, final!, note),
     onSuccess: took,
   });
   const remove = useMutation({
@@ -322,6 +323,26 @@ export function ExperimentDetail() {
         </>
       )}
 
+      {(x.links ?? []).length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">What it tests</span>
+            <span className="rule" />
+            <span className="mono">the readings this was set against</span>
+          </div>
+          {x.links!.map((link) => (
+            <Link className="t-read" key={link.node_id} to={`/node/${link.node_id}`}>
+              <span className="t-main">
+                <b>{link.label ?? "a reading that is no longer here"}</b>
+                <span className="mono">
+                  {link.availability ? (link.kind ?? "").toLowerCase() : "removed since"}
+                </span>
+              </span>
+            </Link>
+          ))}
+        </>
+      )}
+
       {x.state === "active" && (
         <>
           <div className="t-sec">
@@ -341,6 +362,18 @@ export function ExperimentDetail() {
                 {value.replace("_", " ")}
               </button>
             ))}
+          </div>
+          {/* The four words are a vocabulary, not the whole reading. What
+              actually happened rarely fits one of them, and the note is where
+              the person says it in their own words — kept verbatim, never
+              parsed into a score. */}
+          <div className="x-assess">
+            <textarea
+              value={note}
+              placeholder="What actually happened, in your words (optional)"
+              rows={3}
+              onChange={(e) => setNote(e.target.value)}
+            />
           </div>
           <div className="row" style={{ marginTop: 12 }}>
             <button
@@ -365,6 +398,7 @@ export function ExperimentDetail() {
         <div className="card" style={{ marginTop: 18 }}>
           <span className="kicker">Outcome</span>
           <p>{x.outcome.assessment.replace("_", " ")}</p>
+          {x.outcome.note && <p className="quote">{x.outcome.note}</p>}
           <span className="mono">
             Final check-in selected by you. No score, no interpretation.
           </span>

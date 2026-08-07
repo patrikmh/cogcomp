@@ -257,6 +257,8 @@
   .x-state.running{color:var(--live);border-color:var(--live)}
   .x-state.completed{color:var(--ink);border-color:var(--line2)}
   .x-state.drafted{color:var(--faint);border-style:dotted}
+  .x-assess{margin-top:12px;max-width:640px}
+  .x-assess textarea{resize:vertical;min-height:74px}
   .x-strip{display:flex;gap:3px;height:34px;align-items:flex-end;margin-top:14px}
   .x-strip.big{height:56px;margin-top:18px;max-width:640px}
   .x-cell{flex:1;display:flex;flex-direction:column;justify-content:flex-end;min-width:0;height:100%}
