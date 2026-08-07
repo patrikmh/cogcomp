@@ -2,6 +2,7 @@ import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/rea
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
+import { Meter } from "@/components/Meter";
 import { Empty, Failed, Loading } from "@/components/States";
 import { api, type Experiment } from "@/lib/api";
 import { deviceTimezone, localDay } from "@/lib/format";
@@ -224,10 +225,20 @@ export function ExperimentDetail() {
         </span>
       </div>
 
+      <div className="t-sum">
+        {checkins.length} of {x.duration_days} check-ins · {x.cadence} · you decide what it means
+      </div>
+      <div className="row" style={{ gap: 14 }}>
+        <Meter confidence={Math.min(1, checkins.length / Math.max(1, x.duration_days))} />
+        <span className="mono">
+          {Math.round((checkins.length / Math.max(1, x.duration_days)) * 100)}% of the days have a
+          check-in
+        </span>
+      </div>
+
       <Arc experiment={x} checkins={checkins.length} look={look} big />
       <p className="x-cap mono">
-        {checkins.length} of {x.duration_days} check-ins. The arc shows their shape, not exact
-        dates.
+        The arc shows the shape of your check-ins, not exact dates.
       </p>
 
       <div className="t-sec">

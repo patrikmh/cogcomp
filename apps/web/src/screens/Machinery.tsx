@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 
 import { Meter } from "@/components/Meter";
 
-import { Empty, Failed, Loading } from "@/components/States";
+import { Failed, Loading } from "@/components/States";
 import { api } from "@/lib/api";
 import { seed } from "@/lib/seal";
 
@@ -24,46 +24,79 @@ export function Agents() {
     onSuccess: () => void client.invalidateQueries({ queryKey: ["agent-runs"] }),
   });
 
+  if (runs.isLoading) return <Loading />;
+  if (runs.isError) return <Failed />;
+
+  const all = runs.data ?? [];
+  const wrote = all.filter((r) => r.status === "succeeded").length;
+  const skipped = all.filter((r) => r.status === "skipped").length;
+  const failed = all.filter((r) => r.status === "failed").length;
+
   return (
     <>
-      <div className="p-head">
-        <div>
-          <span className="kicker">Machinery</span>
-          <h1>Agent activity</h1>
-        </div>
+      <span className="kicker">Agent activity</span>
+      <h1>What was decided while you were away</h1>
+      <p className="sub">One line per attempt. Counts only — never what you wrote.</p>
+
+      {/* "Nothing ran" and "something ran and found nothing" are different
+          answers to someone asking why their graph changed. */}
+      <div className="card" style={{ borderColor: "var(--line2)" }}>
+        <p style={{ margin: 0 }}>
+          {all.length === 0
+            ? "Nothing has run yet."
+            : `${all.length} ${all.length === 1 ? "attempt" : "attempts"} recorded: ${wrote} did work, ${skipped} had nothing to work on, ${failed} failed.`}
+        </p>
+      </div>
+
+      <div className="row" style={{ marginTop: 14 }}>
         <button className="btn" disabled={run.isPending} onClick={() => run.mutate()}>
           {run.isPending ? "RUNNING…" : "RUN NOW"}
         </button>
+        <span className="mono">A run you asked for always looks, and always reports.</span>
       </div>
 
-      {runs.isLoading ? (
-        <Loading />
-      ) : runs.isError ? (
-        <Failed />
-      ) : (runs.data ?? []).length === 0 ? (
-        <Empty label="Nothing has run yet." />
-      ) : (
-        runs.data!.map((r) => (
+      <h2>Every run</h2>
+      <div className="cards">
+        {all.map((r) => (
           <div className="card" key={r.id}>
             <div className="row" style={{ justifyContent: "space-between" }}>
-              <b>{r.agent}</b>
-              <span className="mono" style={{ color: statusColor(r.status) }}>
-                {r.status}
+              <span className="row" style={{ gap: 10 }}>
+                <i
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: "50%",
+                    background: statusColor(r.status),
+                    display: "block",
+                  }}
+                />
+                <b>{r.agent}</b>
+              </span>
+              <span className="mono">
+                {new Date(r.started_at).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}{" "}
+                · {r.version}
               </span>
             </div>
-            <span className="mono" style={{ color: "var(--faint)" }}>
-              {new Date(r.started_at).toLocaleString()} · {r.version} · {r.trigger}
+            <p className="mono" style={{ margin: "10px 0 0" }}>
+              {statusLabel(r.status)} · {summarise(r.summary)}
               {r.error ? ` · ${r.error}` : ""}
-            </span>
-            <div className="mono" style={{ marginTop: 6 }}>
-              {summarise(r.summary)}
-            </div>
+            </p>
           </div>
-        ))
-      )}
+        ))}
+      </div>
     </>
   );
 }
+
+const statusLabel = (status: string) =>
+  status === "failed"
+    ? "failed"
+    : status === "skipped"
+      ? "nothing new to work on"
+      : "wrote";
 
 const statusColor = (status: string) =>
   status === "failed" ? "var(--rust)" : status === "skipped" ? "var(--sand)" : "var(--live)";

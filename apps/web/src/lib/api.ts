@@ -353,7 +353,11 @@ export const api = {
     ),
 
   /* identity */
-  identity: () => request<{ nodes: IdentityNode[] }>("/v1/identity"),
+  /** `withRemoved` also returns tombstones — what the person took back. */
+  identity: (withRemoved = false) =>
+    request<{ nodes: IdentityNode[] }>(
+      `/v1/identity${withRemoved ? "?include_removed=true" : ""}`,
+    ),
   identityCandidates: () => request<{ candidates: IdentityNode[] }>("/v1/identity/candidates"),
   keep: (nodeId: string) =>
     request<IdentityNode>("/v1/identity/selections", {

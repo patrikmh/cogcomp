@@ -258,13 +258,9 @@ async def vocabulary(
     never be read as a decline.
     """
     if not 1 <= weeks <= 26:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT, "weeks must be between 1 and 26"
-        )
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "weeks must be between 1 and 26")
     try:
-        return await summary_db.vocabulary(
-            request.app.state.pool, user_id, week_start, weeks, tz
-        )
+        return await summary_db.vocabulary(request.app.state.pool, user_id, week_start, weeks, tz)
     except (UnknownTimezone, NonMonday) as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
 

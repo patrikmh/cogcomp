@@ -25,7 +25,9 @@ export function Identity() {
   const client = useQueryClient();
   const [hovered, setHovered] = useState<Ring | null>(null);
 
-  const kept = useQuery({ queryKey: ["identity", userId], queryFn: api.identity });
+  // Tombstones are asked for here, because this is the one screen that draws
+  // them — a removal you cannot see is a decision you cannot reconsider.
+  const kept = useQuery({ queryKey: ["identity", userId], queryFn: () => api.identity(true) });
   const offered = useQuery({
     queryKey: ["identity", "candidates", userId],
     queryFn: api.identityCandidates,

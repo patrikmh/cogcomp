@@ -146,6 +146,11 @@ export function Patterns() {
 function Row({ pattern, busiest }: { pattern: Pattern; busiest: number }) {
   const [peek, setPeek] = useState<string | null>(null);
   const strength = pattern.occurrences / busiest;
+  const composition = useQuery({
+    queryKey: ["neighbours", pattern.id],
+    queryFn: () => api.neighbours(pattern.id),
+  });
+  const made = composition.data?.neighbours ?? [];
 
   return (
     <div className={`p-row${pattern.tentative ? " ghost" : ""}`}>
@@ -171,18 +176,62 @@ function Row({ pattern, busiest }: { pattern: Pattern; busiest: number }) {
         </div>
       </Link>
 
+      {/* What the finding is made of, linked to their own evidence. A finding
+          nobody can decompose is a finding nobody can argue with. */}
+      <div className="p-comp">
+        <span className="clab">drawn from</span>
+        {made.length === 0 ? (
+          <span className="c gone">nothing drawn from entries yet</span>
+        ) : (
+          made.map((r) => (
+            <Link key={r.id} className={`c${r.tentative ? " ghost" : ""}`} to={`/node/${r.id}`}>
+              {r.label}
+            </Link>
+          ))
+        )}
+      </div>
+
       <div className="p-stripwrap">
         <Strip pattern={pattern} onPeek={setPeek} />
         <div className="p-peek">
-          {peek ?? (
-            <>
-              <span className="p-sw ink" />
-              {pattern.distinct_days} of the {pattern.occurrences} it rests on — hover a day.
-            </>
-          )}
+          {peek ?? <Legend pattern={pattern} />}
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * What the strip's colours mean, in the finding's own terms.
+ *
+ * A two-sided finding needs both halves named or the second colour is a riddle;
+ * a one-sided one needs no legend at all, just the count. Stated rather than
+ * left to a key the reader has to hunt for.
+ */
+function Legend({ pattern }: { pattern: Pattern }) {
+  if (pattern.detector === "stated-vs-recorded") {
+    return (
+      <>
+        <span className="p-sw ink" />
+        stated · <span className="p-sw sand" />
+        recorded — the two rarely meet. Hover a day.
+      </>
+    );
+  }
+  if (pattern.detector === "lag" || pattern.detector === "same-day-order") {
+    return (
+      <>
+        <span className="p-sw ink" />
+        first · <span className="p-sw line" />
+        then — never in the same entry. Hover a day.
+      </>
+    );
+  }
+  return (
+    <>
+      <span className="p-sw ink" />
+      {pattern.distinct_days} of the {pattern.occurrences} it rests on — hover a day.
+    </>
   );
 }
 
@@ -220,8 +269,15 @@ function Strip({ pattern, onPeek }: { pattern: Pattern; onPeek: (peek: string | 
             onMouseLeave={() => onPeek(null)}
           >
             <span
-              className={`p-bar${other && !on ? " b" : ""}`}
-              style={{ animationDelay: `${i * 26}ms` }}
+              className={`p-bar${
+                other && !on ? (pattern.detector === "stated-vs-recorded" ? " r" : " b") : on && pattern.detector === "stated-vs-recorded" ? " s" : ""
+              }`}
+              style={{
+                animationDelay: `${i * 26}ms`,
+                ...(other && !on && pattern.detector === "stated-vs-recorded"
+                  ? { height: "55%" }
+                  : {}),
+              }}
             />
           </div>
         );

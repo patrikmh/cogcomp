@@ -27,17 +27,27 @@ def _node(row: asyncpg.Record) -> dict:
     }
 
 
-async def projection(pool: asyncpg.Pool, user_id: UUID) -> dict:
+async def projection(pool: asyncpg.Pool, user_id: UUID, *, include_removed: bool = False) -> dict:
+    """What the person has kept, and optionally what they took back.
+
+    Removals are tombstones rather than deletions — the record that something
+    *was* removed is part of the record, and a client that can show it lets
+    someone see their own second thoughts. Off by default, because the identity
+    a person is assembling is what they kept, not what they rejected; a caller
+    has to ask for the rest.
+    """
     rows = await pool.fetch(
         f"""
         SELECT {_NODE_COLUMNS}
         FROM identity_selections s
         JOIN graph_nodes n ON n.id = s.node_id AND n.user_id = s.user_id
-        WHERE s.user_id = $1 AND s.status = 'selected' AND n.deleted_at IS NULL
+        WHERE s.user_id = $1 AND n.deleted_at IS NULL
+          AND (s.status = 'selected' OR $2)
           AND n.kind IN ('Value', 'Belief', 'Need', 'Activity')
         ORDER BY s.updated_at DESC, n.created_at DESC
         """,
         user_id,
+        include_removed,
     )
     ids = [row["id"] for row in rows]
     edges = (

@@ -21,8 +21,21 @@ class SelectionRequest(BaseModel):
 
 
 @router.get("/v1/identity")
-async def get_identity(request: Request, user_id: UUID = Depends(current_user)) -> dict:
-    return await identity_db.projection(request.app.state.pool, user_id)
+async def get_identity(
+    request: Request,
+    include_removed: bool = False,
+    user_id: UUID = Depends(current_user),
+) -> dict:
+    """The identity the person has assembled.
+
+    `include_removed` also returns what they took back. Tombstones are kept on
+    purpose — a removal is a decision, and a decision nobody can see afterwards
+    cannot be reconsidered — but they are not part of the picture unless asked
+    for, because identity here is what someone kept.
+    """
+    return await identity_db.projection(
+        request.app.state.pool, user_id, include_removed=include_removed
+    )
 
 
 @router.get("/v1/identity/candidates")

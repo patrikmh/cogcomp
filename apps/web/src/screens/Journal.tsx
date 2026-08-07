@@ -204,7 +204,11 @@ export function Journal() {
             data-rec={recording ? "" : undefined}
             onClick={() => void toggleRecording()}
           >
-            {recording ? "STOP" : speak.isPending ? "TRANSCRIBING…" : "HOLD TO RECORD"}
+            {/* The dot is the state: lit while the microphone is actually open.
+                "Is it listening?" must never be a question in an app people use
+                to talk about difficult things. */}
+            <span className="dot" aria-hidden />
+            {recording ? "LISTENING" : speak.isPending ? "TRANSCRIBING…" : "HOLD TO RECORD"}
           </button>
           <span className="mono" style={{ color: "var(--faint)" }}>
             {note ??

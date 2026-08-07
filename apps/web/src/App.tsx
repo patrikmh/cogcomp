@@ -108,7 +108,7 @@ function RailWithCounts() {
   const graph = useQuery({ queryKey: ["graph-summary"], queryFn: api.graphSummary });
   const identity = useQuery({
     queryKey: ["identity", userId],
-    queryFn: api.identity,
+    queryFn: () => api.identity(true),
     enabled: showFindings,
   });
 
