@@ -376,6 +376,14 @@
   .f-res .j-seal path{stroke-dasharray:1;stroke-dashoffset:1;
     animation:sSeal .8s cubic-bezier(.3,.8,.2,1) forwards}
   @keyframes sMark{0%{background:rgba(254,252,191,0)}100%{background:rgba(254,252,191,.22)}}
+  /* find input — focus glow. Ported late: the block this came from was cut at
+     its own comment, so the search field lost the one thing that told you it
+     had taken your typing. Order matters and is the design's: the base rule
+     below re-declares the transition, and the `:focus-within` below re-declares
+     the bottom border, which is why the glow arrives without easing. */
+  .f-field{transition:border-color .2s,box-shadow .2s}
+  .f-field:focus-within{border-color:var(--line2);
+    box-shadow:0 0 0 3px rgba(254,252,191,.06)}
   .f-field{display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--line);padding:4px 2px 12px;transition:border-color .15s}
   .f-field:focus-within{border-bottom-color:var(--ink)}
   .f-field input{flex:1;background:none;border:0;outline:none;color:var(--ink);font:400 20px/1.4 "IBM Plex Sans",sans-serif;letter-spacing:-0.01em;padding:0}
