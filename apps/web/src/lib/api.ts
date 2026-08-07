@@ -336,7 +336,13 @@ export const api = {
 
   /** The readings a finding is made of — its SUPPORTS neighbours. */
   neighbours: (id: string) =>
-    request<{ node: GraphNode; neighbours: GraphNode[]; edges: { from_id: string; to_id: string }[] }>(
+    request<{
+      node: GraphNode;
+      /** Each carries how many entries it rests on, which the finding's
+       *  composition shows beside it. */
+      neighbours: (GraphNode & { cites_entries?: number })[];
+      edges: { from_id: string; to_id: string }[];
+    }>(
       `/v1/graph/nodes/${id}/neighbours`,
     ),
 

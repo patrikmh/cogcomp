@@ -214,9 +214,12 @@ async def neighbours(pool: asyncpg.Pool, user_id: UUID, node_id: UUID) -> dict |
     neighbour_rows = (
         await pool.fetch(
             """
-            SELECT id, kind, label, created_at, confidence, epistemic_status, extractor
-            FROM graph_nodes
-            WHERE user_id = $1 AND deleted_at IS NULL AND id = ANY($2::uuid[])
+            SELECT n.id, n.kind, n.label, n.created_at, n.confidence,
+                   n.epistemic_status, n.extractor,
+                   (SELECT count(*) FROM node_provenance p WHERE p.node_id = n.id)
+                       AS cites_entries
+            FROM graph_nodes n
+            WHERE n.user_id = $1 AND n.deleted_at IS NULL AND n.id = ANY($2::uuid[])
             """,
             user_id,
             list(neighbour_ids),
@@ -231,7 +234,12 @@ async def neighbours(pool: asyncpg.Pool, user_id: UUID, node_id: UUID) -> dict |
 
     return {
         "node": _node_json(centre),
-        "neighbours": [_node_json(row) for row in neighbour_rows],
+        # How many entries each neighbour rests on. A finding's parts are worth
+        # weighing against each other, and "drawn from three entries" is the
+        # weight — the design shows it beside every one of them.
+        "neighbours": [
+            {**_node_json(row), "cites_entries": row["cites_entries"]} for row in neighbour_rows
+        ],
         "edges": [
             _edge_json(row)
             for row in edge_rows

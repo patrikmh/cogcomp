@@ -91,6 +91,11 @@ export function PatternDetail() {
                 <b>{r.label}</b>
                 <span className="mono">
                   {r.kind.toLowerCase()} · {r.tentative ? "less sure" : "kept"}
+                  {/* What it rests on, as the design has it — the parts of a
+                      finding are worth weighing against each other. */}
+                  {r.cites_entries
+                    ? ` · drawn from ${r.cites_entries} ${r.cites_entries === 1 ? "entry" : "entries"}`
+                    : ""}
                 </span>
               </span>
               <span className="t-side">

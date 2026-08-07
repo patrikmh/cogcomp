@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { Meter } from "@/components/Meter";
 import { Empty, Failed, Loading } from "@/components/States";
 import { api, type Pattern } from "@/lib/api";
-import { DETECTOR_LABEL, deviceTimezone } from "@/lib/format";
+import { DETECTOR_LABEL, deviceTimezone, fmt } from "@/lib/format";
 import { Seal } from "@/lib/seal";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
@@ -198,7 +198,10 @@ function Row({ pattern, busiest }: { pattern: Pattern; busiest: number }) {
         ) : (
           made.map((r) => (
             <Link key={r.id} className={`c${r.tentative ? " ghost" : ""}`} to={`/node/${r.id}`}>
-              {r.label}
+              {/* The confidence travels with the chip, as the design has it. A
+                  finding is made of readings the app is more and less sure of,
+                  and a chip that hides that makes them all look equally solid. */}
+              {r.label} · {fmt(r.confidence ?? 0)}
             </Link>
           ))
         )}
