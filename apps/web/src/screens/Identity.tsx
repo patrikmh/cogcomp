@@ -95,6 +95,12 @@ export function Identity() {
               {hovered.confidence > 0 ? ` · ${fmt(hovered.confidence)}` : ""}
             </span>
           </>
+        ) : rings.length === 0 ? (
+          // Nothing to hover, so nothing is promised. The core stays: there is
+          // a point of view here even before anything has been noticed.
+          <span className="rest">
+            Nothing has been noticed yet. Readings appear once there are entries to draw them from.
+          </span>
         ) : (
           <span className="rest">Hover a ring to see what it is. The dense core is you.</span>
         )}

@@ -124,7 +124,9 @@ export function Journal() {
         <div className="j-head">
           <span className="kicker">Journal</span>
           <span className="mono" style={{ color: "var(--faint)" }}>
-            {list.length} {list.length === 1 ? "act" : "acts"} kept
+            {/* Not "0 acts kept" when the request failed: that is a claim about
+                the record, and we do not know it. */}
+            {entries.isSuccess ? `${list.length} ${list.length === 1 ? "act" : "acts"} kept` : ""}
           </span>
         </div>
 

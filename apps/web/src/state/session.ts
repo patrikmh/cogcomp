@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { api, currentToken, setToken } from "@/lib/api";
+import { ApiError, api, currentToken, setToken } from "@/lib/api";
 
 /**
  * Who is signed in.
@@ -33,9 +33,17 @@ export const useSession = create<SessionState>((set) => ({
       const me = await api.me();
       set({ token: currentToken(), userId: me.user_id, email: me.email, ready: true });
       localStorage.setItem("tlon.user", me.user_id);
-    } catch {
-      // A token the server has forgotten. The client clears it in `api.ts`.
-      set({ token: null, userId: null, email: null, ready: true });
+    } catch (error) {
+      // Only a 401 means the token is gone; `api.ts` has already cleared it.
+      // Anything else — a 500, a restart, a dropped connection — is the server
+      // having a bad moment, and signing someone out over it would lose their
+      // place and make them type a password to recover from a hiccup they did
+      // not cause. Keep the session and let each screen say it could not load.
+      if (error instanceof ApiError && error.status === 401) {
+        set({ token: null, userId: null, email: null, ready: true });
+        return;
+      }
+      set({ token: currentToken(), userId: localStorage.getItem("tlon.user"), ready: true });
     }
   },
 
