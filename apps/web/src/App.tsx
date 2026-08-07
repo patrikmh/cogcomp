@@ -56,6 +56,11 @@ export function App() {
 
   return (
     <div id="app">
+      {/* Twelve rail links stand between the top of the document and the page
+          you asked for. Hidden until focused, so nothing on screen changes. */}
+      <a className="skip" href="#view">
+        Skip to the page
+      </a>
       <RailWithCounts />
       <main id="screen">
         <div className="wrap" id="view">

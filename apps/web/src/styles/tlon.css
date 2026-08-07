@@ -3,6 +3,16 @@
     font:400 16px/23px "IBM Plex Sans",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
   a{color:var(--live);text-decoration:none}
   a:hover{color:var(--ink)}
+  /* The design never had a keyboard story — the prototype is a mock, and both
+     it and this app fell back to the browser's system blue, dropped onto a
+     near-black palette. `:focus-visible` shows only when someone is actually
+     tabbing, so this is invisible to anyone using a mouse and the design looks
+     exactly as drawn. */
+  :focus-visible{outline:2px solid var(--live);outline-offset:2px;border-radius:2px}
+  .skip{position:absolute;left:-9999px;top:0;z-index:50}
+  .skip:focus{left:76px;top:10px;padding:9px 13px;background:var(--surface);
+    border:1px solid var(--line2);border-radius:3px;color:var(--ink);
+    font:400 12px/1 "IBM Plex Mono",monospace;letter-spacing:.06em}
   .kicker{display:block;font:400 11px/1 "IBM Plex Mono",monospace;letter-spacing:.14em;
     text-transform:uppercase;color:var(--faint)}
   .mono{font:400 12px/1.5 "IBM Plex Mono",monospace;color:var(--faint)}
