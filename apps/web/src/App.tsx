@@ -4,7 +4,8 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import { Rail, type RailCounts } from "@/components/Rail";
 import { api, onSessionLost } from "@/lib/api";
-import { Headspace } from "@/screens/Headspace";
+import { deviceTimezone, localDay, mondayOf } from "@/lib/format";
+import { Headspace, headspaceCount } from "@/screens/Headspace";
 import { Experiments, ExperimentDetail } from "@/screens/Experiments";
 import { Identity } from "@/screens/Identity";
 import { Journal } from "@/screens/Journal";
@@ -111,13 +112,43 @@ function RailWithCounts() {
     queryFn: () => api.identity(true),
     enabled: showFindings,
   });
+  const candidates = useQuery({
+    queryKey: ["identity", "candidates", userId],
+    queryFn: api.identityCandidates,
+    enabled: showFindings,
+  });
+  // The same keys Today, Week and Headspace use, so these are already-fetched
+  // data rather than a second round trip — and so the rail can never disagree
+  // with the screen it points at.
+  const tz = deviceTimezone();
+  const today = useQuery({
+    queryKey: ["summary", localDay(), tz],
+    queryFn: () => api.daily(localDay(), tz),
+  });
+  const week = useQuery({
+    queryKey: ["summary", "week", mondayOf(localDay()), tz],
+    queryFn: () => api.weekly(mondayOf(localDay()), tz),
+  });
+  const graphNodes = useQuery({ queryKey: ["graph"], queryFn: () => api.graph(120) });
 
   const counts: RailCounts = {
+    head:
+      today.data && graphNodes.data
+        ? String(headspaceCount(patterns.data ?? [], today.data.inferred, graphNodes.data.nodes))
+        : "",
     journal: entries.data ? String(entries.data.observations.length) : "",
+    today: today.data ? String(today.data.entry_count) : "",
+    week: week.data ? `${week.data.active_days} / 7` : "",
     patterns: patterns.data ? String(patterns.data.length) : "",
-    identity: identity.data
-      ? String(identity.data.nodes.filter((n) => n.status === "selected").length)
-      : "",
+    // What the screen actually draws: kept and offered alike. Counting only the
+    // kept ones said "0" beside a page showing twenty-one rings.
+    identity:
+      identity.data && candidates.data
+        ? String(
+            identity.data.nodes.filter((n) => n.status === "selected").length +
+              candidates.data.candidates.length,
+          )
+        : "",
     exps: experiments.data ? String(experiments.data.experiments.length) : "",
     agents: runs.data ? String(runs.data.length) : "",
     graph: graph.data

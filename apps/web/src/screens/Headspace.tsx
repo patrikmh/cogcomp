@@ -74,10 +74,7 @@ export function Headspace() {
       bar: p.occurrences / busiest,
     }));
 
-    const asReading: Whorl[] = (graph.data?.nodes ?? [])
-      .filter((n) => n.kind !== "Observation" && n.kind !== "Pattern" && !todayIds.has(n.id))
-      .slice(0, 26)
-      .map((n) => ({
+    const asReading: Whorl[] = readingsOn(graph.data?.nodes ?? [], todayIds).map((n) => ({
         id: n.id,
         label: n.label,
         meta: n.confidence ? fmt(n.confidence) : "",
@@ -280,4 +277,31 @@ function noteFor(lens: Lens, counts: Record<Lens, number>, tz: string, thin: boo
   return thin
     ? "Not enough written across both weeks to compare them yet."
     : `${counts.changed} moved between this week and last.`;
+}
+
+/**
+ * The readings the map places, and only those.
+ *
+ * Today's are drawn from their own source and observations are acts rather than
+ * readings, so both are excluded here; the cap is what the map can hold without
+ * becoming a fog. Shared with the rail so the count beside "Headspace" is the
+ * number of things actually on it.
+ */
+export function readingsOn<T extends { id: string; kind: string }>(
+  nodes: T[],
+  todayIds: Set<string>,
+) {
+  return nodes
+    .filter((n) => n.kind !== "Observation" && n.kind !== "Pattern" && !todayIds.has(n.id))
+    .slice(0, 26);
+}
+
+/** How many whorls the map holds: you, the patterns, today, and the readings. */
+export function headspaceCount(
+  patterns: { id: string }[],
+  inferred: { id: string }[],
+  nodes: { id: string; kind: string }[],
+) {
+  const todayIds = new Set(inferred.map((i) => i.id));
+  return 1 + patterns.length + inferred.length + readingsOn(nodes, todayIds).length;
 }

@@ -77,6 +77,13 @@ export function Journal() {
     el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
   }, [text]);
 
+  // Arriving at the journal means you came here to write. The caret is already
+  // in the composer, so the first keystroke is the first word rather than a
+  // navigation shortcut fired at nothing.
+  useEffect(() => {
+    box.current?.focus();
+  }, []);
+
   async function toggleRecording() {
     if (recorder.current) {
       recorder.current.stop();
