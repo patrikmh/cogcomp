@@ -394,8 +394,20 @@ export function mountHeadspace(
     ((maxZ - minZ) / 2) / tanV,
     ((maxX - minX) / 2) / (tanV * camera.aspect),
   );
-  camera.position.set(aimX, extent, aimZ + extent * 0.18);
-  camera.lookAt(aimX, 0, aimZ);
+  /** Where the camera sits for a given tilt, in radians off true plan. */
+  const TILT = 0.18; // a breath of perspective; a topo map keeps its north
+  const INTRO = 3200;
+  let introEase = reduced ? 1 : 0;
+  const placeCamera = (polar: number) => {
+    camera.position.set(
+      aimX,
+      extent * Math.cos(polar),
+      aimZ + extent * Math.sin(polar),
+    );
+    camera.lookAt(aimX, 0, aimZ);
+  };
+  // Reduced motion gets the settled map, not the settling of it.
+  placeCamera(introEase === 1 ? TILT : 0.05);
   controls.target.set(aimX, 0, aimZ);
   controls.minDistance = extent * 0.5;
   controls.maxDistance = extent * 2.4;
@@ -415,7 +427,7 @@ export function mountHeadspace(
     depthWrite: false,
   });
 
-  placed.forEach((p, i) => {
+  placed.forEach((p) => {
     const warp: Warp[] = placed
       .filter((o) => o !== p)
       .map((o) => ({ dx: o.x - p.x, dz: o.z - p.z, m: o.radius * o.radius * 0.5, soft: R * R * 0.02 }));
@@ -437,9 +449,13 @@ export function mountHeadspace(
     group.add(hit);
     picks.push({ hit, group, whorl: p.whorl, mats: group.userData.mats, baseScale: 1 });
 
-    // Staggered arrival: each peak eases out of the dark rather than all at once.
-    group.scale.setScalar(reduced ? 1 : 0.001);
-    group.userData.arriveAt = i * 55;
+    // The map is already there when you arrive. It used to scale each peak up
+    // from nothing on a 55ms stagger, which meant the first two and a half
+    // seconds were an empty canvas with whorls popping into it one at a time —
+    // a chart assembling itself, when the design's claim is that this is a
+    // place that already exists and you are settling onto it. What moves on
+    // arrival is the camera, below, and nothing else.
+    group.scale.setScalar(1);
     model.add(group);
   });
 
@@ -482,18 +498,19 @@ export function mountHeadspace(
     const elapsed = performance.now() - start;
     const t = elapsed / 1000;
 
-    // Arrival, then breathing. Both stop when the person asks for stillness,
-    // and the rings are put back where they started rather than left mid-swell.
+    // The survey settles: the camera starts at a true plan view and eases to a
+    // breath of perspective, so the terrain rises out of the flat chart. This
+    // is the whole arrival — the peaks themselves never move.
+    if (introEase < 1) {
+      introEase = Math.min(1, elapsed / INTRO);
+      // Ease-out cubic: quick at first, then a long settle.
+      const k = 1 - Math.pow(1 - introEase, 3);
+      placeCamera(0.05 + (TILT - 0.05) * k);
+      controls.update();
+    }
+
     for (const pick of picks) {
-      const since = elapsed - (pick.group.userData.arriveAt as number);
-      if (!reduced && since < 900) {
-        const k = Math.max(0, since) / 900;
-        // Back-out easing: it overshoots slightly and settles, like a pen lifting.
-        const eased = 1 + 2.2 * Math.pow(k - 1, 3) + 1.2 * Math.pow(k - 1, 2);
-        pick.group.scale.setScalar(Math.max(0.001, eased));
-      } else if (since >= 900) {
-        pick.group.scale.setScalar(pick.baseScale);
-      }
+      pick.group.scale.setScalar(pick.baseScale);
       const on = visible.includes(pick.whorl.group);
       pick.group.visible = on;
     }
