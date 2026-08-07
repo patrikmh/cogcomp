@@ -74,7 +74,11 @@ export function Headspace() {
       bar: p.occurrences / busiest,
     }));
 
-    const asReading: Whorl[] = readingsOn(graph.data?.nodes ?? [], todayIds).map((n) => ({
+    const asReading: Whorl[] = readingsOn(
+      graph.data?.nodes ?? [],
+      todayIds,
+      (patterns.data ?? []).length,
+    ).map((n) => ({
         id: n.id,
         label: n.label,
         meta: n.confidence ? fmt(n.confidence) : "",
@@ -299,11 +303,22 @@ function noteFor(lens: Lens, counts: Record<Lens, number>, tz: string, thin: boo
 export function readingsOn<T extends { id: string; kind: string }>(
   nodes: T[],
   todayIds: Set<string>,
+  patternCount = 0,
 ) {
-  return nodes
-    .filter((n) => n.kind !== "Observation" && n.kind !== "Pattern" && !todayIds.has(n.id))
-    .slice(0, 26);
+  const eligible = nodes.filter(
+    (n) => n.kind !== "Observation" && n.kind !== "Pattern" && !todayIds.has(n.id),
+  );
+  // The map holds about as much as the design's map holds, whatever the record
+  // holds. The camera frames the whole massif, so every extra whorl shrinks all
+  // the others: at twenty-six readings the patterns stop reading as massifs and
+  // the survey labels stop being legible, which is the map losing the two things
+  // it exists to show. Patterns are never dropped — they are the point — so the
+  // readings give way to them.
+  return eligible.slice(0, Math.max(6, WHORL_BUDGET - patternCount));
 }
+
+/** Whorls the map draws before it becomes a fog. Counts you and today. */
+const WHORL_BUDGET = 20;
 
 /** How many whorls the map holds: you, the patterns, today, and the readings. */
 export function headspaceCount(
@@ -312,5 +327,5 @@ export function headspaceCount(
   nodes: { id: string; kind: string }[],
 ) {
   const todayIds = new Set(inferred.map((i) => i.id));
-  return 1 + patterns.length + inferred.length + readingsOn(nodes, todayIds).length;
+  return 1 + patterns.length + inferred.length + readingsOn(nodes, todayIds, patterns.length).length;
 }

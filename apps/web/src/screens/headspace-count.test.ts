@@ -29,7 +29,19 @@ describe("readingsOn", () => {
 
   it("caps what it places, so the map cannot become a fog", () => {
     const nodes = Array.from({ length: 60 }, (_, i) => node(`n${i}`, "Value"));
-    expect(readingsOn(nodes, new Set())).toHaveLength(26);
+    expect(readingsOn(nodes, new Set())).toHaveLength(20);
+  });
+
+  it("gives way to the patterns, which are the point of the map", () => {
+    // Every extra whorl shrinks all the others, because the camera frames the
+    // whole massif. Ten patterns means ten fewer readings, not ten more whorls.
+    const nodes = Array.from({ length: 60 }, (_, i) => node(`n${i}`, "Value"));
+    expect(readingsOn(nodes, new Set(), 10)).toHaveLength(10);
+  });
+
+  it("never starves the readings entirely, however many patterns there are", () => {
+    const nodes = Array.from({ length: 60 }, (_, i) => node(`n${i}`, "Value"));
+    expect(readingsOn(nodes, new Set(), 40)).toHaveLength(6);
   });
 });
 
