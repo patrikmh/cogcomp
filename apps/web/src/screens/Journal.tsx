@@ -182,25 +182,29 @@ export function Journal() {
         )}
       </div>
 
+      {/* One bar, not a field with controls loose underneath: the textarea and
+          both buttons share a single border that lights on focus, so writing
+          and keeping read as one gesture. `#capmeta` below is commentary and
+          never contains a control. */}
       <div id="dock">
-        <textarea
-          ref={box}
-          id="cap"
-          value={text}
-          placeholder="What happened?"
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            // Enter sends, Shift+Enter is a newline — the prototype's contract.
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              if (text.trim()) save.mutate(text.trim());
-            }
-          }}
-        />
-        <div className="row" id="capmeta">
+        <div id="cap">
+          <textarea
+            ref={box}
+            id="capText"
+            rows={1}
+            value={text}
+            placeholder="Write what happened — Enter sends, Shift+Enter breaks a line"
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              // Enter sends, Shift+Enter is a newline — the prototype's contract.
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                if (text.trim()) save.mutate(text.trim());
+              }
+            }}
+          />
           <button
             id="mic"
-            className="btn"
             data-rec={recording ? "" : undefined}
             onClick={() => void toggleRecording()}
           >
@@ -210,22 +214,28 @@ export function Journal() {
             <span className="dot" aria-hidden />
             {recording ? "LISTENING" : speak.isPending ? "TRANSCRIBING…" : "HOLD TO RECORD"}
           </button>
-          <span className="mono" style={{ color: "var(--faint)" }}>
-            {note ??
-              (save.isError
-                ? "Not saved — your words are still here. Try again."
-                : text.trim()
-                  ? `${text.trim().split(/\s+/).length} words · Enter to keep`
-                  : "Kept on this account. Nothing is shared.")}
-          </span>
+          {/* Hidden until there is something to send, rather than shown greyed:
+              a control you cannot use is noise on the one screen that should be
+              only writing. */}
           <button
             id="send"
-            className={`btn go${text.trim() ? " on" : ""}`}
+            className={text.trim() && !save.isPending ? "on" : ""}
             disabled={!text.trim() || save.isPending}
             onClick={() => save.mutate(text.trim())}
           >
             {save.isPending ? "KEEPING…" : "SEND"}
           </button>
+        </div>
+        <div id="capmeta">
+          <span className="kicker">Capture</span>
+          <span className="mono">
+            {note ??
+              (save.isError
+                ? "Not saved — your words are still here. Try again."
+                : text.trim()
+                  ? `${text.trim().split(/\s+/).length} words · Enter to keep`
+                  : "Kept the moment you send it. Ids are minted here.")}
+          </span>
         </div>
       </div>
     </>

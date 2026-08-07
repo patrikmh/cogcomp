@@ -44,12 +44,19 @@ export function Today() {
           </span>
           <h1>{new Date(`${day}T12:00:00`).toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" })}</h1>
         </div>
+        {/* Named days, not "earlier" and "later": the button says where it
+            goes, so moving through the week never needs a mental subtraction.
+            Ghosted, because navigation is not the point of the screen. */}
         <div className="row">
-          <button className="btn" onClick={() => setOffset((o) => o - 1)}>
-            ← EARLIER
+          <button className="btn ghost" onClick={() => setOffset((o) => o - 1)}>
+            ← {weekdayOf(shiftDay(day, -1))}
           </button>
-          <button className="btn" disabled={offset >= 0} onClick={() => setOffset((o) => Math.min(0, o + 1))}>
-            LATER →
+          <button
+            className="btn ghost"
+            disabled={offset >= 0}
+            onClick={() => setOffset((o) => Math.min(0, o + 1))}
+          >
+            {weekdayOf(shiftDay(day, 1))} →
           </button>
         </div>
       </div>
@@ -174,6 +181,13 @@ export function Today() {
       )}
     </div>
   );
+}
+
+/** The short weekday name a nav button carries, e.g. "TUE". */
+function weekdayOf(day: string) {
+  return new Date(`${day}T12:00:00`)
+    .toLocaleDateString([], { weekday: "short" })
+    .toUpperCase();
 }
 
 function Reading({ reading }: { reading: Inference }) {

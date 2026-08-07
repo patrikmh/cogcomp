@@ -154,6 +154,8 @@ export function Talk() {
 
           <div className="talk-input">
             <input
+              id="talkText"
+              type="text"
               value={draft}
               placeholder="Say what happened"
               autoComplete="off"

@@ -46,6 +46,8 @@ export function Search() {
             </svg>
           </span>
           <input
+            id="q"
+            type="text"
             value={term}
             placeholder="A word you remember writing"
             autoComplete="off"

@@ -212,8 +212,10 @@ export function Explore() {
         })}
         {nodes.map((n) => {
           const p = at.get(n.id)!;
+          // Every point is a way in. A picture of the graph that cannot be
+          // opened is decoration; this one goes to the evidence.
           return (
-            <g key={n.id}>
+            <Link key={n.id} to={`/node/${n.id}`} style={{ cursor: "pointer" }}>
               <circle
                 cx={p.x}
                 cy={p.y}
@@ -224,11 +226,13 @@ export function Explore() {
               <text x={p.x + 10} y={p.y + 4} fill="var(--dim)" fontSize="11">
                 {n.label}
               </text>
-            </g>
+            </Link>
           );
         })}
       </svg>
-
+      <p className="mono" style={{ marginTop: 10 }}>
+        Every node opens to its evidence.
+      </p>
     </>
   );
 }
