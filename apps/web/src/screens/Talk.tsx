@@ -43,6 +43,8 @@ export function Talk() {
   const [draft, setDraft] = useState("");
   const [mode, setMode] = useState<Mode>("idle");
   const [crisis, setCrisis] = useState<string[] | null>(null);
+  /** What the last closed conversation left behind, shown where it happened. */
+  const [kept, setKept] = useState<string | null>(null);
   const speakAloud = usePreferences((s) => s.voice);
   const canvas = useRef<HTMLCanvasElement>(null);
   const envelope = useRef<Envelope | null>(null);
@@ -52,7 +54,11 @@ export function Talk() {
 
   const begin = useMutation({
     mutationFn: () => api.startConversation(),
-    onSuccess: (started) => setConversation(started.id),
+    onSuccess: (started) => {
+      // The last conversation's receipt belongs to the last conversation.
+      setKept(null);
+      setConversation(started.id);
+    },
   });
 
   const say = useMutation({
@@ -107,8 +113,14 @@ export function Talk() {
       setMode("idle");
       // Only the person's turns became entries; the journal has to be told.
       void client.invalidateQueries({ queryKey: ["observations"] });
-      alert(
-        `${result.turns_converted} of your turns became entries. The agent's turns did not — they never do.`,
+      // Said on the page, not in a system dialog. An `alert` is unstyled, seizes
+      // the window and has to be dismissed before anything else can happen —
+      // an interruption, where this is a receipt for something the person
+      // already asked for.
+      setKept(
+        result.turns_converted === 1
+          ? "One turn of yours became an entry. The agent's did not — they never do."
+          : `${result.turns_converted} turns of yours became entries. The agent's did not — they never do.`,
       );
     },
   });
@@ -118,7 +130,9 @@ export function Talk() {
       <canvas id="avatar" ref={canvas} width={720} height={720} aria-hidden />
 
       <p className="talk-caption mono" aria-live="polite">
-        {!conversation
+        {kept
+          ? kept
+          : !conversation
           ? ""
           : mode === "thinking"
             ? "Thinking."
