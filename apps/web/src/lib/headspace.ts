@@ -144,7 +144,10 @@ export function mountHeadspace(
     g.fillText(text, 160, 42);
     const texture = new THREE.CanvasTexture(canvas);
     texture.anisotropy = 4;
-    const h = radius * 0.3;
+    // Sized against the stage, not the whorl. Scaled by radius a small reading
+    // got a label too small to read at any zoom the map is actually viewed at,
+    // which is the reading whose confidence you most want to know.
+    const h = R * 0.075;
     const plane = new THREE.Mesh(
       new THREE.PlaneGeometry(h * 4, h),
       new THREE.MeshBasicMaterial({
@@ -158,7 +161,10 @@ export function mountHeadspace(
     );
     plane.renderOrder = 2;
     plane.rotation.x = -Math.PI / 2;
+    // Above the whorl in plan view rather than on top of it — a survey map
+    // writes the height beside the contour, never across it.
     plane.position.y = radius * 0.5;
+    plane.position.z = -(radius + h * 0.75);
     return plane;
   }
 

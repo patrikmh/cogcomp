@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 
 import { Failed, Loading } from "@/components/States";
@@ -18,6 +18,24 @@ export function Theme() {
   const { id = "" } = useParams();
   const client = useQueryClient();
   const theme = useQuery({ queryKey: ["theme", id], queryFn: () => api.theme(id) });
+
+  // The heading says "in your words", so it has to be the person's words. The
+  // theme read carries only each member's label, kind and confidence, and one
+  // citing entry lives behind `explain` — a handful of small reads, keyed the
+  // same way the node screen keys them, so opening a member afterwards is
+  // already in cache.
+  const evidence = useQueries({
+    queries: (theme.data?.members ?? []).map((member) => ({
+      queryKey: ["explain", member.id],
+      queryFn: () => api.explain(member.id),
+    })),
+  });
+  const quoteFor = new Map(
+    (theme.data?.members ?? []).map((member, i) => [
+      member.id,
+      evidence[i]?.data?.derived_from?.[0]?.content,
+    ]),
+  );
 
   const judge = useMutation({
     mutationFn: (status: "hypothesis" | "user_confirmed" | "user_rejected") =>
@@ -51,9 +69,13 @@ export function Theme() {
           <Link className={`card${member.confidence < 0.5 ? " hollow" : ""}`} key={member.id} to={`/node/${member.id}`}>
             <b>{member.label}</b>
             <p className="quote" style={{ margin: "10px 0 0" }}>
+              {quoteFor.get(member.id) ??
+                `${member.kind.toLowerCase()} · ${fmt(member.confidence)}`}
+            </p>
+            <span className="mono" style={{ display: "block", marginTop: 8 }}>
               {member.kind.toLowerCase()} · {fmt(member.confidence)}
               {member.epistemic_status === "user_rejected" ? " · you rejected this" : ""}
-            </p>
+            </span>
           </Link>
         ))}
       </div>
