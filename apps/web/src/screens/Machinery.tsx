@@ -194,15 +194,17 @@ export function Explore() {
     <>
       <div className="p-head">
         <div>
-          <span className="kicker">Machinery</span>
-          <h1>Explore</h1>
+          <span className="kicker">Explore · developer</span>
+          {/* The design titles this with what the screen claims rather than
+              what it is called: position here is seeded, not settled, and the
+              heading is where that gets said. */}
+          <h1>Fixed positions, seeded by id</h1>
         </div>
         <span className="mono">{nodes.length} in view</span>
       </div>
       <p className="sub">
-        Points sit where their id puts them, never where a force settled them — a spring layout
-        places things near each other for reasons that have nothing to do with meaning, and people
-        read adjacency as significance. The threads are the relationships.
+        Position carries no meaning — the same graph settles the same way every time. The edges
+        carry the relationships.
       </p>
       {/* The svg goes inside `#explore`, because that is what the stylesheet
           draws the panel on — border, ground and a fixed height. With the id on

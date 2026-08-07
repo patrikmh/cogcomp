@@ -75,7 +75,11 @@ export function Today() {
       ) : (
         <>
           <p className="sub">
-            Not objects in space — a heterogeneous series of independent acts, as it happened.
+            {/* The day is named here, as the design has it. "As it happened" is
+                about a particular day, and the sentence should say which. */}
+            Not objects in space — a heterogeneous series of independent acts.{" "}
+            {new Date(`${day}T12:00:00`).toLocaleDateString([], { weekday: "long" })}, as it
+            happened.
           </p>
           <div className="t-sum">
             {summary.data!.entry_count} {summary.data!.entry_count === 1 ? "act" : "acts"} ·{" "}
