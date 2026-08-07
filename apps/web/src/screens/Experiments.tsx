@@ -5,7 +5,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { Meter } from "@/components/Meter";
 import { Empty, Failed, Loading } from "@/components/States";
 import { api, type Experiment } from "@/lib/api";
-import { deviceTimezone, localDay } from "@/lib/format";
+import { deviceTimezone, localDay, stampOf } from "@/lib/format";
 import { Seal, seed } from "@/lib/seal";
 
 /**
@@ -314,7 +314,7 @@ export function ExperimentDetail() {
               </span>
               <span className="t-main">
                 <b>{c.content}</b>
-                <span className="mono">{new Date(c.captured_at).toLocaleString()}</span>
+                <span className="mono">{stampOf(c.captured_at)}</span>
               </span>
               {x.state === "active" && (
                 <span className="t-side">

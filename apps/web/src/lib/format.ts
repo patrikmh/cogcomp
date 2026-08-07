@@ -43,8 +43,21 @@ export function shiftDay(day: string, delta: number): string {
 export const deviceTimezone = () =>
   Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
+/**
+ * The time of an act, always on a 24-hour clock.
+ *
+ * Not the viewer's locale, deliberately. The journal's time gutter is 52px and
+ * does not admit an "AM"; more to the point every stamp in this app is a datum
+ * in a monospace column, and a record is read the way records are kept. A
+ * 12-hour locale would have quietly overflowed the gutter and made "09:50" and
+ * "21:50" indistinguishable at a glance in a list sorted by time.
+ */
 export function clockOf(iso: string) {
-  return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return new Date(iso).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
 }
 
 export function dayLabelOf(iso: string) {
@@ -52,4 +65,15 @@ export function dayLabelOf(iso: string) {
   if (day === localDay()) return "Today";
   if (day === shiftDay(localDay(), -1)) return "Yesterday";
   return new Date(iso).toLocaleDateString([], { weekday: "short", day: "numeric", month: "long" });
+}
+
+/**
+ * How an act is stamped, everywhere it appears.
+ *
+ * One entry must be recognisable as the same entry on the journal, on a node's
+ * evidence card, under a pattern and beside an experiment. Three screens had
+ * each written their own version of this and one of them printed seconds.
+ */
+export function stampOf(iso: string) {
+  return `${dayLabelOf(iso)} · ${clockOf(iso)}`;
 }

@@ -4,7 +4,7 @@ import { Link, useParams } from "react-router-dom";
 import { Meter } from "@/components/Meter";
 import { Failed, Loading } from "@/components/States";
 import { api } from "@/lib/api";
-import { clockOf, dayLabelOf, fmt } from "@/lib/format";
+import { fmt, stampOf } from "@/lib/format";
 
 /**
  * Where this came from.
@@ -108,7 +108,7 @@ export function Node() {
               {/* The same stamp the journal uses. An entry should be recognisable
                   as the same entry wherever it is shown, and a raw locale string
                   with seconds in it is not how anyone remembers a moment. */}
-              {dayLabelOf(source.captured_at)} · {clockOf(source.captured_at)}
+              {stampOf(source.captured_at)}
               {source.source === "voice" && " · spoken"}
               {source.recall_days > 0 &&
                 ` · written ${source.recall_days} ${source.recall_days === 1 ? "day" : "days"} later`}

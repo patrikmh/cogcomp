@@ -2,9 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 
 import { Meter } from "@/components/Meter";
-import { Failed, Loading } from "@/components/States";
+import { Empty, Failed, Loading } from "@/components/States";
 import { api } from "@/lib/api";
-import { DETECTOR_LABEL, fmt } from "@/lib/format";
+import { DETECTOR_LABEL, fmt, stampOf } from "@/lib/format";
 import { Seal } from "@/lib/seal";
 
 /**
@@ -106,7 +106,10 @@ export function PatternDetail() {
         ordering.isLoading ? (
           <Loading label="Reading the order…" />
         ) : occasions.length === 0 ? (
-          <Failed label="This finding has no ordered evidence." />
+          // An absence, not a failure. `Failed` carries role="alert", which
+          // tells a screen reader something went wrong; nothing did — the
+          // ordering simply has no pairs recorded behind it yet.
+          <Empty label="No ordered evidence is recorded behind this one yet." />
         ) : (
           <>
             <div className="t-sec">
@@ -125,10 +128,10 @@ export function PatternDetail() {
                   <span className="mono">then {gap} later</span>
                 </div>
                 {occasion.before.map((e) => (
-                  <Act key={e.id} id={e.id} content={e.content} at={e.captured_at} />
+                  <Act key={e.id} id={e.id} content={e.content} at={e.captured_at} role="first" />
                 ))}
                 {occasion.after.map((e) => (
-                  <Act key={e.id} id={e.id} content={e.content} at={e.captured_at} after />
+                  <Act key={e.id} id={e.id} content={e.content} at={e.captured_at} role="then" />
                 ))}
               </div>
             ))}
@@ -191,12 +194,13 @@ function Act({
   id,
   content,
   at,
-  after,
+  role,
 }: {
   id: string;
   content: string;
   at: string;
-  after?: boolean;
+  /** "first" or "then", for orderings only. */
+  role?: string;
 }) {
   return (
     <Link className="t-read" to={`/node/${id}`}>
@@ -206,8 +210,11 @@ function Act({
       <span className="t-main">
         <b>{content}</b>
         <span className="mono">
-          {after ? "then · " : "first · "}
-          {new Date(at).toLocaleString()}
+          {/* Only an ordering finding has a first and a then. A recurrence has
+              neither, and labelling every act "first" there was a claim about
+              sequence the finding does not make. */}
+          {role ? `${role} · ` : ""}
+          {stampOf(at)}
         </span>
       </span>
     </Link>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { localDay, mondayOf, shiftDay } from "./format";
+import { localDay, mondayOf, shiftDay, stampOf } from "./format";
 
 /**
  * Dates, in the timezone the person is standing in.
@@ -55,5 +55,31 @@ describe("shiftDay", () => {
 
   it("is its own inverse", () => {
     expect(shiftDay(shiftDay("2026-08-07", 9), -9)).toBe("2026-08-07");
+  });
+});
+
+describe("stampOf", () => {
+  /**
+   * One entry, one stamp. Three screens had each written their own version of
+   * this and one printed seconds, so the same act looked like two records
+   * depending on where you met it.
+   */
+  it("names today rather than dating it", () => {
+    const now = new Date();
+    now.setHours(9, 50, 21, 0);
+    expect(stampOf(now.toISOString())).toMatch(/^Today · \d{2}:\d{2}$/);
+  });
+
+  it("never shows seconds", () => {
+    const now = new Date();
+    now.setHours(9, 50, 21, 0);
+    expect(stampOf(now.toISOString())).not.toContain("21");
+  });
+
+  it("dates something older than the last few days", () => {
+    const old = new Date();
+    old.setDate(old.getDate() - 40);
+    // Not "Today", not a weekday on its own — a date you can place.
+    expect(stampOf(old.toISOString())).not.toMatch(/^Today/);
   });
 });
