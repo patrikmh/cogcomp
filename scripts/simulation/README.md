@@ -97,3 +97,35 @@ checking money`. Had it written those as Thoughts, they would have vanished too.
 So whether something becomes part of "who you are" is decided by the part of
 speech the extractor reached for. Nobody chose that.
 
+## What changes at five weeks
+
+`three_more_weeks.py` extends the diary backwards so the detectors have enough
+to speak. Five of the six will not claim anything on a fortnight — periodicity
+wants four distinct weeks, lag and same-day want three, the stated-against-
+recorded one wants ten observed days. On two weeks they can only abstain, which
+is the right call and an invisible one: the screen says nothing has come back
+often enough, and never that most of this needs about a month.
+
+At two weeks the app finds **one** pattern. At five it finds **ten**.
+
+```
+                          readings  patterns  identity  own words  regions
+keeping away from people    29→54       0→3     13→25       5→10        0
+not looking at money        16→32       0→2      6→11        2→3        0
+frightened about a child      9→13       0→0       0→0        0→0        0
+```
+
+So the first two threads do arrive, given a month. `took the stairs`,
+`walked the long way to the shop`, `the market`, `the canteen` are all found —
+as four separate patterns, never as the one thing a person would call them.
+
+The third thread does not arrive at any volume, and that is the finding worth
+keeping. Thirteen readings across five weeks and it appears on no screen but
+the graph. Not a threshold: its material is Events, Thoughts, People and Places,
+Identity takes Activities, Needs and Values, and no amount of further diary
+changes which kind a sentence was extracted as.
+
+Every one of the ten patterns is `exact-label`. The other five detectors still
+abstain at five weeks, correctly — this diary has no weekday regularity and no
+lag structure to find.
+
