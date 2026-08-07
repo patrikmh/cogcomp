@@ -325,6 +325,17 @@
   .f-field:focus-within{border-bottom-color:var(--ink)}
   .f-field input{flex:1;background:none;border:0;outline:none;color:var(--ink);font:400 20px/1.4 "IBM Plex Sans",sans-serif;letter-spacing:-0.01em;padding:0}
   .f-field input::placeholder{color:var(--faint)}
+  /* Asking for less motion has to reach every screen, not only the two the
+     first port happened to carry over. `.p-bar`, `.p-seal` and `.x-*` are here
+     because this app's pattern and experiment rows sit outside `.scr`, where
+     the design's own rule could not see them. */
+  @media(prefers-reduced-motion:reduce){
+    .scr > *,.scr .meter i,.scr .w-col .bar,.scr .w-vs-track i,
+    .f-res .j-entry,.f-res mark,
+    .p-cell .p-bar,.x-cell.on .x-bar,.p-row .t-seal{animation:none}
+    .scr .t-seal path,.scr .w-seal path,.scr .j-seal path,
+    .f-res .j-seal path,.p-row .j-seal path,.x-row .j-seal path{stroke-dashoffset:0;animation:none}
+  }
   .f-field .f-glyph{flex:none;width:16px;height:16px;color:var(--faint)}
   .f-field .f-glyph svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
   .f-field .f-glyph svg [fill]{fill:currentColor;stroke:none}
