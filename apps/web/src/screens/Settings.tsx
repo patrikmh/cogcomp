@@ -108,6 +108,11 @@ export function Settings() {
         <p className="mono" style={{ marginTop: 16 }}>
           {me.data?.email ? `Signed in as ${me.data.email}. ` : ""}Entries are shared with nobody.
         </p>
+        {/* The design's colophon, minus its volume number: that one was a
+            fiction the prototype could afford and a running app cannot. */}
+        <p className="mono" style={{ marginTop: 10 }}>
+          Tlön is written by a small society — Orbis Tertius — one volume at a time.
+        </p>
       </div>
     </>
   );

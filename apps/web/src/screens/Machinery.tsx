@@ -177,6 +177,7 @@ export function Graph() {
  */
 export function Explore() {
   const graph = useQuery({ queryKey: ["graph"], queryFn: () => api.graph(200) });
+  const [peek, setPeek] = useState<string | null>(null);
 
   if (graph.isLoading) return <Loading />;
   if (graph.isError || !graph.data) return <Failed />;
@@ -203,35 +204,47 @@ export function Explore() {
         places things near each other for reasons that have nothing to do with meaning, and people
         read adjacency as significance. The threads are the relationships.
       </p>
-      <svg id="explore" viewBox="0 0 800 540" role="img" aria-label="The graph, as points and threads">
-        {graph.data.edges.map((e, i) => {
-          const a = at.get(e.from_id);
-          const b = at.get(e.to_id);
-          if (!a || !b) return null;
-          return <line key={i} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="var(--line2)" />;
-        })}
-        {nodes.map((n) => {
-          const p = at.get(n.id)!;
-          // Every point is a way in. A picture of the graph that cannot be
-          // opened is decoration; this one goes to the evidence.
-          return (
-            <Link key={n.id} to={`/node/${n.id}`} style={{ cursor: "pointer" }}>
-              <circle
-                cx={p.x}
-                cy={p.y}
-                r={n.tentative ? 4 : 6}
-                fill={n.tentative ? "none" : "var(--kept)"}
-                stroke={n.tentative ? "var(--sand)" : "none"}
-              />
-              <text x={p.x + 10} y={p.y + 4} fill="var(--dim)" fontSize="11">
-                {n.label}
-              </text>
-            </Link>
-          );
-        })}
-      </svg>
+      {/* The svg goes inside `#explore`, because that is what the stylesheet
+          draws the panel on — border, ground and a fixed height. With the id on
+          the svg itself the rule matched nothing and the graph floated on the
+          page with no edges to it. */}
+      <div id="explore">
+        <svg viewBox="0 0 800 540" role="img" aria-label="The graph, as points and threads">
+          {graph.data.edges.map((e, i) => {
+            const a = at.get(e.from_id);
+            const b = at.get(e.to_id);
+            if (!a || !b) return null;
+            return <line key={i} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="var(--line2)" />;
+          })}
+          {/* No standing labels. The design drew six points and could name them
+              all; a real graph holds a hundred, and a hundred names laid over
+              each other is less legible than none. The name is on hover, in the
+              caption below, where there is room for it. */}
+          {nodes.map((n) => {
+            const p = at.get(n.id)!;
+            return (
+              <Link
+                key={n.id}
+                to={`/node/${n.id}`}
+                style={{ cursor: "pointer" }}
+                onMouseEnter={() => setPeek(`${n.label} · ${n.kind.toLowerCase()}`)}
+                onMouseLeave={() => setPeek(null)}
+              >
+                <title>{n.label}</title>
+                <circle
+                  cx={p.x}
+                  cy={p.y}
+                  r={n.tentative ? 4 : 6}
+                  fill={n.tentative ? "none" : "var(--kept)"}
+                  stroke={n.tentative ? "var(--sand)" : "none"}
+                />
+              </Link>
+            );
+          })}
+        </svg>
+      </div>
       <p className="mono" style={{ marginTop: 10 }}>
-        Every node opens to its evidence.
+        {peek ?? "Hover a point to name it. Every node opens to its evidence."}
       </p>
     </>
   );
