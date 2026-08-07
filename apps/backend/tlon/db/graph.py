@@ -118,7 +118,9 @@ async def subgraph(
 
     node_rows = await pool.fetch(
         """
-        SELECT id, kind, label, created_at, confidence, epistemic_status, extractor
+        SELECT id, kind, label, created_at, confidence, epistemic_status, extractor,
+               (SELECT count(*) FROM node_provenance p WHERE p.node_id = graph_nodes.id)
+                   AS cites_entries
         FROM graph_nodes
         WHERE user_id = $1
           AND deleted_at IS NULL
@@ -169,7 +171,12 @@ async def subgraph(
     )
 
     return {
-        "nodes": [_node_json(row) for row in node_rows],
+        # How many entries each reading rests on. The graph's cards show it,
+        # because "0.82" beside a meter that already draws 0.82 says the same
+        # thing twice, and "three entries" says something else.
+        "nodes": [
+            {**_node_json(row), "cites_entries": row["cites_entries"]} for row in node_rows
+        ],
         "edges": [_edge_json(row) for row in edge_rows],
         # So the client can say "showing 150 of 1,200" rather than implying the
         # graph is smaller than it is.

@@ -6,6 +6,7 @@ import { Meter } from "@/components/Meter";
 
 import { Failed, Loading } from "@/components/States";
 import { api } from "@/lib/api";
+import { fmt } from "@/lib/format";
 import { seed } from "@/lib/seal";
 
 /**
@@ -154,11 +155,17 @@ export function Graph() {
           <Link key={n.id} className={`card${n.tentative ? " hollow" : ""}`} to={`/node/${n.id}`}>
             <div className="row" style={{ justifyContent: "space-between" }}>
               <b>{n.label}</b>
-              <span className="mono">{n.kind.toLowerCase()}</span>
+              <span className="mono">
+                {n.kind.toLowerCase()} · {fmt(n.confidence ?? 0)}
+              </span>
             </div>
             <div className="row" style={{ marginTop: 10 }}>
               <Meter confidence={n.confidence ?? 0} />
-              <span className="mono">{(n.confidence ?? 0).toFixed(2)}</span>
+              {/* What it rests on, as the design has it. The number this used to
+                  repeat here is the one the meter beside it already draws. */}
+              <span className="mono">
+                {n.cites_entries ?? 0} {n.cites_entries === 1 ? "entry" : "entries"}
+              </span>
             </div>
           </Link>
         ))}
@@ -192,16 +199,14 @@ export function Explore() {
 
   return (
     <>
-      <div className="p-head">
-        <div>
-          <span className="kicker">Explore · developer</span>
-          {/* The design titles this with what the screen claims rather than
-              what it is called: position here is seeded, not settled, and the
-              heading is where that gets said. */}
-          <h1>Fixed positions, seeded by id</h1>
-        </div>
-        <span className="mono">{nodes.length} in view</span>
-      </div>
+      {/* Kicker and heading as direct children, as the design has them. The
+          count that used to sit up here in a row of its own is gone with the
+          row: the graph screen already says how many nodes there are, and this
+          screen's caption says what it is for. */}
+      <span className="kicker">Explore · developer</span>
+      {/* The design titles this with what the screen claims rather than what it
+          is called: position here is seeded, not settled. */}
+      <h1>Fixed positions, seeded by id</h1>
       <p className="sub">
         Position carries no meaning — the same graph settles the same way every time. The edges
         carry the relationships.

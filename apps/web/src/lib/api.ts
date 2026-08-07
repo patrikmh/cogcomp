@@ -255,6 +255,8 @@ export interface VocabularyWeek {
 }
 
 export interface GraphNode {
+  /** How many entries this reading rests on. */
+  cites_entries?: number;
   id: string;
   kind: string;
   label: string;
