@@ -46,3 +46,22 @@ every count above it is quietly wrong, on every screen, forever.
 
 Keep this fixture. It is the smallest thing that shows the gap between what the
 extractor understands and what the pattern layer can see.
+
+## The whole sweep, against this fortnight
+
+Working, checked end to end: signup and sign-in; writing and extraction; search
+with highlighting; the complete experiment arc — created, started, checked in
+with an ordinary journal entry, completed with an assessment and a note; keeping
+and judging a reading; the four headspace lenses; the graph and explore reads;
+the day and week reads; agent runs reporting honestly, including themes
+declining to form a region and saying why; turning findings off and on, which
+says plainly that nothing has been deleted.
+
+Sign-out revokes the token on the server, not only in the browser: the old
+bearer answers 401 afterwards, which is what Settings claims it does. Both
+clients reach the same conclusion from the same account — the web says "1 held",
+the mobile app "1 thing recurred".
+
+What does not add up is above, and it is all one shape: extraction understands
+this person, and every layer built on top of it loses that understanding.
+
