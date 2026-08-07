@@ -37,17 +37,25 @@ export function Today() {
 
   return (
     <div className="scr">
-      <div className="p-head">
-        <div>
-          <span className="kicker">
-            {offset === 0 ? "Today" : offset === -1 ? "Yesterday" : day} · {tz}
-          </span>
-          <h1>{new Date(`${day}T12:00:00`).toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" })}</h1>
-        </div>
+      {/* One line, as the design has it: which day, and the way out of it. This
+          carried a heading as well — the date twice, once relative and once
+          spelled out, on a screen whose subject is a single day and which
+          therefore does not need announcing. */}
+      <div className="row" style={{ justifyContent: "space-between" }}>
+        <span className="kicker">
+          {offset === 0 ? "Today" : offset === -1 ? "Yesterday" : null}
+          {offset >= -1 ? " · " : ""}
+          {new Date(`${day}T12:00:00`).toLocaleDateString([], {
+            weekday: "short",
+            day: "numeric",
+            month: "short",
+          })}{" "}
+          ({tz})
+        </span>
         {/* Named days, not "earlier" and "later": the button says where it
             goes, so moving through the week never needs a mental subtraction.
             Ghosted, because navigation is not the point of the screen. */}
-        <div className="row">
+        <span className="row">
           <button className="btn ghost" onClick={() => setOffset((o) => o - 1)}>
             ← {weekdayOf(shiftDay(day, -1))}
           </button>
@@ -58,7 +66,7 @@ export function Today() {
           >
             {weekdayOf(shiftDay(day, 1))} →
           </button>
-        </div>
+        </span>
       </div>
 
       {summary.isLoading ? (
