@@ -335,6 +335,47 @@
   .talk-begin{display:flex;flex-direction:column;align-items:center;margin-top:26px;text-align:center}
   /* find — searching the record */
   .f-wrap{max-width:640px}
+/* ===== shared record-screen arrival (Today · Week · Find) =====
+     All three screens adopt the Journal's vocabulary: content rises in on a
+     cascade, seals draw themselves, meters fill from zero, bars grow from
+     baseline. Same keyframes, same rhythm, same reduced-motion floor. */
+  .scr > *{animation:sUp .5s cubic-bezier(.2,.8,.2,1) both}
+  .scr .t-seal path,.scr .w-seal path,.scr .j-seal path{
+    stroke-dasharray:1;stroke-dashoffset:1;
+    animation:sSeal .9s cubic-bezier(.3,.8,.2,1) forwards}
+  .scr .meter i{transform-origin:left;animation:sMeter .7s cubic-bezier(.2,.8,.2,1) .15s both}
+  .scr .w-vs-track i{transform-origin:left;animation:sMeter .7s cubic-bezier(.2,.8,.2,1) .2s both}
+  .scr .w-col .bar{animation:pBar .45s cubic-bezier(.2,0,0,1) backwards}
+  .scr .w-col:nth-child(1) .bar{animation-delay:60ms}
+  .scr .w-col:nth-child(2) .bar{animation-delay:90ms}
+  .scr .w-col:nth-child(3) .bar{animation-delay:120ms}
+  .scr .w-col:nth-child(4) .bar{animation-delay:150ms}
+  .scr .w-col:nth-child(5) .bar{animation-delay:180ms}
+  .scr .w-col:nth-child(6) .bar{animation-delay:210ms}
+  .scr .w-col:nth-child(7) .bar{animation-delay:240ms}
+  @keyframes sUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes sSeal{to{stroke-dashoffset:0}}
+  @keyframes sMeter{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+  /* staggered cascade — each direct child of .scr enters slightly later */
+  .scr > *:nth-child(1){animation-delay:0ms}
+  .scr > *:nth-child(2){animation-delay:30ms}
+  .scr > *:nth-child(3){animation-delay:60ms}
+  .scr > *:nth-child(4){animation-delay:90ms}
+  .scr > *:nth-child(5){animation-delay:120ms}
+  .scr > *:nth-child(6){animation-delay:150ms}
+  .scr > *:nth-child(7){animation-delay:180ms}
+  .scr > *:nth-child(8){animation-delay:210ms}
+  .scr > *:nth-child(9){animation-delay:240ms}
+  .scr > *:nth-child(10){animation-delay:270ms}
+  .scr > *:nth-child(n+11){animation-delay:300ms}
+  /* find — results re-animate on every search; match highlight ink-pulses in */
+  .f-res .j-entry{animation:sUp .4s cubic-bezier(.2,.8,.2,1) both}
+  .f-res .j-entry:nth-child(2){animation-delay:50ms}
+  .f-res .j-entry:nth-child(3){animation-delay:100ms}
+  .f-res mark{animation:sMark .5s cubic-bezier(.3,.8,.2,1) both}
+  .f-res .j-seal path{stroke-dasharray:1;stroke-dashoffset:1;
+    animation:sSeal .8s cubic-bezier(.3,.8,.2,1) forwards}
+  @keyframes sMark{0%{background:rgba(254,252,191,0)}100%{background:rgba(254,252,191,.22)}}
   .f-field{display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--line);padding:4px 2px 12px;transition:border-color .15s}
   .f-field:focus-within{border-bottom-color:var(--ink)}
   .f-field input{flex:1;background:none;border:0;outline:none;color:var(--ink);font:400 20px/1.4 "IBM Plex Sans",sans-serif;letter-spacing:-0.01em;padding:0}
