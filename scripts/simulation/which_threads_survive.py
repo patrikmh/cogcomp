@@ -1,10 +1,18 @@
 """Three threads went in. Which of them come out, and on which screen?
 
-The fortnight was written to carry exactly three: keeping away from crowds,
-refusing to look at money, and fear about having a child. This asks each layer
-of the app, in turn, whether it can see them — because "does it work" is not the
-question. The question is whether a person who lived this fortnight would
-recognise themselves in what they are shown.
+Threads are traced through **provenance**, not through words. The first version
+of this matched keywords against each reading's label and concluded that fear
+about a child reached no screen at all. That was wrong, and wrong in a way worth
+recording: the readings it could not find were `to be okay too`, `needing room
+before answering the question`, `being straight with Ida rather than dodging`.
+They never say "child" because a good reading abstracts away from the nouns of
+the entry it came from — which is the app's whole virtue, and it defeated a
+measurement built on string equality.
+
+That is the same mistake the pattern layer makes. It is easy to make.
+
+So: an entry belongs to a thread by its own words, and a reading belongs to
+whatever threads its citing entries belong to.
 """
 
 import json
@@ -15,50 +23,9 @@ import sys
 BASE = "http://localhost:8080"
 
 THREADS = {
-    "keeping away from people": (
-        "people",
-        "crowd",
-        "quiet",
-        "alone",
-        "apart",
-        "gathering",
-        "stairs",
-        "empty",
-        "closing time",
-        "canteen",
-        "desk",
-        "kitchen",
-        "pub",
-        "dinner",
-        "market",
-        "lobby",
-        "talk",
-        "party",
-        "invitation",
-    ),
-    "not looking at money": (
-        "money",
-        "bank",
-        "salary",
-        "afford",
-        "number",
-        "sums",
-        "arithmetic",
-        "cost",
-        "flat",
-        "balance",
-    ),
-    "frightened about a child": (
-        "child",
-        "kid",
-        "baby",
-        "trying",
-        "fertility",
-        "clinic",
-        "pregnan",
-        "father",
-        "parent",
-    ),
+    "keeping away from people": r"\b(people|crowd|market|canteen|pub|dinner|lobby|stairs|team|thing at|party|empty|quiet|alone)",
+    "not looking at money": r"\b(money|bank|salary|afford|sums|arithmetic|flat|balance|numbers?)",
+    "frightened about a child": r"\b(child|baby|trying|fertility|clinic|kids?)",
 }
 
 
@@ -71,42 +38,33 @@ def get(path: str, token: str):
     return json.loads(out) if out.strip() else None
 
 
-def hits(texts, words) -> list[str]:
-    # Whole words only. "gathering" contains "her", and the first version of
-    # this counted every crowd reading as evidence of fear about a child.
-    pattern = re.compile(r"\b(" + "|".join(words) + r")", re.I)
-    return [t for t in texts if pattern.search(t)]
-
-
 def main() -> None:
     token = sys.argv[1]
 
-    nodes = (get("/v1/graph?limit=500", token) or {}).get("nodes", [])
-    readings = [n["label"] for n in nodes if n["kind"] != "Observation"]
-    patterns = [p["label"] for p in (get("/v1/patterns", token) or [])]
-    offered = [
-        c["label"] for c in (get("/v1/identity/candidates", token) or {}).get("candidates", [])
-    ]
-    vocab = get("/v1/vocabulary/2026-07-27?tz=Europe/Stockholm&weeks=3", token) or {}
-    words = [w for week in vocab.get("weeks", []) for w in week.get("words", [])]
-    themes = get("/v1/themes", token)
-    themes = themes if isinstance(themes, list) else (themes or {}).get("themes", [])
-    regions = [t["label"] for t in themes]
+    entries = (get("/v1/observations?limit=500", token) or {}).get("observations", [])
+    belongs = {
+        name: {e["id"] for e in entries if re.search(pattern, e["content"], re.I)}
+        for name, pattern in THREADS.items()
+    }
 
-    layers = [
-        ("readings drawn", readings),
-        ("patterns found", patterns),
-        ("identity offered", offered),
-        ("your own words", words),
-        ("regions formed", regions),
-    ]
+    nodes = [n for n in (get("/v1/graph?limit=600", token) or {})["nodes"] if n["kind"] != "Observation"]
+    identity_kinds = {"Value", "Belief", "Need", "Activity"}
+    offered = {c["id"] for c in (get("/v1/identity/candidates", token) or {}).get("candidates", [])}
 
-    for thread, wordlist in THREADS.items():
-        print(f"\n── {thread}")
-        for name, texts in layers:
-            found = hits(texts, wordlist)
-            mark = "yes" if found else "NO "
-            print(f"   {mark}  {name:<18} {len(found):>3}   {found[0][:52] if found else ''}")
+    print(f"{len(entries)} entries, {len(nodes)} readings\n")
+    print(f"{'thread':<28}{'entries':>8}{'readings':>10}{'identity':>10}")
+    for name in THREADS:
+        ids = belongs[name]
+        drawn = []
+        for node in nodes:
+            explained = get(f"/v1/graph/nodes/{node['id']}/explain", token) or {}
+            sources = {d["id"] for d in explained.get("derived_from", [])}
+            if sources & ids:
+                drawn.append(node)
+        in_identity = [n for n in drawn if n["kind"] in identity_kinds and n["id"] in offered]
+        print(f"{name:<28}{len(ids):>8}{len(drawn):>10}{len(in_identity):>10}")
+        for n in in_identity[:4]:
+            print(f"      {n['kind']:<9} {n['label'][:56]}")
 
 
 if __name__ == "__main__":

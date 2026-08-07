@@ -65,6 +65,39 @@ the mobile app "1 thing recurred".
 What does not add up is above, and it is all one shape: extraction understands
 this person, and every layer built on top of it loses that understanding.
 
+## Retraction — the third thread was never missing
+
+Two sections below claim that fear about a child reaches no screen past the
+graph, and that whether something counts as identity depends on the part of
+speech the extractor reached for. **Both are wrong.** They are left in place
+because the mistake is more instructive than the conclusion was.
+
+Traced through provenance instead of keywords — an entry belongs to a thread by
+its own words, a reading belongs to whatever threads its citing entries belong
+to — the picture is:
+
+```
+thread                       entries  readings  reaching identity
+keeping away from people          22        80                 35
+not looking at money              13        59                 20
+frightened about a child           9        47                 13
+```
+
+All three arrive. The readings the keyword scorecard could not see were
+`to be okay too`, drawn from "she was fine and I was not"; `needing room before
+answering the question` and `being straight with Ida rather than dodging`, both
+from "Ida asked when we are going to start trying. I changed the subject"; and
+`to know what I actually mean when I answer`, from "I said soon. I do not know
+what I meant by it."
+
+Those are the best readings in the record. None of them says "child", because a
+good reading abstracts away from the nouns of the entry it came from — which is
+the app's whole virtue, and it defeated a measurement built on matching strings.
+
+Which is the same mistake the pattern layer makes, made by the person diagnosing
+the pattern layer for making it. Worth remembering before trusting any count in
+this directory.
+
 ## Which of the three threads survive each layer
 
 `which_threads_survive.py` asks every layer, in turn, whether it can see each of
