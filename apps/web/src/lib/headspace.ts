@@ -91,7 +91,17 @@ export function mountHeadspace(
   whorls: Whorl[],
   onFocus: (whorl: Whorl | null) => void,
 ): Stage {
-  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // Asked for once and then listened to. Sampling this only at mount meant a
+  // person who turned the setting on while the map was open kept the motion
+  // they had just asked to be rid of — and it made the state depend on whether
+  // the scene happened to build before or after the query settled.
+  const lessMotion = matchMedia("(prefers-reduced-motion: reduce)");
+  let reduced = lessMotion.matches;
+  const onMotionPreference = () => {
+    reduced = lessMotion.matches;
+    if (reduced) settle();
+  };
+  lessMotion.addEventListener("change", onMotionPreference);
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -196,7 +206,7 @@ export function mountHeadspace(
     level: number;
     speed: number;
     phase: number;
-    base: { x: Float32Array; z: Float32Array };
+    base: { x: Float32Array; z: Float32Array; th: Float32Array };
   }
   const breathers: Breather[] = [];
 
@@ -232,6 +242,7 @@ export function mountHeadspace(
       const points: THREE.Vector3[] = [];
       const bx = new Float32Array(SEG + 1);
       const bz = new Float32Array(SEG + 1);
+      const bth = new Float32Array(SEG + 1);
       for (let s = 0; s <= SEG; s++) {
         const th = (s / SEG) * Math.PI * 2;
         const r =
@@ -266,6 +277,7 @@ export function mountHeadspace(
         }
         bx[s] = x;
         bz[s] = z;
+        bth[s] = th;
         points.push(new THREE.Vector3(x, 0, z));
       }
       const geometry = new THREE.BufferGeometry().setFromPoints(points);
@@ -282,7 +294,7 @@ export function mountHeadspace(
         level,
         speed: 0.22 + 0.3 * seeded(key + level + "s"),
         phase: seeded(key + level + "h") * Math.PI * 2,
-        base: { x: bx, z: bz },
+        base: { x: bx, z: bz, th: bth },
       });
       mats.push(material);
       group.add(line);
@@ -442,6 +454,8 @@ export function mountHeadspace(
     whorl: Whorl;
     mats: THREE.LineBasicMaterial[];
     baseScale: number;
+    /** Where it stands, and how it wanders there. */
+    drift: { x: number; z: number; amp: number; speed: number; phase: number };
   }
   const picks: Pick[] = [];
   const hitMaterial = new THREE.MeshBasicMaterial({
@@ -471,7 +485,20 @@ export function mountHeadspace(
     // Invisible proxies, so hovering a whorl is forgiving.
     const hit = new THREE.Mesh(new THREE.SphereGeometry(p.radius * 1.15, 8, 6), hitMaterial);
     group.add(hit);
-    picks.push({ hit, group, whorl: p.whorl, mats: group.userData.mats, baseScale: 1 });
+    picks.push({
+      hit,
+      group,
+      whorl: p.whorl,
+      mats: group.userData.mats,
+      baseScale: 1,
+      drift: {
+        x: p.x,
+        z: p.z,
+        amp: R * (0.02 + 0.035 * seeded(p.whorl.id + "m")),
+        speed: 0.1 + 0.22 * seeded(p.whorl.id + "v"),
+        phase: seeded(p.whorl.id + "h") * Math.PI * 2,
+      },
+    });
 
     // The map assembles around you, in the order the design chose: you first,
     // then the patterns the weeks keep circling, then what is kept about you,
@@ -491,6 +518,8 @@ export function mountHeadspace(
   let focused: string | null = null;
   let paused = false;
   let visible: Whorl["group"][] = ["pattern", "reading", "today", "you"];
+  let parallaxEasedX = 0;
+  let parallaxEasedY = 0;
   let parallaxX = 0;
   let parallaxY = 0;
   const start = performance.now();
@@ -516,6 +545,25 @@ export function mountHeadspace(
     camera.updateProjectionMatrix();
     renderer.setSize(host.clientWidth, host.clientHeight);
   };
+  /** Put everything back where it belongs, with nothing mid-swell. */
+  const settle = () => {
+    for (const pick of picks) {
+      pick.group.position.set(pick.drift.x, 0, pick.drift.z);
+      pick.group.userData.arriveK = 1;
+    }
+    for (const b of breathers) {
+      const positions = b.line.geometry.getAttribute("position") as THREE.BufferAttribute;
+      for (let i = 0; i < b.base.x.length; i++) {
+        positions.setX(i, b.base.x[i]!);
+        positions.setZ(i, b.base.z[i]!);
+      }
+      positions.needsUpdate = true;
+      b.line.scale.setScalar(1);
+    }
+    model.scale.setScalar(1);
+    model.rotation.set(0, 0, 0);
+  };
+
   const observer = new ResizeObserver(resize);
   observer.observe(host);
 
@@ -552,17 +600,45 @@ export function mountHeadspace(
     }
 
     if (!paused && !reduced) {
+      // Each whorl wanders a little where it stands. The drift is as large as
+      // a small whorl itself, which is what keeps the map feeling like a place
+      // rather than a diagram — without it the whole chart is frozen but for a
+      // pulse too slight to read.
+      for (const pick of picks) {
+        const d = pick.drift;
+        pick.group.position.set(
+          d.x + Math.sin(t * d.speed + d.phase) * d.amp,
+          Math.sin(t * d.speed * 0.8 + d.phase * 1.7) * d.amp * 0.7,
+          d.z + Math.cos(t * d.speed * 0.9 + d.phase) * d.amp,
+        );
+      }
+
       for (const b of breathers) {
         const positions = b.line.geometry.getAttribute("position") as THREE.BufferAttribute;
-        const swell = 1 + Math.sin(t * b.speed + b.phase) * 0.018;
+        // Two waves travelling in opposite directions around the ring, so the
+        // line itself is alive rather than merely growing and shrinking. The
+        // talk avatar's motion, transferred — it is one hand throughout.
+        const amp = 0.028 + 0.016 * Math.sin(t * 0.4 + b.phase);
         for (let i = 0; i < b.base.x.length; i++) {
-          positions.setX(i, b.base.x[i]! * swell);
-          positions.setZ(i, b.base.z[i]! * swell);
+          const th = b.base.th[i]!;
+          const w =
+            1 +
+            amp *
+              (0.55 * Math.sin(3 * th + t * b.speed * 2.8 + b.level * 0.6) +
+                0.3 * Math.sin(5 * th - t * b.speed * 4.4 + b.level * 0.9));
+          positions.setX(i, b.base.x[i]! * w);
+          positions.setZ(i, b.base.z[i]! * w);
         }
         positions.needsUpdate = true;
+        b.line.scale.setScalar(1 + 0.018 * Math.sin(t * b.speed + b.phase + b.level * 0.8));
       }
-      model.rotation.x += (parallaxX - model.rotation.x) * 0.04;
-      model.rotation.y += (parallaxY - model.rotation.y) * 0.04;
+
+      // The whole field breathes, very slightly, under everything else.
+      model.scale.setScalar(1 + 0.01 * Math.sin(t * 0.35));
+      parallaxEasedX += (parallaxX - parallaxEasedX) * 0.06;
+      parallaxEasedY += (parallaxY - parallaxEasedY) * 0.06;
+      model.rotation.x = parallaxEasedX * 0.14;
+      model.rotation.y = parallaxEasedY * 0.26;
     }
 
     raycaster.setFromCamera(pointer, camera);
@@ -624,6 +700,7 @@ export function mountHeadspace(
     dispose: () => {
       cancelAnimationFrame(frame);
       observer.disconnect();
+      lessMotion.removeEventListener("change", onMotionPreference);
       renderer.domElement.removeEventListener("pointermove", onPointerMove);
       renderer.domElement.removeEventListener("click", onClick);
       controls.dispose();
