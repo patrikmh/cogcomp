@@ -60,7 +60,36 @@ export function clockOf(iso: string) {
   });
 }
 
+/**
+ * The heading a day gets in the journal.
+ *
+ * "Today" and "Yesterday" keep their date beside them, as the design has it —
+ * a stream you scroll needs to say where you are without arithmetic, and
+ * "Today" alone stops being useful the moment you have scrolled past it. Older
+ * days are named in full: a short weekday reads as an abbreviation of something
+ * you were not told.
+ */
 export function dayLabelOf(iso: string) {
+  const day = localDay(new Date(iso));
+  const full = new Date(iso).toLocaleDateString([], {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+  if (day === localDay()) return `Today · ${full}`;
+  if (day === shiftDay(localDay(), -1)) return `Yesterday · ${full}`;
+  return full;
+}
+
+/**
+ * The same day, named as briefly as it can be.
+ *
+ * A heading has a column to itself and can afford the whole date; a stamp on an
+ * evidence card sits beside a clock time and cannot. They were one function
+ * until the heading grew, at which point every stamp in the app quietly became
+ * "Today · Wednesday 4 February · 09:50".
+ */
+function shortDayOf(iso: string) {
   const day = localDay(new Date(iso));
   if (day === localDay()) return "Today";
   if (day === shiftDay(localDay(), -1)) return "Yesterday";
@@ -75,5 +104,5 @@ export function dayLabelOf(iso: string) {
  * each written their own version of this and one of them printed seconds.
  */
 export function stampOf(iso: string) {
-  return `${dayLabelOf(iso)} · ${clockOf(iso)}`;
+  return `${shortDayOf(iso)} · ${clockOf(iso)}`;
 }
