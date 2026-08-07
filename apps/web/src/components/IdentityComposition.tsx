@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { seed } from "@/lib/seal";
@@ -32,9 +32,13 @@ export interface Ring {
 export function IdentityComposition({
   rings,
   onHover,
+  children,
 }: {
   rings: Ring[];
   onHover: (ring: Ring | null) => void;
+  /** The caption. It lives inside the stage because the stage is the flex
+   *  column that centres it under the composition. */
+  children?: ReactNode;
 }) {
   const navigate = useNavigate();
   const composition = useRef<SVGSVGElement>(null);
@@ -86,7 +90,7 @@ export function IdentityComposition({
     <div className="id-stage">
       <svg
         className="id-comp"
-        viewBox="0 0 440 440"
+        viewBox="0 0 280 280"
         ref={composition}
         role="img"
         aria-label="What has been noticed about you, as rings"
@@ -111,19 +115,20 @@ export function IdentityComposition({
               <path
                 key={k}
                 className="id-path"
-                d={loop(ring.id + k, 54 + i * 13 - k * 5, 0.86 + (i % 3) * 0.05)}
+                d={loop(ring.id + k, 24 + i * 14 - k * 5, 0.86 + (i % 3) * 0.05)}
               />
             ))}
           </g>
         ))}
         {/* You, at the centre: inked heavier than anything drawn around it. */}
         <g className="id-ring id-core" aria-hidden>
-          <path className="id-path" d={loop("you-core", 14, 0.92)} />
-          <path className="id-path" d={loop("you-core2", 24, 0.9)} />
-          <path className="id-path" d={loop("you-core3", 34, 0.94)} />
-          <circle className="id-eye" cx="220" cy="220" r="3.4" />
+          <path className="id-path" d={loop("you-core", 9, 0.92)} />
+          <path className="id-path" d={loop("you-core2", 15, 0.9)} />
+          <path className="id-path" d={loop("you-core3", 22, 0.94)} />
+          <circle className="id-eye" cx="140" cy="140" r="2.2" />
         </g>
       </svg>
+      {children}
     </div>
   );
 }
@@ -141,8 +146,8 @@ function loop(key: string, baseR: number, squash: number) {
     const th = (i / 96) * Math.PI * 2;
     let r = baseR;
     for (const h of harmonics) r += baseR * h.a * Math.sin(th * h.f + h.p);
-    const x = 220 + Math.cos(th) * r;
-    const y = 220 + Math.sin(th) * r * squash;
+    const x = 140 + Math.cos(th) * r;
+    const y = 140 + Math.sin(th) * r * squash;
     d += (i ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1);
   }
   return d + "Z";

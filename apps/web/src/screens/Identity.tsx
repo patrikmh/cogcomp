@@ -52,7 +52,11 @@ export function Identity() {
     // stands behind it.
     ...[...selected, ...candidates]
       .sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0))
-      .slice(0, 11)
+      // The composition is a picture of the record, not its inventory — the
+      // lists below hold every reading. Beyond seven or so rings the loops stop
+      // reading as nested contours and become a scribble, which says less than
+      // seven honest ones do. The design draws seven.
+      .slice(0, 7)
       .map((n) => ({
         id: n.id,
         label: n.label,
@@ -63,7 +67,7 @@ export function Identity() {
         removed: false,
         evidence: `${n.kind.toLowerCase()}${n.status === "selected" ? " · kept" : " · offered"}`,
       })),
-    ...removed.slice(0, 2).map((n) => ({
+    ...removed.slice(0, 1).map((n) => ({
       id: n.id,
       label: n.label,
       kind: n.kind,
@@ -85,26 +89,27 @@ export function Identity() {
         assigned.
       </p>
 
-      <IdentityComposition rings={rings} onHover={setHovered} />
-      <div className="id-cap">
-        {hovered ? (
-          <>
-            <b>{hovered.label}</b>{" "}
-            <span className="mono">
-              {hovered.evidence}
-              {hovered.confidence > 0 ? ` · ${fmt(hovered.confidence)}` : ""}
+      <IdentityComposition rings={rings} onHover={setHovered}>
+        <div className="id-cap">
+          {hovered ? (
+            <>
+              <b>{hovered.label}</b>{" "}
+              <span className="mono">
+                {hovered.evidence}
+                {hovered.confidence > 0 ? ` · ${fmt(hovered.confidence)}` : ""}
+              </span>
+            </>
+          ) : rings.length === 0 ? (
+            // Nothing to hover, so nothing is promised. The core stays: there is
+            // a point of view here even before anything has been noticed.
+            <span className="rest">
+              Nothing has been noticed yet. Readings appear once there are entries to draw them from.
             </span>
-          </>
-        ) : rings.length === 0 ? (
-          // Nothing to hover, so nothing is promised. The core stays: there is
-          // a point of view here even before anything has been noticed.
-          <span className="rest">
-            Nothing has been noticed yet. Readings appear once there are entries to draw them from.
-          </span>
-        ) : (
-          <span className="rest">Hover a ring to see what it is. The dense core is you.</span>
-        )}
-      </div>
+          ) : (
+            <span className="rest">Hover a ring to see what it is. The dense core is you.</span>
+          )}
+        </div>
+      </IdentityComposition>
 
       <div className="id-sum">
         <Count n={selected.length} label="KEPT" />
