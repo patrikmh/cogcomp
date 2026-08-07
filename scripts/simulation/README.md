@@ -129,3 +129,34 @@ Every one of the ten patterns is `exact-label`. The other five detectors still
 abstain at five weeks, correctly — this diary has no weekday regularity and no
 lag structure to find.
 
+## Why no regions form, and why that is not a bug
+
+At five weeks the association layer finds **one** pair from 240 candidates, and
+a region needs a group, so no region forms. It is worth writing down why,
+because the obvious explanation is wrong.
+
+I expected consolidation to be leaving duplicate readings behind and starving
+the pair counts. Thirteen labels do appear twice in the graph. Twelve of them
+are not duplicates at all:
+
+- **Ten** are a `Pattern` node sitting beside the reading it summarises —
+  `took the stairs` the Activity, and `took the stairs` the pattern. Consolidation
+  excludes `Pattern` by design, and should.
+- **Two** are the extractor giving the same words two kinds on different days —
+  `slept badly again` as a Thought once and an Event another time; `ate lunch at
+  my desk rather than the canteen` as a Thought and an Activity. Consolidation
+  groups on `(kind, label)`, so these do not meet.
+- **One** — `to not be around other people`, twice as a Need — is the only one
+  consolidation could have merged, and it did not because that node was *kept*.
+  Kept readings are protected from consolidation, which is precisely what the
+  Identity screen promises.
+
+So the association layer is not starved. It is strict: `MIN_LIFT = 2.0` means a
+pair has to occur together *disproportionately*, not merely often. This person
+drinks coffee most mornings and wakes early most mornings, so the two co-occur
+constantly and predict each other barely at all. Declining to call that an
+association is the correct answer.
+
+Which leaves the extractor's kind inconsistency as the only real defect found
+here, and a small one: two labels out of a hundred and eighty-four.
+
