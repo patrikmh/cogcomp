@@ -90,7 +90,9 @@ const IC: Record<string, ReactElement> = {
   ),
 };
 
-type Item = { grp: string } | { id: string; route: string; label: string; key: string };
+type Item =
+  | { grp: string }
+  | { id: string; route: string; label: string; key: string; isNew?: boolean };
 
 const NAV: Item[] = [
   { grp: "Capture" },
@@ -100,7 +102,7 @@ const NAV: Item[] = [
   { grp: "Looking back" },
   { id: "today", route: "/today", label: "Today", key: "D" },
   { id: "week", route: "/week", label: "This week", key: "W" },
-  { id: "search", route: "/search", label: "Find an entry", key: "F" },
+  { id: "search", route: "/search", label: "Find an entry", key: "F", isNew: true },
   { grp: "Findings" },
   { id: "patterns", route: "/patterns", label: "Patterns", key: "P" },
   { id: "identity", route: "/identity", label: "Identity", key: "I" },
@@ -170,7 +172,12 @@ export function Rail({ counts = {} }: { counts?: RailCounts }) {
               <span className="key">
                 <svg viewBox="0 0 24 24">{IC[item.id]}</svg>
               </span>
-              <span className="lbl">{item.label}</span>
+              <span className="lbl">
+                {item.label}
+                {/* The design marks this one new. It is a claim with a shelf
+                    life — take it off when it stops being true. */}
+                {"isNew" in item && item.isNew && <span className="new">NEW</span>}
+              </span>
               <span className="n">{counts[item.id] ?? ""}</span>
             </Link>
           );

@@ -177,10 +177,31 @@ export function Week() {
         </>
       )}
 
-      {/* Not a finding — the person's own words counted back to them. It stays
-          when patterns are switched off. */}
-      {words.data?.weeks.at(-1) && (
-        <p className="rest mono">{words.data.weeks.at(-1)!.description}</p>
+      {/* Not a finding — the person's own words shown back to them, and it
+          stays when patterns are switched off.
+
+          The words themselves, not a tally of them. This counted them for a
+          while — "13 different words for how you felt" — while the words sat in
+          the response unread: `not to know the number right now`, `to stay
+          apart from the gathering`. A count of someone's own language is the
+          one summary that has nothing in it they could not have counted
+          themselves, and it withholds the only part worth showing back. */}
+      {(words.data?.weeks.at(-1)?.words ?? []).length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">Your own words for it</span>
+            <span className="rule" />
+            <span className="mono">counted, never interpreted</span>
+          </div>
+          <div className="p-comp">
+            {words.data!.weeks.at(-1)!.words.map((word) => (
+              <span className="c" key={word}>
+                {word}
+              </span>
+            ))}
+          </div>
+          <p className="rest mono">{words.data!.weeks.at(-1)!.description}</p>
+        </>
       )}
     </div>
   );

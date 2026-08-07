@@ -10,7 +10,9 @@ export function Words() {
     <>
       <div className="p-head">
         <div>
-          <span className="kicker">Before you write</span>
+          <span className="kicker">
+            Before your first entry <span className="new">NEW</span>
+          </span>
           <h1>What happens to your words</h1>
         </div>
       </div>
@@ -118,7 +120,9 @@ export function First() {
 
   return (
     <>
-      <span className="kicker">First fortnight</span>
+      <span className="kicker">
+        First fortnight <span className="new">NEW</span>
+      </span>
       <h1>The machinery is filling</h1>
       <p className="sub">
         Some findings need more days than you have written. Nothing is owed — this is what each
