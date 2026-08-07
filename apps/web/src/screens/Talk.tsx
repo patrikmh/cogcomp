@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 
 import { api } from "@/lib/api";
+import { seed } from "@/lib/seal";
 import { usePreferences } from "@/state/preferences";
 
 /**
@@ -226,6 +227,24 @@ export function Talk() {
 
 /** Nested harmonic rings, amplitude driven by what the conversation is doing —
  *  and, while it speaks, by the actual loudness of the words being said. */
+/** The gap between rings. Deviation is measured in these, so contours nest. */
+const SPACING = 32;
+
+/** Each ring's own contour, seeded once: three harmonics, as everywhere else. */
+const SHAPES = Array.from({ length: 9 }, (_, ring) => {
+  const rnd = seed(`talk-avatar-${ring}`);
+  // Amplitudes are in units of ring *spacing*, not radius. Scaled by radius the
+  // outer rings deviated further than the gap to their neighbour and the
+  // contours crossed, which a contour map can never do — and it read as tangle
+  // rather than as depth. In these units every ring wanders about as much as
+  // every other, and the nesting always holds.
+  return [0, 1, 2].map(() => ({
+    a: 0.06 + rnd() * 0.1,
+    f: 2 + Math.floor(rnd() * 4),
+    p: rnd() * Math.PI * 2,
+  }));
+});
+
 function useAvatar(
   ref: React.RefObject<HTMLCanvasElement | null>,
   mode: Mode,
@@ -259,16 +278,24 @@ function useAvatar(
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.strokeStyle = mode === "stopped" ? "#5f6b68" : "#a7c3c8";
       for (let ring = 0; ring < 9; ring++) {
-        const base = 60 + ring * 32;
+        const base = 60 + ring * SPACING;
+        const shape = SHAPES[ring]!;
         ctx.globalAlpha = 0.16 + (1 - ring / 9) * 0.4;
         ctx.lineWidth = 1.1;
         ctx.beginPath();
         for (let i = 0; i <= 90; i++) {
           const th = (i / 90) * Math.PI * 2;
-          const wobble =
+          // The shape is the ring's own, and it is there whether anyone is
+          // speaking or not — this is drawn in the same hand as the seals and
+          // the map. Voice moves a shape that already exists; without the
+          // seeded part the avatar sat as nine perfect circles and read as a
+          // loading spinner rather than as something listening.
+          let form = 0;
+          for (const h of shape) form += h.a * Math.sin(th * h.f + h.p);
+          const breath =
             Math.sin(th * 3 + t * 1.1 + ring * 0.4) * 0.05 +
             Math.sin(th * 5 - t * 0.7 + ring * 0.2) * 0.03;
-          const r = base * (1 + wobble * energy);
+          const r = base + SPACING * form + base * breath * energy;
           const x = canvas.width / 2 + Math.cos(th) * r;
           const y = canvas.height / 2 + Math.sin(th) * r * 0.92;
           if (i) ctx.lineTo(x, y);
@@ -277,6 +304,13 @@ function useAvatar(
         ctx.closePath();
         ctx.stroke();
       }
+      // You, at the centre of the conversation. The one filled thing on the
+      // screen, so the rings read as around something.
+      ctx.globalAlpha = mode === "stopped" ? 0.35 : 0.85;
+      ctx.fillStyle = mode === "stopped" ? "#5f6b68" : "#c6e070";
+      ctx.beginPath();
+      ctx.arc(canvas.width / 2, canvas.height / 2, 15 + energy * 6, 0, Math.PI * 2);
+      ctx.fill();
       ctx.globalAlpha = 1;
       if (!reduced) raf = requestAnimationFrame(draw);
     };

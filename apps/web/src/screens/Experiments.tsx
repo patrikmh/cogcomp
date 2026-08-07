@@ -129,10 +129,18 @@ function Row({ experiment, checkins }: { experiment: Experiment; checkins: numbe
           <b>{experiment.title}</b>
           <span className="mono">
             {experiment.cadence} · {experiment.duration_days} days
+            {/* What it was set against, as the design shows it. An experiment
+                with no reading behind it is just a task. */}
+            {(experiment.links ?? []).length > 0 &&
+              ` · from ${experiment.links!.map((l) => l.label ?? "a removed reading").join(", ")}`}
           </span>
         </div>
         <div className="p-met">
-          <span className={`x-state ${look}`}>{experiment.state}</span>
+          {/* The design's vocabulary, not the API's. `LOOK` already existed for
+              the row's class and the label was still printing the raw state, so
+              a paused trial announced itself as "PAUSED" on a screen whose only
+              words for this are running, drafted and completed. */}
+          <span className={`x-state ${look}`}>{look}</span>
           <span className="mono">
             {checkins} of {experiment.duration_days} check-ins
           </span>

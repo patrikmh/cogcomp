@@ -98,7 +98,31 @@ async def list_for_user(pool, user_id):
         f"SELECT {_FIELDS} FROM experiments WHERE user_id=$1 AND deleted_at IS NULL ORDER BY start_date DESC, created_at DESC, id",
         user_id,
     )
-    return [_item(row) for row in rows]
+    # The readings each trial was set against, in one query rather than one per
+    # experiment. The list screen names them — an experiment with nothing behind
+    # it is a task, and which belief it tests is the whole point of running it.
+    links = await pool.fetch(
+        """
+        SELECT l.experiment_id, l.node_id, n.kind, n.label,
+               (l.deleted_at IS NULL AND n.id IS NOT NULL AND n.deleted_at IS NULL) AS availability
+        FROM experiment_links l
+        LEFT JOIN graph_nodes n ON n.id=l.node_id AND n.user_id=l.user_id
+        WHERE l.user_id=$1 AND l.deleted_at IS NULL
+        ORDER BY l.created_at, l.node_id
+        """,
+        user_id,
+    )
+    by_experiment: dict = {}
+    for link in links:
+        row = dict(link)
+        by_experiment.setdefault(row.pop("experiment_id"), []).append(row)
+
+    items = []
+    for row in rows:
+        item = _item(row)
+        item["links"] = by_experiment.get(item["id"], [])
+        items.append(item)
+    return items
 
 
 async def get(pool, user_id, experiment_id, *, conn=None, lock=False):

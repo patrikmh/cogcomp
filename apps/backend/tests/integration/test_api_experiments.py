@@ -25,6 +25,41 @@ def experiment(experiment_id=None, **overrides):
     return value
 
 
+async def a_reading_drawn_from_an_entry(client: AsyncClient, pool, account: Account):
+    """A reading with real provenance.
+
+    Only a reading that came from something the person wrote can be linked to an
+    experiment, so the fixture has to build the whole chain: the entry, the node
+    drawn from it, and the provenance between them.
+    """
+    entry_id = uuid4()
+    written = await client.post(
+        "/v1/observations",
+        headers=account.auth,
+        json={
+            "id": str(entry_id),
+            "content": "Slept badly again.",
+            "captured_at": "2026-03-01T08:00:00Z",
+            "timezone": "Europe/Stockholm",
+            "source": "text",
+        },
+    )
+    assert written.status_code in (200, 201), written.text
+    node_id = uuid4()
+    await pool.execute(
+        "INSERT INTO graph_nodes(id,user_id,kind,label,confidence,epistemic_status,extractor)"
+        " VALUES($1,$2,'Need','rest',0.8,'hypothesis','test-v0')",
+        node_id,
+        account.user_id,
+    )
+    await pool.execute(
+        "INSERT INTO node_provenance(node_id,observation_id) VALUES($1,$2)",
+        node_id,
+        entry_id,
+    )
+    return node_id
+
+
 async def create(client: AsyncClient, account: Account, **overrides):
     response = await client.post(
         "/v1/experiments", headers=account.auth, json=experiment(**overrides)
@@ -187,3 +222,52 @@ class TestExperimentAPI:
         assert (await client.get("/v1/experiments", headers=account.auth)).json()[
             "experiments"
         ] == []
+
+
+class TestTheListNamesWhatEachTrialTests:
+    """The list screen names the reading a trial was set against.
+
+    An experiment with nothing behind it is a task; which belief it tests is the
+    reason it exists. The detail read has always carried its links, and the list
+    read did not, so the screen that shows every trial at once was the one
+    screen that could not say what any of them were for.
+    """
+
+    async def test_the_listing_carries_each_experiment_s_links(
+        self, client: AsyncClient, account: Account, pool
+    ):
+        created = await create(client, account)
+        node_id = await a_reading_drawn_from_an_entry(client, pool, account)
+        response = await client.post(
+            f"/v1/experiments/{created['id']}/links",
+            headers=account.auth,
+            json={"revision": created["revision"], "node_id": str(node_id)},
+        )
+        assert response.status_code == 200
+
+        listing = await client.get("/v1/experiments", headers=account.auth)
+        [item] = listing.json()["experiments"]
+        assert [link["label"] for link in item["links"]] == ["rest"]
+
+    async def test_an_experiment_with_no_links_carries_an_empty_list(
+        self, client: AsyncClient, account: Account
+    ):
+        # Not a missing key: the client should never have to tell "none" from
+        # "the server did not say".
+        await create(client, account)
+        listing = await client.get("/v1/experiments", headers=account.auth)
+        assert listing.json()["experiments"][0]["links"] == []
+
+    async def test_links_do_not_leak_between_accounts(
+        self, client: AsyncClient, account: Account, other_account: Account, pool
+    ):
+        created = await create(client, account)
+        node_id = await a_reading_drawn_from_an_entry(client, pool, account)
+        await client.post(
+            f"/v1/experiments/{created['id']}/links",
+            headers=account.auth,
+            json={"revision": created["revision"], "node_id": str(node_id)},
+        )
+        await create(client, other_account)
+        listing = await client.get("/v1/experiments", headers=other_account.auth)
+        assert listing.json()["experiments"][0]["links"] == []
