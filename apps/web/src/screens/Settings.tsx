@@ -16,13 +16,37 @@ export function Settings() {
   async function exportEverything() {
     // Everything the person wrote, and everything drawn from it. Assembled
     // client-side from the same endpoints the screens use.
-    const [observations, patterns, themes] = await Promise.all([
+    //
+    // The readings are the point and they were missing: this offered "entries,
+    // readings and patterns" and wrote a file with no readings in it. What was
+    // inferred about someone is the part they are least able to reconstruct
+    // themselves, so it is the part an export most owes them. The trials they
+    // set and what they chose to keep are theirs too.
+    const [observations, patterns, themes, readings, identity, experiments] = await Promise.all([
       api.observations(500),
       api.patterns().catch(() => []),
       api.themes().catch(() => []),
+      api.graph(1000).catch(() => ({ nodes: [], edges: [] })),
+      api.identity(true).catch(() => ({ nodes: [] })),
+      api.experiments().catch(() => ({ experiments: [] })),
     ]);
     const blob = new Blob(
-      [JSON.stringify({ exported: new Date().toISOString(), observations, patterns, themes }, null, 2)],
+      [
+        JSON.stringify(
+          {
+            exported: new Date().toISOString(),
+            observations,
+            readings: readings.nodes,
+            edges: readings.edges,
+            patterns,
+            themes,
+            identity: identity.nodes,
+            experiments: experiments.experiments,
+          },
+          null,
+          2,
+        ),
+      ],
       { type: "application/json" },
     );
     const url = URL.createObjectURL(blob);
@@ -60,7 +84,7 @@ export function Settings() {
 
         <Action
           label="Export everything"
-          note="Entries, readings and patterns, as JSON."
+          note="Entries, readings, patterns, regions, what you kept, and your experiments — as JSON."
           button={
             <button className="btn ghost" onClick={() => void exportEverything()}>
               {exported ? "EXPORTED" : "EXPORT"}
