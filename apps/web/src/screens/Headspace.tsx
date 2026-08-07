@@ -88,19 +88,28 @@ export function Headspace() {
         bar: n.confidence ?? 0,
       }));
 
-    const asToday: Whorl[] = (today.data?.inferred ?? []).map((i) => ({
-      id: i.id,
-      label: i.label,
-      meta: fmt(i.confidence),
-      weight: Math.max(0.25, i.confidence * 0.7),
-      tentative: i.tentative,
-      tint: 0xc6e070,
-      href: `/node/${i.id}`,
-      group: "today",
-      kicker: `${i.kind} · today`,
-      readout: `${i.cites_entries} ${i.cites_entries === 1 ? "entry" : "entries"}`,
-      bar: i.confidence,
-    }));
+    // Today is one whorl, not one per reading. The map is a landscape of what
+    // the record holds; today is a single place on it, and scattering four
+    // hillocks across the plain made the day look like four unrelated things.
+    const todays = today.data?.inferred ?? [];
+    const acts = today.data?.entry_count ?? 0;
+    const asToday: Whorl[] = todays.length
+      ? [
+          {
+            id: "today",
+            label: `today · ${todays.length} ${todays.length === 1 ? "reading" : "readings"}`,
+            meta: String(todays.length),
+            weight: todays.length / 14,
+            tentative: false,
+            tint: 0xc6e070,
+            href: "/today",
+            group: "today",
+            kicker: "Today · drawn since midnight",
+            readout: `${acts} ${acts === 1 ? "act" : "acts"}`,
+            bar: Math.min(1, todays.length / 14),
+          },
+        ]
+      : [];
 
     // The point of view. Bigger than anything drawn around it, and it never
     // leaves the map.

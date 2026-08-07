@@ -295,18 +295,50 @@ export function mountHeadspace(
   // Radii come from the data first; then a short settle pushes any two whorls
   // apart until no contour fields touch. Neighbours keep their ridge, but every
   // peak owns its ground.
+  // Size is a property of the kind of thing, not one scale for everything. A
+  // pattern that keeps returning is a massif and a single tentative reading is
+  // a hillock, and the gap between them is most of what the map says: drawing
+  // both at roughly one size made a field of identical dots that carried no
+  // information at all.
+  const radiusOf = (w: Whorl) => {
+    if (w.group === "you") return R * 0.52;
+    if (w.group === "pattern") return R * (0.18 + 0.46 * w.bar);
+    if (w.group === "today") return R * (0.05 + 0.013 * w.weight * 14);
+    return R * (0.05 + 0.18 * w.weight);
+  };
+
+  // And position is a property of the kind too. Patterns run in a chain across
+  // the top of the map, readings in a chain below, today off to one side, and
+  // you at the fixed point — a survey, not a scatter.
+  const byGroup = (group: string) => whorls.filter((w) => w.group === group);
+  const patterns = byGroup("pattern");
+  const readings = byGroup("reading");
+  const chainX = (i: number, n: number, span: number) =>
+    n === 1 ? 0 : -span + (2 * span * i) / (n - 1);
+
   const placed = whorls.map((w) => {
-    const you = w.group === "you";
-    const radius = R * (you ? 0.42 : 0.16 + w.weight * 0.3);
-    const angle = seeded(w.id + "a") * Math.PI * 2;
-    const dist = you ? 0 : R * (0.75 + 1.6 * Math.sqrt(seeded(w.id + "r")));
-    return {
-      whorl: w,
-      radius,
-      x: Math.cos(angle) * dist,
-      z: Math.sin(angle) * dist,
-      pinned: you,
-    };
+    const radius = radiusOf(w);
+    const spot = { x: 0, z: 0 };
+    if (w.group === "pattern") {
+      const i = patterns.indexOf(w);
+      spot.x = chainX(i, patterns.length, R * 0.7);
+      spot.z = -R * 0.5 + (seeded(w.id + "z") - 0.5) * R * 0.2;
+    } else if (w.group === "reading") {
+      // The design was drawn against seven readings; a real record holds
+      // dozens. The span grows with the count so the chain keeps the density
+      // it was drawn at instead of compressing into one mass — the alternative
+      // was to draw fewer than there are, which is not the map's to decide.
+      const i = readings.indexOf(w);
+      const span = R * 0.85 * Math.max(1, Math.sqrt(readings.length / 7));
+      spot.x = chainX(i, readings.length, span) + (seeded(w.id + "x") - 0.5) * R * 0.14;
+      spot.z = R * 0.7 + (seeded(w.id + "z") - 0.5) * R * 0.5;
+    } else if (w.group === "today") {
+      spot.x = R * 0.6;
+      spot.z = R * 0.14;
+    } else {
+      spot.z = R * 0.08;
+    }
+    return { whorl: w, radius, x: spot.x, z: spot.z, pinned: w.group === "you" };
   });
 
   for (let pass = 0; pass < 90; pass++) {
@@ -334,18 +366,33 @@ export function mountHeadspace(
     }
   }
 
-  // Frame the whole chart. The settle above decides how far the peaks spread,
-  // so the camera has to be placed after it — a fixed distance either crops the
-  // outer whorls or leaves the map swimming in black.
+  // Frame the chart like a cartographer: fit the settled map's bounding box to
+  // the stage, so the massif fills the canvas — the landing page is the map
+  // itself, not a vignette of it. A circular extent was the bug here: it took
+  // the furthest peak in any direction and framed a circle around it, which on
+  // a wide canvas left the map floating in the middle with black to both sides.
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minZ = Infinity;
+  let maxZ = -Infinity;
+  for (const p of placed) {
+    minX = Math.min(minX, p.x - p.radius);
+    maxX = Math.max(maxX, p.x + p.radius);
+    minZ = Math.min(minZ, p.z - p.radius);
+    maxZ = Math.max(maxZ, p.z + p.radius);
+  }
+  const aimX = (minX + maxX) / 2;
+  const aimZ = (minZ + maxZ) / 2;
+  const tanV = Math.tan((camera.fov * Math.PI) / 360);
   const extent = Math.max(
-    R * 0.6,
-    ...placed.map((p) => Math.hypot(p.x, p.z) + p.radius * 1.35),
+    ((maxZ - minZ) / 2) / tanV,
+    ((maxX - minX) / 2) / (tanV * camera.aspect),
   );
-  const fit = extent / Math.tan((camera.fov * Math.PI) / 360);
-  camera.position.set(0, fit * 1.02, extent * 0.42);
-  camera.lookAt(0, 0, 0);
-  controls.minDistance = extent * 1.1;
-  controls.maxDistance = fit * 2.4;
+  camera.position.set(aimX, extent, aimZ + extent * 0.18);
+  camera.lookAt(aimX, 0, aimZ);
+  controls.target.set(aimX, 0, aimZ);
+  controls.minDistance = extent * 0.5;
+  controls.maxDistance = extent * 2.4;
 
   interface Pick {
     hit: THREE.Mesh;

@@ -35,16 +35,17 @@ export function App() {
     onSessionLost(() => useSession.setState({ token: null, userId: null }));
   }, [restore]);
 
-  useEffect(() => {
-    // The landing goes full-bleed; everything else sits in the reading column.
-    document.getElementById("view")?.classList.toggle("wide", location.pathname === "/");
-  }, [location.pathname]);
+
 
   if (!ready) {
     return (
       <div id="app">
         <main id="screen">
-          <div className="wrap" id="view">
+          {/* The landing goes full-bleed; everything else sits in the reading
+            column. Declared rather than toggled imperatively — React owns this
+            className, so a classList call here is undone by the next render,
+            and the map silently lost half its width whenever a query landed. */}
+        <div className={location.pathname === "/" ? "wrap wide" : "wrap"} id="view">
             <div className="empty mono">…</div>
           </div>
         </main>
@@ -63,7 +64,11 @@ export function App() {
       </a>
       <RailWithCounts />
       <main id="screen">
-        <div className="wrap" id="view">
+        {/* The landing goes full-bleed; everything else sits in the reading
+            column. Declared rather than toggled imperatively — React owns this
+            className, so a classList call here is undone by the next render,
+            and the map silently lost half its width whenever a query landed. */}
+        <div className={location.pathname === "/" ? "wrap wide" : "wrap"} id="view">
           <Routes>
             <Route path="/" element={<Headspace />} />
             <Route path="/journal" element={<Journal />} />
