@@ -108,7 +108,12 @@
   .switch{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:14px 0;
     border-bottom:1px solid var(--line)}
   .switch b{font-weight:500}
-  .switch .knob{width:38px;height:20px;border:1px solid var(--line);border-radius:999px;position:relative;
+  /* `flex:none` is this app's, not the design's. The knob is a flex item beside
+     the label, and this app's switch copy is longer than the mock's — long
+     enough to squeeze a 38px switch down to 36. A control that changes size
+     with the length of the sentence next to it is a control that looks broken,
+     and the design would have hit this too given a longer line. */
+  .switch .knob{flex:none;width:38px;height:20px;border:1px solid var(--line);border-radius:999px;position:relative;
     cursor:pointer;background:var(--surface)}
   .switch .knob::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
     background:var(--faint);transition:left .18s,background .18s}
