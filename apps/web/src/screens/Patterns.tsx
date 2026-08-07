@@ -176,6 +176,14 @@ function Row({ pattern, busiest }: { pattern: Pattern; busiest: number }) {
         </div>
       </Link>
 
+
+      <div className="p-stripwrap">
+        <Strip pattern={pattern} onPeek={setPeek} />
+        <div className="p-peek">
+          {peek ?? <Legend pattern={pattern} />}
+        </div>
+      </div>
+
       {/* What the finding is made of, linked to their own evidence. A finding
           nobody can decompose is a finding nobody can argue with. */}
       <div className="p-comp">
@@ -189,13 +197,6 @@ function Row({ pattern, busiest }: { pattern: Pattern; busiest: number }) {
             </Link>
           ))
         )}
-      </div>
-
-      <div className="p-stripwrap">
-        <Strip pattern={pattern} onPeek={setPeek} />
-        <div className="p-peek">
-          {peek ?? <Legend pattern={pattern} />}
-        </div>
       </div>
     </div>
   );

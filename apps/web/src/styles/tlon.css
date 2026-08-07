@@ -172,6 +172,10 @@
   .j-seal{transition:transform .3s cubic-bezier(.2,.8,.2,1),opacity .2s}
   .j-act:hover .j-seal{transform:scale(1.07) rotate(4deg);opacity:1}
   #cap:focus-within{border-color:var(--line2)}
+  /* The composer is focused on arrival, and a ring drawn around it on every
+     visit is a shout where the design wanted a caret. The bar's own border
+     lighting is the affordance here, and a text field shows a caret besides. */
+  #capText:focus-visible{outline:none}
   @media(prefers-reduced-motion:reduce){
     .j-stream .j-day,.j-stream .j-entry{animation:none}
     .j-stream .j-seal path{stroke-dashoffset:0;animation:none}

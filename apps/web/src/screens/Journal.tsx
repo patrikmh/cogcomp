@@ -79,9 +79,11 @@ export function Journal() {
 
   // Arriving at the journal means you came here to write. The caret is already
   // in the composer, so the first keystroke is the first word rather than a
-  // navigation shortcut fired at nothing.
+  // navigation shortcut fired at nothing. `preventScroll` matters: the dock is
+  // the last thing on a long page, and focusing it without this scrolled the
+  // stream out of sight, so you arrived at the bottom of your own journal.
   useEffect(() => {
-    box.current?.focus();
+    box.current?.focus({ preventScroll: true });
   }, []);
 
   async function toggleRecording() {
