@@ -25,6 +25,28 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
  */
 
 const INK = 0xeef1ec;
+
+/**
+ * When each kind of whorl lands, in seconds into the camera's settle.
+ *
+ * You are already there. The patterns follow, spaced widest because they are
+ * the fewest and the largest; the readings come after in a quicker run; today
+ * lands last, on top of the record it belongs to.
+ */
+const ARRIVE_AT: Record<string, (i: number) => number> = {
+  you: () => 0,
+  pattern: (i) => 0.35 + i * 0.22,
+  reading: (i) => 1.1 + i * 0.15,
+  today: () => 2.2,
+};
+
+/** Back-out easing: a slight overshoot, so a peak is placed rather than faded. */
+function backOut(k: number) {
+  if (k >= 1) return 1;
+  const c1 = 1.70158;
+  const c3 = c1 + 1;
+  return 1 + c3 * Math.pow(k - 1, 3) + c1 * Math.pow(k - 1, 2);
+}
 const R = 0.115;
 
 export interface Whorl {
@@ -398,6 +420,8 @@ export function mountHeadspace(
   const TILT = 0.18; // a breath of perspective; a topo map keeps its north
   const INTRO = 3200;
   let introEase = reduced ? 1 : 0;
+  let landed = reduced;
+  const groupIndex: Record<string, number> = { you: 0, pattern: 0, reading: 0, today: 0 };
   const placeCamera = (polar: number) => {
     camera.position.set(
       aimX,
@@ -449,13 +473,15 @@ export function mountHeadspace(
     group.add(hit);
     picks.push({ hit, group, whorl: p.whorl, mats: group.userData.mats, baseScale: 1 });
 
-    // The map is already there when you arrive. It used to scale each peak up
-    // from nothing on a 55ms stagger, which meant the first two and a half
-    // seconds were an empty canvas with whorls popping into it one at a time —
-    // a chart assembling itself, when the design's claim is that this is a
-    // place that already exists and you are settling onto it. What moves on
-    // arrival is the camera, below, and nothing else.
-    group.scale.setScalar(1);
+    // The map assembles around you, in the order the design chose: you first,
+    // then the patterns the weeks keep circling, then what is kept about you,
+    // then today. Ordered by kind, not by index — the sequence is an argument
+    // about what the map is made of, and a flat stagger says nothing.
+    const schedule = ARRIVE_AT[p.whorl.group] ?? (() => 0);
+    const seen = groupIndex[p.whorl.group] ?? 0;
+    groupIndex[p.whorl.group] = seen + 1;
+    group.userData.arriveAt = schedule(seen);
+    group.userData.arriveK = reduced ? 1 : 0;
     model.add(group);
   });
 
@@ -504,13 +530,23 @@ export function mountHeadspace(
     if (introEase < 1) {
       introEase = Math.min(1, elapsed / INTRO);
       // Ease-out cubic: quick at first, then a long settle.
-      const k = 1 - Math.pow(1 - introEase, 3);
-      placeCamera(0.05 + (TILT - 0.05) * k);
+      placeCamera(0.05 + (TILT - 0.05) * (1 - Math.pow(1 - introEase, 3)));
       controls.update();
+
+      // The landing runs on the camera's own clock, so the peaks rise into
+      // place exactly as the view settles onto them — one movement, not two.
+      const seconds = introEase * (INTRO / 1000);
+      for (const pick of picks) {
+        pick.group.userData.arriveK = reduced
+          ? 1
+          : backOut(Math.max(0, Math.min(1, (seconds - pick.group.userData.arriveAt) / 0.85)));
+      }
+    } else if (!landed) {
+      landed = true;
+      for (const pick of picks) pick.group.userData.arriveK = 1;
     }
 
     for (const pick of picks) {
-      pick.group.scale.setScalar(pick.baseScale);
       const on = visible.includes(pick.whorl.group);
       pick.group.visible = on;
     }
@@ -542,11 +578,18 @@ export function mountHeadspace(
     }
     for (const pick of picks) {
       const lit = pick.whorl.id === focused;
-      const target = lit ? 1.16 : 1;
+      const ak = (pick.group.userData.arriveK as number) ?? 1;
+      // A peak rises from seven tenths of its size and fades up as it goes. It
+      // never comes from nothing: a whorl scaled out of a speck reads as a
+      // thing being created, and none of this is created on arrival — it was
+      // already true, and the map is only reaching it.
+      const target = (lit ? 1.16 : 1) * (0.72 + 0.28 * ak);
       pick.baseScale += (target - pick.baseScale) * 0.12;
+      pick.group.scale.setScalar(pick.baseScale);
       for (const mat of pick.mats) {
         const base = mat.userData.baseOp as number;
-        mat.opacity += ((lit ? Math.min(1, base * 1.7) : base) - mat.opacity) * 0.12;
+        const goal = Math.min(lit ? base * 1.7 : base, 0.95) * ak;
+        mat.opacity += (goal - mat.opacity) * 0.12;
         mat.color.lerp(new THREE.Color(lit ? pick.whorl.tint : INK), 0.12);
       }
     }
