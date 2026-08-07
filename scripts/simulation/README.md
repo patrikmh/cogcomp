@@ -34,5 +34,15 @@ Identity inverts the same way. It is surest about `did the washing up twice`
 confidence tracks how literally a thing was stated rather than how much it says
 about someone — and the screen sorts by confidence.
 
+`does_the_arithmetic_hold.py` is the other half: it files every entry on the
+record by its **local** day and asks the day and week reads for the same totals.
+Run it against any account.
+
+It passes on the fortnight, including the three entries written after midnight
+UTC — 22:15, 22:40 and 23:05 UTC are 00:15, 00:40 and 01:05 the next morning in
+Stockholm, and all three are filed on the day the person actually lived them.
+That is the bug class worth guarding: file an entry under the wrong day and
+every count above it is quietly wrong, on every screen, forever.
+
 Keep this fixture. It is the smallest thing that shows the gap between what the
 extractor understands and what the pattern layer can see.
