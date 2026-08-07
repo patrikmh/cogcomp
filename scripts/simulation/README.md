@@ -65,3 +65,35 @@ the mobile app "1 thing recurred".
 What does not add up is above, and it is all one shape: extraction understands
 this person, and every layer built on top of it loses that understanding.
 
+## Which of the three threads survive each layer
+
+`which_threads_survive.py` asks every layer, in turn, whether it can see each of
+the three things the fortnight was written to carry.
+
+```
+                          readings  patterns  identity  own words  regions
+keeping away from people        29         0        13          5        0
+not looking at money            16         0         6          2        0
+frightened about a child         9         0         0          0        0
+```
+
+Two readings of that table.
+
+**Nothing reaches patterns or regions.** All three threads, invisible. The one
+pattern the app does hold is a person's name.
+
+**The third thread reaches nothing at all past extraction** — and the reason is
+structural, not a matter of confidence. Its nine readings are four Events, two
+Thoughts, two People and a Place. Identity considers Activities, Needs and
+Values. There is no overlap, so the fortnight's most frightened material —
+`Cannot stop thinking about whether we can afford a child` at 0.95,
+`Ida asked when we are going to start trying` at 0.93 — cannot be offered as
+part of who this person is, while `did the washing up twice` can.
+
+The other two threads survive only because the extractor happened to phrase them
+as Needs: `to not be around other people`, `A morning that starts without
+checking money`. Had it written those as Thoughts, they would have vanished too.
+
+So whether something becomes part of "who you are" is decided by the part of
+speech the extractor reached for. Nobody chose that.
+
