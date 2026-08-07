@@ -50,7 +50,7 @@ export function Week() {
   const acts = week.data.entry_count;
   const written = week.data.active_days;
   const otherActs = other.data?.entry_count ?? 0;
-  const otherName = back === 0 ? "last week" : "this week";
+  const otherName = comparisonName(back);
   const busiest = Math.max(1, ...days.map((d) => d.entry_count));
   const both = Math.max(acts, otherActs, 1);
 
@@ -206,4 +206,18 @@ function PatternRow({ pattern }: { pattern: NonNullable<Awaited<ReturnType<typeo
       </span>
     </Link>
   );
+}
+
+/**
+ * What the week beside the one on screen is called.
+ *
+ * Named for where it actually is. This said "this week" for every past week, so
+ * two weeks back the screen read "10 fewer than this week" while comparing
+ * against a week that was neither this one nor the one being shown — a true
+ * number under a false label, which is worse than no comparison at all.
+ */
+export function comparisonName(back: number) {
+  if (back === 0) return "last week";
+  if (back === 1) return "this week";
+  return "the week after";
 }
