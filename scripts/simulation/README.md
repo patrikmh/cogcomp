@@ -65,6 +65,23 @@ the mobile app "1 thing recurred".
 What does not add up is above, and it is all one shape: extraction understands
 this person, and every layer built on top of it loses that understanding.
 
+## Second retraction — "fragments, not the whole" was the design, not a defect
+
+Several rounds of this criticised the pattern layer for finding `took the
+stairs`, `the market` and `the canteen` as three separate patterns rather than
+the one behaviour a person would call them. `tlon/patterns.py` answers that in
+its first paragraphs, and answers it better:
+
+> Semantic clustering would find more patterns and would also invent them:
+> deciding that "tired" and "hollowed out" and "flat" are the same thing is an
+> interpretation, and once it is wrong the person is looking at a recurring
+> pattern they never had. Exact matching under-reports, which is the right
+> direction to be wrong in.
+
+So the behaviour was considered, the alternative was rejected for a stated
+reason, and under-reporting was chosen deliberately. Describing that as a defect
+was describing the design as a bug because the test did not read the design.
+
 ## Retraction — the third thread was never missing
 
 Two sections below claim that fear about a child reaches no screen past the
