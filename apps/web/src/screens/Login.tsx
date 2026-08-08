@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 import { ApiError } from "@/lib/api";
 import { useSession } from "@/state/session";
@@ -32,7 +33,13 @@ export function Login() {
 
   return (
     <div className="f-wrap" style={{ maxWidth: 420, margin: "12vh auto" }}>
-      <img src="/assets/tlon-logo.png" alt="Tlön" style={{ width: 150, marginBottom: 28 }} />
+      <img src="/assets/tlon-logo.png" alt="Tlön" style={{ width: 150 }} />
+      {/* What the thing is, before asking anyone to sign into it. */}
+      <h1 style={{ marginTop: 26 }}>A private journal</h1>
+      <p className="sub">
+        Twelve characters or more for the password. Nothing else is required, and nothing is
+        public.
+      </p>
       <form onSubmit={submit}>
         <input
           className="f-field"
@@ -46,15 +53,12 @@ export function Login() {
           className="f-field"
           type="password"
           value={password}
-          placeholder="Password"
+          /* Said before it is demanded, not after it is refused. */
+          placeholder="Password · twelve characters or more"
           autoComplete={mode === "signup" ? "new-password" : "current-password"}
           onChange={(e) => setPassword(e.target.value)}
           style={{ marginTop: 10 }}
         />
-        {/* Said before it is demanded, not after it is refused. */}
-        <p className="mono" style={{ color: "var(--faint)", marginTop: 10 }}>
-          At least 12 characters.
-        </p>
         {error && (
           <p className="mono" style={{ color: "var(--rust)" }} role="alert">
             {error}
@@ -64,13 +68,17 @@ export function Login() {
           {busy ? "…" : mode === "login" ? "SIGN IN" : "CREATE ACCOUNT"}
         </button>
       </form>
-      <button
-        className="btn"
-        style={{ marginTop: 10 }}
-        onClick={() => setMode(mode === "login" ? "signup" : "login")}
-      >
-        {mode === "login" ? "CREATE AN ACCOUNT" : "I ALREADY HAVE ONE"}
-      </button>
+      <div className="row" style={{ marginTop: 10 }}>
+        <button className="btn" onClick={() => setMode(mode === "login" ? "signup" : "login")}>
+          {mode === "login" ? "CREATE AN ACCOUNT" : "I ALREADY HAVE ONE"}
+        </button>
+        {/* The design offers this here, and it is the right place: what happens
+            to what you write is worth reading before you write any of it, not
+            after you have already handed it over. */}
+        <Link className="btn ghost" to="/words">
+          WHAT HAPPENS TO YOUR WORDS
+        </Link>
+      </div>
     </div>
   );
 }

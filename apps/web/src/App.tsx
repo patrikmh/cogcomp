@@ -53,7 +53,26 @@ export function App() {
     );
   }
 
-  if (!token) return <Login />;
+  // What happens to your words is readable before you hand any over. The login
+  // screen offers it, as the design does, and it led straight back to the login
+  // screen while every route sat behind the session — which is the one moment
+  // the page exists for, and the one moment it could not be read.
+  if (!token) {
+    return location.pathname === "/words" ? (
+      <div id="app">
+        <main id="screen">
+          <div className="wrap" id="view">
+            <Words />
+            <p className="rest mono" style={{ marginTop: 18 }}>
+              <a href="#/login">← back to signing in</a>
+            </p>
+          </div>
+        </main>
+      </div>
+    ) : (
+      <Login />
+    );
+  }
 
   return (
     <div id="app">
