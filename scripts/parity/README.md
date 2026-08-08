@@ -1,13 +1,15 @@
 # Parity with the design
 
-Three checks, each answering a question the others cannot.
+Six checks, each answering a question the others cannot. Every one of them was
+added because the one before it came back clean over a real fault.
 
 ```bash
 python3 scripts/parity/stylesheet.py '<design>/tlon.html'   # every rule, every value
 python3 scripts/parity/typography.py '<design>/tlon.html'   # every font declaration
+python3 scripts/parity/tokens.py '<design>/tlon.html'       # the palette, design against both clients
 python3 scripts/parity/states.py '<design>/tlon.html'       # every hover/focus rule, and whether it can fire
 node   scripts/parity/shape.js                              # run in the page; see below
-python3 scripts/parity/copy.js                              # likewise
+node   scripts/parity/copy.js                               # likewise
 ```
 
 `shape.js` and `copy.js` are evaluated in the browser against both the design
@@ -47,8 +49,9 @@ pattern →` — and that button is an action, not a step.
 ## Where it stands
 
 Stylesheet and typography are exact: 313 selectors and 26 font declarations,
-nothing on either side the other lacks. `:root` lives in `packages/design` and
-its fourteen values were checked separately.
+nothing on either side the other lacks. `:root` lives in `packages/design`, and
+`tokens.py` now checks its fourteen values against the design and both clients
+on every run.
 
 Shape now reports structure and ids apart. Nearly every id in the design is a
 handle for its own imperative JS — `#wpeek`, `#qcount`, `#newx`, `#capState` —
@@ -103,12 +106,6 @@ The deliberate ones, so they are not re-litigated:
   else — so the app keeps the first with a true reason and drops the second
   clause entirely. Both are the same decision: say what is so, not what the mock
   said.
-- **tentative graph cards** carry a line under them saying why they are dashed,
-  as the design does. The design's says `hrön · unobserved 34 days — growing
-  vague`, which belongs to a model where a reading decays as it goes unseen.
-  This backend has no such model: `tentative` is confidence below 0.5 and
-  nothing else. The line stays, with the reason that is true here. Fabricating a
-  day count would have matched the design exactly and said something false.
 - **reduced motion** covers Patterns and Experiments here and does not in the
   design. Its rules reach `.scr` and the journal; `.p-row` and `.x-row` sit
   outside both, so with the setting on, the design still scales forty bars and
