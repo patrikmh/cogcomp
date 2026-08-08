@@ -176,8 +176,20 @@ Identity takes Activities, Needs and Values, and no amount of further diary
 changes which kind a sentence was extracted as.
 
 Every one of the ten patterns is `exact-label`. The other five detectors still
-abstain at five weeks, correctly — this diary has no weekday regularity and no
-lag structure to find.
+abstain at five weeks.
+
+**Correction.** This said they abstain "correctly — this diary has no weekday
+regularity and no lag structure to find". The second half is wrong. The diary
+has lag structure: twelve bad nights, each followed by a foggy morning. The
+detector never saw it, because the extractor wrote those nights as Events and
+Thoughts and `PATTERNABLE_KINDS` holds neither. Eligibility is decided before
+timing is ever examined, so a detector abstaining is not evidence the structure
+is absent — the same mistake as the one retracted at the top of this file, and
+made in the same way, by reading silence as a finding.
+
+Seeded with patternable kinds an ordering forms immediately: twelve exist in the
+database, and the app renders `sleeping badly came up 1 day before foggy · 4 of
+5 times`.
 
 ## Why no regions form, and why that is not a bug
 

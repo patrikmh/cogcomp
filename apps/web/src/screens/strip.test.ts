@@ -5,12 +5,18 @@ import { stripSeries } from "./Patterns";
 /**
  * The fourteen cells under a finding.
  *
- * This is tested here rather than through the app because the two-sided case
- * cannot be reached with real data. An ordering finding needs the same reading
- * on both of its days, and the extractor gives the same sentence different
- * kinds on different days often enough that no pair clears the detector's
- * floor — twelve bad nights, every one followed by a foggy morning, produced no
- * ordering at all. The drawing should still be right for when it does.
+ * This used to say the two-sided case could not be reached with real data, on
+ * the evidence that twelve bad nights each followed by a foggy morning produced
+ * no ordering. That was the wrong conclusion from a real observation. The
+ * reason those nights produced nothing is that the extractor called them Events
+ * and Thoughts, and `PATTERNABLE_KINDS` deliberately holds neither — so they
+ * were never eligible, whatever their timing. With patternable kinds an
+ * ordering forms readily: `sleeping badly came up 1 day before foggy · 4 of 5
+ * times` is on screen, and its second-side bar measures identically to the
+ * design's.
+ *
+ * The unit tests stay, because they cover the arithmetic more cheaply and more
+ * completely than a seeded account can.
  */
 const pattern = (over: Partial<Parameters<typeof stripSeries>[0]> = {}) => ({
   id: "p1",

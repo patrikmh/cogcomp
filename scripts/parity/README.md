@@ -84,8 +84,15 @@ the second time something recorded here as unreachable was reachable, and both
 times the record was the thing at fault, so treat that phrase as a claim needing
 evidence rather than a conclusion.
 
-The remaining data ones need states this account genuinely lacks: a tentative
-finding with nothing drawn from it, and a strip with two sides. That last one cannot be reached at all — see
-`scripts/simulation/README.md`: twelve bad nights each followed by a foggy
-morning produced no ordering, because the extractor gave the same sentence
-different kinds on different days. `stripSeries` is unit-tested instead.
+The two-sided strip was the third. This said it could not be reached at all, on
+the evidence that twelve bad nights each followed by a foggy morning produced no
+ordering. The observation was real and the conclusion was wrong: those nights
+were extracted as Events and Thoughts, and `PATTERNABLE_KINDS` holds neither, so
+they were never eligible however they were timed. Twelve orderings already
+existed in the database when this was written. On one of them the app shows
+`sleeping badly came up 1 day before foggy · 4 of 5 times`, and its second-side
+bar measures identically to the design's — same fill, height, width, opacity and
+cell.
+
+That leaves one: a tentative finding with nothing drawn from it. Given the
+record above, treat it as untested rather than unreachable.
