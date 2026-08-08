@@ -311,13 +311,21 @@ export function ExperimentDetail() {
             <span className="rule" />
             <span className="mono">ordinary journal entries</span>
           </div>
+          {/* A check-in is an ordinary entry, and the design makes each one a
+              link to it — this rendered them as plain rows, so the one screen
+              that lists the acts a trial rests on was the one place you could
+              not open them. While the trial is running there is a control here
+              too, and a button cannot sit inside a link, so the row stays a row
+              and the words carry the link instead. */}
           {checkins.map((c) => (
             <div className="t-read" key={c.id}>
               <span className="t-seal">
                 <Seal id={c.id} className="j-seal" />
               </span>
               <span className="t-main">
-                <b>{c.content}</b>
+                <Link to={`/node/${c.id}`}>
+                  <b>{c.content}</b>
+                </Link>
                 <span className="mono">{stampOf(c.captured_at)}</span>
               </span>
               {x.state === "active" && (
