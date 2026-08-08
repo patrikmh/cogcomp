@@ -30,6 +30,20 @@ identity note below. The other was the talk input, which turned out to be a flaw
 in the sweep: the input is behind BEGIN THE CONVERSATION on both sides, and the
 sweep never pressed it. Entering the state on both sides, the two are identical.
 
+`copy.js` compares the authored words — headings, captions, section labels,
+button text — with the record's own words and anything mostly numeric filtered
+out. Run across every route it comes back clean except where the difference is
+the point: settings says "Three switches and a way out" because this app has
+three, and the dated and timezoned lines differ because the two are looking at
+different records.
+
+It found two things worth having. The kicker on the two static screens read
+`BEFORE YOUR FIRST ENTRY NEW` where the design reads `BEFORE YOUR FIRST ENTRY ·
+NEW` — the `.new` span is styled only inside the rail, so on those screens it
+did nothing but swallow the separator. And `START WRITING` had picked up a `→`.
+The design keeps arrows for moving along the timeline — `NEXT →`, `THU →`, `the
+pattern →` — and that button is an action, not a step.
+
 ## Where it stands
 
 Stylesheet and typography are exact: 313 selectors and 26 font declarations,
@@ -81,6 +95,14 @@ The deliberate ones, so they are not re-litigated:
   `MIN_PASSWORD_LENGTH` is twelve. One button has to guess which you meant, and
   guessing wrong on a mistyped address makes a second empty account instead of
   saying the password was wrong.
+- **the decay model.** The design describes readings that fade as they go
+  unlooked-at, in two places: the `hrön · unobserved 34 days — growing vague`
+  line under a dashed card, and the closing clause of the Headspace note,
+  "fainter where still tentative, and fading where no one has looked". This
+  backend has no such model — `tentative` is confidence below 0.5 and nothing
+  else — so the app keeps the first with a true reason and drops the second
+  clause entirely. Both are the same decision: say what is so, not what the mock
+  said.
 - **tentative graph cards** carry a line under them saying why they are dashed,
   as the design does. The design's says `hrön · unobserved 34 days — growing
   vague`, which belongs to a model where a reading decays as it goes unseen.

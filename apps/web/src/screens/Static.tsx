@@ -12,7 +12,9 @@ export function Words() {
           `p-head` wrapper here was a two-column header with nothing in its
           second column — it only ever pushed the heading around. */}
       <span className="kicker">
-        Before your first entry <span className="new">NEW</span>
+        {/* `.new` is styled only inside the rail, so the span did nothing here
+            but swallow the separator the design has between the two halves. */}
+        Before your first entry · new
       </span>
       <h1>What happens to your words</h1>
       <div className="cards">
@@ -44,7 +46,9 @@ export function Words() {
       </div>
       <div className="row" style={{ marginTop: 18 }}>
         <Link className="btn" to="/journal">
-          START WRITING →
+          {/* No arrow. The design keeps those for moving along the timeline —
+              NEXT →, THU → — and this is an action, not a step. */}
+          START WRITING
         </Link>
         <Link className="btn ghost" to="/settings">
           SETTINGS
@@ -120,7 +124,7 @@ export function First() {
   return (
     <>
       <span className="kicker">
-        First fortnight <span className="new">NEW</span>
+        First fortnight · new
       </span>
       <h1>The machinery is filling</h1>
       <p className="sub">
