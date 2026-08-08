@@ -253,13 +253,7 @@ function Legend({ pattern }: { pattern: Pattern }) {
  * the peek says only what the cell encodes.
  */
 function Strip({ pattern, onPeek }: { pattern: Pattern; onPeek: (peek: string | null) => void }) {
-  const lit = distribute(pattern.id, Math.min(pattern.distinct_days, 14));
-  const second =
-    pattern.detector === "stated-vs-recorded" || pattern.detector === "lag"
-      ? distribute(pattern.id + "b", Math.min(pattern.occurrences - pattern.distinct_days, 14)).map(
-          (v, i) => (v && !lit[i] ? 1 : 0),
-        )
-      : lit.map(() => 0);
+  const { lit, second } = stripSeries(pattern);
 
   return (
     <div className="p-strip">
@@ -307,4 +301,29 @@ function distribute(salt: string, n: number) {
   const order = [...Array(14).keys()].sort(() => rnd() - 0.5);
   for (let i = 0; i < Math.max(0, Math.min(n, 14)); i++) cells[order[i]!] = 1;
   return cells;
+}
+
+/**
+ * The two series a strip draws: what was counted, and — for a two-sided finding
+ * — the other half of the pair.
+ *
+ * Only an ordering and a stated-against-recorded have a second side. For
+ * everything else the second series is empty, because a recurrence has no other
+ * half and drawing one would invent a distinction the finding never made.
+ *
+ * Extracted so it can be tested. It cannot be reached with real data: a lag
+ * finding needs the same reading on both days, and the extractor gives the same
+ * sentence different kinds on different days often enough that no pair clears
+ * the detector's floor. That is worth knowing on its own, and it is no reason
+ * to leave the drawing untested.
+ */
+export function stripSeries(pattern: Pick<Pattern, "id" | "detector" | "distinct_days" | "occurrences">) {
+  const lit = distribute(pattern.id, Math.min(pattern.distinct_days, 14));
+  const twoSided = pattern.detector === "stated-vs-recorded" || pattern.detector === "lag";
+  const second = twoSided
+    ? distribute(pattern.id + "b", Math.min(pattern.occurrences - pattern.distinct_days, 14)).map(
+        (v, i) => (v && !lit[i] ? 1 : 0),
+      )
+    : lit.map(() => 0);
+  return { lit, second };
 }
