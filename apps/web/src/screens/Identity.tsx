@@ -20,6 +20,55 @@ import { useSession } from "@/state/session";
  * Removed readings stay as tombstones. The record that something *was* removed
  * is part of the record, and losing it would make the removal unaccountable.
  */
+/** The rings the composition draws, in the order it draws them.
+ *
+ *  Kept readings come first, then offered ones, each surest-first inside its own
+ *  group. Sorting the two together by confidence alone put the picture badly at
+ *  odds with the heading above it: on a real account, thirty-nine offered
+ *  readings outranked the one thing the person had actually kept, so a screen
+ *  titled "Drawn from everything you kept" drew none of it, and filled all seven
+ *  rings with `took the stairs` and `made coffee` instead. Extraction is surest
+ *  about the most literal things, which is exactly why confidence alone is the
+ *  wrong order for this particular picture.
+ */
+export function ringsFor(
+  selected: IdentityNode[],
+  candidates: IdentityNode[],
+  removed: IdentityNode[],
+): Ring[] {
+  const surestFirst = (a: IdentityNode, b: IdentityNode) =>
+    (b.confidence ?? 0) - (a.confidence ?? 0);
+
+  return [
+    ...[...selected].sort(surestFirst).concat([...candidates].sort(surestFirst))
+      // The composition is a picture of the record, not its inventory — the
+      // lists below hold every reading. Beyond seven or so rings the loops stop
+      // reading as nested contours and become a scribble, which says less than
+      // seven honest ones do. The design draws seven.
+      .slice(0, 7)
+      .map((n) => ({
+        id: n.id,
+        label: n.label,
+        kind: n.kind,
+        confidence: n.confidence ?? 0,
+        kept: n.status === "selected",
+        tentative: n.tentative,
+        removed: false,
+        evidence: `${n.kind.toLowerCase()}${n.status === "selected" ? " · kept" : " · offered"}`,
+      })),
+    ...removed.slice(0, 1).map((n) => ({
+      id: n.id,
+      label: n.label,
+      kind: n.kind,
+      confidence: 0,
+      kept: false,
+      tentative: false,
+      removed: true,
+      evidence: "removed · reversible",
+    })),
+  ];
+}
+
 export function Identity() {
   const userId = useSession((s) => s.userId);
   const client = useQueryClient();
@@ -47,37 +96,7 @@ export function Identity() {
   const tentative = [...selected, ...candidates].filter((n) => n.tentative);
   const kinds = new Set([...selected, ...candidates].map((n) => n.kind)).size;
 
-  const rings: Ring[] = [
-    // Surest first, so the closer a ring sits to the core the more the record
-    // stands behind it.
-    ...[...selected, ...candidates]
-      .sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0))
-      // The composition is a picture of the record, not its inventory — the
-      // lists below hold every reading. Beyond seven or so rings the loops stop
-      // reading as nested contours and become a scribble, which says less than
-      // seven honest ones do. The design draws seven.
-      .slice(0, 7)
-      .map((n) => ({
-        id: n.id,
-        label: n.label,
-        kind: n.kind,
-        confidence: n.confidence ?? 0,
-        kept: n.status === "selected",
-        tentative: n.tentative,
-        removed: false,
-        evidence: `${n.kind.toLowerCase()}${n.status === "selected" ? " · kept" : " · offered"}`,
-      })),
-    ...removed.slice(0, 1).map((n) => ({
-      id: n.id,
-      label: n.label,
-      kind: n.kind,
-      confidence: 0,
-      kept: false,
-      tentative: false,
-      removed: true,
-      evidence: "removed · reversible",
-    })),
-  ];
+  const rings = ringsFor(selected, candidates, removed);
 
   return (
     <>

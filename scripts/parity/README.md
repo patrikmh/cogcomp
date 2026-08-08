@@ -5,6 +5,7 @@ Three checks, each answering a question the others cannot.
 ```bash
 python3 scripts/parity/stylesheet.py '<design>/tlon.html'   # every rule, every value
 python3 scripts/parity/typography.py '<design>/tlon.html'   # every font declaration
+python3 scripts/parity/states.py '<design>/tlon.html'       # every hover/focus rule, and whether it can fire
 node   scripts/parity/shape.js                              # run in the page; see below
 python3 scripts/parity/copy.js                              # likewise
 ```
@@ -15,6 +16,19 @@ app, and the two outputs diffed. `shape.js` records each styled node's parent
 path, so it catches what a class-set diff cannot: the design nesting
 `#dock > #cap > textarea` where a port put the id on the textarea itself, same
 classes, different tree, every descendant rule silently not matching.
+
+`states.py` is the fourth check, and it exists because the third was not enough.
+`.f-field` was declared identically on both sides and inert in this app for
+weeks: the class sat on the input instead of the wrapper the rule was written
+for, so a rule-level diff saw agreement and nothing ever applied it. This lists
+the design's 52 stateful rules, reduces each to a base selector, and counts
+matches in both live pages. A selector the design matches and the app never does
+is a state the app cannot enter.
+
+It found two, and the more useful one was not a style bug at all — see the
+identity note below. The other was the talk input, which turned out to be a flaw
+in the sweep: the input is behind BEGIN THE CONVERSATION on both sides, and the
+sweep never pressed it. Entering the state on both sides, the two are identical.
 
 ## Where it stands
 
@@ -59,9 +73,19 @@ The deliberate ones, so they are not re-litigated:
   not a preference about taste — it is what someone with vestibular trouble sets
   so software does not make them ill — so this one stays diverged.
 
-The data ones need states this account cannot produce: an identity ring that is
-*kept* rather than offered, a tentative finding with nothing drawn from it, a
-strip with two sides. That last one cannot be reached at all — see
+One that was filed under "data" was not. `.id-ring.tent` never appeared, and the
+note here said the account could not produce a kept ring. It could: it held one,
+and the composition was not drawing it. Rings were sorted by confidence and cut
+at seven, and extraction is surest about the most literal things — thirty-nine
+offered readings outranked the single reading this person had confirmed, so a
+screen headed "Drawn from everything you kept" drew seven activities like *took
+the stairs* and none of what they kept. Kept readings now come first. This is
+the second time something recorded here as unreachable was reachable, and both
+times the record was the thing at fault, so treat that phrase as a claim needing
+evidence rather than a conclusion.
+
+The remaining data ones need states this account genuinely lacks: a tentative
+finding with nothing drawn from it, and a strip with two sides. That last one cannot be reached at all — see
 `scripts/simulation/README.md`: twelve bad nights each followed by a foggy
 morning produced no ordering, because the extractor gave the same sentence
 different kinds on different days. `stripSeries` is unit-tested instead.
