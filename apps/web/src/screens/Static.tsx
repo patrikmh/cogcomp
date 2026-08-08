@@ -8,14 +8,13 @@ import { localDay, mondayOf } from "@/lib/format";
 export function Words() {
   return (
     <>
-      <div className="p-head">
-        <div>
-          <span className="kicker">
-            Before your first entry <span className="new">NEW</span>
-          </span>
-          <h1>What happens to your words</h1>
-        </div>
-      </div>
+      {/* Kicker and heading as direct children, as the design has them. The
+          `p-head` wrapper here was a two-column header with nothing in its
+          second column — it only ever pushed the heading around. */}
+      <span className="kicker">
+        Before your first entry <span className="new">NEW</span>
+      </span>
+      <h1>What happens to your words</h1>
       <div className="cards">
       <div className="card">
         <p>
