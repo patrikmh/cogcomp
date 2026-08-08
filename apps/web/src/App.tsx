@@ -58,19 +58,25 @@ export function App() {
   // screen while every route sat behind the session — which is the one moment
   // the page exists for, and the one moment it could not be read.
   if (!token) {
-    return location.pathname === "/words" ? (
-      <div id="app">
-        <main id="screen">
-          <div className="wrap" id="view">
-            <Words />
-            <p className="rest mono" style={{ marginTop: 18 }}>
-              <a href="#/login">← back to signing in</a>
-            </p>
-          </div>
-        </main>
-      </div>
-    ) : (
-      <Login />
+    // The same reading column the rest of the app uses, minus `#app` — its
+    // `grid-template-columns:auto 1fr` is there to seat the rail, and with no
+    // rail to seat, the lone `#screen` lands in the `auto` track and shrinks to
+    // its own content instead of filling the page.
+    return (
+      <main id="screen">
+        <div className="wrap" id="view">
+          {location.pathname === "/words" ? (
+            <>
+              <Words />
+              <p className="rest mono" style={{ marginTop: 18 }}>
+                <a href="#/login">← back to signing in</a>
+              </p>
+            </>
+          ) : (
+            <Login />
+          )}
+        </div>
+      </main>
     );
   }
 

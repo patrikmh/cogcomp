@@ -29,8 +29,14 @@ week, experiments, agents, search, settings, first, pattern, talk    0
 journal, node, words                                                 1   script hook only
 explore                                                              1   deliberate
 graph                                                                7   deliberate
+login                                                               13   rail + deliberate
 identity, patterns, today                                            5-6 data
 ```
+
+Login's thirteen are mostly one thing: the design has no auth, so its rail is on
+every route including this one. A signed-out person gets no rail here, and the
+chrome skips `#app` with it — that grid exists to seat the rail, and a lone
+`#screen` in its `auto` track shrinks to its own content.
 
 The deliberate ones, so they are not re-litigated:
 
@@ -40,6 +46,11 @@ The deliberate ones, so they are not re-litigated:
   on its label. Identical to look at, more of it clickable.
 - **experiment** check-in rows are rows with linked words, not links, because a
   running trial puts a button on that row and a button cannot sit inside a link.
+- **login** keeps SIGN IN and CREATE AN ACCOUNT where the design has one
+  CONTINUE, and says twelve characters where the design says eight, because
+  `MIN_PASSWORD_LENGTH` is twelve. One button has to guess which you meant, and
+  guessing wrong on a mistyped address makes a second empty account instead of
+  saying the password was wrong.
 - **reduced motion** covers Patterns and Experiments here and does not in the
   design. Its rules reach `.scr` and the journal; `.p-row` and `.x-row` sit
   outside both, so with the setting on, the design still scales forty bars and

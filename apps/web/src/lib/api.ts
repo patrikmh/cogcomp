@@ -43,11 +43,17 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = { ...(init.headers as Record<string, string>) };
   // FormData sets its own multipart boundary; naming a content type breaks it.
   if (!(init.body instanceof FormData)) headers["Content-Type"] = "application/json";
-  if (token) headers.Authorization = `Bearer ${token}`;
+  const sent = token;
+  if (sent) headers.Authorization = `Bearer ${sent}`;
 
   const response = await fetch(`${BASE}${path}`, { ...init, headers });
 
-  if (response.status === 401) {
+  // Only a request that carried a token can have lost a session. Signing in
+  // with the wrong password is a 401 too, and this branch used to treat it as
+  // one: it cleared a token that was never there, fired the session-lost
+  // handler, and replaced the server's "invalid email or password" with the
+  // status line's own word for it, which named neither field.
+  if (response.status === 401 && sent) {
     // A token the server has forgotten leaves you inside the app with every
     // screen showing its own unrelated error. Clear it once, here.
     setToken(null);
