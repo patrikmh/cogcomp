@@ -159,3 +159,28 @@ state would have:
 Identity's shape diff is now one line, and it is the `id="idCap"` the design's
 imperative caption needs and React state replaces — a script hook, like the
 journal's.
+
+## The other client
+
+`tokens.py` checks the palette across three sources — the design's `:root`,
+`packages/design/tokens.css` which the web client imports, and `tokens.ts` which
+the mobile client imports. Fourteen values, three sources, no disagreement.
+`stylesheet.py` exempts `:root` on the grounds that it was "checked separately",
+and separately meant once, by hand, which is not a check but a memory of having
+looked.
+
+The palette agrees. The mobile client largely does not use it. `theme.ts` reads
+the shared tokens and maps them onto its own names, and then **177 colour
+literals across 13 files bypass it** — 42 distinct values, most of them the old
+palette: `#a09db4` and `#f1f0f8` for ink, `#08080c` and `#12121c` for ground,
+against the design's `#eef1ec` on `#0a0d0c`. So "both clients take the design
+from one source" is true of the file that names the colours and false of the
+screens that draw them.
+
+One of those is not stale hexes but a different idea. `Constellation.tsx` gives
+each of the eleven node kinds its own colour — Thought cyan, Emotion pink, Need
+amber. The design has no per-kind colour map anywhere, and the web client
+colours a graph node by what is *known* about it: `kept` when confident, a
+`sand` outline when tentative. Colour in this design marks live, kept, pattern
+or wrong — never taxonomy. Reconciling that is a design decision, not a
+find-and-replace, so it is written down here rather than guessed at.
