@@ -36,18 +36,32 @@ Stylesheet and typography are exact: 313 selectors and 26 font declarations,
 nothing on either side the other lacks. `:root` lives in `packages/design` and
 its fourteen values were checked separately.
 
-Shape, across every route, with script hooks excluded:
+Shape now reports structure and ids apart. Nearly every id in the design is a
+handle for its own imperative JS — `#wpeek`, `#qcount`, `#newx`, `#capState` —
+and React replaces those with state, so counting them as structural differences
+buried the real ones. Settings read as four differences when its tree is
+identical to the design's, and the one difference that mattered on graph read as
+the same size as three id hooks beside it.
 
 ```
-week, experiments, agents, search, settings, first, pattern, talk    0
-journal, node, words                                                 1   script hook only
-explore                                                              1   deliberate
-graph                                                                7   deliberate
-login                                                               13   rail + deliberate
-identity                                                             1   script hook only
-patterns                                                             0   with an ordering present
-today                                                                7   data (no entry written today)
+route                        structure   ids
+agents, first, words                 0     0
+journal, week, experiments           0     1
+search                               0     2
+settings                             1     3   knob is a button here
+explore                              1     0   deliberate
+graph                               10     0   deliberate, all of it
+login                                –     –   rail; see below
+patterns                             5     0   data — 0 with an ordering present
+identity                             4     1   data — 0 on an account holding all four ring states
+today                                7     0   data — no entry written today
+talk                                 5     8   before the conversation is begun
 ```
+
+Graph's ten are two element swaps and nothing else: nine `div.card` → `a.card`,
+one `span.pill` → `button.pill`. Both are the same decision as settings' knob —
+where the design shows a thing, this app makes the thing itself the control, so
+it can be reached with a keyboard.
 
 Login's thirteen are mostly one thing: the design has no auth, so its rail is on
 every route including this one. A signed-out person gets no rail here, and the
@@ -67,6 +81,12 @@ The deliberate ones, so they are not re-litigated:
   `MIN_PASSWORD_LENGTH` is twelve. One button has to guess which you meant, and
   guessing wrong on a mistyped address makes a second empty account instead of
   saying the password was wrong.
+- **tentative graph cards** carry a line under them saying why they are dashed,
+  as the design does. The design's says `hrön · unobserved 34 days — growing
+  vague`, which belongs to a model where a reading decays as it goes unseen.
+  This backend has no such model: `tentative` is confidence below 0.5 and
+  nothing else. The line stays, with the reason that is true here. Fabricating a
+  day count would have matched the design exactly and said something false.
 - **reduced motion** covers Patterns and Experiments here and does not in the
   design. Its rules reach `.scr` and the journal; `.p-row` and `.x-row` sit
   outside both, so with the setting on, the design still scales forty bars and

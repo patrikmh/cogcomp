@@ -167,6 +167,17 @@ export function Graph() {
                 {n.cites_entries ?? 0} {n.cites_entries === 1 ? "entry" : "entries"}
               </span>
             </div>
+            {/* The design puts a line under a dashed card saying why it is
+                dashed — "unobserved 34 days — growing vague". That phrasing
+                belongs to a model where a reading decays as it goes unseen, and
+                this one does not have it: `tentative` here is confidence below
+                0.5, full stop. So the line stays and the reason is the true
+                one. A card that looks uncertain should say what makes it so. */}
+            {n.tentative && (
+              <div className="mono" style={{ marginTop: 8, color: "var(--faint)" }}>
+                below half — held as tentative, not as knowledge
+              </div>
+            )}
           </Link>
         ))}
       </div>
