@@ -44,7 +44,9 @@ journal, node, words                                                 1   script 
 explore                                                              1   deliberate
 graph                                                                7   deliberate
 login                                                               13   rail + deliberate
-identity, patterns, today                                            5-6 data
+identity                                                             1   script hook only
+patterns                                                             0   with an ordering present
+today                                                                7   data (no entry written today)
 ```
 
 Login's thirteen are mostly one thing: the design has no auth, so its rail is on
@@ -94,5 +96,24 @@ existed in the database when this was written. On one of them the app shows
 bar measures identically to the design's — same fill, height, width, opacity and
 cell.
 
-That leaves one: a tentative finding with nothing drawn from it. Given the
-record above, treat it as untested rather than unreachable.
+The identity states were the last, and they were reachable too — on a fixture
+account, by keeping one candidate. All five ring variants render there: kept,
+offered, tentative, tombstone and the core. Every one matches the design on
+stroke, width and opacity.
+
+Looking at them found two divergences that no amount of measuring the default
+state would have:
+
+- **Offered rings were drawn with one loop, not two.** The design's rule is
+  `gone || tentative ? 1 : 2` — detail stands for how sure the *reading* is.
+  This app gave the second loop only to readings the person had kept, so a
+  confidently offered one was drawn as faintly as a doubtful one: the picture
+  said "you have not answered this yet" using the mark that means "the record is
+  unsure".
+- **The core was drawn on with the same stroke animation as the readings.** The
+  design excludes it (`.id-ring:not(.id-core)`) and leaves you already there
+  while the readings accumulate around you. That is the right way round.
+
+Identity's shape diff is now one line, and it is the `id="idCap"` the design's
+imperative caption needs and React state replaces — a script hook, like the
+journal's.

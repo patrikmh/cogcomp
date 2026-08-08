@@ -29,6 +29,16 @@ export interface Ring {
   evidence?: string;
 }
 
+/** How many loops a ring is drawn with — detail is confidence, made visible.
+ *
+ *  Two unless the reading is tentative or removed. This used to give the second
+ *  loop only to *kept* readings, so a confidently offered one was drawn as
+ *  faintly as a doubtful one. The rule is about how sure the reading is, not
+ *  about whether you have answered it yet. */
+export function loopsOf(ring: Pick<Ring, "tentative" | "removed">): number[] {
+  return !ring.tentative && !ring.removed ? [0, 1] : [0];
+}
+
 export function IdentityComposition({
   rings,
   onHover,
@@ -47,7 +57,13 @@ export function IdentityComposition({
     const svg = composition.current;
     if (!svg) return;
     const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const paths = Array.from(svg.querySelectorAll<SVGPathElement>(".id-path"));
+    // Not the core. The design strokes the readings on and leaves you already
+    // drawn, which is the right way round: the readings accumulate around a
+    // person who was there first. Animating the core too made the self arrive
+    // on the same terms as an observation about it.
+    const paths = Array.from(
+      svg.querySelectorAll<SVGPathElement>(".id-ring:not(.id-core) .id-path"),
+    );
 
     if (reduced) {
       paths.forEach((path) => {
@@ -109,9 +125,7 @@ export function IdentityComposition({
             role="button"
             aria-label={`${ring.label}, ${ring.kind.toLowerCase()}`}
           >
-            {/* Kept readings are drawn with two loops, tentative and removed
-                ones with one — detail is confidence, made visible. */}
-            {(ring.kept && !ring.tentative && !ring.removed ? [0, 1] : [0]).map((k) => (
+            {loopsOf(ring).map((k) => (
               <path
                 key={k}
                 className="id-path"
