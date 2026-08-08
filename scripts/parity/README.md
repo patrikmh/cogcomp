@@ -40,6 +40,13 @@ The deliberate ones, so they are not re-litigated:
   on its label. Identical to look at, more of it clickable.
 - **experiment** check-in rows are rows with linked words, not links, because a
   running trial puts a button on that row and a button cannot sit inside a link.
+- **reduced motion** covers Patterns and Experiments here and does not in the
+  design. Its rules reach `.scr` and the journal; `.p-row` and `.x-row` sit
+  outside both, so with the setting on, the design still scales forty bars and
+  pops six seals on Patterns alone. Checked side by side: under `reduce` the
+  design reports `pBar, pSeal` and this app reports nothing. Reduced motion is
+  not a preference about taste — it is what someone with vestibular trouble sets
+  so software does not make them ill — so this one stays diverged.
 
 The data ones need states this account cannot produce: an identity ring that is
 *kept* rather than offered, a tentative finding with nothing drawn from it, a
