@@ -162,15 +162,19 @@ function Arc({
   look: string;
   big?: boolean;
 }) {
-  // The arc's shape is deterministic per experiment — illustrative of density
-  // rather than a claim about which specific days were checked in on, which the
-  // caption says out loud.
-  const rnd = seed(experiment.id);
-  const density = checkins / Math.max(1, experiment.duration_days);
+  // Exactly as many lit cells as there are check-ins, placed deterministically.
+  //
+  // This used to light each cell with probability `checkins / duration`, which
+  // meant the strip showed a number of check-ins that was merely likely — one
+  // check-in across fourteen days lit nothing at all, so a person who had come
+  // back to their own experiment saw an empty arc and the words "1 of 14"
+  // beside it. Which days are lit is still illustrative, and the caption says
+  // so; how many are lit is now a fact.
+  const lit = litCells(experiment.id, experiment.duration_days, checkins, experiment.state);
   return (
     <div className={`x-strip ${look}${big ? " big" : ""}`}>
       {Array.from({ length: experiment.duration_days }, (_, i) => {
-        const on = experiment.state !== "draft" && rnd() < density;
+        const on = lit.has(i);
         return (
           <div key={i} className={`x-cell${on ? " on" : ""}`}>
             <span className="x-bar" style={on ? { animationDelay: `${i * 24}ms` } : undefined} />
@@ -414,4 +418,22 @@ export function ExperimentDetail() {
       )}
     </>
   );
+}
+
+/**
+ * Which days of an arc are lit, and how many.
+ *
+ * Which days is illustrative and the caption says so; how many is a fact, and
+ * sits beside "6 of 14 check-ins" where anyone can compare the two.
+ */
+export function litCells(
+  id: string,
+  duration: number,
+  checkins: number,
+  state: string,
+): Set<number> {
+  if (state === "draft") return new Set();
+  const rnd = seed(id);
+  const order = Array.from({ length: duration }, (_, i) => i).sort(() => rnd() - 0.5);
+  return new Set(order.slice(0, Math.min(checkins, duration)));
 }
