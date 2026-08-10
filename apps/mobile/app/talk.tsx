@@ -25,7 +25,7 @@ import { useSpokenReply } from "@/lib/useSpokenReply";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
 import { colors } from "@/theme";
-import { radii } from "@tlon/design";
+import { radii, type as scale } from "@tlon/design";
 
 const LazyBlob = lazySkia(() => import("@/components/Blob"));
 
@@ -163,6 +163,15 @@ export default function TalkScreen() {
     const timer = setTimeout(() => setJustReplied(false), 2600);
     return () => clearTimeout(timer);
   }, [justReplied]);
+
+  // Crisis resources are rendered in the thread, and focus mode — the default —
+  // strips the thread away. So a reply the server flagged as crisis set the
+  // state and put nothing on screen. Leave focus whenever they appear, however
+  // they were reached: the one thing on this screen that must never be missed
+  // was the one thing the default view could not show.
+  useEffect(() => {
+    if (crisis !== null) setFocus(false);
+  }, [crisis]);
 
   if (!token) return null;
 
@@ -346,6 +355,23 @@ export default function TalkScreen() {
               {finish.isPending ? "Saving…" : "Finish & save"}
             </Text>
           </MotionSurface>
+          {/* The design puts this on the talk screen and the web client has it;
+              this client only ever showed crisis resources when the server
+              flagged the reply. That means a person had to be *detected* to
+              reach them. Asking is not a worse signal than being detected, and
+              it is the one the person controls. Stops the loop too: leaving
+              stops on someone's say-so, not only on the model's judgement. */}
+          <MotionSurface
+            style={styles.urgent}
+            onPress={() => {
+              if (live.state !== "off") live.stop();
+              setCrisis(crisis ?? []);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Urgent — show crisis resources and stop"
+          >
+            <Text style={styles.urgentLabel}>Urgent</Text>
+          </MotionSurface>
         </View>
 
         {conversationId && (
@@ -506,6 +532,15 @@ const styles = StyleSheet.create({
   finishFocus: { borderColor: colors.inkSoft },
   finishLabel: { color: colors.ink, fontWeight: "600", fontSize: 16 },
   finishLabelFocus: { color: colors.ink },
+  // Quiet, like the design's `.talk-corner`: reachable without shouting, and
+  // never competing with the thing someone came here to do.
+  urgent: { justifyContent: "center", paddingVertical: 12, paddingHorizontal: 4 },
+  urgentLabel: {
+    color: colors.inkMuted,
+    fontSize: scale.kicker.size,
+    letterSpacing: scale.kicker.tracking,
+    textTransform: "uppercase",
+  },
   disabled: { opacity: 0.35 },
   error: { color: colors.danger, fontSize: 13 },
   footnote: { fontSize: 11, color: colors.inkMuted, textAlign: "center" },

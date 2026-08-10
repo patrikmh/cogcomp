@@ -278,3 +278,21 @@ Still missing on mobile: `/words`, `/first` and `/search` have no mobile route.
 `/words` is the page the whole disclosure hangs off — on web the login screen
 links to it, and it was worth unblocking the auth gate for. Adding a screen is
 not a sweep, so it is written down here rather than done.
+
+The same comparison on `/talk` found the design's `urgent` control missing from
+mobile. The design has it — `<button class="talk-corner" id="crisis">urgent</button>`,
+revealing a box of services — and the web client implements it: it stops the
+loop, stops anything being spoken, and shows the resources, because leaving
+should happen on the person's say-so and not only on the model's judgement.
+
+The mobile client showed crisis resources only when the server flagged a reply,
+so a person had to be *detected* to reach them. Asking is not a worse signal
+than being detected, and it is the one the person controls. That control is
+there now.
+
+Adding it uncovered something older and worse. The resources are rendered inside
+the thread, and focus mode — which is the default on that screen — strips the
+thread away. So a reply the server flagged as crisis set the state and put
+nothing on screen at all. The one thing on that screen that must never be missed
+was the one thing the default view could not show. Focus is now left whenever
+the resources appear, however they were reached.
