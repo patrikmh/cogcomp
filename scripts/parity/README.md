@@ -16,12 +16,19 @@ diffs them per route. `DETAIL=1` prints the differing lines instead of counting
 them, and `ROUTES="patterns identity"` narrows it. A count says a route is worth
 looking at; it never says what to do.
 
-It waits for each route to stop changing rather than for a number of seconds,
-and starts every route from clean files. Both of those are the point of the
+It loads the bundle fresh once before starting, waits for each route to stop
+changing rather than for a number of seconds, and starts every route from clean
+files. Both of those are the point of the
 script and not incidental: as ad-hoc shell it produced three false readings in
 one pass — a route measured mid-load, a baseline left over from the previous
 route, and a screen that had been navigated elsewhere before capture. All three
 looked exactly like app faults, and one of them cost an iteration.
+
+A fourth turned up the next run and is the reason for the reload. Every route
+after the first is a hash change, and a hash change does not re-execute
+modules — so a sweep run after any source edit measures the code as it was when
+the tab was opened. It reported a pattern with no second-side bar. The pattern
+had one; the tab was three commits old.
 
 `shape.js` and `copy.js` are evaluated in the browser against both the design
 (served over http, since its module script will not run from `file://`) and the
@@ -72,20 +79,30 @@ identical to the design's, and the one difference that mattered on graph read as
 the same size as three id hooks beside it.
 
 ```
+On an account whose data reaches the states — an ordering, a tension pattern,
+all four ring variants:
+
+```
 route                        structure   ids
 agents, first, words                 0     0
+patterns, identity                   0    0-1
 journal, week, experiments           0     1
 search                               0     2
 settings                             1     3   knob is a button here
 explore                              1     0   deliberate
 graph                               10     0   deliberate, all of it
 login                                –     –   rail; see below
-patterns                             5     0   data — 0 with an ordering present
-identity                             4     1   data — 0 on an account holding all four ring states
-today                            7-44     0   data — scales with how empty the day is
+today                            27-44     0   data — how full the day is
+week                              6-13     1   data — how much was written that week
 talk                                 5     8   before the conversation is begun
-week                              0-13     1   data — 0 on a week with writing in it
 ```
+
+Today's remainder is instance count and nothing else. The design's day holds two
+acts and six readings where a real one held one act and none; the elements are
+the same and in the same order — `div.row`, `p.sub`, `div.t-sum`, `div.t-sec`,
+`div.j-entry.latest` … `a.t-circle` on both. On a day with readings the rows
+match exactly: same children in the same order, same padding, border, meter at
+180×3 and seal at 34px.
 
 Graph's ten are two element swaps and nothing else: nine `div.card` → `a.card`,
 one `span.pill` → `button.pill`. Both are the same decision as settings' knob —

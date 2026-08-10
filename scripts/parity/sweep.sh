@@ -49,6 +49,18 @@ capture() {  # session, script, outfile
     grep -v '^###\|^- Page\|^$' > "$3"
 }
 
+# Load the bundle fresh once. Every route after this is a hash change, and a
+# hash change does not re-execute modules — so a sweep run after any source edit
+# measures the code as it was when the tab was opened. That read as a missing
+# second-side bar on a pattern that had one, which is indistinguishable from the
+# app having lost it.
+playwright-cli -s=verify goto "$APP/#/" >/dev/null 2>&1
+playwright-cli -s=verify reload >/dev/null 2>&1
+settle verify || true
+playwright-cli -s=pstyle goto "$DESIGN#/" >/dev/null 2>&1
+playwright-cli -s=pstyle reload >/dev/null 2>&1
+settle pstyle || true
+
 printf '%-12s %10s %5s %5s\n' route structure ids copy
 for route in "${ROUTES[@]}"; do
   # Fresh files per route: a stale baseline reads as a perfect score on one
