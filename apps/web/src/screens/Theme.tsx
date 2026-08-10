@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 
 import { Failed, Loading } from "@/components/States";
 import { api } from "@/lib/api";
-import { fmt } from "@/lib/format";
+import { dateOf, fmt } from "@/lib/format";
 
 /**
  * A region of a life, opened.
@@ -85,8 +85,8 @@ export function Theme() {
         <p className="mono" style={{ margin: 0 }}>
           associated across {region.associations.length}{" "}
           {region.associations.length === 1 ? "pair" : "pairs"} · held since{" "}
-          {new Date(region.first_seen_at).toLocaleDateString()} · last confirmed{" "}
-          {new Date(region.last_confirmed_at).toLocaleDateString()}
+          {dateOf(region.first_seen_at)} · last confirmed{" "}
+          {dateOf(region.last_confirmed_at)}
         </p>
       </div>
 

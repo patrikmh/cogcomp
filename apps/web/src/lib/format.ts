@@ -106,3 +106,16 @@ function shortDayOf(iso: string) {
 export function stampOf(iso: string) {
   return `${shortDayOf(iso)} · ${clockOf(iso)}`;
 }
+
+/**
+ * A plain calendar date, for things older than a day or two — when a finding
+ * was first seen, when a region was last confirmed.
+ *
+ * The design writes these as `28 Jan`. Three places were calling
+ * `toLocaleDateString()` with no options at all, which is the locale's numeric
+ * form: `2026-08-10` here, `8/10/2026` in a US browser, and neither of them the
+ * written-out date every other date in the app uses.
+ */
+export function dateOf(iso: string) {
+  return new Date(iso).toLocaleDateString([], { day: "numeric", month: "short" });
+}

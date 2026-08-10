@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { Meter } from "@/components/Meter";
 import { Empty, Failed, Loading } from "@/components/States";
 import { api, type Pattern } from "@/lib/api";
-import { DETECTOR_LABEL, deviceTimezone, fmt } from "@/lib/format";
+import { DETECTOR_LABEL, dateOf, deviceTimezone, fmt } from "@/lib/format";
 import { Seal } from "@/lib/seal";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
@@ -133,7 +133,7 @@ export function Patterns() {
                 <b>{t.label}</b>
                 <span className="mono">
                   {t.member_count} things · held since{" "}
-                  {new Date(t.first_seen_at).toLocaleDateString()}
+                  {dateOf(t.first_seen_at)}
                 </span>
               </span>
             </Link>

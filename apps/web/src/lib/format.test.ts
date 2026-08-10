@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { localDay, mondayOf, shiftDay, stampOf } from "./format";
+import { dateOf, localDay, mondayOf, shiftDay, stampOf } from "./format";
 
 /**
  * Dates, in the timezone the person is standing in.
@@ -81,5 +81,28 @@ describe("stampOf", () => {
     old.setDate(old.getDate() - 40);
     // Not "Today", not a weekday on its own — a date you can place.
     expect(stampOf(old.toISOString())).not.toMatch(/^Today/);
+  });
+});
+
+/**
+ * A plain calendar date.
+ *
+ * Three screens were calling `toLocaleDateString()` with no options, which is
+ * the locale's numeric form — `2026-08-10` in a Swedish browser, `8/10/2026` in
+ * an American one — beside written-out dates everywhere else in the app. The
+ * design writes them `28 Jan`.
+ */
+describe("dateOf", () => {
+  it("writes the month rather than numbering it", () => {
+    expect(dateOf("2026-01-28T09:50:00Z")).not.toMatch(/^\d+[/-]\d+/);
+    expect(dateOf("2026-01-28T09:50:00Z")).toMatch(/\d/);
+  });
+
+  it("carries no year, because these sit in a sentence about now", () => {
+    expect(dateOf("2026-01-28T09:50:00Z")).not.toContain("2026");
+  });
+
+  it("gives different days different dates", () => {
+    expect(dateOf("2026-01-28T09:50:00Z")).not.toBe(dateOf("2026-02-11T09:50:00Z"));
   });
 });

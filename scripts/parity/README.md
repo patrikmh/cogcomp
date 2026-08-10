@@ -71,8 +71,9 @@ graph                               10     0   deliberate, all of it
 login                                –     –   rail; see below
 patterns                             5     0   data — 0 with an ordering present
 identity                             4     1   data — 0 on an account holding all four ring states
-today                                7     0   data — no entry written today
+today                            7-44     0   data — scales with how empty the day is
 talk                                 5     8   before the conversation is begun
+week                              0-13     1   data — 0 on a week with writing in it
 ```
 
 Graph's ten are two element swaps and nothing else: nine `div.card` → `a.card`,
