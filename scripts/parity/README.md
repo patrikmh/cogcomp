@@ -8,9 +8,20 @@ python3 scripts/parity/stylesheet.py '<design>/tlon.html'   # every rule, every 
 python3 scripts/parity/typography.py '<design>/tlon.html'   # every font declaration
 python3 scripts/parity/tokens.py '<design>/tlon.html'       # the palette, design against both clients
 python3 scripts/parity/states.py '<design>/tlon.html'       # every hover/focus rule, and whether it can fire
-node   scripts/parity/shape.js                              # run in the page; see below
-node   scripts/parity/copy.js                               # likewise
+scripts/parity/sweep.sh '<design>/tlon.html'                 # shape + copy, every route, both sides
 ```
+
+`sweep.sh` drives `shape.js` and `copy.js` against the app and the design and
+diffs them per route. `DETAIL=1` prints the differing lines instead of counting
+them, and `ROUTES="patterns identity"` narrows it. A count says a route is worth
+looking at; it never says what to do.
+
+It waits for each route to stop changing rather than for a number of seconds,
+and starts every route from clean files. Both of those are the point of the
+script and not incidental: as ad-hoc shell it produced three false readings in
+one pass — a route measured mid-load, a baseline left over from the previous
+route, and a screen that had been navigated elsewhere before capture. All three
+looked exactly like app faults, and one of them cost an iteration.
 
 `shape.js` and `copy.js` are evaluated in the browser against both the design
 (served over http, since its module script will not run from `file://`) and the
