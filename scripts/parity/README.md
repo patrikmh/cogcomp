@@ -296,3 +296,31 @@ thread away. So a reply the server flagged as crisis set the state and put
 nothing on screen at all. The one thing on that screen that must never be missed
 was the one thing the default view could not show. Focus is now left whenever
 the resources appear, however they were reached.
+
+### The prose check could not see prose
+
+`copy.js` carried a list of carriers — headings, kickers, buttons, captions —
+and no `p`. So on `/words`, a page that is almost entirely paragraphs inside
+cards, it compared the kicker, the heading, one button and the rail, reported
+clean, and had not looked at a word of what the page is for. `p`, `li` and `h3`
+are carriers now.
+
+With them, five design paragraphs on that page were not in the app. Four are
+said in the app's own words rather than the mock's, and one is deliberate:
+
+- **"You can export everything, and delete everything."** Export exists. Delete
+  does not — the control ships disabled with an honest note, and there is no
+  `DELETE /v1/auth/account`. Copying this sentence to close the diff would make
+  the page state something untrue, which is the opposite of what the page is
+  for. It stays out until the endpoint exists.
+- **audio, the model, and what a reading is** are all covered, in longer and
+  more specific wording than the mock's.
+
+The fifth was a real omission and is now fixed. The design says background
+agents read your entries on a schedule and lists every run; this page said
+nothing about them. Agents are the one thing in this app that happens while
+nobody is looking, so it was the last thing that should have been left out.
+
+The check compares strings, so a paraphrase still reports as a difference. That
+is the right trade — the alternative is copying the mock's sentences exactly,
+and one of them is false here.

@@ -37,6 +37,18 @@ export function Words() {
           database and never becomes part of your record — only the transcript is kept.
         </p>
       </div>
+      {/* The design discloses this and this page did not. Agents read entries
+          on a schedule without anyone pressing anything, which is the one thing
+          here that happens while you are not looking — so it is the last thing
+          that should have been left out. */}
+      <div className="card">
+        <p>
+          Background agents read your entries on a schedule to look for shape across time. Nothing
+          about that is hidden: every run is listed in{" "}
+          <Link to="/agents">Agent activity</Link>, including the ones that looked and found
+          nothing.
+        </p>
+      </div>
       <div className="card">
         <p>
           Nothing is ever diagnosed, scored, or ranked against other people. The app reports counts
