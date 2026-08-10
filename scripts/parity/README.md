@@ -324,3 +324,30 @@ nobody is looking, so it was the last thing that should have been left out.
 The check compares strings, so a paraphrase still reports as a difference. That
 is the right trade — the alternative is copying the mock's sentences exactly,
 and one of them is false here.
+
+### Sentences, not elements — and where the check bottoms out
+
+Widening the carriers exposed a second problem: the check compared whole
+elements, so packaging read as missing content. The design puts "Every node
+opens to its evidence." on its own where the app prefixes it with "Hover a point
+to name it."; the settings and identity notes are split differently again. All
+three reported as absent copy while all three were present. It compares
+sentences now, and explore went to zero on the spot.
+
+What that leaves on `/words` is eight lines, and none of them is missing
+content:
+
+- **seven are paraphrase.** The app says the same things at more length — "A
+  spoken entry is transcribed and the audio is then discarded" against the
+  mock's "Audio is transcribed and then discarded. The transcript is the entry."
+- **one is the deliberate omission**, "You can export everything, and delete
+  everything", which stays out until the endpoint exists.
+
+One real gap did surface and is fixed: the design says a reading is a quality
+and never a noun hung on you. The app made that claim only on Identity, which
+you reach *after* writing. It is the thing most worth knowing before.
+
+`/identity`'s last line is the noise floor of a string comparison: the design
+writes "tombstone so the record", the app "tombstone, so the record". A comma.
+Chasing these to zero would mean copying the mock's punctuation, and one of its
+sentences is false here — so zero is not the target and never was.

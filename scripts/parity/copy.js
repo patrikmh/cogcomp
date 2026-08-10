@@ -21,7 +21,16 @@
     // talking, not the design.
     const digits = (text.match(/\d/g) || []).length;
     if (digits > text.length / 6) continue;
-    out.push(text);
+    // Compared as sentences, not as elements. The design puts "Every node opens
+    // to its evidence." on its own where the app prefixes it with "Hover a
+    // point to name it.", and packages the identity and settings notes
+    // differently again — all three reported as missing copy when all three
+    // were present, because an element-sized comparison cannot see that one
+    // side merged two sentences the other kept apart.
+    for (const sentence of text.split(/(?<=[.?!])\s+(?=[A-Z“"])/)) {
+      const line = sentence.trim();
+      if (line.length >= 12) out.push(line);
+    }
   }
   return [...new Set(out)].sort().join("\n");
 }

@@ -49,6 +49,17 @@ export function Words() {
           nothing.
         </p>
       </div>
+      {/* The design makes this claim here and the app only made it on Identity,
+          which you reach after writing rather than before. It is the thing most
+          worth knowing in advance: a reading is a quality the record noticed,
+          not a label it is putting on you. */}
+      <div className="card">
+        <p>
+          A reading is a quality — “rest”, “the water” — never a noun hung on you. Nothing here
+          gets to name you: the app shows what it has noticed and leaves the rest visible but
+          unclaimed.
+        </p>
+      </div>
       <div className="card">
         <p>
           Nothing is ever diagnosed, scored, or ranked against other people. The app reports counts
