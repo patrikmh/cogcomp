@@ -14,6 +14,7 @@ import { MotionSurface } from "@/components/MotionSurface";
 import { api, type Explanation, type Judgement } from "@/lib/api";
 import { useSession } from "@/state/session";
 import { colors } from "@/theme";
+import { radii } from "@tlon/design";
 
 /**
  * "Why do you think this?"
@@ -320,7 +321,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
     borderWidth: 1,
     borderColor: colors.line,
-    borderRadius: 12,
+    borderRadius: radii.surface,
     padding: 12,
     gap: 6,
   },

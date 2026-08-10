@@ -16,6 +16,7 @@ import { AtmosphericShell } from "@/components/Atmospheric";
 import { ApiError, api } from "@/lib/api";
 import { colors } from "@/theme";
 import { useSession } from "@/state/session";
+import { radii } from "@tlon/design";
 
 const MIN_PASSWORD_LENGTH = 12;
 
@@ -167,13 +168,13 @@ const styles = StyleSheet.create({
     color: colors.ink,
     borderWidth: 1,
     borderColor: colors.lineStrong,
-    borderRadius: 12,
+    borderRadius: radii.surface,
     padding: 14,
     fontSize: 16,
   },
   button: {
     backgroundColor: colors.violet,
-    borderRadius: 12,
+    borderRadius: radii.surface,
     paddingVertical: 14,
     alignItems: "center",
     marginTop: 4,

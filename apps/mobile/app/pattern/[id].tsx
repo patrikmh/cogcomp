@@ -8,6 +8,7 @@ import { ErrorLens, LoadingLens } from "@/components/SpatialField";
 import { api, type Occasion, type Ordering, type Written } from "@/lib/api";
 import { useSession } from "@/state/session";
 import { colors } from "@/theme";
+import { radii } from "@tlon/design";
 
 /**
  * "You wrote this, and then a day later you wrote that."
@@ -137,7 +138,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
-    borderRadius: 12,
+    borderRadius: radii.surface,
     padding: 12,
     gap: 8,
     marginTop: 6,

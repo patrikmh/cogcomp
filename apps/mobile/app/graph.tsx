@@ -15,6 +15,8 @@ import { InferenceLens, MetricBeacon, FieldFrame, LoadingLens, ErrorLens, EmptyL
 import { api, type GraphNode, type Subgraph } from "@/lib/api";
 import { useSession } from "@/state/session";
 import { colors } from "@/theme";
+import { radii } from "@tlon/design";
+import { type as scale } from "@tlon/design";
 
 /**
  * The dashboard: what is in the graph, and a way into any of it.
@@ -176,7 +178,7 @@ const styles = StyleSheet.create({
   screen: { backgroundColor: colors.room, padding: 20, gap: 14, paddingBottom: 44 },
   instrumentHeader: { gap: 6, paddingVertical: 8 },
   kicker: { color: colors.cyan, fontSize: 11, fontWeight: "700", letterSpacing: 1.8 },
-  title: { color: colors.ink, fontSize: 28, fontWeight: "700", letterSpacing: -0.7 },
+  title: { color: colors.ink, fontSize: scale.title.size, fontWeight: "700", letterSpacing: -0.7 },
   intro: { color: colors.inkSoft, fontSize: 14, lineHeight: 20 },
   stats: { flexDirection: "row", gap: 12 },
   stat: {
@@ -184,7 +186,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
-    borderRadius: 12,
+    borderRadius: radii.surface,
     padding: 12,
     alignItems: "center",
     gap: 2,
@@ -195,7 +197,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     backgroundColor: colors.surfaceBright,
     borderColor: colors.ink,
-    borderRadius: 12,
+    borderRadius: radii.surface,
     paddingVertical: 12,
     alignItems: "center",
   },
@@ -226,7 +228,7 @@ const styles = StyleSheet.create({
 
     borderWidth: 1,
     borderColor: colors.line,
-    borderRadius: 12,
+    borderRadius: radii.surface,
     padding: 12,
     gap: 4,
   },

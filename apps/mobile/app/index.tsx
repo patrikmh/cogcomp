@@ -18,6 +18,7 @@ import { uuidv7 } from "@/lib/ids";
 import { lazySkia } from "@/lib/lazySkia";
 import { useSession } from "@/state/session";
 import { colors } from "@/theme";
+import { radii } from "@tlon/design";
 
 const LazyConstellation = lazySkia(() => import("@/components/Constellation"));
 
@@ -285,7 +286,7 @@ const styles = StyleSheet.create({
     borderTopColor: colors.line,
     borderRightColor: colors.line,
     borderBottomColor: colors.line,
-    borderRadius: 4,
+    borderRadius: radii.surface,
     color: colors.ink,
     paddingHorizontal: 16,
     paddingVertical: 14,

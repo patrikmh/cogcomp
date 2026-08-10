@@ -8,6 +8,7 @@ import { ErrorLens, LoadingLens } from "@/components/SpatialField";
 import { api, type ThemeDetail, type ThemeMember } from "@/lib/api";
 import { useSession } from "@/state/session";
 import { colors } from "@/theme";
+import { radii } from "@tlon/design";
 
 /**
  * A region of a life, opened.
@@ -167,7 +168,7 @@ const styles = StyleSheet.create({
     marginTop: 18,
     borderWidth: 1,
     borderColor: colors.line,
-    borderRadius: 12,
+    borderRadius: radii.surface,
     padding: 12,
     gap: 6,
   },

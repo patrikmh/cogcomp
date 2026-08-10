@@ -196,3 +196,30 @@ colours a graph node by what is *known* about it: `kept` when confident, a
 `sand` outline when tentative. Colour in this design marks live, kept, pattern
 or wrong — never taxonomy. Reconciling that is a design decision, not a
 find-and-replace, so it is written down here rather than guessed at.
+
+### Radii and the type scale
+
+`tokens.ts` exports `radii` and `type` beside `colors`, and the mobile client
+imported only `colors`. The radii it used instead were 12, 14 and 10 on inputs,
+buttons, cards and bubbles — against the package's own note, which says 3px on
+anything that holds content, 2px on chips, full round only on switches, and
+"nothing here is a soft card". Eighteen soft cards.
+
+Swept: 10, 12 and 14 are container radii only — circles use half their own width
+(4, 5, 7, 11, 13) — so the swap was unambiguous. The running app now reports two
+radii and no others, `3px` and `999px`, which is the rule stated exactly.
+
+`theme.ts` had the 3px right already, as a literal that happened to agree. It
+reads `radii` and `type` from the package now: a value that is right by
+coincidence is not shared, it is duplicated.
+
+Three screens defined `title` at 28 where the scale says 25 — a named role
+contradicting its own definition — and now use it.
+
+**Left for a decision.** The rest of the type is a four-step ramp the design does
+not have: 15, 14, 13 and 10, carrying body text, labels, hints and captions,
+where the design has 16 for body, 12 for meta and 11 for kickers. Snapping them
+would move layout on nearly every screen, and choosing which of the four becomes
+16 and which becomes 12 is a design decision rather than a substitution. Also
+`headline` at 22 and `label` at 19, which sit between the design's title and
+heading.

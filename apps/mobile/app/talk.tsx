@@ -25,6 +25,7 @@ import { useSpokenReply } from "@/lib/useSpokenReply";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
 import { colors } from "@/theme";
+import { radii } from "@tlon/design";
 
 const LazyBlob = lazySkia(() => import("@/components/Blob"));
 
@@ -450,7 +451,7 @@ const styles = StyleSheet.create({
   },
   thread: { padding: 16, gap: 10, paddingBottom: 24 },
   opening: { color: colors.inkMuted, fontSize: 15, lineHeight: 22, marginTop: 8 },
-  bubble: { borderRadius: 14, padding: 12, maxWidth: "88%" },
+  bubble: { borderRadius: radii.surface, padding: 12, maxWidth: "88%" },
   mine: { alignSelf: "flex-end", backgroundColor: colors.ink },
   mineText: { color: colors.room, fontSize: 16, lineHeight: 22 },
   theirs: { alignSelf: "flex-start", backgroundColor: colors.surfaceBright },
@@ -459,7 +460,7 @@ const styles = StyleSheet.create({
   crisis: {
     borderWidth: 1,
     borderColor: colors.danger,
-    borderRadius: 12,
+    borderRadius: radii.surface,
     padding: 12,
     gap: 6,
     marginTop: 8,
@@ -479,7 +480,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.lineStrong,
-    borderRadius: 12,
+    borderRadius: radii.surface,
     padding: 12,
     minHeight: 64,
     fontSize: 16,
@@ -489,7 +490,7 @@ const styles = StyleSheet.create({
   send: {
     flex: 1,
     backgroundColor: colors.violet,
-    borderRadius: 12,
+    borderRadius: radii.surface,
     paddingVertical: 12,
     alignItems: "center",
   },
@@ -498,7 +499,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderWidth: 1,
     borderColor: colors.ink,
-    borderRadius: 12,
+    borderRadius: radii.surface,
     paddingVertical: 12,
     alignItems: "center",
   },
