@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { Animated, Pressable, StyleSheet, type PressableProps, type PressableStateCallbackType, type StyleProp, type ViewStyle } from "react-native";
 import { motionPolicy, useReducedMotion } from "@/lib/motion";
+import { colors } from "@/theme";
 
 type MotionSurfaceProps = Omit<PressableProps, "style"> & {
   style?: StyleProp<ViewStyle> | ((state: PressableStateCallbackType) => StyleProp<ViewStyle>);
@@ -91,5 +92,5 @@ function extractLayoutStyle(style: StyleProp<ViewStyle>): ViewStyle {
 const styles = StyleSheet.create({
   wrapper: { alignSelf: "stretch" },
   hovered: { shadowColor: "#ffffff", shadowOpacity: 0.12, shadowRadius: 5, elevation: 2 },
-  focused: { shadowColor: "#67e8f9", shadowOpacity: 0.28, shadowRadius: 7, elevation: 3 },
+  focused: { shadowColor: colors.cyan, shadowOpacity: 0.28, shadowRadius: 7, elevation: 3 },
 });

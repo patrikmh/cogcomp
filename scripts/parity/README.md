@@ -166,17 +166,32 @@ the mobile client imports. Fourteen values, three sources, no disagreement.
 and separately meant once, by hand, which is not a check but a memory of having
 looked.
 
-The palette agrees. The mobile client largely does not use it. `theme.ts` reads
-the shared tokens and maps them onto its own names, and then **177 colour
-literals across 13 files bypass it** — 42 distinct values, most of them the old
-palette: `#a09db4` and `#f1f0f8` for ink, `#08080c` and `#12121c` for ground,
-against the design's `#eef1ec` on `#0a0d0c`. So "both clients take the design
-from one source" is true of the file that names the colours and false of the
-screens that draw them.
+The palette agrees, and the mobile client now uses it. It did not: `theme.ts`
+read the shared tokens and mapped them onto its own names, and then 177 colour
+literals across 13 files bypassed it — most of them the old palette, `#a09db4`
+and `#f1f0f8` for ink, `#08080c` and `#12121c` for ground, against the design's
+`#eef1ec` on `#0a0d0c`. "Both clients take the design from one source" was true
+of the file that named the colours and false of the screens that drew them.
 
-One of those is not stale hexes but a different idea. `Constellation.tsx` gives
-each of the eleven node kinds its own colour — Thought cyan, Emotion pink, Need
-amber. The design has no per-kind colour map anywhere, and the web client
+Every one of those literals was an old `theme.ts` token, recovered from git
+history, so each mapped onto the shared token of the same name rather than by
+eye. 177 down to 43, and none of the old palette renders anywhere: the running
+app reports ink `#eef1ec` on room `#0a0d0c`, with `#c6e070`, `#111716` and
+`#e6b95c` where they belong.
+
+The sweep left a mismatch of its own worth naming. Several backgrounds were
+tints derived from the *old* accents — `#0c1c22` behind a cyan border, `#221a08`
+behind an amber one — so once the borders became the design's, a green border
+sat on a cyan ground. The design never tints a ground for an "on" state at all;
+it puts the accent on the border or the underline and leaves the surface
+neutral. Those grounds are the shared raised surface now.
+
+What is left is 43 literals, and they are one thing, not stale hexes: a
+different idea about what colour is for. `Constellation.tsx` and
+`GraphCanvas.tsx` give
+each node kind its own colour — Thought cyan, Emotion pink, Need
+amber — as does `Blob.tsx` per ring. The design has no per-kind colour map
+anywhere, and the web client
 colours a graph node by what is *known* about it: `kept` when confident, a
 `sand` outline when tentative. Colour in this design marks live, kept, pattern
 or wrong — never taxonomy. Reconciling that is a design decision, not a

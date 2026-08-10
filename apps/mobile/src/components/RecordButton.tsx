@@ -191,9 +191,9 @@ const styles = StyleSheet.create({
   // A lit pip beside the label. Held-to-talk has no state you can see once your
   // finger is on it, and the colour change under the thumb is hidden by the
   // thumb; a dot next to the words is not.
-  pip: { width: 9, height: 9, borderRadius: 5, backgroundColor: "#a1a1aa" },
-  pipDark: { backgroundColor: "#52525b" },
-  pipRecording: { backgroundColor: "#fb7185" },
+  pip: { width: 9, height: 9, borderRadius: 5, backgroundColor: colors.inkMuted },
+  pipDark: { backgroundColor: colors.line },
+  pipRecording: { backgroundColor: colors.danger },
   button: {
     borderWidth: 1,
     borderColor: colors.lineStrong,
@@ -210,11 +210,11 @@ const styles = StyleSheet.create({
   buttonDark: { borderColor: colors.lineStrong, backgroundColor: colors.surfaceBright },
   // A dark alert surface keeps the recording state unmistakable while pairing
   // with a light label at normal-text contrast.
-  recording: { backgroundColor: "#991b1b", borderColor: "#fecaca" },
+  recording: { backgroundColor: colors.surfaceBright, borderColor: colors.danger },
   disabled: { opacity: 0.4 },
   label: { fontSize: 16, fontWeight: "600", color: colors.inkSoft },
   labelDark: { color: colors.ink },
-  labelRecording: { color: "#fff1f2" },
+  labelRecording: { color: colors.ink },
   note: { fontSize: 11, color: colors.inkMuted, textAlign: "center" },
   noteDark: { color: colors.inkMuted },
 });

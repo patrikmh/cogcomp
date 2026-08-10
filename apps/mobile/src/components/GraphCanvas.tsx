@@ -93,7 +93,7 @@ export default function GraphCanvas({
                   cx={node.x}
                   cy={node.y}
                   r={radius}
-                  color={KIND_COLOUR[data.kind] ?? "#71717a"}
+                  color={KIND_COLOUR[data.kind] ?? colors.inkMuted}
                   // A tentative guess is drawn hollow. It should not look as
                   // settled as something the person actually wrote.
                   style={data.tentative ? "stroke" : "fill"}

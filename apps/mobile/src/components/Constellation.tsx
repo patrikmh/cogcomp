@@ -31,6 +31,7 @@ import {
   skullCentre,
 } from "@/lib/headSilhouette";
 import { useReducedMotion } from "@/lib/motion";
+import { colors } from "@/theme";
 
 /**
  * A set of things, as an object you can turn.
@@ -389,7 +390,7 @@ export default function Constellation({
               style="stroke"
               strokeWidth={2.8}
               strokeCap="round"
-              color="#a78bfa"
+              color={colors.violet}
               opacity={0.16}
             >
               <BlurMask blur={5} style="solid" />

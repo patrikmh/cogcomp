@@ -376,7 +376,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
   },
-  lensOn: { borderColor: colors.cyan, backgroundColor: "#0c1c22" },
+  lensOn: { borderColor: colors.cyan, backgroundColor: colors.surfaceBright },
   lensLabel: { color: colors.inkMuted, fontSize: 13, fontWeight: "700" },
   lensLabelOn: { color: colors.ink },
 });

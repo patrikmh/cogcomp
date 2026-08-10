@@ -14,6 +14,7 @@ import { MotionSurface } from "@/components/MotionSurface";
 import { InferenceLens, MetricBeacon, FieldFrame, LoadingLens, ErrorLens, EmptyLens } from "@/components/SpatialField";
 import { api, type GraphNode, type Subgraph } from "@/lib/api";
 import { useSession } from "@/state/session";
+import { colors } from "@/theme";
 
 /**
  * The dashboard: what is in the graph, and a way into any of it.
@@ -93,8 +94,8 @@ function Body({
       </View>
       <FieldFrame label="Graph metric beacon field"><View style={styles.stats}>
         <MetricBeacon value={observations.length} label="source entries" />
-        <MetricBeacon value={inferred.length} label="readings" tone={"#a78bfa"} />
-        <MetricBeacon value={graph.edges.length} label="links" tone={"#f0abfc"} />
+        <MetricBeacon value={inferred.length} label="readings" tone={colors.violet} />
+        <MetricBeacon value={graph.edges.length} label="links" tone={colors.pink} />
       </View></FieldFrame>
 
       {graph.truncated && (
@@ -172,68 +173,68 @@ function Stat({ value, label }: { value: number; label: string }) {
 }
 
 const styles = StyleSheet.create({
-  screen: { backgroundColor: "#08080c", padding: 20, gap: 14, paddingBottom: 44 },
+  screen: { backgroundColor: colors.room, padding: 20, gap: 14, paddingBottom: 44 },
   instrumentHeader: { gap: 6, paddingVertical: 8 },
-  kicker: { color: "#67e8f9", fontSize: 11, fontWeight: "700", letterSpacing: 1.8 },
-  title: { color: "#f1f0f8", fontSize: 28, fontWeight: "700", letterSpacing: -0.7 },
-  intro: { color: "#b5b3c7", fontSize: 14, lineHeight: 20 },
+  kicker: { color: colors.cyan, fontSize: 11, fontWeight: "700", letterSpacing: 1.8 },
+  title: { color: colors.ink, fontSize: 28, fontWeight: "700", letterSpacing: -0.7 },
+  intro: { color: colors.inkSoft, fontSize: 14, lineHeight: 20 },
   stats: { flexDirection: "row", gap: 12 },
   stat: {
     flex: 1,
-    backgroundColor: "#12121c",
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "#29293b",
+    borderColor: colors.line,
     borderRadius: 12,
     padding: 12,
     alignItems: "center",
     gap: 2,
   },
-  statValue: { fontSize: 24, fontWeight: "700", color: "#f1f0f8" },
-  statLabel: { fontSize: 11, color: "#a09db4", textAlign: "center" },
+  statValue: { fontSize: 24, fontWeight: "700", color: colors.ink },
+  statLabel: { fontSize: 11, color: colors.inkMuted, textAlign: "center" },
   explore: {
     borderWidth: 1,
-    backgroundColor: "#181827",
-    borderColor: "#f1f0f8",
+    backgroundColor: colors.surfaceBright,
+    borderColor: colors.ink,
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: "center",
   },
-  exploreLabel: { fontSize: 15, fontWeight: "600", color: "#f1f0f8" },
+  exploreLabel: { fontSize: 15, fontWeight: "600", color: colors.ink },
   toggle: { paddingVertical: 6 },
-  toggleText: { fontSize: 14, color: "#b5b3c7" },
+  toggleText: { fontSize: 14, color: colors.inkSoft },
   kinds: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   chip: {
-    backgroundColor: "#181827",
+    backgroundColor: colors.surfaceBright,
     borderRadius: 999,
     paddingVertical: 4,
     paddingHorizontal: 10,
   },
-  chipText: { fontSize: 12, color: "#b5b3c7" },
-  chipActive: { borderWidth: 1, borderColor: "#67e8f9" },
+  chipText: { fontSize: 12, color: colors.inkSoft },
+  chipActive: { borderWidth: 1, borderColor: colors.cyan },
   sectionTitle: {
     marginTop: 12,
     fontSize: 13,
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.6,
-    color: "#a09db4",
+    color: colors.inkMuted,
   },
   card: {
-    backgroundColor: "#12121c",
+    backgroundColor: colors.surface,
     borderLeftWidth: 3,
-    borderLeftColor: "#67e8f9",
+    borderLeftColor: colors.cyan,
 
     borderWidth: 1,
-    borderColor: "#29293b",
+    borderColor: colors.line,
     borderRadius: 12,
     padding: 12,
     gap: 4,
   },
-  cardTentative: { borderStyle: "dashed", borderColor: "#454563" },
-  cardLabel: { fontSize: 16, lineHeight: 22, color: "#f1f0f8" },
-  meta: { fontSize: 12, color: "#a09db4" },
-  quiet: { color: "#a09db4", marginTop: 16, fontSize: 15 },
+  cardTentative: { borderStyle: "dashed", borderColor: colors.lineStrong },
+  cardLabel: { fontSize: 16, lineHeight: 22, color: colors.ink },
+  meta: { fontSize: 12, color: colors.inkMuted },
+  quiet: { color: colors.inkMuted, marginTop: 16, fontSize: 15 },
   loader: { marginTop: 40 },
-  error: { color: "#fb7185", padding: 16 },
-  footnote: { marginTop: 24, fontSize: 12, lineHeight: 18, color: "#a09db4" },
+  error: { color: colors.danger, padding: 16 },
+  footnote: { marginTop: 24, fontSize: 12, lineHeight: 18, color: colors.inkMuted },
 });

@@ -7,6 +7,7 @@ import { MotionSurface } from "@/components/MotionSurface";
 import { ErrorLens, LoadingLens } from "@/components/SpatialField";
 import { api, type ThemeDetail, type ThemeMember } from "@/lib/api";
 import { useSession } from "@/state/session";
+import { colors } from "@/theme";
 
 /**
  * A region of a life, opened.
@@ -124,48 +125,48 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  screen: { backgroundColor: "#08080c", padding: 20, gap: 12, paddingBottom: 48 },
-  kicker: { color: "#f0abfc", fontSize: 11, fontWeight: "700", letterSpacing: 1.8 },
-  headline: { fontSize: 22, lineHeight: 30, fontWeight: "600", color: "#f1f0f8" },
+  screen: { backgroundColor: colors.room, padding: 20, gap: 12, paddingBottom: 48 },
+  kicker: { color: colors.pink, fontSize: 11, fontWeight: "700", letterSpacing: 1.8 },
+  headline: { fontSize: 22, lineHeight: 30, fontWeight: "600", color: colors.ink },
   badge: {
     alignSelf: "flex-start",
-    backgroundColor: "#181827",
+    backgroundColor: colors.surfaceBright,
     borderRadius: 999,
     paddingVertical: 6,
     paddingHorizontal: 12,
   },
-  badgeTentative: { backgroundColor: "#3a2e0e" },
-  badgeText: { fontSize: 13, color: "#b5b3c7" },
-  lead: { fontSize: 15, lineHeight: 22, color: "#b5b3c7", marginTop: 4 },
+  badgeTentative: { backgroundColor: colors.surfaceBright },
+  badgeText: { fontSize: 13, color: colors.inkSoft },
+  lead: { fontSize: 15, lineHeight: 22, color: colors.inkSoft, marginTop: 4 },
   sectionTitle: {
     fontSize: 12,
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.6,
-    color: "#a09db4",
+    color: colors.inkMuted,
     marginTop: 14,
   },
   member: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    backgroundColor: "#12121c",
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "#29293b",
+    borderColor: colors.line,
     borderRadius: 3,
     padding: 12,
   },
-  dot: { width: 9, height: 9, borderRadius: 999, backgroundColor: "#f0abfc" },
-  dotTentative: { backgroundColor: "transparent", borderWidth: 1, borderColor: "#fbbf24" },
+  dot: { width: 9, height: 9, borderRadius: 999, backgroundColor: colors.pink },
+  dotTentative: { backgroundColor: "transparent", borderWidth: 1, borderColor: colors.warning },
   memberBody: { flex: 1, gap: 2 },
-  memberLabel: { fontSize: 16, color: "#f1f0f8" },
-  meta: { fontSize: 12, color: "#a09db4" },
-  chevron: { color: "#a09db4", fontSize: 15 },
+  memberLabel: { fontSize: 16, color: colors.ink },
+  meta: { fontSize: 12, color: colors.inkMuted },
+  chevron: { color: colors.inkMuted, fontSize: 15 },
   provenance: {
-    backgroundColor: "#12121c",
+    backgroundColor: colors.surface,
     marginTop: 18,
     borderWidth: 1,
-    borderColor: "#29293b",
+    borderColor: colors.line,
     borderRadius: 12,
     padding: 12,
     gap: 6,
@@ -175,11 +176,11 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.6,
-    color: "#a09db4",
+    color: colors.inkMuted,
     marginBottom: 2,
   },
   row: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
-  rowLabel: { fontSize: 13, color: "#a09db4" },
-  rowValue: { fontSize: 13, flexShrink: 1, textAlign: "right", color: "#f1f0f8" },
-  footnote: { marginTop: 18, fontSize: 12, lineHeight: 18, color: "#a09db4" },
+  rowLabel: { fontSize: 13, color: colors.inkMuted },
+  rowValue: { fontSize: 13, flexShrink: 1, textAlign: "right", color: colors.ink },
+  footnote: { marginTop: 18, fontSize: 12, lineHeight: 18, color: colors.inkMuted },
 });

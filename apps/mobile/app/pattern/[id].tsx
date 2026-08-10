@@ -7,6 +7,7 @@ import { MotionSurface } from "@/components/MotionSurface";
 import { ErrorLens, LoadingLens } from "@/components/SpatialField";
 import { api, type Occasion, type Ordering, type Written } from "@/lib/api";
 import { useSession } from "@/state/session";
+import { colors } from "@/theme";
 
 /**
  * "You wrote this, and then a day later you wrote that."
@@ -128,14 +129,14 @@ function Side({
 }
 
 const styles = StyleSheet.create({
-  screen: { backgroundColor: "#08080c", padding: 20, gap: 14, paddingBottom: 48 },
-  kicker: { color: "#67e8f9", fontSize: 11, fontWeight: "700", letterSpacing: 1.8 },
-  headline: { fontSize: 20, lineHeight: 28, fontWeight: "600", color: "#f1f0f8" },
-  lead: { fontSize: 15, lineHeight: 22, color: "#b5b3c7" },
+  screen: { backgroundColor: colors.room, padding: 20, gap: 14, paddingBottom: 48 },
+  kicker: { color: colors.cyan, fontSize: 11, fontWeight: "700", letterSpacing: 1.8 },
+  headline: { fontSize: 20, lineHeight: 28, fontWeight: "600", color: colors.ink },
+  lead: { fontSize: 15, lineHeight: 22, color: colors.inkSoft },
   occasion: {
-    backgroundColor: "#12121c",
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "#29293b",
+    borderColor: colors.line,
     borderRadius: 12,
     padding: 12,
     gap: 8,
@@ -147,15 +148,15 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.6,
-    color: "#a09db4",
+    color: colors.inkMuted,
   },
   // The gap is the whole claim, so it is rendered as a step between the two
   // entries rather than as text attached to either of them.
   gap: {
     fontSize: 12,
-    color: "#67e8f9",
+    color: colors.cyan,
     borderLeftWidth: 3,
-    borderLeftColor: "#29293b",
+    borderLeftColor: colors.line,
     paddingLeft: 12,
     paddingVertical: 4,
     marginLeft: 10,
@@ -163,21 +164,21 @@ const styles = StyleSheet.create({
   entry: {
     marginLeft: 10,
     borderLeftWidth: 3,
-    borderLeftColor: "#67e8f9",
+    borderLeftColor: colors.cyan,
     paddingLeft: 12,
     paddingVertical: 6,
     gap: 4,
   },
-  entryText: { fontSize: 16, lineHeight: 23, color: "#f1f0f8" },
-  meta: { fontSize: 12, color: "#a09db4" },
+  entryText: { fontSize: 16, lineHeight: 23, color: colors.ink },
+  meta: { fontSize: 12, color: colors.inkMuted },
   open: {
     marginTop: 18,
     borderWidth: 1,
-    borderColor: "#454563",
+    borderColor: colors.lineStrong,
     borderRadius: 999,
     paddingVertical: 12,
     alignItems: "center",
   },
-  openLabel: { color: "#b5b3c7", fontSize: 15, fontWeight: "700" },
-  footnote: { marginTop: 12, fontSize: 12, lineHeight: 18, color: "#a09db4" },
+  openLabel: { color: colors.inkSoft, fontSize: 15, fontWeight: "700" },
+  footnote: { marginTop: 12, fontSize: 12, lineHeight: 18, color: colors.inkMuted },
 });

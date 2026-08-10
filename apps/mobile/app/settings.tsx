@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 3,
   },
-  trackOn: { borderColor: colors.cyan, backgroundColor: "#0c1c22" },
+  trackOn: { borderColor: colors.cyan, backgroundColor: colors.surfaceBright },
   knob: {
     width: 16,
     height: 16,
