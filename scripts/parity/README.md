@@ -252,3 +252,29 @@ would move layout on nearly every screen, and choosing which of the four becomes
 16 and which becomes 12 is a design decision rather than a substitution. Also
 `headline` at 22 and `label` at 19, which sit between the design's title and
 heading.
+
+### What the two clients say about the same handling
+
+The clients share no classes, so they cannot be shape-diffed against each other.
+Their words can be. Comparing leaf text screen by screen, on one account, the
+web client says roughly twice as much on every screen — most of it the
+explanatory notes the design puts under each control.
+
+One of those differences was not a matter of length.
+
+Mobile's settings said **"Your entries stay on your account. Nothing here is
+shared with anyone."** and its login said they are "stored on the server so they
+can be analysed". Neither named what does the analysing, and "stay on your
+account" reads as never leaving it. The text does leave: it goes to a language
+model to have readings extracted, which the web client states plainly under
+*What happens to your words*. The mobile client said it nowhere — the string
+"model" did not appear in the client at all.
+
+Both now carry the web client's wording, because two clients of one product
+should not describe the same handling differently, and the one that describes it
+less should not be the one a person reads first.
+
+Still missing on mobile: `/words`, `/first` and `/search` have no mobile route.
+`/words` is the page the whole disclosure hangs off — on web the login screen
+links to it, and it was worth unblocking the auth gate for. Adding a screen is
+not a sweep, so it is written down here rather than done.

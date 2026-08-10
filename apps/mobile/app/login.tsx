@@ -121,9 +121,11 @@ export default function LoginScreen() {
         </Text>
       </MotionSurface>
 
+          {/* "Analysed" named no agent. It is a model that reads them, and
+              that is worth saying before someone signs up rather than after. */}
           <Text style={styles.footnote}>
-            Your entries are stored on the server so they can be analysed. Nothing is
-            shared with anyone else.
+            Your entries are stored on your account and sent to a model to extract
+            readings. Nothing is shared with anyone else.
           </Text>
         </View>
         </FieldFrame>

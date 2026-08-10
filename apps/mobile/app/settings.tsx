@@ -68,8 +68,15 @@ export default function SettingsScreen() {
         <Text style={styles.signOut}>Sign out</Text>
       </MotionSurface>
 
+      {/* This said entries "stay on your account", which reads as never
+          leaving it. They do leave: the text goes to a model to be read. The
+          part that was true — nobody else sees them — is still here, and now
+          it is next to the part that was missing. Same wording as the web
+          client, because two clients of one product should not describe the
+          same handling differently. */}
       <Text style={styles.footnote}>
-        Your entries stay on your account. Nothing here is shared with anyone.
+        Text is sent to a model to extract readings. Audio is transcribed, then discarded.
+        Nothing is shared with anyone else.
       </Text>
     </ScrollView>
   );
