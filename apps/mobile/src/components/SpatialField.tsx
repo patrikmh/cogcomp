@@ -56,8 +56,18 @@ export function FieldFrame({ children, label = "Living Observatory field" }: { c
   return <View accessibilityLabel={label} style={styles.fieldFrame}><Orbit /><Orbit small />{children}</View>;
 }
 
-/** The dock on detail screens. Same destinations as the Journal's orbit — see
- *  `@/lib/destinations` for why that is one list and not two. */
+/** The bar along the bottom. Same destinations as the Journal's orbit — see
+ *  `@/lib/destinations` for why that is one list and not two.
+ *
+ *  It used to sit in the flow at the end of a screen's content, on the eight
+ *  screens that happened to wrap themselves in `AtmosphericShell`. Neither half
+ *  of that worked: you had to scroll to the bottom to reach it, and the five
+ *  screens it points *at* — Journal, Headspace, Today, Week, Identity — were all
+ *  in the ten that did not have it. Arriving at Today from a pattern left you
+ *  with the back button and nothing else.
+ *
+ *  Now it is rendered once by the root layout and pinned to the bottom, so it is
+ *  the same bar everywhere and cannot be missing from a screen by omission. */
 export function SpatialDock() {
   return <View accessibilityRole="toolbar" accessibilityLabel="Observatory routes" style={styles.dock}>{dockDestinations().map(({ href, label, tone }) => <Link key={href} href={href} asChild><Pressable accessibilityRole="link" style={({ pressed }) => [styles.dockItem, pressed && styles.pressed]}><View style={[styles.dockMark, { backgroundColor: tone }]} /><Text style={styles.dockLabel}>{label}</Text></Pressable></Link>)}</View>;
 }
@@ -81,6 +91,7 @@ const styles = StyleSheet.create({
   rail: { position: "relative", paddingLeft: 20, marginTop: 8 }, railSpine: { position: "absolute", left: 6, top: 0, bottom: 0, width: 1, backgroundColor: colors.lineStrong }, railItems: { gap: 4 },
   constellation: { height: 190, position: "relative", overflow: "hidden", borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line }, constellationNode: { position: "absolute", width: 82, gap: 4 }, constellationDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.cyan }, constellationLabel: { color: colors.inkSoft, fontSize: 10, lineHeight: 13 },
   fieldFrame: { minHeight: 120, position: "relative", overflow: "hidden", borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, paddingVertical: 12 },
-  dock: { flexDirection: "row", justifyContent: "space-around", alignItems: "center", borderTopWidth: 1, borderColor: colors.line, paddingVertical: 8, marginTop: 8 }, dockItem: { alignItems: "center", gap: 3, paddingHorizontal: 5 }, dockMark: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.cyan }, dockLabel: { color: colors.inkMuted, fontSize: 10 },
+  dock: { flexDirection: "row", justifyContent: "space-around", alignItems: "center", borderTopWidth: 1, borderColor: colors.line, paddingTop: 8, paddingBottom: 8, backgroundColor: colors.room },
+  dockItem: { alignItems: "center", gap: 3, paddingHorizontal: 5, paddingVertical: 4 }, dockMark: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.cyan }, dockLabel: { color: colors.inkMuted, fontSize: 10 },
   state: { alignItems: "center", justifyContent: "center", gap: 10, minHeight: 120, padding: 24 }, loadingRing: { width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: colors.cyan, borderRightColor: "transparent" }, emptyRing: { width: 22, height: 22, borderRadius: 11, borderWidth: 1, borderColor: colors.lineStrong }, errorRing: { borderColor: colors.danger }, stateText: { color: colors.inkMuted, textAlign: "center", lineHeight: 20 },
 });

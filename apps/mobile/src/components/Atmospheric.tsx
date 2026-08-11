@@ -103,7 +103,9 @@ export function AtmosphericShell({
   return (
     <View style={styles.shell}>
       <AtmosphericBackdrop variant={variant} />
-      <View style={[styles.content, contentStyle]}>{children}{variant !== "login" && <SpatialDock />}</View>
+      {/* The dock moved to the root layout, so it is on every screen rather
+          than on the eight that happened to use this shell. */}
+      <View style={[styles.content, contentStyle]}>{children}</View>
     </View>
   );
 }

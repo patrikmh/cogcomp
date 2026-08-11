@@ -122,3 +122,34 @@ services:
       # restarting.
       - key: VITE_API_URL
         sync: false
+      # Where phones are sent. Unset means nobody is redirected anywhere, which
+      # is the correct behaviour when there is no mobile deployment to send them
+      # to — the check reads the unsubstituted placeholder and gives up.
+      - key: VITE_MOBILE_URL
+        sync: false
+
+  # --------------------------------------------------------- the phone client
+  # The Expo client, exported to static web. Phones are redirected here by the
+  # desktop client, because that one has no mobile layout at all: the design it
+  # came from has no width breakpoints, and its navigation rail unfurls on hover,
+  # which a touch screen does not have.
+  #
+  # Heavier than it looks: ~9 MB, of which 7.3 MB is the Skia canvaskit wasm the
+  # blob and constellation draw with. That is a real first load over mobile data
+  # and worth revisiting before this is in front of strangers.
+  - type: web
+    name: tlon-mobile
+    runtime: static
+    rootDir: apps/mobile
+    buildCommand: npm ci && npm run build:web
+    staticPublishPath: dist
+    # This one *does* need the rewrite. expo-router uses real paths — /today,
+    # /node/abc — and the export emits a single index.html, so without this every
+    # route but the root is a 404 on refresh or on a shared link.
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: EXPO_PUBLIC_API_URL
+        sync: false

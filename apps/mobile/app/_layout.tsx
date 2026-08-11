@@ -5,6 +5,7 @@ import { useEffect, useMemo } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { SpatialDock } from "@/components/SpatialField";
 import { createUserQueryClient } from "@/state/queryClient";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
@@ -66,6 +67,9 @@ export default function RootLayout() {
 
 function Gate() {
   const ready = useAuthGate();
+  const segments = useSegments();
+  // Not on the login screen: there is nowhere to go from there but in.
+  const showDock = segments[0] !== "login";
 
   if (!ready) {
     return (
@@ -110,6 +114,11 @@ function Gate() {
             rather than as a deliberately quiet corner. */}
         <Stack.Screen name="dev" options={{ title: "Developer" }} />
       </Stack>
+      {/* Below the Stack rather than inside a screen, so it is one bar that
+          every route shares instead of a component eighteen screens each have
+          to remember to render — which is how five of them ended up being
+          destinations you could arrive at and not leave. */}
+      {showDock && <SpatialDock />}
     </>
   );
 }

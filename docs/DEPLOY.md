@@ -16,8 +16,10 @@ before it costs you an afternoon.
 | `TRANSCRIPTION_API_KEY` | `tlon-api` | ElevenLabs. Real keys begin `sk_`. |
 | `SPEECH_VOICE_ID` | `tlon-api` | No default on purpose — nobody should be assigned a voice silently. |
 | `CRISIS_RESOURCES` | `tlon-api` | Pipe-separated. Set it. |
-| `WEB_ORIGIN` | `tlon-api` | Full origin, `https://…`. |
+| `WEB_ORIGIN` | `tlon-api` | **Comma-separated**, both client origins, `https://…`. |
 | `VITE_API_URL` | `tlon-web` | Full URL, `https://…`. Build-time. |
+| `VITE_MOBILE_URL` | `tlon-web` | The `tlon-mobile` URL. Build-time. Unset means nobody is redirected. |
+| `EXPO_PUBLIC_API_URL` | `tlon-mobile` | Same API URL. Build-time. |
 | `REDIS_ARGS` | `tlon-falkor` | `--requirepass <password>` |
 | `FALKOR_PASSWORD` | `tlon-api` | The same password, on its own. |
 
@@ -47,6 +49,38 @@ directory somewhere else entirely, and fails all twelve migrations on first boot
 **One API instance.** The agent scheduler runs inside the web process
 (`main.py`), so a second instance is a second scheduler rewriting one person's
 graph underneath the first.
+
+## Two clients, and how a phone gets the right one
+
+`tlon-web` is the desktop client and has **no mobile layout** — the design it was
+ported from has no width breakpoints anywhere, only `prefers-reduced-motion`. On
+a phone its navigation rail takes 17% of the width permanently and its labels
+never appear, because they unfurl on hover and a touch screen has none. Twelve
+unlabelled icons is not a navigation.
+
+So phones are sent to `tlon-mobile`, the Expo client exported to static web.
+
+**The redirect is client-side**, in `apps/web/index.html`, because it has to be:
+Render serves these as static files and has no server to inspect a user agent
+with. The test is `(pointer: coarse)` **and** a viewport under 700px — not a list
+of device names, which is a thing you maintain forever and still get wrong. A
+narrow desktop window keeps the desktop client; a tablet keeps it too.
+
+`?desktop=1` opts out permanently, stored in `localStorage`. It is a link you can
+give someone, not a setting they have to find.
+
+Two consequences worth knowing:
+
+- **`WEB_ORIGIN` takes both origins, comma-separated.** Two clients on two
+  origins both call one API.
+- **`tlon-mobile` needs the SPA rewrite and `tlon-web` does not.** expo-router
+  uses real paths and the export emits one `index.html`, so without the rewrite
+  every route but the root 404s on refresh. The desktop client is hash-routed and
+  never asks the server for a route at all.
+
+**Weight.** The Expo export is ~9 MB, of which 7.3 MB is the Skia `canvaskit.wasm`
+that the blob and constellation draw with. That is a real first load over mobile
+data, and it is the thing to look at first if the phone client feels slow.
 
 ## FalkorDB
 

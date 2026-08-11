@@ -4,6 +4,50 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tlön</title>
+    <script>
+      // Phones get the other client.
+      //
+      // This one has no mobile layout — the design it was ported from has no
+      // width breakpoints at all, only `prefers-reduced-motion` — so on a phone
+      // the rail takes 17% of the width permanently and its labels never appear,
+      // because they unfurl on hover and touch has no hover. Twelve unlabelled
+      // icons is not a navigation.
+      //
+      // Client-side because it has to be: Render serves this as static files and
+      // has no server to look at a user agent with.
+      //
+      // The test is coarse and deliberately so. Touch plus a narrow screen, not
+      // a list of device names — a phone-shaped browser on a desktop is a
+      // phone-shaped browser, and a device list is a thing you maintain forever
+      // and still get wrong.
+      (function () {
+        var MOBILE_URL = "%VITE_MOBILE_URL%";
+        // Vite leaves the placeholder as-is when the variable is unset, which is
+        // what local development sees.
+        if (!MOBILE_URL || MOBILE_URL.charAt(0) === "%") return;
+
+        // An escape hatch that sticks. Somebody who deliberately wants the wide
+        // client on a phone should not be bounced out of it on every visit, and
+        // "?desktop=1" is a link they can be given rather than a setting they
+        // have to find.
+        try {
+          if (location.search.indexOf("desktop=1") !== -1) {
+            localStorage.setItem("tlon.forceDesktop", "1");
+          }
+          if (localStorage.getItem("tlon.forceDesktop") === "1") return;
+        } catch (e) {
+          // Private mode with storage disabled. Fall through and decide on the
+          // screen alone rather than failing to load anything at all.
+        }
+
+        var touch = window.matchMedia("(pointer: coarse)").matches;
+        var narrow = Math.min(window.innerWidth, window.screen.width) < 700;
+        if (touch && narrow) {
+          // `replace`, so Back does not land on this page and bounce again.
+          location.replace(MOBILE_URL + location.hash);
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

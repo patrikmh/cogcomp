@@ -53,8 +53,11 @@ class Settings(BaseSettings):
     #: will not boot.
     require_real_model: bool = False
 
-    #: Where the browser client is served from. Blank means any origin, which is
-    #: what local development wants and what a deployment does not.
+    #: Where the browser clients are served from, comma-separated. There are two
+    #: of them — the desktop client and the Expo build phones are sent to — and
+    #: they sit on different origins, so this was a list the moment the second one
+    #: was deployed. Blank means any origin, which is what local development wants
+    #: and what a deployment does not.
     web_origin: str = ""
 
     #: FalkorDB, which holds the Graphiti projection. Postgres remains the source
@@ -92,7 +95,8 @@ class Settings(BaseSettings):
 
     @property
     def allowed_origins(self) -> list[str]:
-        return [self.web_origin] if self.web_origin.strip() else ["*"]
+        origins = [part.strip() for part in self.web_origin.split(",") if part.strip()]
+        return origins or ["*"]
 
 
 @lru_cache
