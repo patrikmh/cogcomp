@@ -39,6 +39,15 @@ def build_extractor(settings):
     if settings.uses_real_model:
         logger.info("extraction via OpenRouter model %s", settings.openrouter_model)
         return LangGraphExtractor(settings.openrouter_api_key, settings.openrouter_model)
+    if settings.require_real_model:
+        # A stub deployment is not a degraded deployment. Every screen works,
+        # every number adds up, and every reading is invented — which is
+        # indistinguishable from the real thing until someone reads one closely.
+        # Refusing to start is the only failure mode anybody would notice.
+        raise RuntimeError(
+            "REQUIRE_REAL_MODEL is set and OPENROUTER_API_KEY is not. Refusing to "
+            "start with the stub extractor: it would produce readings nobody wrote."
+        )
     logger.warning("OPENROUTER_API_KEY is unset — using the stub extractor")
     return StubExtractor()
 
@@ -95,7 +104,10 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Tlön", version="0.1.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    # Any origin unless one is named. Development serves the client from a
+    # different port and wants that; a deployment names its own origin, so a page
+    # somebody else hosts cannot drive this API with a token it phished.
+    allow_origins=get_settings().allowed_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )

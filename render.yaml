@@ -1,0 +1,124 @@
+# Tlön on Render.
+#
+# Four services. Three are ordinary; the fourth needs a word of explanation.
+#
+# FalkorDB has no managed equivalent here — Render Key Value is Valkey and has no
+# graph module — so it runs as a private service from the upstream image, on the
+# internal network, reachable by nothing outside this blueprint.
+#
+# It has no disk on purpose. `themes_agent` rebuilds the entire projection from
+# Postgres on every run and runs daily, and Postgres is the source of truth for
+# everything in it. Losing the container loses nothing that is not recomputed
+# within a day. A disk here would buy durability the design explicitly does not
+# want, and would pin the service to a single instance to do it.
+#
+# Not covered here: apps/mobile, which is Expo and does not deploy to Render.
+
+# Plan names change; check the current ones against Render's docs before the
+# first apply, because a stale plan name fails the whole blueprint rather than
+# just the service that names it.
+databases:
+  - name: tlon-db
+    databaseName: tlon
+    user: tlon
+    plan: basic-256mb
+
+services:
+  # ---------------------------------------------------------------- the graph
+  - type: pserv
+    name: tlon-falkor
+    runtime: image
+    plan: starter
+    image:
+      url: docker.io/falkordb/falkordb:latest
+    # No dockerCommand. The image's entrypoint (`run.sh`) assembles the
+    # redis-server invocation itself — data dir, module path, TLS — and reads
+    # `REDIS_ARGS` for anything extra. Replacing the command would step over all
+    # of that to re-derive it by hand from a path that is theirs to change.
+    envVars:
+      # The image starts a Node browser UI on port 3000 unless told not to.
+      # Nothing here uses it, and on a platform that discovers a service by
+      # looking for an open port, a second listener is a coin toss.
+      - key: BROWSER
+        value: 0
+      # `--requirepass <the same value as the API's FALKOR_PASSWORD>`.
+      # Internal-only is not unauthenticated: the private network is shared with
+      # everything else in the account. Set by hand because the password has to
+      # be embedded in this string and also handed to the API separately, and
+      # a blueprint cannot interpolate one value into two shapes.
+      - key: REDIS_ARGS
+        sync: false
+
+  # ------------------------------------------------------------------ the API
+  - type: web
+    name: tlon-api
+    runtime: python
+    plan: starter
+    rootDir: apps/backend
+    # Editable, and it must stay editable. `MIGRATIONS_DIR` is derived from
+    # `__file__` (tlon/db/engine.py), so a normal install puts the package in
+    # site-packages, resolves the migrations path somewhere else entirely, and
+    # every migration fails on first boot.
+    buildCommand: pip install -e .
+    startCommand: uvicorn tlon.main:app --host 0.0.0.0 --port $PORT
+    # One. The agent scheduler runs inside this process, so a second instance is
+    # a second scheduler rewriting the same graph underneath the first.
+    numInstances: 1
+    # Liveness only — it deliberately does not touch the database, so a database
+    # outage does not get the process restarted out from under us.
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: tlon-db
+          property: connectionString
+      - key: FALKOR_HOST
+        value: tlon-falkor
+      - key: FALKOR_PORT
+        value: 6379
+      # The password inside tlon-falkor's REDIS_ARGS, on its own here.
+      - key: FALKOR_PASSWORD
+        sync: false
+      # Refuse to boot rather than serve invented readings. See build_extractor.
+      - key: REQUIRE_REAL_MODEL
+        value: true
+      - key: AGENTS_ENABLED
+        value: true
+      - key: LOG_LEVEL
+        value: INFO
+      # Set in the dashboard, not here.
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_MODEL
+        sync: false
+      - key: TRANSCRIPTION_API_KEY
+        sync: false
+      - key: SPEECH_VOICE_ID
+        sync: false
+      # Must be set for wherever this is actually used. A hotline for the wrong
+      # country looks like help and is not.
+      - key: CRISIS_RESOURCES
+        sync: false
+      # Both of these are full origins — "https://tlon-web.onrender.com" — and
+      # not hostnames. A CORS origin without a scheme matches nothing, and the
+      # client's fetch base without one resolves against the static site. Render
+      # can hand over a host but cannot prepend the scheme, so these are set by
+      # hand once the URLs exist rather than wired to the wrong-shaped value.
+      - key: WEB_ORIGIN
+        sync: false
+
+  # --------------------------------------------------------------- the client
+  - type: web
+    name: tlon-web
+    runtime: static
+    rootDir: apps/web
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    # No SPA rewrite. The client uses HashRouter, so `#/patterns` never reaches
+    # the server and there is no deep link for it to fail to resolve.
+    envVars:
+      # Read at build time, baked into the bundle, and needs the scheme — see
+      # the note on WEB_ORIGIN above. Changing it means rebuilding, not
+      # restarting.
+      - key: VITE_API_URL
+        sync: false

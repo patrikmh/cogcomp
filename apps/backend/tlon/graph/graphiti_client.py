@@ -41,6 +41,8 @@ from graphiti_core.driver.falkordb_driver import FalkorDriver
 from graphiti_core.embedder import EmbedderClient
 from graphiti_core.llm_client import LLMClient
 
+from tlon.config import get_settings
+
 #: Matches the small embedding models Graphiti expects, so a later switch to a
 #: real embedder does not require rewriting what is already stored.
 EMBEDDING_DIMENSION = 384
@@ -117,16 +119,37 @@ class RefusingCrossEncoder(CrossEncoderClient):
         )
 
 
-def build(host: str = "localhost", port: int = 6379) -> Graphiti:
-    """A Graphiti handle against the local FalkorDB.
+def build(
+    host: str | None = None,
+    port: int | None = None,
+    username: str | None = None,
+    password: str | None = None,
+    database: str | None = None,
+) -> Graphiti:
+    """A Graphiti handle against FalkorDB.
 
     Everything this module currently drives — projection and structural
     clustering — needs no model and no credentials. The parts that would
     (community summaries) fail loudly rather than silently producing a summary
     nobody can attribute, or quietly calling a provider this product does not use.
+
+    Where FalkorDB lives comes from settings when it is not passed. It was
+    `localhost:6379` hardcoded, which is the one thing in this file that could not
+    be deployed: agents get a pool and a user id and no configuration, so the only
+    place the address could come from was here. An argument still wins over
+    settings, because the integration tests point it at a local instance.
     """
+    settings = get_settings()
     return Graphiti(
-        graph_driver=FalkorDriver(host=host, port=port),
+        graph_driver=FalkorDriver(
+            host=settings.falkor_host if host is None else host,
+            port=settings.falkor_port if port is None else port,
+            # FalkorDriver treats empty strings as credentials; None is how you
+            # say "no auth", which is what a local instance wants.
+            username=(settings.falkor_username or None) if username is None else username,
+            password=(settings.falkor_password or None) if password is None else password,
+            database=settings.falkor_database if database is None else database,
+        ),
         embedder=DeterministicEmbedder(),
         llm_client=RefusingLLMClient(),
         cross_encoder=RefusingCrossEncoder(),

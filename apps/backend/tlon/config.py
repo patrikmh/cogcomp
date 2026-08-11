@@ -46,6 +46,26 @@ class Settings(BaseSettings):
     #: it keeps test and CI processes from doing background work nobody asked for.
     agents_enabled: bool = False
 
+    #: Refuse to start rather than run the stub extractor. False in development,
+    #: where the stub is the thing that makes the pipeline runnable without a
+    #: key; true anywhere real, because a deployment that quietly invents
+    #: readings looks healthy in every other respect and is worse than one that
+    #: will not boot.
+    require_real_model: bool = False
+
+    #: Where the browser client is served from. Blank means any origin, which is
+    #: what local development wants and what a deployment does not.
+    web_origin: str = ""
+
+    #: FalkorDB, which holds the Graphiti projection. Postgres remains the source
+    #: of truth and this is rebuilt from it on every themes run, so these point at
+    #: a store that is expected to be empty sometimes and is never backed up.
+    falkor_host: str = "localhost"
+    falkor_port: int = 6379
+    falkor_username: str = ""
+    falkor_password: str = ""
+    falkor_database: str = "default_db"
+
     #: Shown alongside the agent's message when the safety path fires. Config
     #: rather than hardcoded: a US hotline shown to someone in Sweden is worse
     #: than showing nothing, because it looks like help and is not.
@@ -69,6 +89,10 @@ class Settings(BaseSettings):
     @property
     def uses_real_speech(self) -> bool:
         return bool(self.transcription_api_key.strip() and self.speech_voice_id.strip())
+
+    @property
+    def allowed_origins(self) -> list[str]:
+        return [self.web_origin] if self.web_origin.strip() else ["*"]
 
 
 @lru_cache

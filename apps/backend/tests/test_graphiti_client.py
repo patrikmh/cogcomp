@@ -75,3 +75,88 @@ class TestEmbedder:
         embedder = DeterministicEmbedder()
         batch = await embedder.create_batch(["dread", "running"])
         assert batch == [await embedder.create("dread"), await embedder.create("running")]
+
+
+class TestWhereFalkorLives:
+    """Where `build()` connects, and who decides it.
+
+    It was `localhost:6379` hardcoded, which is the one thing in this module that
+    could not be deployed anywhere: background agents are handed a pool and a user
+    id and no configuration, so there was nowhere else for an address to come
+    from. These pin the two halves of the fix — settings supply it, and an
+    explicit argument still overrides them, which the integration tests rely on to
+    reach a local instance.
+
+    The driver is stubbed because the real one connects during construction, so
+    asking "what address did it use" over a socket would mean standing up a
+    FalkorDB to find out.
+    """
+
+    @staticmethod
+    def _captured(monkeypatch) -> dict:
+        from tlon.graph import graphiti_client
+
+        seen: dict = {}
+
+        class FakeDriver:
+            provider = "falkordb"
+
+            def __init__(self, **kwargs):
+                seen.update(kwargs)
+
+        monkeypatch.setattr(graphiti_client, "FalkorDriver", FakeDriver)
+        monkeypatch.setattr(graphiti_client, "Graphiti", lambda **kwargs: kwargs)
+        return seen
+
+    def test_it_takes_the_address_from_settings(self, monkeypatch):
+        from tlon.config import get_settings
+        from tlon.graph import graphiti_client
+
+        seen = self._captured(monkeypatch)
+        monkeypatch.setenv("FALKOR_HOST", "tlon-falkor")
+        monkeypatch.setenv("FALKOR_PORT", "6380")
+        monkeypatch.setenv("FALKOR_PASSWORD", "hunter2")
+        get_settings.cache_clear()
+        try:
+            graphiti_client.build()
+        finally:
+            get_settings.cache_clear()
+
+        assert seen["host"] == "tlon-falkor"
+        assert seen["port"] == 6380
+        assert seen["password"] == "hunter2"
+
+    def test_no_credentials_means_none_rather_than_empty(self, monkeypatch):
+        # An empty string is a username. A local FalkorDB with no auth must be
+        # told there is nobody to log in as, not asked to log in as "".
+        from tlon.config import get_settings
+        from tlon.graph import graphiti_client
+
+        seen = self._captured(monkeypatch)
+        monkeypatch.delenv("FALKOR_USERNAME", raising=False)
+        monkeypatch.delenv("FALKOR_PASSWORD", raising=False)
+        get_settings.cache_clear()
+        try:
+            graphiti_client.build()
+        finally:
+            get_settings.cache_clear()
+
+        assert seen["username"] is None
+        assert seen["password"] is None
+
+    def test_an_explicit_argument_still_wins(self, monkeypatch):
+        # The integration tests point this at a local FalkorDB while the
+        # environment may say otherwise. Settings are a default, not a policy.
+        from tlon.config import get_settings
+        from tlon.graph import graphiti_client
+
+        seen = self._captured(monkeypatch)
+        monkeypatch.setenv("FALKOR_HOST", "tlon-falkor")
+        get_settings.cache_clear()
+        try:
+            graphiti_client.build(host="localhost", port=6379)
+        finally:
+            get_settings.cache_clear()
+
+        assert seen["host"] == "localhost"
+        assert seen["port"] == 6379
