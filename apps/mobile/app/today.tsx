@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { Suspense, useState } from "react";
+import { useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -10,26 +10,25 @@ import {
   useWindowDimensions,
 } from "react-native";
 
-import { Chip, Kicker, Rule } from "@/components/Marks";
+import { Chip, Kicker, Rule, Spine } from "@/components/Marks";
 import { MotionSurface } from "@/components/MotionSurface";
 import { Rise, Rising } from "@/components/Rise";
 import { Seal } from "@/components/Seal";
 import { api, type DailySummary } from "@/lib/api";
 import { deviceTimezone, localToday, shiftDay } from "@/lib/dates";
-import { lazySkia } from "@/lib/lazySkia";
+import { useDrawnFrom } from "@/lib/drawnFrom";
 import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
 import { type as scale } from "@tlon/design";
 
-const LazyConstellation = lazySkia(() => import("@/components/Constellation"));
-
 /**
- * One day, as an object.
+ * One day, as it happened.
  *
- * The day is drawn first: what you wrote and everything drawn from it, in one
- * turning shape. Entries are filled and heavy, guesses hollow and slight, and
- * pointing at any of them reads it out. That is the whole day in a glance rather
- * than four stacked lists.
+ * The web opens this with the acts themselves, kept verbatim, each with its
+ * time, its seal and what was drawn from it — the same shape the journal uses,
+ * because an act is an act wherever it is read. This client opened with a
+ * turning cloud of dots instead, which put the day's own words below the fold
+ * and said nothing about any of them except how confident something was.
  *
  * The two named groups below survive on purpose. Separating what was noticed from
  * what is only suspected is not clutter — it is the one distinction this product
@@ -76,102 +75,86 @@ export default function TodayScreen() {
       ) : summary.isError || !summary.data ? (
         <Text style={styles.error}>Could not load this day.</Text>
       ) : (
-        <SummaryBody summary={summary.data} />
+        <SummaryBody summary={summary.data} day={day} />
       )}
       </Rising>
     </ScrollView>
   );
 }
 
-function SummaryBody({ summary }: { summary: DailySummary }) {
+function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
   const router = useRouter();
-  const { width, height } = useWindowDimensions();
-  const [picked, setPicked] = useState<string | null>(null);
+  const token = useSession((state) => state.token);
+  const userId = useSession((state) => state.userId);
+  const drawnFrom = useDrawnFrom(token, userId);
 
   if (summary.entry_count === 0) {
     // Stated plainly, with no nudge to write. A day with nothing in it is a fact
     // about the day, not a failure to be corrected.
-    return <Text style={styles.empty}>Nothing recorded.</Text>;
+    return <Text style={styles.empty}>Nothing recorded. The day stays empty until it isn’t.</Text>;
   }
 
   const confident = summary.inferred.filter((i) => !i.tentative);
   const tentative = summary.inferred.filter((i) => i.tentative);
-  const size = Math.min(width * 0.8, height * 0.32, 290);
-
-  const points = [
-    ...summary.observations.map((observation) => ({
-      id: observation.id,
-      // Entries are the fixed points everything else hangs off, so they are the
-      // heaviest things in the day regardless of any score.
-      weight: 1,
-      tone: "Observation",
-      tentative: false,
-      label: observation.content,
-      kind: "entry",
-    })),
-    ...summary.inferred.map((item) => ({
-      id: item.id,
-      weight: item.confidence,
-      tone: item.kind as string,
-      tentative: item.tentative,
-      label: item.label,
-      kind: item.kind.toLowerCase(),
-    })),
-  ];
-  const current = points.find((p) => p.id === picked) ?? null;
 
   return (
     <>
-      <View style={styles.sky}>
-        <Suspense fallback={<View style={{ height: size }} />}>
-          <LazyConstellation
-            data={points.map(({ id, weight, tone, tentative: guess }) => ({
-              id,
-              weight,
-              tone,
-              tentative: guess,
-            }))}
-            size={size}
-            selected={picked}
-            onSelect={setPicked}
-            dotSize={7}
-          />
-        </Suspense>
+      <Text style={styles.sub}>
+        Not objects in space — a heterogeneous series of independent acts.{" "}
+        {new Date(`${day}T12:00:00`).toLocaleDateString([], { weekday: "long" })}, as it
+        happened.
+      </Text>
+      {/* What the day holds, counted. The web states this before anything is
+          drawn, so the shape of the day is known before it is read. */}
+      <Text style={styles.tally}>
+        {summary.entry_count} {summary.entry_count === 1 ? "act" : "acts"} ·{" "}
+        {summary.inferred.length} {summary.inferred.length === 1 ? "reading" : "readings"} drawn
+      </Text>
+
+      {/* Kicker, rule and aside on one line, as the web sets them: the rule
+          takes the space between what the section is and what it promises. */}
+      <View style={styles.sectionRow}>
+        <Kicker heading>The acts</Kicker>
+        <View style={styles.ruleFill}>
+          <Rule />
+        </View>
+        <Text style={styles.aside}>kept verbatim</Text>
       </View>
-
-      {current ? (
-        <MotionSurface
-          style={styles.readout}
-          onPress={() => router.push(`/node/${current.id}`)}
-          accessibilityRole="button"
-        >
-          <Text style={styles.readoutMeta}>
-            {current.kind}
-            {current.tentative ? " · tentative" : ""}
-          </Text>
-          <Text style={styles.readoutText} numberOfLines={3}>
-            {current.label}
-          </Text>
-        </MotionSurface>
-      ) : (
-        <Text style={styles.count}>
-          {summary.entry_count} {summary.entry_count === 1 ? "entry" : "entries"}
-        </Text>
-      )}
-
-      <Section title="What you wrote">
-        {summary.observations.map((observation, i) => (
-          <Rise key={observation.id} index={i}>
+      {summary.observations.map((observation, i) => (
+        <Rise key={observation.id} index={i}>
           <MotionSurface
-            style={styles.wrote}
+            style={styles.entry}
             onPress={() => router.push(`/node/${observation.id}`)}
+            accessibilityRole="button"
+            accessibilityLabel={observation.content}
           >
-            <Seal id={observation.id} size={28} />
-            <Text style={[styles.body, styles.wroteText]}>{observation.content}</Text>
+            <Spine time={shortTime(observation.captured_at)} lit={i === 0} />
+            <View style={styles.act}>
+              <Seal id={observation.id} size={34} />
+              <View style={styles.actBody}>
+                <Text style={styles.body}>{observation.content}</Text>
+                {(drawnFrom.get(observation.id)?.length ?? 0) > 0 ? (
+                  <View style={styles.chipRow}>
+                    <Kicker>Drawn from this</Kicker>
+                    <View style={styles.chips}>
+                      {drawnFrom.get(observation.id)!.slice(0, 4).map((r) => (
+                        <Chip
+                          key={r.id}
+                          label={r.label}
+                          confidence={r.confidence}
+                          tentative={r.tentative}
+                        />
+                      ))}
+                    </View>
+                  </View>
+                ) : (
+                  <Text style={styles.meta}>nothing drawn from this yet</Text>
+                )}
+              </View>
+            </View>
           </MotionSurface>
-          </Rise>
-        ))}
-      </Section>
+        </Rise>
+      ))}
 
       {summary.recurring.length > 0 && (
         <Section title="Came up more than once">
@@ -202,11 +185,16 @@ function SummaryBody({ summary }: { summary: DailySummary }) {
         </Section>
       )}
 
-      <Text style={styles.footnote}>
-        Everything under “Noticed” and “Less sure about” is a guess drawn from your
-        entries, not a conclusion about you. Tap one to see which words it came
-        from.
-      </Text>
+      {/* Only where there is something for it to be about. A note explaining
+          two sections that are not on the screen describes a screen the person
+          is not looking at. */}
+      {summary.inferred.length > 0 && (
+        <Text style={styles.footnote}>
+          Everything under “Noticed” and “Less sure about” is a guess drawn from your
+          entries, not a conclusion about you. Tap one to see which words it came
+          from.
+        </Text>
+      )}
     </>
   );
 }
@@ -239,7 +227,28 @@ function Inference({
   );
 }
 
+/** Just the clock time. The day is named at the top of the screen, so the date
+ *  on every act would be the same date repeated. */
+function shortTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
 const styles = StyleSheet.create({
+  sub: {
+    color: colors.inkMuted,
+    fontFamily: fonts.sans,
+    fontSize: scale.body.size,
+    lineHeight: scale.body.line,
+  },
+  tally: { color: colors.inkSoft, fontFamily: fonts.mono, fontSize: scale.meta.size },
+  aside: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: scale.meta.size },
+  entry: { flexDirection: "row", gap: 10, alignItems: "flex-start", paddingVertical: 6 },
+  act: { flexDirection: "row", gap: 10, flex: 1, alignItems: "flex-start" },
+  actBody: { flex: 1, gap: 6 },
+  sectionRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 },
+  ruleFill: { flex: 1 },
+  chipRow: { gap: 4 },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   screen: { flex: 1, backgroundColor: colors.room },
   content: { paddingHorizontal: 20, paddingBottom: 44, paddingTop: 10, gap: 8 },
   nav: {
