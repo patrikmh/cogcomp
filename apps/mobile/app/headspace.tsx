@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { readingBudget } from "@tlon/design/marks";
 
@@ -89,6 +89,7 @@ export default function HeadspaceScreen() {
   if (!token) return null;
 
   const points = pointsFor(lens, today.data, graph.data, patterns.data, changed.data, themes.data);
+  const circling = (patterns.data ?? []).length;
   const whorls = whorlsFor(lens, points);
   const current = points.find((p) => p.id === selected) ?? null;
   const loading =
@@ -132,26 +133,38 @@ export default function HeadspaceScreen() {
         </Text>
       )}
 
-      <View style={styles.lenses}>
-        {lensesFor(showFindings).map((option) => (
-          <MotionSurface
-            key={option.id}
-            style={[styles.lens, lens === option.id && styles.lensOn]}
-            onPress={() => {
-              setChosen(option.id);
-              // The previous selection is not in the new lens, and a readout
-              // describing something no longer on screen is worse than none.
-              setSelected(null);
-            }}
-            accessibilityRole="button"
-            accessibilityState={{ selected: lens === option.id }}
-          >
-            <Text style={[styles.lensLabel, lens === option.id && styles.lensLabelOn]}>
-              {option.label}
-            </Text>
-          </MotionSurface>
-        ))}
-      </View>
+      {/* The design's tabs: names on a rule, the one you are on inked and
+          underlined, each carrying how much is behind it. This was a row of
+          bordered pills, which read as filter chips — a thing you toggle — when
+          a lens is not a filter but a way of looking at the same record. */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.lenses}
+        contentContainerStyle={styles.lensesRow}
+      >
+        {lensesFor(showFindings).map((option) => {
+          const on = lens === option.id;
+          const count = countFor(option.id, points, today.data, patterns.data, themes.data, changed.data);
+          return (
+            <MotionSurface
+              key={option.id}
+              style={[styles.lens, on && styles.lensOn]}
+              onPress={() => {
+                setChosen(option.id);
+                // The previous selection is not in the new lens, and a readout
+                // describing something no longer on screen is worse than none.
+                setSelected(null);
+              }}
+              accessibilityRole="button"
+              accessibilityState={{ selected: on }}
+            >
+              <Text style={[styles.lensLabel, on && styles.lensLabelOn]}>{option.label}</Text>
+              {count !== undefined && <Text style={styles.lensCount}>{count}</Text>}
+            </MotionSurface>
+          );
+        })}
+      </ScrollView>
 
       <Observatory
         // The web draws this screen as a contour survey, and so does this one:
@@ -218,8 +231,38 @@ export default function HeadspaceScreen() {
           )
         }
       />
+
+      {/* What you are looking at, when, and what is moving in it — the design's
+          one-line rail under the map. */}
+      <Text style={styles.rail}>
+        {`Headspace · ${new Date().toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" })}${
+          circling ? ` · ${circling} ${circling === 1 ? "pattern" : "patterns"} circling` : ""
+        }`}
+      </Text>
     </View>
   );
+}
+
+/** How much is behind a lens, or nothing where there is nothing to count. */
+function countFor(
+  id: Lens,
+  points: Point[],
+  today: Awaited<ReturnType<typeof api.dailySummary>> | undefined,
+  patterns: Awaited<ReturnType<typeof api.listPatterns>> | undefined,
+  themes: Awaited<ReturnType<typeof api.listThemes>> | undefined,
+  changed: Awaited<ReturnType<typeof api.temporalChanges>> | undefined,
+): number | undefined {
+  const n =
+    id === "today"
+      ? today?.inferred.length
+      : id === "patterns"
+        ? patterns?.length
+        : id === "regions"
+          ? themes?.length
+          : id === "changed"
+            ? changed?.changes.length
+            : points.length;
+  return n || undefined;
 }
 
 interface Point {
@@ -262,7 +305,9 @@ function hintFor(lens: Lens, count: number, drawn: number): string {
     const held = drawn - 1 < count ? `${drawn - 1} of ${count} drawn — the rest are still kept. ` : "";
     return `${held}Bigger is more; dashed is less sure.`;
   }
-  return `${count} in today. Drag to turn it, tap to read one.`;
+  // Nothing turns any more: the map is a survey drawn in plan, and telling
+  // someone to drag it was a leftover from the object that used to be here.
+  return `${count} in today. Bigger is more; tap one to read it.`;
 }
 
 /**
@@ -414,12 +459,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     paddingBottom: 6,
   },
-  lenses: {
-    flexDirection: "row",
-    gap: 8,
+  rail: {
     paddingHorizontal: 20,
-    paddingTop: 12,
+    paddingBottom: 6,
+    color: colors.inkMuted,
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
   },
+  lensCount: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: 12, marginLeft: 7 },
+  // The design's `.tabs`: a rule under the whole row, names sitting on it.
+  lenses: { flexGrow: 0, borderBottomWidth: 1, borderBottomColor: colors.line, marginBottom: 20 },
+  lensesRow: { flexDirection: "row", gap: 22, paddingHorizontal: 20 },
   reviewed: { paddingHorizontal: 20, paddingTop: 14, gap: 6 },
   reviewedTrack: {
     height: 4,
@@ -430,13 +482,23 @@ const styles = StyleSheet.create({
   reviewedFill: { height: 4, borderRadius: 999, backgroundColor: colors.cyan },
   reviewedLabel: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: 11 },
   lens: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.line,
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 44,
+    paddingTop: 10,
+    paddingBottom: 9,
+    // The underline sits on the row's own rule, so the lens you are on marks
+    // the rule rather than floating above it.
+    borderBottomWidth: 1,
+    borderBottomColor: "transparent",
+    marginBottom: -1,
   },
-  lensOn: { borderColor: colors.cyan, backgroundColor: colors.surfaceBright },
-  lensLabel: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: 13, fontWeight: "700" },
+  lensOn: { borderBottomColor: colors.pink },
+  lensLabel: {
+    color: colors.inkMuted,
+    fontFamily: fonts.sansSemi,
+    fontSize: 14,
+    lineHeight: 14,
+  },
   lensLabelOn: { color: colors.ink },
 });
