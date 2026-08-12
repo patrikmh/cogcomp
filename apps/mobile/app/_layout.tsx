@@ -118,20 +118,20 @@ function Gate() {
       >
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="index" options={{ title: "Journal" }} />
-        <Stack.Screen name="headspace" options={{ title: "Headspace" }} />
-        <Stack.Screen name="today" options={{ title: "Today" }} />
-        <Stack.Screen name="week" options={{ title: "This week" }} />
+        <Stack.Screen name="headspace" options={{ headerTitle: () => <TopBar /> }} />
+        <Stack.Screen name="today" options={{ headerTitle: () => <TopBar /> }} />
+        <Stack.Screen name="week" options={{ headerTitle: () => <TopBar /> }} />
         <Stack.Screen name="talk" options={{ title: "Talk it through" }} />
         <Stack.Screen name="graph" options={{ headerTitle: () => <TopBar /> }} />
-        <Stack.Screen name="identity" options={{ title: "Identity" }} />
+        <Stack.Screen name="identity" options={{ headerTitle: () => <TopBar /> }} />
         <Stack.Screen name="patterns" options={{ headerTitle: () => <TopBar /> }} />
-        <Stack.Screen name="pattern/[id]" options={{ title: "What came first" }} />
-        <Stack.Screen name="theme/[id]" options={{ title: "A region" }} />
+        <Stack.Screen name="pattern/[id]" options={{ headerTitle: () => <TopBar /> }} />
+        <Stack.Screen name="theme/[id]" options={{ headerTitle: () => <TopBar /> }} />
         <Stack.Screen name="experiments" options={{ headerTitle: () => <TopBar /> }} />
         <Stack.Screen name="experiment/[id]" options={{ headerTitle: () => <TopBar /> }} />
         <Stack.Screen name="agents" options={{ headerTitle: () => <TopBar /> }} />
-        <Stack.Screen name="explore" options={{ title: "Explore" }} />
-        <Stack.Screen name="node/[id]" options={{ title: "Where this came from" }} />
+        <Stack.Screen name="explore" options={{ headerTitle: () => <TopBar /> }} />
+        <Stack.Screen name="node/[id]" options={{ headerTitle: () => <TopBar /> }} />
         <Stack.Screen name="settings" options={{ headerTitle: () => <TopBar /> }} />
         <Stack.Screen name="first" options={{ headerTitle: () => <TopBar /> }} />
         <Stack.Screen name="search" options={{ headerTitle: () => <TopBar /> }} />

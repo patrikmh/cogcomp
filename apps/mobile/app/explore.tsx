@@ -46,8 +46,10 @@ export default function ExploreScreen() {
   return (
     <Observatory
       eyebrow="Explore · developer"
-      // The web titles this with what the screen claims rather than what it is
-      // called, and the claim is the point of the screen.
+      // The design titles this with what the screen claims rather than what it
+      // is called, and the claim is the whole point of the screen: nothing here
+      // is settled, so nothing can be read into where a thing sits.
+      title="Fixed positions, seeded by id"
       stage={
         nodes.length > 0 && !graph.isLoading ? (
           <GraphPanel

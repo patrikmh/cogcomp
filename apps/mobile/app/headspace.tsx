@@ -6,6 +6,7 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { readingBudget } from "@tlon/design/marks";
 
 import { HeadspaceMap, type Whorl } from "@/components/HeadspaceMap";
+import { Kicker } from "@/components/Marks";
 import { MotionSurface } from "@/components/MotionSurface";
 import { Observatory, Readout } from "@/components/Observatory";
 import { api } from "@/lib/api";
@@ -14,6 +15,7 @@ import { type Lens, lensesFor, resolveLens } from "@/lib/lenses";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
+import { type as scale } from "@tlon/design";
 
 /**
  * Headspace — where things stand.
@@ -131,6 +133,14 @@ export default function HeadspaceScreen() {
           still kept, and they are here when you want them — Settings.
         </Text>
       )}
+
+      {/* Kicker, then the lens you are looking through as the heading, then
+          what it shows. The design titles this screen with the lens rather than
+          with the word "Headspace" — which the tab bar already says — so the
+          heading changes as you change what you are looking at. */}
+      <Kicker>Headspace</Kicker>
+      <Text style={styles.title}>{LENS_LABEL[lens]}</Text>
+      <Text style={styles.note}>{LENS_NOTE[lens]}</Text>
 
       {/* The design's tabs: names on a rule, the one you are on inked and
           underlined, each carrying how much is behind it. This was a row of
@@ -269,6 +279,23 @@ interface Point {
   tentative: boolean;
   status?: string | null;
 }
+
+/** What the heading says you are looking at. */
+const LENS_LABEL: Record<Lens, string> = {
+  today: "Today",
+  all: "Everything",
+  patterns: "Recurring",
+  changed: "Changed",
+};
+
+/** One line under it, describing the lens rather than the record — the count
+ *  and the caveats belong to the map below and are stated there. */
+const LENS_NOTE: Record<Lens, string> = {
+  today: "What has been drawn since midnight. Tap a whorl to open it.",
+  all: "Everything the record holds. Tap a whorl to open it.",
+  patterns: "What keeps returning, sized by how often. Tap one to open it.",
+  changed: "What moved between this week and last.",
+};
 
 const EMPTY: Record<Lens, string> = {
   today: "Nothing recorded today.",
@@ -431,6 +458,23 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     paddingHorizontal: 4,
     paddingBottom: 6,
+  },
+  title: {
+    paddingHorizontal: 20,
+    color: colors.ink,
+    fontFamily: fonts.sansBold,
+    fontSize: scale.title.size,
+    lineHeight: scale.title.line,
+    letterSpacing: scale.title.tracking,
+  },
+  note: {
+    paddingHorizontal: 20,
+    paddingTop: 4,
+    paddingBottom: 12,
+    color: colors.inkMuted,
+    fontFamily: fonts.sans,
+    fontSize: scale.body.size,
+    lineHeight: scale.body.line,
   },
   rail: {
     paddingHorizontal: 20,

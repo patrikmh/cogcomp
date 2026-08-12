@@ -67,7 +67,8 @@ export default function PatternsScreen() {
     // should make finding the way back a hunt through settings.
     return (
       <Observatory
-        eyebrow="What keeps returning"
+        eyebrow="Patterns"
+        title="What keeps returning"
         data={[]}
         selected={null}
         onSelect={() => undefined}

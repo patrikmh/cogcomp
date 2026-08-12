@@ -41,6 +41,10 @@ interface Props {
    *  navigation header already says it — the same word twice, six pixels apart,
    *  is the kind of thing that makes a screen feel busy for no reason. */
   eyebrow?: string;
+  /** What the screen claims, in its own words. The design gives every screen a
+   *  kicker naming it and a title stating its claim; screens built on this
+   *  shell could carry only the first, so they were the ones left unnamed. */
+  title?: string;
   data: Datum[];
   links?: { from: string; to: string }[];
   selected: string | null;
@@ -68,6 +72,7 @@ interface Props {
 
 export function Observatory({
   eyebrow,
+  title,
   stage,
   data,
   links,
@@ -91,6 +96,7 @@ export function Observatory({
   return (
     <View style={styles.screen}>
       {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
+      {title ? <Text style={styles.title}>{title}</Text> : null}
 
       <View style={styles.stage}>
         {loading ? (
@@ -191,6 +197,15 @@ const styles = StyleSheet.create({
   // style — headspace, patterns, agents, identity, explore — so they all read
   // as markings on the side of the instrument rather than as five titles
   // shouting in the product's accent colour.
+  title: {
+    color: colors.ink,
+    fontFamily: fonts.sansBold,
+    fontSize: scale.title.size,
+    lineHeight: scale.title.line,
+    letterSpacing: scale.title.tracking,
+    paddingHorizontal: 20,
+    paddingBottom: 4,
+  },
   eyebrow: {
     color: colors.inkMuted,
     fontFamily: fonts.monoMedium,

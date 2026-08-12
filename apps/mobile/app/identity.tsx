@@ -75,7 +75,8 @@ export default function IdentityScreen() {
 
   return (
     <Observatory
-      eyebrow="What you keep close"
+      eyebrow="Identity · a composition"
+      title="Drawn from everything you kept"
       // The web's composition rather than a head full of points: rings that
       // draw themselves on, the kept ones inked and doubled, the tentative ones
       // thin and faded, you at the centre already there.
