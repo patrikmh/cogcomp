@@ -10,7 +10,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 
-import { Chip, Kicker, Rule, Spine } from "@/components/Marks";
+import { Chip, Kicker, Meter, Rule, Spine } from "@/components/Marks";
 import { MotionSurface } from "@/components/MotionSurface";
 import { Rise, Rising } from "@/components/Rise";
 import { Seal } from "@/components/Seal";
@@ -57,8 +57,11 @@ export default function TodayScreen() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Rising>
       <View style={styles.nav}>
-        <MotionSurface onPress={() => setDay(shiftDay(day, -1))} hitSlop={12}>
-          <Text style={styles.navLink}>← Previous</Text>
+        {/* Named days, not "previous" and "next": the button says where it
+            goes, so moving through the week never needs a mental subtraction.
+            The web client has said this for as long as it has had the screen. */}
+        <MotionSurface style={styles.pager} onPress={() => setDay(shiftDay(day, -1))} hitSlop={12}>
+          <Text style={styles.navLink}>← {weekdayOf(shiftDay(day, -1))}</Text>
         </MotionSurface>
         <View style={styles.dayRow}>
           <Text style={styles.date}>{isToday ? "Today" : day}</Text>
@@ -67,12 +70,15 @@ export default function TodayScreen() {
           <Guide id="today" />
         </View>
         <MotionSurface
+          style={styles.pager}
           onPress={() => setDay(shiftDay(day, 1))}
           hitSlop={12}
           // There is nothing recorded in the future.
           disabled={isToday}
         >
-          <Text style={[styles.navLink, isToday && styles.disabled]}>Next →</Text>
+          <Text style={[styles.navLink, isToday && styles.disabled]}>
+            {weekdayOf(shiftDay(day, 1))} →
+          </Text>
         </MotionSurface>
       </View>
 
@@ -90,6 +96,10 @@ export default function TodayScreen() {
 
 function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
   const router = useRouter();
+  // What the day's findings are circling, if the person has findings on. The
+  // design states it in the same line as the counts, because "three patterns
+  // circling" is a fact about the day and not a separate topic.
+  const circling = summary.recurring.length;
   const token = useSession((state) => state.token);
   const userId = useSession((state) => state.userId);
   const drawnFrom = useDrawnFrom(token, userId);
@@ -113,8 +123,11 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
       {/* What the day holds, counted. The web states this before anything is
           drawn, so the shape of the day is known before it is read. */}
       <Text style={styles.tally}>
-        {summary.entry_count} {summary.entry_count === 1 ? "act" : "acts"} ·{" "}
-        {summary.inferred.length} {summary.inferred.length === 1 ? "reading" : "readings"} drawn
+        {`${summary.entry_count} ${summary.entry_count === 1 ? "act" : "acts"} · ${
+          summary.inferred.length
+        } ${summary.inferred.length === 1 ? "reading" : "readings"} drawn${
+          circling > 0 ? ` · ${circling} ${circling === 1 ? "pattern" : "patterns"} circling` : ""
+        }`}
       </Text>
 
       {/* Kicker, rule and aside on one line, as the web sets them: the rule
@@ -163,7 +176,7 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
       ))}
 
       {summary.recurring.length > 0 && (
-        <Section title="Came up more than once">
+        <Section title="Came up more than once" aside="in this day">
           {summary.recurring.map((item) => (
             <Text key={`${item.kind}-${item.label}`} style={styles.body}>
               {item.label} <Text style={styles.meta}>in {item.entries} entries</Text>
@@ -173,7 +186,7 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
       )}
 
       {confident.length > 0 && (
-        <Section title="Noticed">
+        <Section title="What they left behind" aside="surest first">
           {confident.map((item) => (
             <Inference key={item.id} item={item} />
           ))}
@@ -181,7 +194,7 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
       )}
 
       {tentative.length > 0 && (
-        <Section title="Less sure about">
+        <Section title="Less sure" aside="unobserved, they grow vague">
           {/* A separate section rather than mixed in and greyed out. A
               low-confidence guess sitting next to a confident one reads as
               equally true no matter how it is styled. */}
@@ -196,7 +209,7 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
           is not looking at. */}
       {summary.inferred.length > 0 && (
         <Text style={styles.footnote}>
-          Everything under “Noticed” and “Less sure about” is a guess drawn from your
+          Everything under “What they left behind” and “Less sure” is a guess drawn from your
           entries, not a conclusion about you. Tap one to see which words it came
           from.
         </Text>
@@ -205,19 +218,45 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  aside,
+  children,
+}: {
+  title: string;
+  /** The design sets a short phrase at the far end of the rule saying how the
+   *  section is ordered or what it holds. */
+  aside?: string;
+  children: React.ReactNode;
+}) {
   return (
     <View style={styles.section}>
       {/* Kicker and rule, as the web has them. This was a green sans label,
           which read as a heading competing with the words underneath rather
           than as a marking on the side of the instrument. */}
-      <Kicker heading>{title}</Kicker>
-      <Rule />
+      <View style={styles.sectionRow}>
+        <Kicker heading>{title}</Kicker>
+        <View style={styles.ruleFill}>
+          <Rule />
+        </View>
+        {aside ? <Text style={styles.aside}>{aside}</Text> : null}
+      </View>
       {children}
     </View>
   );
 }
 
+/**
+ * A reading, as the design draws one: its seal, what it says, what kind of
+ * thing it is and how many entries it rests on, and a meter for how sure the
+ * record is.
+ *
+ * This was a bare chip. A chip is right beside an act — it is a pointer to
+ * something drawn from the words above it — but in a list of its own it says
+ * only a label and a number, with no seal to recognise it by and no meter to
+ * read the confidence off. The two places had the same content and one of them
+ * was doing none of the work.
+ */
 function Inference({
   item,
   tentative = false,
@@ -226,28 +265,80 @@ function Inference({
   tentative?: boolean;
 }) {
   const router = useRouter();
+  const unsure = tentative || item.tentative;
+  const cites = item.cites_entries ?? 0;
   return (
-    <MotionSurface onPress={() => router.push(`/node/${item.id}`)} style={styles.reading}>
-      <Chip label={item.label} confidence={item.confidence} tentative={tentative || item.tentative} />
+    <MotionSurface
+      onPress={() => router.push(`/node/${item.id}`)}
+      style={styles.reading}
+      accessibilityRole="button"
+      accessibilityLabel={item.label}
+    >
+      <Seal id={item.id} size={34} />
+      <View style={styles.readingMain}>
+        <Text style={[styles.readingLabel, unsure && styles.readingLabelFaint]}>{item.label}</Text>
+        <Text style={styles.readingMeta}>
+          {item.kind.toLowerCase()}
+          {cites ? ` · ${cites} ${cites === 1 ? "entry" : "entries"}` : ""}
+        </Text>
+      </View>
+      <View style={styles.readingSide}>
+        <Meter confidence={item.confidence} tentative={unsure} />
+      </View>
     </MotionSurface>
   );
 }
 
 /** Just the clock time. The day is named at the top of the screen, so the date
  *  on every act would be the same date repeated. */
+/** Three letters, uppercased by the style — which day the pager goes to. */
+function weekdayOf(day: string): string {
+  return new Date(`${day}T12:00:00`).toLocaleDateString([], { weekday: "short" });
+}
+
 function shortTime(iso: string): string {
   return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
 const styles = StyleSheet.create({
+  reading: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    paddingVertical: 13,
+    paddingHorizontal: 2,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+  },
+  readingMain: { flex: 1, minWidth: 0, gap: 5 },
+  readingLabel: { color: colors.ink, fontFamily: fonts.sansSemi, fontSize: scale.body.size },
+  readingLabelFaint: { color: colors.inkSoft },
+  readingMeta: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: scale.meta.size },
+  readingSide: { flexDirection: "row", alignItems: "center", gap: 12, flexShrink: 0, width: 96 },
   dayRow: { flexDirection: "row", alignItems: "center", gap: 2 },
+  /** Ghosted, because navigation is not the point of the screen. */
+  pager: {
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: 3,
+    paddingVertical: 7,
+    paddingHorizontal: 11,
+  },
   sub: {
     color: colors.inkMuted,
     fontFamily: fonts.sans,
     fontSize: scale.body.size,
     lineHeight: scale.body.line,
   },
-  tally: { color: colors.inkSoft, fontFamily: fonts.mono, fontSize: scale.meta.size },
+  tally: {
+    color: colors.inkMuted,
+    fontFamily: fonts.mono,
+    fontSize: 10.5,
+    lineHeight: 17,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    marginTop: 10,
+  },
   aside: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: scale.meta.size },
   entry: { flexDirection: "row", gap: 10, alignItems: "flex-start", paddingVertical: 6 },
   act: { flexDirection: "row", gap: 10, flex: 1, alignItems: "flex-start" },
@@ -263,7 +354,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  navLink: { color: colors.inkSoft, fontFamily: fonts.sans, fontSize: 14, fontWeight: "700" },
+  navLink: {
+    color: colors.inkMuted,
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+  },
   disabled: { opacity: 0.3 },
   date: { color: colors.ink, fontFamily: fonts.sans, fontSize: 16, fontWeight: "700" },
   sky: { alignItems: "center", justifyContent: "center" },
@@ -281,7 +378,6 @@ const styles = StyleSheet.create({
   readoutText: { color: colors.ink, fontFamily: fonts.sans, fontSize: 16, lineHeight: 23 },
   wrote: { flexDirection: "row", gap: 10, alignItems: "flex-start", paddingVertical: 4 },
   wroteText: { flex: 1 },
-  reading: { paddingVertical: 3 },
   section: { gap: 6, paddingTop: 12 },
   sectionTitle: {
     color: colors.cyan,
