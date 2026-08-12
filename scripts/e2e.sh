@@ -217,7 +217,9 @@ playwright-cli click "$(ref_for 'Create account')" >/dev/null 2>&1
 sleep 4
 
 playwright-cli snapshot >/dev/null 2>&1
-snapshot_contains "What's on your mind?" \
+# The composer's placeholder, which is now the design's wording and pinned to
+# the bottom of the screen rather than sitting at the end of the stream.
+snapshot_contains "Write what happened" \
   && pass "signup lands on the journal" \
   || fail "signup did not reach the journal"
 
@@ -226,13 +228,16 @@ TOKEN="$(playwright-cli localstorage-get tlon.token 2>&1 | grep -oE '[A-Za-z0-9_
 
 step "Writing an entry"
 ENTRY="I told Sara I would finish the report and I have not started it."
-playwright-cli fill "$(ref_for "What's on your mind?")" "$ENTRY" >/dev/null 2>&1
+# Resolved by the field's accessible name, not its placeholder: `ref_for`
+# reads the ref off the line it matched, and a placeholder sits on its own
+# line in the snapshot with no ref on it.
+playwright-cli fill "$(ref_for "Journal entry")" "$ENTRY" >/dev/null 2>&1
 # Re-snapshot before resolving Save. The composer shows one control at a time —
-# with nothing typed that slot is "Hold to record", and Save only exists once
-# there is something to save. Resolving its ref from the pre-fill snapshot found
-# nothing, so the click silently did nothing.
+# with nothing typed that slot is the microphone, and the way to keep an entry
+# only exists once there is something to keep. Resolving its ref from the
+# pre-fill snapshot found nothing, so the click silently did nothing.
 playwright-cli snapshot >/dev/null 2>&1
-playwright-cli click "$(ref_for 'Save')" >/dev/null 2>&1
+playwright-cli click "$(ref_for 'Save this entry')" >/dev/null 2>&1
 sleep 3
 playwright-cli snapshot >/dev/null 2>&1
 

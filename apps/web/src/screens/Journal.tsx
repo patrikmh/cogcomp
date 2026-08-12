@@ -204,7 +204,9 @@ export function Journal() {
             id="capText"
             rows={1}
             value={text}
-            placeholder="Write what happened — Enter sends, Shift+Enter breaks a line"
+            placeholder="Write what happened"
+            aria-label="Journal entry"
+            aria-describedby="capGuidance"
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
               // Enter sends, Shift+Enter is a newline — the prototype's contract.
@@ -214,16 +216,29 @@ export function Journal() {
               }
             }}
           />
+          {/* The keyboard contract, said to screen readers and not to the
+              placeholder. A placeholder carrying its own instructions is a
+              placeholder nobody finishes reading. */}
+          <span id="capGuidance" className="sr-only">
+            Press Enter to send. Press Shift+Enter for a new line.
+          </span>
           <button
             id="mic"
             data-rec={recording ? "" : undefined}
+            aria-label={recording ? "Stop recording" : "Start recording"}
             onClick={() => void toggleRecording()}
           >
             {/* The dot is the state: lit while the microphone is actually open.
                 "Is it listening?" must never be a question in an app people use
                 to talk about difficult things. */}
             <span className="dot" aria-hidden />
-            {recording ? "LISTENING" : speak.isPending ? "TRANSCRIBING…" : "HOLD TO RECORD"}
+            <span className="cap-label">
+              {recording ? "LISTENING" : speak.isPending ? "TRANSCRIBING…" : ""}
+            </span>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="9" y="3" width="6" height="12" rx="3" />
+              <path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6" />
+            </svg>
           </button>
           {/* Hidden until there is something to send, rather than shown greyed:
               a control you cannot use is noise on the one screen that should be
@@ -233,13 +248,17 @@ export function Journal() {
             className={text.trim() && !save.isPending ? "on" : ""}
             disabled={!text.trim() || save.isPending}
             onClick={() => save.mutate(text.trim())}
+            aria-label="Send journal entry"
           >
-            {save.isPending ? "KEEPING…" : "SEND"}
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 12h15M13 6l6 6-6 6" />
+            </svg>
           </button>
         </div>
-        <div id="capmeta">
-          <span className="kicker">Capture</span>
-          <span className="mono">
+        {/* One quiet line, as the design has it — not a kicker and a sentence.
+            "CAPTURE" labelled a section that is a single field. */}
+        <div id="capState" role="status" aria-live="polite" aria-atomic="true">
+          <span>
             {note ??
               (save.isError
                 ? "Not saved — your words are still here. Try again."
