@@ -3,6 +3,7 @@ import { detectorsWaiting } from "@tlon/ontology";
 import { useQuery } from "@tanstack/react-query";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { Guide } from "@/components/Guide";
 import { Kicker, Rule } from "@/components/Marks";
 import { api, type ObservationResponse, type Pattern } from "@/lib/api";
 import { localToday, mondayOfWeek } from "@/lib/dates";
@@ -50,7 +51,10 @@ export default function FirstScreen() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Kicker>First fortnight · new</Kicker>
-      <Text style={styles.title}>The machinery is filling</Text>
+      <View style={styles.headingRow}>
+        <Text style={styles.title}>The machinery is filling</Text>
+        <Guide id="first" />
+      </View>
       <Text style={styles.sub}>
         Some findings need more days than you have written. Nothing is owed — this is what
         each detector is waiting for.
@@ -77,6 +81,7 @@ export default function FirstScreen() {
 }
 
 const styles = StyleSheet.create({
+  headingRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
   screen: { flex: 1, backgroundColor: colors.room },
   content: { padding: 20, paddingBottom: 56, gap: 10 },
   title: {

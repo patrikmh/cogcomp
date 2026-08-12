@@ -13,6 +13,7 @@ import type { Datum } from "@/lib/orbital";
 import { colors, fonts } from "@/theme";
 import { type as scale } from "@tlon/design";
 import { Kicker } from "@/components/Marks";
+import { Guide } from "@/components/Guide";
 import { Seal } from "@/components/Seal";
 
 const LazyConstellation = lazySkia(() => import("@/components/Constellation"));
@@ -45,6 +46,9 @@ interface Props {
    *  kicker naming it and a title stating its claim; screens built on this
    *  shell could carry only the first, so they were the ones left unnamed. */
   title?: string;
+  /** The key into the shared guide copy — a "?" beside the title saying what
+   *  this screen shows and where it stops. */
+  guide?: string;
   data: Datum[];
   links?: { from: string; to: string }[];
   selected: string | null;
@@ -73,6 +77,7 @@ interface Props {
 export function Observatory({
   eyebrow,
   title,
+  guide,
   stage,
   data,
   links,
@@ -96,7 +101,12 @@ export function Observatory({
   return (
     <View style={styles.screen}>
       {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
-      {title ? <Text style={styles.title}>{title}</Text> : null}
+      {title ? (
+        <View style={styles.headingRow}>
+          <Text style={styles.title}>{title}</Text>
+          {guide ? <Guide id={guide} /> : null}
+        </View>
+      ) : null}
 
       <View style={styles.stage}>
         {loading ? (
@@ -197,6 +207,7 @@ const styles = StyleSheet.create({
   // style — headspace, patterns, agents, identity, explore — so they all read
   // as markings on the side of the instrument rather than as five titles
   // shouting in the product's accent colour.
+  headingRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingRight: 12 },
   title: {
     color: colors.ink,
     fontFamily: fonts.sansBold,

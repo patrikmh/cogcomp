@@ -2,6 +2,7 @@ import { radii, type as scale } from "@tlon/design";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { Guide } from "@/components/Guide";
 import { Kicker, Rule } from "@/components/Marks";
 import { MotionSurface } from "@/components/MotionSurface";
 import { Rise, Rising } from "@/components/Rise";
@@ -52,7 +53,10 @@ export default function AgentsScreen() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Rising>
         <Kicker>Agent activity</Kicker>
-        <Text style={styles.title}>What was decided while you were away</Text>
+        <View style={styles.headingRow}>
+          <Text style={styles.title}>What was decided while you were away</Text>
+          <Guide id="agents" />
+        </View>
         <Text style={styles.sub}>One line per attempt. Counts only — never what you wrote.</Text>
 
         <View style={styles.summary}>
@@ -131,6 +135,7 @@ const styles = StyleSheet.create({
     lineHeight: scale.title.line,
     letterSpacing: scale.title.tracking,
   },
+  headingRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 8 },
   sub: {
     color: colors.inkMuted,
     fontFamily: fonts.sans,

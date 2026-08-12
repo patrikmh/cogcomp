@@ -49,6 +49,7 @@ export default function ExploreScreen() {
       // The design titles this with what the screen claims rather than what it
       // is called, and the claim is the whole point of the screen: nothing here
       // is settled, so nothing can be read into where a thing sits.
+      guide="explore"
       title="Fixed positions, seeded by id"
       stage={
         nodes.length > 0 && !graph.isLoading ? (

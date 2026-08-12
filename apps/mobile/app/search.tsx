@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
+import { Guide } from "@/components/Guide";
 import { Chip, Kicker, Rule } from "@/components/Marks";
 import { MotionSurface } from "@/components/MotionSurface";
 import { Seal } from "@/components/Seal";
@@ -50,7 +51,10 @@ export default function SearchScreen() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Rising>
       <Kicker>Find an entry</Kicker>
-      <Text style={styles.title}>Your own words, found</Text>
+      <View style={styles.headingRow}>
+        <Text style={styles.title}>Your own words, found</Text>
+        <Guide id="search" />
+      </View>
       <Text style={styles.sub}>
         Literal text, newest first. Readings are not searched — they are not your words.
       </Text>
@@ -221,6 +225,7 @@ const styles = StyleSheet.create({
     outlineStyle: "none",
   } as object,
   fieldOn: { borderBottomColor: colors.ink },
+  headingRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   count: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: scale.meta.size },
   hit: { flexDirection: "row", gap: 10, alignItems: "flex-start", paddingVertical: 8 },
   hitBody: { flex: 1, gap: 6 },

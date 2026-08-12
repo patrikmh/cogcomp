@@ -6,6 +6,7 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { readingBudget } from "@tlon/design/marks";
 
 import { HeadspaceMap, type Whorl } from "@/components/HeadspaceMap";
+import { Guide } from "@/components/Guide";
 import { Kicker } from "@/components/Marks";
 import { MotionSurface } from "@/components/MotionSurface";
 import { Observatory, Readout } from "@/components/Observatory";
@@ -139,7 +140,11 @@ export default function HeadspaceScreen() {
           with the word "Headspace" — which the tab bar already says — so the
           heading changes as you change what you are looking at. */}
       <Kicker>Headspace</Kicker>
-      <Text style={styles.title}>{LENS_LABEL[lens]}</Text>
+      <View style={styles.headingRow}>
+        <Text style={styles.title}>{LENS_LABEL[lens]}</Text>
+        {/* Lens-aware: what this screen is doing depends on which lens is on. */}
+        <Guide id="headspace" lens={LENS_LABEL[lens]} />
+      </View>
       <Text style={styles.note}>{LENS_NOTE[lens]}</Text>
 
       {/* The design's tabs: names on a rule, the one you are on inked and
@@ -459,6 +464,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     paddingBottom: 6,
   },
+  headingRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingRight: 12 },
   title: {
     paddingHorizontal: 20,
     color: colors.ink,

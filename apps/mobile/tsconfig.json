@@ -8,6 +8,7 @@
         "./src/*"
       ],
       "@tlon/copy": ["../../packages/copy/disclosure.ts"],
+      "@tlon/copy/guides": ["../../packages/copy/guides.ts"],
       "@tlon/ontology": [
         "../../packages/ontology/index.ts"
       ],
