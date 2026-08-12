@@ -11,6 +11,7 @@ import { MotionSurface } from "@/components/MotionSurface";
 import { lazySkia } from "@/lib/lazySkia";
 import type { Datum } from "@/lib/orbital";
 import { colors, fonts } from "@/theme";
+import { type as scale } from "@tlon/design";
 
 const LazyConstellation = lazySkia(() => import("@/components/Constellation"));
 
@@ -168,11 +169,16 @@ export function Readout({
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.room, paddingHorizontal: 20 },
+  // The design's kicker, not a green heading. Five screens share this one
+  // style — headspace, patterns, agents, identity, explore — so they all read
+  // as markings on the side of the instrument rather than as five titles
+  // shouting in the product's accent colour.
   eyebrow: {
-    color: colors.cyan,
-    fontFamily: fonts.sans, fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 2,
+    color: colors.inkMuted,
+    fontFamily: fonts.monoMedium,
+    fontSize: scale.kicker.size,
+    lineHeight: scale.kicker.line,
+    letterSpacing: scale.kicker.tracking,
     textTransform: "uppercase",
     paddingTop: 14,
   },
