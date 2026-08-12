@@ -1,4 +1,4 @@
-import { STRIP_CELLS, stripSeries } from "@tlon/design/marks";
+import { stripSeries } from "@tlon/design/marks";
 import { useEffect, useRef } from "react";
 import { Animated, Easing, StyleSheet, View } from "react-native";
 
@@ -19,26 +19,40 @@ import { colors } from "@/theme";
  */
 const BAR_MS = 500;
 const BAR_STAGGER_MS = 26;
+/** The prototype's curve for a bar growing out of its baseline. */
+const BAR_EASING = Easing.bezier(0.2, 0, 0, 1);
+/** A day the finding does not rest on: a hairline, and it does not grow —
+ *  `.p-cell.dim .p-bar` sets `animation:none` and a 3px height. */
+const DIM_HEIGHT = 3;
 
 export function Strip({ pattern }: {
   pattern: { id: string; detector: string; distinct_days: number; occurrences: number };
 }) {
   const { lit, second } = stripSeries(pattern);
   const reduced = useReducedMotion();
-  const grow = useRef(new Animated.Value(reduced ? 1 : 0)).current;
+  // One value per cell, each on its own delay and its own curve. Driving all
+  // fourteen from a single linear clock and slicing it up approximated the
+  // stagger but flattened the easing, so every bar rose at a constant rate
+  // where the design has them ease out of the baseline.
+  const grow = useRef(lit.map(() => new Animated.Value(reduced ? 1 : 0))).current;
 
   useEffect(() => {
     if (reduced) {
-      grow.setValue(1);
+      grow.forEach((value) => value.setValue(1));
       return;
     }
-    grow.setValue(0);
-    const animation = Animated.timing(grow, {
-      toValue: 1,
-      duration: BAR_MS + STRIP_CELLS * BAR_STAGGER_MS,
-      easing: Easing.linear,
-      useNativeDriver: true,
-    });
+    const animation = Animated.parallel(
+      grow.map((value, i) => {
+        value.setValue(0);
+        return Animated.timing(value, {
+          toValue: 1,
+          duration: BAR_MS,
+          delay: i * BAR_STAGGER_MS,
+          easing: BAR_EASING,
+          useNativeDriver: true,
+        });
+      }),
+    );
     animation.start();
     return () => animation.stop();
   }, [grow, pattern.id, reduced]);
@@ -47,25 +61,18 @@ export function Strip({ pattern }: {
     <View style={styles.strip} accessibilityElementsHidden>
       {lit.map((on, i) => {
         const other = second[i];
-        const height = on || other ? "100%" : "22%";
-        // Each cell's own slice of the run, eased inside it — the stagger the
-        // web gets from animation-delay.
-        const start = (i * BAR_STAGGER_MS) / (BAR_MS + STRIP_CELLS * BAR_STAGGER_MS);
-        const end = start + BAR_MS / (BAR_MS + STRIP_CELLS * BAR_STAGGER_MS);
-        const scale = grow.interpolate({
-          inputRange: [0, start, Math.min(end, 1), 1],
-          outputRange: [0, 0, 1, 1],
-          extrapolate: "clamp",
-        });
+        const dim = !on && !other;
+        const scale = grow[i]!;
         return (
           <View key={i} style={styles.cell}>
             <Animated.View
               style={[
                 styles.bar,
-                { height },
-                !on && !other && styles.dim,
+                dim ? { height: DIM_HEIGHT } : { height: "100%" },
+                dim && styles.dim,
                 other && !on ? styles.secondSide : null,
-                { transform: [{ scaleY: scale }] },
+                // A hairline day does not grow: there is nothing there to rise.
+                { transform: [{ scaleY: dim ? 1 : scale }] },
               ]}
             />
           </View>

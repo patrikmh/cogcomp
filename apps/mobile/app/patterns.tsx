@@ -96,7 +96,7 @@ export default function PatternsScreen() {
             accessibilityRole="button"
             accessibilityLabel={pattern.label}
           >
-            <Seal id={pattern.id} size={40} />
+            <Seal id={pattern.id} size={40} stamp />
             <View style={styles.rowBody}>
               <Text style={styles.label}>{pattern.label}</Text>
               <Kicker>{patternMeta(pattern)}</Kicker>

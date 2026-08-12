@@ -1,8 +1,8 @@
 import { radii, type as scale } from "@tlon/design";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { useState } from "react";
-import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Animated, Easing, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { Chip, Kicker, Rule } from "@/components/Marks";
 import { MotionSurface } from "@/components/MotionSurface";
@@ -12,6 +12,7 @@ import { useDrawnFrom } from "@/lib/drawnFrom";
 import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
 import { Rise, Rising } from "@/components/Rise";
+import { useReducedMotion } from "@/lib/motion";
 
 /**
  * Find an entry.
@@ -30,6 +31,7 @@ export default function SearchScreen() {
   const userId = useSession((s) => s.userId);
   const router = useRouter();
   const [term, setTerm] = useState("");
+  const [focused, setFocused] = useState(false);
 
   const entries = useQuery({
     queryKey: ["observations", userId],
@@ -53,8 +55,14 @@ export default function SearchScreen() {
         Literal text, newest first. Readings are not searched — they are not your words.
       </Text>
 
+      {/* A rule under the words, not a box around them. The design has this as
+          a baseline the sentence sits on, darkening to ink on focus; a bordered
+          card here reads as a form to fill in rather than as a place to say a
+          word you remember. */}
       <TextInput
-        style={styles.field}
+        style={[styles.field, focused && styles.fieldOn]}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
         value={term}
         onChangeText={setTerm}
         placeholder="A word you remember writing"
@@ -124,15 +132,61 @@ function highlight(content: string, needle: string) {
     const at = rest.toLowerCase().indexOf(needle);
     if (at < 0) break;
     parts.push(rest.slice(0, at));
-    parts.push(
-      <Text key={key++} style={styles.mark}>
-        {rest.slice(at, at + needle.length)}
-      </Text>,
-    );
+    parts.push(<Mark key={key++} text={rest.slice(at, at + needle.length)} />);
     rest = rest.slice(at + needle.length);
   }
   parts.push(rest);
   return parts;
+}
+
+/**
+ * The matched run, marked as the design marks it.
+ *
+ * Not an inverted chip: the words stay exactly where they were, in the live
+ * colour with a hairline under them, and a pale wash fades in behind — `sMark`,
+ * .5s on cubic-bezier(.3,.8,.2,1). A block of inverted text reads as something
+ * the app inserted; this reads as the same sentence with a finger under a word.
+ */
+const MARK_MS = 500;
+const MARK_EASING = Easing.bezier(0.3, 0.8, 0.2, 1);
+/** The wash the prototype fades to: rgba(254,252,191,.22). */
+const MARK_WASH = "rgba(254,252,191,0.22)";
+
+function Mark({ text }: { text: string }) {
+  const reduced = useReducedMotion();
+  const wash = useRef(new Animated.Value(reduced ? 1 : 0)).current;
+
+  useEffect(() => {
+    if (reduced) {
+      wash.setValue(1);
+      return;
+    }
+    wash.setValue(0);
+    const animation = Animated.timing(wash, {
+      toValue: 1,
+      duration: MARK_MS,
+      easing: MARK_EASING,
+      useNativeDriver: false,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [reduced, text, wash]);
+
+  return (
+    <Animated.Text
+      style={[
+        styles.mark,
+        {
+          backgroundColor: wash.interpolate({
+            inputRange: [0, 1],
+            outputRange: ["rgba(254,252,191,0)", MARK_WASH],
+          }),
+        },
+      ]}
+    >
+      {text}
+    </Animated.Text>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -152,16 +206,21 @@ const styles = StyleSheet.create({
     lineHeight: scale.body.line,
   },
   field: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.lineStrong,
-    borderRadius: radii.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
     color: colors.ink,
     fontFamily: fonts.sans,
-    fontSize: scale.body.size,
-    padding: 14,
+    fontSize: 20,
+    lineHeight: 28,
+    letterSpacing: -0.2,
+    paddingTop: 4,
+    paddingHorizontal: 2,
+    paddingBottom: 12,
     marginTop: 6,
-  },
+    // The browser's own focus ring is not this design's focus state.
+    outlineStyle: "none",
+  } as object,
+  fieldOn: { borderBottomColor: colors.ink },
   count: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: scale.meta.size },
   hit: { flexDirection: "row", gap: 10, alignItems: "flex-start", paddingVertical: 8 },
   hitBody: { flex: 1, gap: 6 },
@@ -171,6 +230,10 @@ const styles = StyleSheet.create({
     fontSize: scale.body.size,
     lineHeight: scale.body.line,
   },
-  mark: { color: colors.room, backgroundColor: colors.cyan },
+  mark: {
+    color: colors.cyan,
+    textDecorationLine: "underline",
+    textDecorationColor: "rgba(122,220,200,0.45)",
+  },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
 });
