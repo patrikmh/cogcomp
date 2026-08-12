@@ -17,6 +17,7 @@ import { Seal } from "@/components/Seal";
 import { api, type DailySummary } from "@/lib/api";
 import { deviceTimezone, localToday, shiftDay } from "@/lib/dates";
 import { useDrawnFrom } from "@/lib/drawnFrom";
+import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
 import { type as scale } from "@tlon/design";
@@ -96,13 +97,21 @@ export default function TodayScreen() {
 
 function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
   const router = useRouter();
-  // What the day's findings are circling, if the person has findings on. The
-  // design states it in the same line as the counts, because "three patterns
-  // circling" is a fact about the day and not a separate topic.
-  const circling = summary.recurring.length;
   const token = useSession((state) => state.token);
   const userId = useSession((state) => state.userId);
+  const showFindings = usePreferences((state) => state.findings);
   const drawnFrom = useDrawnFrom(token, userId);
+
+  // The recurrences today's material belongs to. The count goes in the line
+  // under the heading — "three patterns circling" is a fact about the day, not
+  // a separate topic — and the first one gets the link at the end of the day.
+  const patterns = useQuery({
+    queryKey: ["patterns", userId],
+    queryFn: () => api.listPatterns(token!),
+    enabled: Boolean(token) && showFindings,
+  });
+  const circlingList = patterns.data ?? [];
+  const circling = circlingList[0];
 
   if (summary.entry_count === 0) {
     // Stated plainly, with no nudge to write. A day with nothing in it is a fact
@@ -126,7 +135,9 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
         {`${summary.entry_count} ${summary.entry_count === 1 ? "act" : "acts"} · ${
           summary.inferred.length
         } ${summary.inferred.length === 1 ? "reading" : "readings"} drawn${
-          circling > 0 ? ` · ${circling} ${circling === 1 ? "pattern" : "patterns"} circling` : ""
+          circlingList.length > 0
+            ? ` · ${circlingList.length} ${circlingList.length === 1 ? "pattern" : "patterns"} circling`
+            : ""
         }`}
       </Text>
 
@@ -175,16 +186,6 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
         </Rise>
       ))}
 
-      {summary.recurring.length > 0 && (
-        <Section title="Came up more than once" aside="in this day">
-          {summary.recurring.map((item) => (
-            <Text key={`${item.kind}-${item.label}`} style={styles.body}>
-              {item.label} <Text style={styles.meta}>in {item.entries} entries</Text>
-            </Text>
-          ))}
-        </Section>
-      )}
-
       {confident.length > 0 && (
         <Section title="What they left behind" aside="surest first">
           {confident.map((item) => (
@@ -201,6 +202,27 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
           {tentative.map((item) => (
             <Inference key={item.id} item={item} tentative />
           ))}
+        </Section>
+      )}
+
+      {/* What today's material is part of, and the way to it. This was a list
+          of labels under "Came up more than once" with no route out: you could
+          see that something had come up twice and had nowhere to go with it.
+          The design ends the day here, on a link to the recurrence. */}
+      {circling && (
+        <Section title="Circling">
+          <MotionSurface
+            style={styles.circle}
+            onPress={() => router.push("/patterns")}
+            accessibilityRole="button"
+            accessibilityLabel={`${circling.label} — open patterns`}
+          >
+            <Text style={styles.circleLabel}>{circling.label}</Text>
+            <Text style={styles.circleMeta}>
+              {circling.distinct_days} of {circling.occurrences} days
+            </Text>
+            <Text style={styles.circleGo}>the pattern →</Text>
+          </MotionSurface>
         </Section>
       )}
 
@@ -301,6 +323,16 @@ function shortTime(iso: string): string {
 }
 
 const styles = StyleSheet.create({
+  circle: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 2,
+  },
+  circleLabel: { color: colors.ink, fontFamily: fonts.sansSemi, fontSize: scale.body.size },
+  circleMeta: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: scale.meta.size },
+  circleGo: { marginLeft: "auto", color: colors.cyan, fontFamily: fonts.mono, fontSize: scale.meta.size },
   reading: {
     flexDirection: "row",
     alignItems: "center",
