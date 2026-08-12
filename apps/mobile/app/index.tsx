@@ -199,6 +199,17 @@ export default function JournalScreen() {
         </MotionSurface>
       ) : null}
 
+      {/* Looking for something you wrote starts from where your words are. */}
+      {entries.length > 0 && (
+        <MotionSurface
+          onPress={() => router.push("/search")}
+          accessibilityRole="button"
+          hitSlop={8}
+        >
+          <Text style={styles.findLink}>Find an entry →</Text>
+        </MotionSurface>
+      )}
+
       <TextInput
         style={[styles.input, drafting && styles.inputActive]}
         value={draft}
@@ -286,6 +297,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.4,
   },
   chipQuiet: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: 10, letterSpacing: 1.2 },
+  findLink: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: 12, paddingVertical: 6 },
   readoutOpen: { color: colors.cyan, fontFamily: fonts.sans, fontSize: 12, fontWeight: "700" },
   readoutHint: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: 13, lineHeight: 19 },
   readoutText: { color: colors.ink, fontFamily: fonts.sans, fontSize: 16, lineHeight: 23 },

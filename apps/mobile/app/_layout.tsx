@@ -127,6 +127,7 @@ function Gate() {
         <Stack.Screen name="explore" options={{ title: "Explore" }} />
         <Stack.Screen name="node/[id]" options={{ title: "Where this came from" }} />
         <Stack.Screen name="settings" options={{ title: "Settings" }} />
+        <Stack.Screen name="search" options={{ title: "Find an entry" }} />
         <Stack.Screen name="words" options={{ title: "What happens to your words" }} />
         {/* Registered like any other screen. The developer switch decides
             whether it can be reached, not whether it has a name — an
