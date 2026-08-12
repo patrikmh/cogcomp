@@ -9,6 +9,8 @@ import {
 } from "react-native";
 
 import { AtmosphericShell } from "@/components/Atmospheric";
+import { Kicker, Rule } from "@/components/Marks";
+import { Seal } from "@/components/Seal";
 import { EvidenceRail, FieldFrame, LoadingLens, ErrorLens, ObservablePearl } from "@/components/SpatialField";
 import { MotionSurface } from "@/components/MotionSurface";
 import { api, type Explanation, type Judgement } from "@/lib/api";
@@ -138,7 +140,12 @@ function Body({
     return (
       <AtmosphericShell variant="secondary">
         <ScrollView contentContainerStyle={styles.screen}>
-        <Text style={styles.kind}>Your entry</Text>
+        <View style={styles.actHead}>
+          {/* The same mark as on the journal — arriving here from an entry, you
+              should see the shape you tapped. */}
+          <Seal id={node.id} size={34} />
+          <Kicker>Your entry</Kicker>
+        </View>
         <Text style={styles.headline}>{node.label}</Text>
         <Text style={styles.footnote}>
           This is something you wrote. Everything else in the graph is drawn from
@@ -155,8 +162,9 @@ function Body({
   return (
     <AtmosphericShell variant="secondary">
       <ScrollView contentContainerStyle={styles.screen}>
-      <Text style={styles.kicker}>EVIDENCE CHAIN</Text>
-      <Text style={styles.kind}>{node.kind.toLowerCase()}</Text>
+      <Kicker>Evidence chain</Kicker>
+      <Rule />
+      <Kicker>{node.kind}</Kicker>
       <Text style={styles.headline}>{node.label}</Text>
 
       <View style={[styles.badge, tentative && styles.badgeTentative]}>
@@ -286,7 +294,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.room,
   },
   screen: { backgroundColor: colors.room, padding: 20, gap: 14, paddingBottom: 48 },
-  kicker: { color: colors.cyan, fontFamily: fonts.mono, fontSize: 11, fontWeight: "700", letterSpacing: 1.8 },
+  actHead: { flexDirection: "row", alignItems: "center", gap: 10 },
   kind: {
     fontFamily: fonts.sans, fontSize: 12,
     fontWeight: "700",
