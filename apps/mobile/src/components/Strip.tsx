@@ -24,6 +24,9 @@ const BAR_EASING = Easing.bezier(0.2, 0, 0, 1);
 /** A day the finding does not rest on: a hairline, and it does not grow —
  *  `.p-cell.dim .p-bar` sets `animation:none` and a 3px height. */
 const DIM_HEIGHT = 3;
+/** The strip's own height, so a bar can be pinned to its baseline while it
+ *  grows — React Native scales about the centre, CSS about the origin. */
+const STRIP_HEIGHT = 26;
 
 export function Strip({ pattern }: {
   pattern: { id: string; detector: string; distinct_days: number; occurrences: number };
@@ -72,7 +75,18 @@ export function Strip({ pattern }: {
                 dim && styles.dim,
                 other && !on ? styles.secondSide : null,
                 // A hairline day does not grow: there is nothing there to rise.
-                { transform: [{ scaleY: dim ? 1 : scale }] },
+                // The rest grow out of the baseline rather than out of their
+                // own middle, which is what `transform-origin: bottom` does on
+                // the web and what React Native's centre-scaling does not.
+                dim
+                  ? null
+                  : {
+                      transform: [
+                        { translateY: STRIP_HEIGHT / 2 },
+                        { scaleY: scale },
+                        { translateY: -STRIP_HEIGHT / 2 },
+                      ],
+                    },
               ]}
             />
           </View>
@@ -83,7 +97,7 @@ export function Strip({ pattern }: {
 }
 
 const styles = StyleSheet.create({
-  strip: { flexDirection: "row", alignItems: "flex-end", gap: 2, height: 26 },
+  strip: { flexDirection: "row", alignItems: "flex-end", gap: 2, height: STRIP_HEIGHT },
   cell: { flex: 1, height: "100%", justifyContent: "flex-end" },
   // Grown from the bottom, as `transform-origin: bottom` does on the web.
   bar: { width: "100%", borderTopLeftRadius: 2, borderTopRightRadius: 2, backgroundColor: colors.ink },

@@ -1,35 +1,34 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { Suspense, useState } from "react";
+import { useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
   View,
-  useWindowDimensions,
 } from "react-native";
 
 import { Kicker, Rule } from "@/components/Marks";
 import { MotionSurface } from "@/components/MotionSurface";
 import { Seal } from "@/components/Seal";
+import { WeekChart } from "@/components/WeekChart";
 import { api, type WeeklySummary } from "@/lib/api";
 import { deviceTimezone, localToday, mondayOfWeek, shiftWeek } from "@/lib/dates";
-import { lazySkia } from "@/lib/lazySkia";
 import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
 import { type as scale } from "@tlon/design";
 import { Rising } from "@/components/Rise";
 
-const LazyConstellation = lazySkia(() => import("@/components/Constellation"));
-
 /**
  * A week, as a rhythm.
  *
  * What a week has that a day does not is shape — which days you wrote on and
- * which you did not. That was previously buried in seven date headings, most of
- * them followed by "0". Here it is the first thing on the screen: seven cells,
- * each as bright as it was busy.
+ * which you did not. The prototype draws that as seven columns, each as tall as
+ * its day was busy, growing out of a shared baseline in the order the week
+ * happened. This client drew seven cells of equal height at varying opacity,
+ * which encodes the same number in the one channel a person cannot compare, and
+ * then put a turning constellation above them that said nothing at all.
  *
  * Empty days stay visible rather than being filtered out. A week with two entries
  * in it is a fact about the week, and hiding the five blank days would quietly
@@ -95,61 +94,18 @@ export default function WeekScreen() {
 
 function Body({ summary }: { summary: WeeklySummary }) {
   const router = useRouter();
-  const { width, height } = useWindowDimensions();
-  const [picked, setPicked] = useState<string | null>(null);
 
-  const busiest = Math.max(...summary.days.map((d) => d.entry_count), 1);
-  const size = Math.min(width * 0.78, height * 0.3, 280);
-
-  const points = [
-    ...summary.days.flatMap((day) =>
-      day.observations.map((observation) => ({
-        id: observation.id,
-        label: observation.content,
-        kind: "entry",
-        meta: day.date,
-        weight: 1,
-        tone: "Observation",
-        tentative: false,
-      })),
-    ),
-    ...summary.inferred.map((item) => ({
-      id: item.id,
-      label: item.label,
-      kind: item.kind.toLowerCase(),
-      meta: `${Math.round(item.confidence * 100)}% confident`,
-      weight: item.confidence,
-      tone: item.kind as string,
-      tentative: item.tentative,
-    })),
-  ];
-  const selected = points.find((p) => p.id === picked) ?? null;
 
   return (
     <>
-      {/* Seven buckets, always all seven. */}
-      <View style={styles.spine}>
-        {summary.days.map((day) => (
-          <View key={day.date} style={styles.cell}>
-            <View
-              style={[
-                styles.bar,
-                day.entry_count > 0 && styles.barActive,
-                {
-                  // Relative to the busiest day of this week, so the shape is
-                  // about this week rather than an absolute scale.
-                  opacity:
-                    day.entry_count === 0
-                      ? 0.14
-                      : 0.35 + 0.65 * (day.entry_count / busiest),
-                },
-              ]}
-            />
-            <Text style={styles.cellDay}>{day.date.slice(8)}</Text>
-            <Text style={styles.cellCount}>{day.entry_count}</Text>
-          </View>
-        ))}
-      </View>
+      <WeekChart
+        days={summary.days}
+        today={localToday()}
+        onOpen={() => router.push("/today")}
+      />
+      <Text style={styles.peek}>
+        Written days open. Empty days stay visible: a quiet week is not a lapse.
+      </Text>
 
       {summary.entry_count === 0 ? (
         // Stated plainly, with no nudge to write. A week with nothing in it is a
@@ -157,45 +113,10 @@ function Body({ summary }: { summary: WeeklySummary }) {
         <Text style={styles.empty}>Nothing recorded.</Text>
       ) : (
         <>
-          <View style={styles.sky}>
-            <Suspense fallback={<View style={{ height: size }} />}>
-              <LazyConstellation
-                data={points.map(({ id, weight, tone, tentative }) => ({
-                  id,
-                  weight,
-                  tone,
-                  tentative,
-                }))}
-                size={size}
-                selected={picked}
-                onSelect={setPicked}
-                dotSize={7}
-                frame="head"
-              />
-            </Suspense>
-          </View>
-
-          {selected ? (
-            <MotionSurface
-              style={styles.readout}
-              onPress={() => router.push(`/node/${selected.id}`)}
-              accessibilityRole="button"
-            >
-              <Text style={styles.readoutMeta}>
-                {selected.kind}
-                {selected.meta ? ` · ${selected.meta}` : ""}
-                {selected.tentative ? " · tentative" : ""}
-              </Text>
-              <Text style={styles.readoutText} numberOfLines={3}>
-                {selected.label}
-              </Text>
-            </MotionSurface>
-          ) : (
-            <Text style={styles.count}>
-              {summary.entry_count} {summary.entry_count === 1 ? "entry" : "entries"} ·{" "}
-              {summary.active_days} active {summary.active_days === 1 ? "day" : "days"}
-            </Text>
-          )}
+          <Text style={styles.count}>
+            {summary.entry_count} {summary.entry_count === 1 ? "entry" : "entries"} ·{" "}
+            {summary.active_days} active {summary.active_days === 1 ? "day" : "days"}
+          </Text>
 
           <Section title="What you wrote">
             {summary.days.flatMap((day) =>
@@ -282,6 +203,15 @@ function Inferences({
 }
 
 const styles = StyleSheet.create({
+  peek: {
+    marginTop: 12,
+    minHeight: 20,
+    color: colors.inkMuted,
+    fontFamily: fonts.mono,
+    fontSize: scale.kicker.size,
+    lineHeight: 18,
+    letterSpacing: 0.4,
+  },
   screen: { flex: 1, backgroundColor: colors.room },
   content: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 48, gap: 8 },
   nav: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
