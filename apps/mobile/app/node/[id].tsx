@@ -9,7 +9,7 @@ import {
 } from "react-native";
 
 import { AtmosphericShell } from "@/components/Atmospheric";
-import { Kicker, Rule } from "@/components/Marks";
+import { Kicker, Meter, Rule } from "@/components/Marks";
 import { Seal } from "@/components/Seal";
 import { EvidenceRail, FieldFrame, LoadingLens, ErrorLens, ObservablePearl } from "@/components/SpatialField";
 import { MotionSurface } from "@/components/MotionSurface";
@@ -181,16 +181,9 @@ function Body({
           either side of it differently — below it a reading is drawn hollow and
           filed under "Less sure about" — and a scale with an invisible cutoff
           asks the reader to remember a rule instead of seeing it. */}
-      <View style={styles.meter} accessibilityElementsHidden>
-        <View
-          style={[
-            styles.meterFill,
-            tentative && styles.meterFillTentative,
-            { width: `${Math.round(confidence * 100)}%` },
-          ]}
-        />
-        <View style={styles.meterThreshold} />
-      </View>
+      {/* The shared meter, which fills over .7s as the web's does rather than
+          being found already at its value. */}
+      <Meter confidence={confidence} tentative={tentative} threshold />
 
       <Verdict nodeId={nodeId} status={node.epistemic_status ?? "hypothesis"} />
 

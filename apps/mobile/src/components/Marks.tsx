@@ -1,5 +1,8 @@
 import { radii, type as scale } from "@tlon/design";
-import { StyleSheet, Text, View } from "react-native";
+import { useEffect, useRef } from "react";
+import { Animated, Easing, StyleSheet, Text, View } from "react-native";
+
+import { useReducedMotion } from "@/lib/motion";
 
 import { colors, fonts } from "@/theme";
 
@@ -67,6 +70,61 @@ export function Pill({ children, tone }: { children: React.ReactNode; tone?: str
 }
 
 /**
+ * How sure the record is, drawn rather than only stated.
+ *
+ * The web's `.meter` — 180 by 3, on a track, filled to the confidence and sand
+ * rather than live when the reading is tentative. It fills over .7s with
+ * `sMeter`, so the bar arrives at its value instead of being found at it, which
+ * is the difference between a number reported and a number asserted.
+ */
+export function Meter({ confidence, tentative = false, threshold = false }: {
+  confidence: number;
+  tentative?: boolean;
+  /** The half-way mark, drawn as the web's `.meter u` does. Where the line
+   *  between "noticed" and "less sure about" actually falls, rather than a rule
+   *  the reader is asked to remember. */
+  threshold?: boolean;
+}) {
+  const reduced = useReducedMotion();
+  const grow = useRef(new Animated.Value(reduced ? 1 : 0)).current;
+
+  useEffect(() => {
+    if (reduced) {
+      grow.setValue(1);
+      return;
+    }
+    grow.setValue(0);
+    const animation = Animated.timing(grow, {
+      toValue: 1,
+      duration: 700,
+      delay: 150,
+      easing: Easing.bezier(0.2, 0.8, 0.2, 1),
+      useNativeDriver: false,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [grow, confidence, reduced]);
+
+  const width = grow.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0%", `${Math.round(Math.max(0, Math.min(1, confidence)) * 100)}%`],
+  });
+
+  return (
+    <View
+      style={styles.track}
+      accessibilityRole="progressbar"
+      accessibilityValue={{ min: 0, max: 100, now: Math.round(confidence * 100) }}
+    >
+      <Animated.View
+        style={[styles.fill, tentative && styles.fillTentative, { width }]}
+      />
+      {threshold ? <View style={styles.threshold} /> : null}
+    </View>
+  );
+}
+
+/**
  * The line an act hangs from, with the time it was written.
  *
  * Vertical rule, a dot at the act, and the clock in mono beside it — the shape
@@ -105,6 +163,10 @@ const styles = StyleSheet.create({
   chipTentative: { borderColor: colors.warning, borderStyle: "dashed" },
   chipText: { color: colors.inkSoft, fontFamily: fonts.mono, fontSize: scale.meta.size },
   chipTextTentative: { color: colors.warning },
+  track: { width: 180, maxWidth: "100%", height: 3, borderRadius: 3, backgroundColor: colors.surfaceBright },
+  fill: { height: 3, borderRadius: 3, backgroundColor: colors.cyan },
+  fillTentative: { backgroundColor: colors.warning },
+  threshold: { position: "absolute", left: "50%", top: -4, bottom: -4, width: 1, backgroundColor: colors.inkMuted },
   spine: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
   spineTime: {
     color: colors.inkMuted,

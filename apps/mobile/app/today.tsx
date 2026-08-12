@@ -12,6 +12,7 @@ import {
 
 import { Chip, Kicker, Rule } from "@/components/Marks";
 import { MotionSurface } from "@/components/MotionSurface";
+import { Rise } from "@/components/Rise";
 import { Seal } from "@/components/Seal";
 import { api, type DailySummary } from "@/lib/api";
 import { deviceTimezone, localToday, shiftDay } from "@/lib/dates";
@@ -157,15 +158,16 @@ function SummaryBody({ summary }: { summary: DailySummary }) {
       )}
 
       <Section title="What you wrote">
-        {summary.observations.map((observation) => (
+        {summary.observations.map((observation, i) => (
+          <Rise key={observation.id} index={i}>
           <MotionSurface
-            key={observation.id}
             style={styles.wrote}
             onPress={() => router.push(`/node/${observation.id}`)}
           >
             <Seal id={observation.id} size={28} />
             <Text style={[styles.body, styles.wroteText]}>{observation.content}</Text>
           </MotionSurface>
+          </Rise>
         ))}
       </Section>
 

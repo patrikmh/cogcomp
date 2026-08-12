@@ -1,9 +1,16 @@
 import { SEAL_VIEWBOX, sealRings } from "@tlon/design/marks";
 import { Canvas, Group, Path, Skia } from "@shopify/react-native-skia";
-import { useMemo } from "react";
-import { View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Easing, View } from "react-native";
 
+import { useReducedMotion } from "@/lib/motion";
 import { colors } from "@/theme";
+
+/** The web strokes a seal on over .9s with cubic-bezier(.3,.8,.2,1) — see
+ *  `jSealDraw` and `.j-stream .j-seal path` in tlon.css. Same duration, same
+ *  curve, so an entry arrives the same way in both clients. */
+const DRAW_MS = 900;
+const DRAW_EASING = Easing.bezier(0.3, 0.8, 0.2, 1);
 
 /**
  * The seal itself, drawn with Skia.
@@ -34,6 +41,35 @@ export default function SealCanvas({ id, size = 34, tone = colors.lineStrong }: 
 
   const scale = size / SEAL_VIEWBOX;
 
+  // The seal draws itself on, as the web's does. Skia trims a path with `end`,
+  // which is the same idea as animating stroke-dashoffset against a pathLength
+  // of 1 — the stroke arrives rather than appearing.
+  const reduced = useReducedMotion();
+  const [drawn, setDrawn] = useState(reduced ? 1 : 0);
+  const started = useRef(0);
+
+  useEffect(() => {
+    if (reduced) {
+      setDrawn(1);
+      return;
+    }
+    setDrawn(0);
+    started.current = Date.now();
+    let alive = true;
+    let frame = 0;
+    const tick = () => {
+      if (!alive) return;
+      const t = Math.min((Date.now() - started.current) / DRAW_MS, 1);
+      setDrawn(DRAW_EASING(t));
+      if (t < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => {
+      alive = false;
+      cancelAnimationFrame(frame);
+    };
+  }, [id, reduced]);
+
   return (
     <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       <Canvas style={{ width: size, height: size }}>
@@ -47,6 +83,7 @@ export default function SealCanvas({ id, size = 34, tone = colors.lineStrong }: 
               // web's 1.1 on a 64 viewBox does.
               strokeWidth={1.1 / scale}
               color={tone}
+              end={drawn}
             />
           ))}
         </Group>

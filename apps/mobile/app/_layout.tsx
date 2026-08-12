@@ -99,7 +99,11 @@ function Gate() {
   const waiting = !ready || !fontsLoaded;
 
   return (
-    <>
+    // A column, not a fragment. As siblings of a fragment the navigator and the
+    // bar had no shared layout, so the bar drew over the bottom of every screen
+    // — covering whatever control happened to be there. It cost seventeen e2e
+    // checks and, more to the point, meant buttons that could not be pressed.
+    <View style={styles.column}>
       <StatusBar style="light" />
       <Stack
         screenOptions={{
@@ -154,11 +158,12 @@ function Gate() {
           <ActivityIndicator color={colors.cyan} />
         </View>
       )}
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  column: { flex: 1, backgroundColor: colors.room },
   waiting: {
     ...StyleSheet.absoluteFillObject,
     alignItems: "center",

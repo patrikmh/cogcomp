@@ -51,7 +51,7 @@ function sources(forRoute: string): string {
   // Only when checking a *list* route. A list linking to its own detail screen
   // is a real door — `experiments.tsx` is how you reach `experiment/[id]` — but
   // the detail screen redirecting back to the list after a delete is a way out.
-  const stem = forRoute.split("/")[0].replace(/s$/, "");
+  const stem = (forRoute.split("/")[0] ?? forRoute).replace(/s$/, "");
   const checkingAList = !forRoute.includes("[");
   const sameFamily = (name: string) =>
     checkingAList && name.replace(/\.tsx?$/, "").replace(/s$/, "") === stem;
