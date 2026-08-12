@@ -15,6 +15,7 @@ import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { TabBar } from "@/components/TabBar";
+import { TopBar } from "@/components/TopBar";
 import { createUserQueryClient } from "@/state/queryClient";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
@@ -111,6 +112,7 @@ function Gate() {
           headerStyle: { backgroundColor: colors.room },
           headerTintColor: colors.ink,
           headerTitleStyle: { fontWeight: "700", color: colors.ink },
+          headerTitleAlign: "left",
           contentStyle: { backgroundColor: colors.room },
         }}
       >
@@ -120,20 +122,20 @@ function Gate() {
         <Stack.Screen name="today" options={{ title: "Today" }} />
         <Stack.Screen name="week" options={{ title: "This week" }} />
         <Stack.Screen name="talk" options={{ title: "Talk it through" }} />
-        <Stack.Screen name="graph" options={{ title: "Graph" }} />
+        <Stack.Screen name="graph" options={{ headerTitle: () => <TopBar /> }} />
         <Stack.Screen name="identity" options={{ title: "Identity" }} />
-        <Stack.Screen name="patterns" options={{ title: "Patterns" }} />
+        <Stack.Screen name="patterns" options={{ headerTitle: () => <TopBar /> }} />
         <Stack.Screen name="pattern/[id]" options={{ title: "What came first" }} />
         <Stack.Screen name="theme/[id]" options={{ title: "A region" }} />
-        <Stack.Screen name="experiments" options={{ title: "Experiments" }} />
-        <Stack.Screen name="experiment/[id]" options={{ title: "Experiment" }} />
-        <Stack.Screen name="agents" options={{ title: "Agent activity" }} />
+        <Stack.Screen name="experiments" options={{ headerTitle: () => <TopBar /> }} />
+        <Stack.Screen name="experiment/[id]" options={{ headerTitle: () => <TopBar /> }} />
+        <Stack.Screen name="agents" options={{ headerTitle: () => <TopBar /> }} />
         <Stack.Screen name="explore" options={{ title: "Explore" }} />
         <Stack.Screen name="node/[id]" options={{ title: "Where this came from" }} />
         <Stack.Screen name="settings" options={{ title: "Settings" }} />
-        <Stack.Screen name="first" options={{ title: "The machinery is filling" }} />
-        <Stack.Screen name="search" options={{ title: "Find an entry" }} />
-        <Stack.Screen name="words" options={{ title: "What happens to your words" }} />
+        <Stack.Screen name="first" options={{ headerTitle: () => <TopBar /> }} />
+        <Stack.Screen name="search" options={{ headerTitle: () => <TopBar /> }} />
+        <Stack.Screen name="words" options={{ headerTitle: () => <TopBar /> }} />
         {/* Registered like any other screen. The developer switch decides
             whether it can be reached, not whether it has a name — an
             unregistered route falls back to its filename, which reads as a bug
