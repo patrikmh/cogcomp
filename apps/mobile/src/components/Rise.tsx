@@ -51,10 +51,23 @@ export function Rise({
   children,
   index = 0,
   style,
+  duration = RISE_MS,
+  stagger = STAGGER_MS,
+  restartKey,
 }: {
   children: React.ReactNode;
   index?: number;
   style?: ViewStyle;
+  /** The web gives search results .4s rather than .5 — they arrive a little
+   *  quicker because you are waiting on them. */
+  duration?: number;
+  /** Search results step 50ms apart on the web rather than 30 — a shorter list
+   *  of answers, each worth landing separately. */
+  stagger?: number;
+  /** Changing this re-runs the animation. Search results re-animate on every
+   *  query on the web, because each search is a new answer rather than the same
+   *  list filtered. */
+  restartKey?: string;
 }) {
   const reduced = useReducedMotion();
   const progress = useRef(new Animated.Value(reduced ? 1 : 0)).current;
@@ -67,14 +80,14 @@ export function Rise({
     progress.setValue(0);
     const animation = Animated.timing(progress, {
       toValue: 1,
-      duration: RISE_MS,
-      delay: Math.min(index * STAGGER_MS, STAGGER_CAP_MS),
+      duration,
+      delay: Math.min(index * stagger, STAGGER_CAP_MS),
       easing: Easing.bezier(0.2, 0.8, 0.2, 1),
       useNativeDriver: true,
     });
     animation.start();
     return () => animation.stop();
-  }, [progress, index, reduced]);
+  }, [progress, index, reduced, duration, stagger, restartKey]);
 
   return (
     <Animated.View

@@ -7,8 +7,7 @@ import {
   Text,
   TextInput,
   View,
-  useWindowDimensions,
-} from "react-native";
+  useWindowDimensions, Image } from "react-native";
 
 import { MotionSurface } from "@/components/MotionSurface";
 import { FieldFrame } from "@/components/SpatialField";
@@ -56,7 +55,14 @@ export default function LoginScreen() {
         <FieldFrame label="Account portal">
         <View style={[styles.form, width >= 760 && styles.formWide]}>
           <View style={styles.header}>
-        <Text style={styles.title}>Tlön</Text>
+        {/* The wordmark, as the web shows it — same file, not the word set in
+            a typeface that happens to be to hand. */}
+        <Image
+          source={require("../assets/tlon-logo.png")}
+          style={styles.wordmark}
+          resizeMode="contain"
+          accessibilityLabel="Tlön"
+        />
         <Text style={styles.subtitle}>
           {isSignup ? "Create an account." : "Welcome back."}
         </Text>
@@ -174,6 +180,7 @@ const styles = StyleSheet.create({
   // keeps both columns real.
   formWide: { width: 460, flexGrow: 0, flexShrink: 0, alignSelf: "auto" },
   header: { marginBottom: 12, gap: 4 },
+  wordmark: { width: 120, height: 44, opacity: 0.9, alignSelf: "flex-start" },
   title: {
     fontFamily: fonts.sansBold, fontSize: scale.title.size, lineHeight: scale.title.line,
     color: colors.ink, letterSpacing: scale.title.tracking,

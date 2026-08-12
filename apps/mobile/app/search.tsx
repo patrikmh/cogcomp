@@ -11,7 +11,7 @@ import { api, type ObservationResponse } from "@/lib/api";
 import { useDrawnFrom } from "@/lib/drawnFrom";
 import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
-import { Rising } from "@/components/Rise";
+import { Rise, Rising } from "@/components/Rise";
 
 /**
  * Find an entry.
@@ -77,11 +77,11 @@ export default function SearchScreen() {
       </Text>
       <Rule />
 
-      {hits.map((hit) => {
+      {hits.map((hit, i) => {
         const drawn = drawnFrom.get(hit.id) ?? [];
         return (
+          <Rise key={hit.id} index={i} duration={400} stagger={50} restartKey={needle}>
           <MotionSurface
-            key={hit.id}
             style={styles.hit}
             onPress={() => router.push(`/node/${hit.id}`)}
             accessibilityRole="button"
@@ -105,6 +105,7 @@ export default function SearchScreen() {
               )}
             </View>
           </MotionSurface>
+          </Rise>
         );
       })}
       </Rising>

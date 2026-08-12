@@ -6,7 +6,6 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { Kicker, Rule } from "@/components/Marks";
 import { MotionSurface } from "@/components/MotionSurface";
 import { colors, fonts } from "@/theme";
-import { Rising } from "@/components/Rise";
 
 /**
  * What happens to your words.
@@ -25,7 +24,6 @@ export default function WordsScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Rising>
       <Kicker>Before your first entry</Kicker>
       <Text style={styles.title}>{DISCLOSURE_HEADING}</Text>
       <Rule />
@@ -53,7 +51,6 @@ export default function WordsScreen() {
           <Text style={styles.secondaryLabel}>Settings</Text>
         </MotionSurface>
       </View>
-      </Rising>
     </ScrollView>
   );
 }

@@ -7,25 +7,19 @@ import {
   Text,
   TextInput,
   View,
-  useWindowDimensions,
 } from "react-native";
 
 import { Chip, Kicker } from "@/components/Marks";
+import { Rise } from "@/components/Rise";
 import { MotionSurface } from "@/components/MotionSurface";
 import { Seal } from "@/components/Seal";
 import { RecordButton } from "@/components/RecordButton";
 import { ApiError, api, type ObservationResponse } from "@/lib/api";
 import { useDrawnFrom } from "@/lib/drawnFrom";
 import { uuidv7 } from "@/lib/ids";
-import { lazySkia } from "@/lib/lazySkia";
 import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
 import { radii } from "@tlon/design";
-
-const LazyConstellation = lazySkia(() => import("@/components/Constellation"));
-
-/** Stands in for the entry being written, which has no id yet. */
-const DRAFT = "__draft__";
 
 /**
  * The journal.
@@ -50,9 +44,7 @@ export default function JournalScreen() {
   const signOut = useSession((s) => s.signOut);
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { width, height } = useWindowDimensions();
   const [draft, setDraft] = useState("");
-  const [picked, setPicked] = useState<string | null>(null);
 
   const observations = useQuery({
     queryKey: ["observations", userId],
@@ -72,9 +64,6 @@ export default function JournalScreen() {
       }),
     onSuccess: () => {
       setDraft("");
-      // Cleared so the selection falls back to the newest entry — you see what
-      // you just wrote, rather than watching it join a list.
-      setPicked(null);
       void queryClient.invalidateQueries({ queryKey: ["observations", userId] });
     },
   });
@@ -87,7 +76,6 @@ export default function JournalScreen() {
         capturedAt: new Date().toISOString(),
       }),
     onSuccess: () => {
-      setPicked(null);
       void queryClient.invalidateQueries({ queryKey: ["observations", userId] });
     },
   });
@@ -97,107 +85,79 @@ export default function JournalScreen() {
 
   const entries: ObservationResponse[] = observations.data?.observations ?? [];
   const drafting = draft.trim().length > 0;
-  const size = Math.min(width * 0.86, height * 0.42, 380);
-  // Nothing picked means the newest, so the screen always has something to say.
-  const current = entries.find((e) => e.id === picked) ?? entries[0] ?? null;
-  const drawn = current ? (drawnFrom.get(current.id) ?? []) : [];
+  // Grouped by the day they were written, newest first — the web's `groups`.
+  const days = entries.reduce<{ day: string; list: ObservationResponse[] }[]>((acc, entry) => {
+    const day = dayLabel(entry.captured_at);
+    const group = acc.find((g) => g.day === day);
+    if (group) group.list.push(entry);
+    else acc.push({ day, list: [entry] });
+    return acc;
+  }, []);
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      {entries.length > 0 && (
-        <View style={styles.sky}>
-          <Suspense fallback={<View style={{ height: size }} />}>
-            <LazyConstellation
-              data={[
-                // The unsaved draft is already in the sky, pulsing, where it is
-                // about to land. Writing stops being a form you submit and starts
-                // being a thing arriving.
-                ...(drafting
-                  ? [{ id: DRAFT, weight: 1, tone: "Observation", tentative: true }]
-                  : []),
-                ...entries.map((entry, index) => ({
-                  id: entry.id,
-                  // Newest largest. Recency is the only ranking an entry has —
-                  // nothing here judges which of your thoughts mattered more.
-                  weight: 1 - Math.min(index / Math.max(entries.length, 8), 0.72),
-                  tone: "Observation",
-                })),
-              ]}
-              size={size}
-              selected={drafting ? DRAFT : (current?.id ?? null)}
-              onSelect={setPicked}
-              dotSize={6}
-              frame="head"
-              pulseId={drafting ? DRAFT : null}
-            />
-          </Suspense>
-        </View>
-      )}
+      {/* The stream, as the web has it: a head with the entries floating
+          inside it was this client's own idea and not the product's. Days are
+          headed and ruled, each act carries its seal, its time and what was
+          drawn from it. */}
+      <View style={styles.head}>
+        <Kicker>Journal</Kicker>
+        <Text style={styles.count}>
+          {observations.isSuccess
+            ? `${entries.length} ${entries.length === 1 ? "act" : "acts"} kept`
+            : ""}
+        </Text>
+      </View>
 
-      {drafting ? (
-        <View style={styles.readout}>
-          <View style={[styles.spine, styles.spineDraft]} />
-          <View style={styles.readoutBody}>
-            <View style={styles.chips}>
-              <Kicker tone={colors.warning}>Not saved yet</Kicker>
-              <Text style={styles.chipQuiet}>
-                {draft.trim().split(/\s+/).length}{" "}
-                {draft.trim().split(/\s+/).length === 1 ? "word" : "words"}
-              </Text>
+      {entries.length === 0 && observations.isSuccess ? (
+        <Text style={styles.empty}>Nothing written yet. What you write here stays here.</Text>
+      ) : (
+        days.map((group, gi) => (
+          <View key={group.day}>
+            <View style={styles.day}>
+              <Kicker heading>{group.day}</Kicker>
+              <View style={styles.rule} />
             </View>
-            {/* Deliberately not repeating the draft — it is in the field
-                directly below, and printing it twice is the exact clutter this
-                screen is trying to lose. The chips say what the field cannot:
-                that this is not saved, and how much of it there is. */}
-            <Text style={styles.readoutHint}>
-              Pulsing in your sky until you keep it.
-            </Text>
+            {group.list.map((entry, i) => (
+              <Rise key={entry.id} index={gi * 2 + i}>
+                <MotionSurface
+                  style={styles.entry}
+                  onPress={() => router.push(`/node/${entry.id}`)}
+                  accessibilityRole="button"
+                  accessibilityLabel={entry.content}
+                >
+                  <Text style={styles.time}>{shortTime(entry.captured_at)}</Text>
+                  <View style={styles.spine} />
+                  <View style={styles.act}>
+                    <Seal id={entry.id} size={34} />
+                    <View style={styles.actBody}>
+                      {gi === 0 && i === 0 && <Kicker>Latest · saved</Kicker>}
+                      <Text style={styles.entryText}>{entry.content}</Text>
+                      {(drawnFrom.get(entry.id)?.length ?? 0) > 0 ? (
+                        <View style={styles.chipRow}>
+                          <Kicker>Drawn from this</Kicker>
+                          <View style={styles.chips}>
+                            {drawnFrom.get(entry.id)!.slice(0, 4).map((r) => (
+                              <Chip
+                                key={r.id}
+                                label={r.label}
+                                confidence={r.confidence}
+                                tentative={r.tentative}
+                              />
+                            ))}
+                          </View>
+                        </View>
+                      ) : (
+                        <Text style={styles.readoutOpen}>nothing drawn from this yet →</Text>
+                      )}
+                    </View>
+                  </View>
+                </MotionSurface>
+              </Rise>
+            ))}
           </View>
-        </View>
-      ) : current ? (
-        <MotionSurface
-          style={styles.readout}
-          onPress={() => router.push(`/node/${current.id}`)}
-          accessibilityRole="button"
-        >
-          {/* The act's own seal, from the same geometry the web client draws —
-              the same id makes the same mark in both, which is what lets you
-              recognise an entry before reading it. */}
-          <Seal id={current.id} size={34} />
-          <View style={styles.readoutBody}>
-            <View style={styles.chips}>
-              <Kicker>
-                {current.source === "voice" ? "Spoken" : "Written"} ·{" "}
-                {shortTime(current.captured_at)}
-              </Kicker>
-            </View>
-            <Text style={styles.readoutText} numberOfLines={4}>
-              {current.content}
-            </Text>
-            {/* What the entry actually produced, rather than a link offering to
-                go and find out. The web client has shown these since it was
-                ported; this said "What came of this →" and made you tap to learn
-                that the answer was sometimes nothing. */}
-            {drawn.length > 0 ? (
-              <>
-                <Kicker>Drawn from this</Kicker>
-                <View style={styles.drawn}>
-                  {drawn.slice(0, 4).map((reading) => (
-                    <Chip
-                      key={reading.id}
-                      label={reading.label}
-                      confidence={reading.confidence}
-                      tentative={reading.tentative}
-                    />
-                  ))}
-                </View>
-              </>
-            ) : (
-              <Text style={styles.readoutOpen}>Nothing drawn from this yet →</Text>
-            )}
-          </View>
-        </MotionSurface>
-      ) : null}
+        ))
+      )}
 
       {/* Looking for something you wrote starts from where your words are. */}
       {entries.length > 0 && (
@@ -287,6 +247,18 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 1.4,
   },
+  head: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
+  count: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: 12 },
+  empty: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: 15, lineHeight: 22, paddingVertical: 10 },
+  day: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 14, marginBottom: 6 },
+  rule: { flex: 1, height: 1, backgroundColor: colors.line },
+  // Time down the left, a hairline spine, then the act — the web's j-entry.
+  entry: { flexDirection: "row", alignItems: "flex-start", gap: 10, paddingVertical: 8 },
+  time: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: 12, minWidth: 40, paddingTop: 2 },
+  act: { flex: 1, flexDirection: "row", gap: 10, alignItems: "flex-start" },
+  actBody: { flex: 1, gap: 6 },
+  entryText: { color: colors.ink, fontFamily: fonts.sans, fontSize: 16, lineHeight: 23 },
+  chipRow: { gap: 6 },
   readoutBody: { flex: 1, gap: 5 },
   drawn: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   chips: { flexDirection: "row", gap: 10, alignItems: "center" },
@@ -336,3 +308,14 @@ const styles = StyleSheet.create({
   talk: { paddingVertical: 6 },
   talkLabel: { color: colors.inkSoft, fontFamily: fonts.sans, fontSize: 14, fontWeight: "700" },
 });
+
+/** Today, Yesterday, or the date — the web's `dayLabelOf`, in this client's
+ *  words. Grouping by a raw ISO day would be accurate and unreadable. */
+function dayLabel(iso: string): string {
+  const day = iso.slice(0, 10);
+  const today = new Date().toISOString().slice(0, 10);
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  if (day === today) return "Today";
+  if (day === yesterday) return "Yesterday";
+  return new Date(iso).toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" });
+}
