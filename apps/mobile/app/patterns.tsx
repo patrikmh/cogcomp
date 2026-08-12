@@ -105,7 +105,16 @@ export default function PatternsScreen() {
         onPress: () => mine.mutate(),
         pending: mine.isPending,
       }}
-      secondaryAction={{ label: "What each detector is waiting for", onPress: () => router.push("/first") }}
+      // Experiments is offered here and nowhere else a person can reach with
+      // the developer switch off, which is how replacing this link with /first
+      // made the whole feature unreachable for one commit. /first belongs on the
+      // empty state anyway — "what is it waiting for" is the question you have
+      // when nothing has been found, not when something has.
+      secondaryAction={
+        found.length > 0
+          ? { label: "Open experiments", onPress: () => router.push("/experiments") }
+          : { label: "What each detector is waiting for", onPress: () => router.push("/first") }
+      }
     />
   );
 }
