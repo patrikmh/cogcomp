@@ -13,12 +13,14 @@ import { Chip, Kicker } from "@/components/Marks";
 import { Rise } from "@/components/Rise";
 import { MotionSurface } from "@/components/MotionSurface";
 import { Seal } from "@/components/Seal";
+import Svg, { Path } from "react-native-svg";
 import { RecordButton } from "@/components/RecordButton";
 import { ApiError, api, type ObservationResponse } from "@/lib/api";
 import { useDrawnFrom } from "@/lib/drawnFrom";
 import { uuidv7 } from "@/lib/ids";
 import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
+import { type as scale } from "@tlon/design";
 import { radii } from "@tlon/design";
 
 /**
@@ -95,7 +97,8 @@ export default function JournalScreen() {
   }, []);
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <View style={styles.screen}>
+    <ScrollView contentContainerStyle={styles.content}>
       {/* The stream, as the web has it: a head with the entries floating
           inside it was this client's own idea and not the product's. Days are
           headed and ruled, each act carries its seal, its time and what was
@@ -177,61 +180,74 @@ export default function JournalScreen() {
         </MotionSurface>
       )}
 
-      <TextInput
-        style={[styles.input, drafting && styles.inputActive]}
-        value={draft}
-        onChangeText={setDraft}
-        placeholder="What's on your mind?"
-        placeholderTextColor={colors.inkMuted}
-        multiline
-        editable={!capture.isPending}
-      />
+    </ScrollView>
 
-      {/* One control rather than three stacked. With nothing written the only
-          sensible action is to speak; once there are words the only sensible
-          action is to keep them. Showing both at once asked a question that
-          answers itself. */}
-      {drafting ? (
-        <MotionSurface
-          style={[styles.button, capture.isPending && styles.disabled]}
-          disabled={capture.isPending}
-          onPress={() => capture.mutate(draft)}
-        >
-          <Text style={styles.buttonLabel}>
-            {capture.isPending ? "Saving…" : "Save"}
-          </Text>
-        </MotionSurface>
-      ) : (
+    {/* Pinned above the tab bar, as the design pins it. It used to sit at the
+        end of the stream, so writing something meant scrolling past everything
+        already written to reach the box — the one action the screen exists for
+        was the hardest thing on it to get to.
+
+        One row: the words, the microphone, and a way to keep them. */}
+    <View style={styles.dock}>
+      <View style={styles.cap}>
+        <TextInput
+          style={styles.capText}
+          value={draft}
+          onChangeText={setDraft}
+          placeholder="Write what happened"
+          placeholderTextColor={colors.inkMuted}
+          multiline
+          editable={!capture.isPending}
+          accessibilityLabel="Journal entry"
+        />
         <RecordButton
+          compact
           tone="dark"
           disabled={capture.isPending}
           onRecorded={async (uri) => {
             await captureVoice.mutateAsync(uri);
           }}
         />
-      )}
+        {/* Only once there are words to keep. With nothing written the only
+            sensible action is to speak, and offering both asks a question that
+            answers itself. */}
+        {drafting && (
+          <MotionSurface
+            style={styles.send}
+            disabled={capture.isPending}
+            onPress={() => capture.mutate(draft)}
+            accessibilityRole="button"
+            accessibilityLabel="Save this entry"
+          >
+            <Svg width={22} height={22} viewBox="0 0 24 24">
+              <Path
+                d="M4 12h15M13 6l6 6-6 6"
+                fill="none"
+                stroke={capture.isPending ? colors.inkMuted : colors.ink}
+                strokeWidth={1.4}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </Svg>
+          </MotionSurface>
+        )}
+      </View>
 
-      {capture.isError && (
-        <Text style={styles.error}>
-          {capture.error instanceof ApiError
-            ? capture.error.message
-            : "Could not save. Your text is still here — try again."}
-        </Text>
-      )}
-
-      {captureVoice.isError && (
-        <Text style={styles.error}>
-          {captureVoice.error instanceof ApiError
-            ? captureVoice.error.message
-            : "Could not save that recording."}
-        </Text>
-      )}
-
-      <MotionSurface style={styles.talk} onPress={() => router.push("/talk")}>
-        <Text style={styles.talkLabel}>Talk it through instead</Text>
-      </MotionSurface>
-
-    </ScrollView>
+      <Text style={styles.capState} accessibilityLiveRegion="polite">
+        {capture.isPending
+          ? "Keeping it…"
+          : capture.isError
+            ? capture.error instanceof ApiError
+              ? capture.error.message
+              : "Could not save. Your words are still here — try again."
+            : captureVoice.isError
+              ? captureVoice.error instanceof ApiError
+                ? captureVoice.error.message
+                : "Could not save that recording."
+              : "Kept on your account · ready"}
+      </Text>
+    </View>
+    </View>
   );
 }
 
@@ -242,6 +258,54 @@ function shortTime(iso: string): string {
 }
 
 const styles = StyleSheet.create({
+  /** The design's `#dock`: pinned, ruled off from the stream above it. */
+  dock: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 10,
+    backgroundColor: colors.room,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+  },
+  cap: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+  },
+  capText: {
+    // A zero basis, or the textarea claims its intrinsic width on web and
+    // shoulders the microphone out of the row — the same trap the tab bar hit.
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 0,
+    minWidth: 0,
+    minHeight: 44,
+    maxHeight: 180,
+    paddingVertical: 11,
+    color: colors.ink,
+    fontFamily: fonts.sans,
+    fontSize: scale.body.size,
+    lineHeight: scale.body.line,
+    outlineStyle: "none",
+  } as object,
+  send: {
+    width: 44,
+    height: 44,
+    // The row bottom-aligns its controls; this one carries its own alignment
+    // because MotionSurface wraps it and the wrapper is what the row lays out.
+    alignSelf: "flex-end",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  capState: {
+    paddingTop: 8,
+    color: colors.inkMuted,
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    letterSpacing: 0.8,
+  },
   screen: { flex: 1, backgroundColor: colors.room },
   content: { paddingHorizontal: 20, paddingBottom: 32, gap: 10, paddingTop: 8 },
   sky: { alignItems: "center", justifyContent: "center" },

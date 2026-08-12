@@ -44,10 +44,20 @@ export function MotionSurface({ style, motion = "press", onPressIn, onPressOut, 
     onBlur?.(event);
   };
   const layoutStyle = typeof style === "function" ? undefined : extractLayoutStyle(style);
+  // Layout normally moves to the animated wrapper, so it is stripped from the
+  // Pressable to avoid applying it twice. With `motion="none"` there is no
+  // wrapper — stripping it there dropped width, height and margins on the
+  // floor, which is how the composer's microphone ended up 22px instead of 44
+  // and sitting on its own line.
+  const strip = motion !== "none";
   const pressable = (
     <Pressable
       {...props}
-      style={typeof style === "function" ? styled : (state) => removeLayoutStyle(styled(state))}
+      style={
+        typeof style === "function"
+          ? styled
+          : (state) => (strip ? removeLayoutStyle(styled(state)) : styled(state))
+      }
       onFocus={handleFocus}
       onBlur={handleBlur}
       onPressIn={handlePressIn}

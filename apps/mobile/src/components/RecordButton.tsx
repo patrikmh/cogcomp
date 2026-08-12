@@ -1,6 +1,7 @@
 import { Audio } from "expo-av";
 import { useEffect, useRef, useState } from "react";
 import { Alert, StyleSheet, Text, View } from "react-native";
+import Svg, { Path, Rect } from "react-native-svg";
 import { MotionSurface } from "@/components/MotionSurface";
 import { colors, fonts } from "@/theme";
 import { radii } from "@tlon/design";
@@ -21,6 +22,7 @@ export function RecordButton({
   disabled = false,
   onStateChange,
   tone = "light",
+  compact = false,
 }: {
   onRecorded: (uri: string) => Promise<void>;
   disabled?: boolean;
@@ -30,6 +32,10 @@ export function RecordButton({
   /** Dark surfaces need their own colours — the default label is near-black and
    *  vanishes against focus mode's background. */
   tone?: "light" | "dark";
+  /** The composer's 44px mic rather than a full-width button. Same hold to
+   *  record, same release to save — only the mark differs, because in the
+   *  composer the microphone sits beside the words rather than under them. */
+  compact?: boolean;
 }) {
   const [state, setState] = useState<State>("idle");
   const mounted = useRef(true);
@@ -147,6 +153,41 @@ export function RecordButton({
         ? "Transcribing…"
         : "Hold to record";
 
+  if (compact) {
+    return (
+      <MotionSurface
+        motion="none"
+        onPressIn={start}
+        onPressOut={stop}
+        disabled={disabled || state === "uploading"}
+        accessibilityRole="button"
+        accessibilityLabel="Hold to record"
+        accessibilityHint="Press and hold while speaking; release to stop and save the recording."
+        style={[styles.mic, (disabled || state === "uploading") && styles.disabled]}
+      >
+        <Svg width={22} height={22} viewBox="0 0 24 24">
+          <Rect
+            x={9}
+            y={3}
+            width={6}
+            height={12}
+            rx={3}
+            fill="none"
+            stroke={state === "recording" ? colors.cyan : colors.inkMuted}
+            strokeWidth={1.4}
+          />
+          <Path
+            d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6"
+            fill="none"
+            stroke={state === "recording" ? colors.cyan : colors.inkMuted}
+            strokeWidth={1.4}
+            strokeLinecap="round"
+          />
+        </Svg>
+      </MotionSurface>
+    );
+  }
+
   return (
     <View style={styles.wrap}>
       <MotionSurface motion="none"
@@ -188,6 +229,8 @@ export function RecordButton({
 }
 
 const styles = StyleSheet.create({
+  /** The design's `#cap button`: 44 square, transparent, the glyph alone. */
+  mic: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   wrap: { gap: 6 },
   // A lit pip beside the label. Held-to-talk has no state you can see once your
   // finger is on it, and the colour change under the thumb is hidden by the
