@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
+import { HeadspaceMap, type Whorl } from "@/components/HeadspaceMap";
 import { MotionSurface } from "@/components/MotionSurface";
 import { Observatory, Readout } from "@/components/Observatory";
 import { api } from "@/lib/api";
@@ -150,6 +151,20 @@ export default function HeadspaceScreen() {
       </View>
 
       <Observatory
+        // The web draws this screen as a contour survey, and so does this one:
+        // the head with points floating inside it was this client's own
+        // invention and said nothing the survey does not. `stage` is the seam
+        // Identity already uses for the same reason.
+        stage={
+          points.length > 0 && !loading ? (
+            <HeadspaceMap
+              whorls={whorlsFor(lens, points)}
+              onSelect={(whorl: Whorl) =>
+                whorl.id === "you" ? router.push("/identity") : setSelected(whorl.id)
+              }
+            />
+          ) : undefined
+        }
         data={points.map(({ id, weight, tone, tentative, status }) => ({
           id,
           weight,
@@ -241,6 +256,35 @@ function hintFor(lens: Lens, count: number): string {
     return `${count} in view. Filled is what you wrote, hollow is a guess.`;
   }
   return `${count} in today. Drag to turn it, tap to read one.`;
+}
+
+/**
+ * The lens's points, as whorls on the survey.
+ *
+ * A recurrence is a massif and everything else is ground: patterns take the
+ * upper chain and are sized by how often they came back, the rest take the lower
+ * chain and are sized by how sure the record is. Under "Everything" the point of
+ * view is on the map too, at the centre and larger than anything drawn around
+ * it — tapping it opens identity, because that is what it is.
+ */
+function whorlsFor(lens: Lens, points: Point[]): Whorl[] {
+  const you: Whorl[] =
+    lens === "all"
+      ? [{ id: "you", label: "you", group: "you", weight: 1, bar: 0, tentative: false }]
+      : [];
+  return [
+    ...you,
+    ...points.map((point) => ({
+      id: point.id,
+      label: point.label,
+      group: (lens === "patterns" || point.kind === "Pattern"
+        ? "pattern"
+        : "reading") as Whorl["group"],
+      weight: point.weight,
+      bar: point.weight,
+      tentative: point.tentative,
+    })),
+  ];
 }
 
 /** Which points the head holds for this lens. Kept out of the component so the

@@ -162,3 +162,47 @@ export function stripSeries(pattern: {
     : lit.map(() => 0);
   return { lit, second };
 }
+
+/**
+ * The headspace map's own rules: how big a whorl is, where it sits, and when it
+ * arrives.
+ *
+ * Size is a property of what the thing is, not of how important someone decided
+ * it was: a pattern by how often it returns, a reading by how sure the record
+ * is, today by how much is in it. Position is a property of kind too — patterns
+ * in a chain across the top, readings in a chain below, today off to one side,
+ * you at the fixed point. A survey, not a scatter.
+ *
+ * Shared because the mobile client draws the same map in two dimensions rather
+ * than three, and a second copy of these numbers would be a second map.
+ */
+export type WhorlGroup = "you" | "pattern" | "reading" | "today";
+
+export function whorlRadius(group: WhorlGroup, R: number, weight = 0, bar = 0): number {
+  if (group === "you") return R * 0.52;
+  if (group === "pattern") return R * (0.18 + 0.46 * bar);
+  if (group === "today") return R * (0.05 + 0.013 * weight * 14);
+  return R * (0.05 + 0.18 * weight);
+}
+
+/** Evenly along a chain, centred: -span at one end, +span at the other. */
+export function chainX(i: number, n: number, span: number): number {
+  return n === 1 ? 0 : -span + (2 * span * i) / (n - 1);
+}
+
+/** When each whorl starts arriving, in seconds. You first, because you were
+ *  here before any of it. */
+export function arriveAt(group: WhorlGroup, i: number): number {
+  if (group === "you") return 0;
+  if (group === "pattern") return 0.35 + i * 0.22;
+  if (group === "today") return 2.2;
+  return 1.1 + i * 0.15;
+}
+
+/** Back-out easing: a slight overshoot, so a peak is placed rather than faded. */
+export function backOut(k: number): number {
+  if (k >= 1) return 1;
+  const c1 = 1.70158;
+  const c3 = c1 + 1;
+  return 1 + c3 * Math.pow(k - 1, 3) + c1 * Math.pow(k - 1, 2);
+}
