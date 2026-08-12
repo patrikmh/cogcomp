@@ -8,6 +8,7 @@ import { Failed, Loading } from "@/components/States";
 import { api } from "@/lib/api";
 import { fmt } from "@/lib/format";
 import { seed } from "@/lib/seal";
+import { toneFor } from "@tlon/design";
 
 /**
  * What ran while you were not looking.
@@ -253,8 +254,11 @@ export function Explore() {
                   cx={p.x}
                   cy={p.y}
                   r={n.tentative ? 4 : 6}
-                  fill={n.tentative ? "none" : "var(--kept)"}
-                  stroke={n.tentative ? "var(--sand)" : "none"}
+                  // Hollow when tentative, filled when the record stands
+                  // behind it. The colour comes from the shared rule so both
+                  // clients answer "what does this colour mean" the same way.
+                  fill={n.tentative ? "none" : toneFor({ kind: n.kind })}
+                  stroke={n.tentative ? toneFor({ tentative: true }) : "none"}
                 />
               </Link>
             );

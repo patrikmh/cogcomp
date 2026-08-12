@@ -60,3 +60,31 @@ export const type = {
 } as const;
 
 export type ColorToken = keyof typeof colors;
+
+/**
+ * What colour a node is drawn in.
+ *
+ * Colour in this design marks what is *known* about something, never what kind
+ * of thing it is. There is no per-kind palette anywhere in the prototype: a
+ * reading is `kept` once the record stands behind it, `sand` while it is only
+ * offered or still tentative, `faint` once it has been taken back, and an act —
+ * something you actually wrote — is `ink`, because it is not a claim at all.
+ *
+ * The mobile client used to give each of eleven kinds its own colour, which is
+ * a different idea about what colour is for: it made Thought and Emotion
+ * distinguishable at a glance and made confident and doubtful indistinguishable,
+ * which is the wrong way round for an app whose whole argument is that you can
+ * see how sure it is.
+ */
+export function toneFor(node: {
+  kind?: string;
+  tentative?: boolean;
+  kept?: boolean;
+  removed?: boolean;
+}): string {
+  if (node.removed) return colors.faint;
+  if (node.tentative) return colors.sand;
+  // An act is the fixed point everything else hangs off, and it makes no claim.
+  if (node.kind === "Observation") return colors.ink;
+  return colors.kept;
+}

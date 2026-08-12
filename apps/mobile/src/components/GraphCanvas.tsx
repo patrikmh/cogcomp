@@ -4,25 +4,13 @@ import { StyleSheet, View } from "react-native";
 import type { GraphNode } from "@/lib/api";
 import type { LayoutEdge, LayoutNode } from "@/lib/forceLayout";
 import { colors } from "@/theme";
+import { toneFor } from "@tlon/design";
 
 const NODE_RADIUS = 9;
 const OBSERVATION_RADIUS = 12;
 /** Observations are the fixed points; inferences take their kind's colour.
  *  Tentative ones are drawn hollow rather than tinted, because a colour shift
  *  reads as a different category and an outline reads as "not filled in yet". */
-const KIND_COLOUR: Record<string, string> = {
-  Observation: colors.ink,
-  Thought: colors.cyan,
-  Emotion: colors.pink,
-  Need: "#fb923c",
-  Value: colors.violet,
-  Belief: "#22d3ee",
-  Person: "#4ade80",
-  Place: "#a3e635",
-  Activity: colors.warning,
-  Event: colors.danger,
-  Pattern: colors.inkMuted,
-};
 
 /**
  * The Skia canvas.
@@ -93,7 +81,7 @@ export default function GraphCanvas({
                   cx={node.x}
                   cy={node.y}
                   r={radius}
-                  color={KIND_COLOUR[data.kind] ?? colors.inkMuted}
+                  color={toneFor({ kind: data.kind, tentative: data.tentative })}
                   // A tentative guess is drawn hollow. It should not look as
                   // settled as something the person actually wrote.
                   style={data.tentative ? "stroke" : "fill"}

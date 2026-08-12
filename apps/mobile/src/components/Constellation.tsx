@@ -32,6 +32,7 @@ import {
 } from "@/lib/headSilhouette";
 import { useReducedMotion } from "@/lib/motion";
 import { colors } from "@/theme";
+import { toneFor } from "@tlon/design";
 
 /**
  * A set of things, as an object you can turn.
@@ -50,6 +51,19 @@ import { colors } from "@/theme";
  * handles the finger.
  */
 
+/**
+ * What colour a point is drawn in.
+ *
+ * This was a map of eleven kinds to eleven colours. The design has no per-kind
+ * palette anywhere — colour marks what is *known* about a thing, not what kind
+ * of thing it is — so it defers to `toneFor`, which both clients share. The
+ * argument is still a kind name because every caller passes one; what changed
+ * is that only "Observation" now means anything to it.
+ */
+export function toneColour(tone: string, tentative = false): string {
+  return toneFor({ kind: tone, tentative });
+}
+
 /** Rendered frames per second. Slow motion, so extra frames are invisible while
  *  the battery cost is not. */
 const FPS = 30;
@@ -64,28 +78,6 @@ const MOMENTUM_DECAY = 0.93;
 /** Palette by tone. Keys are node kinds, plus a few the other screens use.
  *  Anything unknown falls back rather than throwing — a new kind should look
  *  plain, not crash the screen. */
-const TONES: Record<string, string> = {
-  Observation: "#f1f0f8",
-  Thought: "#67e8f9",
-  Emotion: "#f0abfc",
-  Need: "#fbbf24",
-  Value: "#a78bfa",
-  Belief: "#38bdf8",
-  Person: "#4ade80",
-  Place: "#a3e635",
-  Activity: "#fb923c",
-  Event: "#fb7185",
-  Pattern: "#c084fc",
-  succeeded: "#67e8f9",
-  failed: "#fb7185",
-  skipped: "#fbbf24",
-  running: "#a78bfa",
-  default: "#a78bfa",
-};
-
-export function toneColour(tone: string): string {
-  return TONES[tone] ?? TONES.default!;
-}
 
 interface Props {
   data: Datum[];
@@ -336,7 +328,8 @@ export default function Constellation({
             // Slow enough to read as breathing rather than blinking.
             const breath = pulsing ? 1 + 0.28 * Math.sin(time * 3.4) : 1;
             const r = radiusOf(point, dotSize) * breath;
-            const colour = toneColour(point.tone);
+            // Sureness is the thing colour carries now, so it has to be passed.
+            const colour = toneColour(point.tone, point.tentative);
             const isSelected = point.id === selected;
             return (
               <Group key={point.id}>
