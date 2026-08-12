@@ -7,6 +7,7 @@ import { Failed, Loading } from "@/components/States";
 import { api, type IdentityNode } from "@/lib/api";
 import { fmt } from "@/lib/format";
 import { useSession } from "@/state/session";
+import { Guide } from "@/components/Guide";
 
 /**
  * Identity, as a composition.
@@ -101,7 +102,10 @@ export function Identity() {
   return (
     <>
       <span className="kicker">Identity · a composition</span>
-      <h1>Drawn from everything you kept</h1>
+      <div className="guide-heading">
+        <h1>Drawn from everything you kept</h1>
+        <Guide id="identity" />
+      </div>
       <p className="sub">
         Not a profile. Each ring is a reading the record holds — the surer ones sit closer, the
         tentative ones drift out and lose detail. Nothing here is generated, and no name is

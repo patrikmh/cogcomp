@@ -8,6 +8,7 @@ import { api, type Inference } from "@/lib/api";
 import { useDrawnFrom } from "@/lib/drawn-from";
 import { clockOf, deviceTimezone, fmt, localDay, shiftDay } from "@/lib/format";
 import { Seal } from "@/lib/seal";
+import { Guide } from "@/components/Guide";
 
 /**
  * One day, as it happened.
@@ -42,6 +43,9 @@ export function Today() {
           spelled out, on a screen whose subject is a single day and which
           therefore does not need announcing. */}
       <div className="row" style={{ justifyContent: "space-between" }}>
+        {/* The guide sits beside the kicker here, as the design has it: this
+            screen has no heading of its own, because the day names itself. */}
+        <span className="row" style={{ gap: 10 }}>
         <span className="kicker">
           {offset === 0 ? "Today" : offset === -1 ? "Yesterday" : null}
           {offset >= -1 ? " · " : ""}
@@ -51,6 +55,8 @@ export function Today() {
             month: "short",
           })}{" "}
           ({tz})
+        </span>
+        <Guide id="today" />
         </span>
         {/* Named days, not "earlier" and "later": the button says where it
             goes, so moving through the week never needs a mental subtraction.

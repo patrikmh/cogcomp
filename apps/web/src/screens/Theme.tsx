@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router-dom";
 import { Failed, Loading } from "@/components/States";
 import { api } from "@/lib/api";
 import { dateOf, fmt } from "@/lib/format";
+import { Guide } from "@/components/Guide";
 
 /**
  * A region of a life, opened.
@@ -55,9 +56,10 @@ export function Theme() {
   return (
     <>
       <span className="kicker">A region of the graph</span>
-      <h1>
-        {region.member_count} things that keep arriving together
-      </h1>
+      <div className="guide-heading">
+        <h1>{region.member_count} things that keep arriving together</h1>
+        <Guide id="theme" />
+      </div>
       <p className="sub">
         This is structure in what you wrote — an area where associations cluster. It is not a
         diagnosis, and it has no name until you give it one.

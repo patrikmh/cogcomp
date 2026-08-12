@@ -448,3 +448,24 @@
   three-d-stage{position:absolute;inset:0;width:100%;height:100%;
     --stage-note:transparent}
   #explore svg{width:100%;max-width:640px;height:360px;border:1px solid var(--line);border-radius:3px;background:var(--surface)}
+
+/* ===== the guide =====
+   A "?" beside the heading of every screen that makes a claim, and one
+   sentence behind it saying what the screen shows and where it stops. Taken
+   from the design unchanged: the ring, the backdrop, the dialog, and the
+   transition that makes it appear rather than cut in. */
+.guide-trigger{position:relative;width:44px;height:44px;flex:none;border:0;background:transparent;color:var(--dim);font-size:0;cursor:pointer;display:grid;place-items:center}
+.guide-trigger::after{content:'?';width:22px;height:22px;border:1px solid var(--line2);border-radius:50%;display:grid;place-items:center;font:500 12px/1 "IBM Plex Mono",monospace;transition:border-color .15s,color .15s,background .15s}
+.guide-trigger:hover::after{border-color:var(--dim);color:var(--ink);background:var(--surface)}
+.guide-trigger:focus-visible{outline:2px solid var(--live);outline-offset:-7px;border-radius:50%}
+.guide-heading{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.guide-heading h1{margin-bottom:6px}
+#guide-close.guide-trigger::after{content:'×';width:28px;height:28px;font-size:16px}
+#guide-backdrop{position:fixed;inset:0;z-index:20;display:grid;place-items:center;padding:20px;background:rgba(5,8,7,.72);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .2s,visibility 0s linear .2s}
+body.guide-open{overflow:hidden}
+body.guide-open #guide-backdrop{opacity:1;visibility:visible;pointer-events:auto;transition-delay:0s}
+#guide-dialog{position:relative;width:min(100%,420px);max-height:min(80vh,520px);overflow:auto;padding:22px;background:var(--surface);border:1px solid var(--line2);border-radius:4px}
+#guide-dialog h2{margin:0 36px 10px 0}
+#guide-dialog p{color:var(--dim);margin:0}
+#guide-close{position:absolute;right:10px;top:10px;width:44px;height:44px;font-size:16px}
+@media (prefers-reduced-motion: reduce){#guide-backdrop{transition:none}}

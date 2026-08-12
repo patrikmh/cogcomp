@@ -6,6 +6,7 @@ import { detectorsWaiting } from "@tlon/ontology";
 
 import { api } from "@/lib/api";
 import { localDay, mondayOf } from "@/lib/format";
+import { Guide } from "@/components/Guide";
 
 /** What the app does with what you write, in content rather than a consent wall. */
 export function Words() {
@@ -73,7 +74,10 @@ export function First() {
       <span className="kicker">
         First fortnight · new
       </span>
-      <h1>The machinery is filling</h1>
+      <div className="guide-heading">
+        <h1>The machinery is filling</h1>
+        <Guide id="first" />
+      </div>
       <p className="sub">
         Some findings need more days than you have written. Nothing is owed — this is what each
         detector is waiting for.

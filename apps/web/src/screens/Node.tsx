@@ -5,6 +5,7 @@ import { Meter } from "@/components/Meter";
 import { Failed, Loading } from "@/components/States";
 import { api } from "@/lib/api";
 import { fmt, stampOf } from "@/lib/format";
+import { Guide } from "@/components/Guide";
 
 /**
  * Where this came from.
@@ -57,7 +58,10 @@ export function Node() {
   return (
     <>
       <span className="kicker">Where this came from</span>
-      <h1>{node.label}</h1>
+      <div className="guide-heading">
+        <h1>{node.label}</h1>
+        <Guide id="node" />
+      </div>
 
       <div className="row" style={{ gap: 12 }}>
         <span className="pill">{node.kind.toLowerCase()}</span>

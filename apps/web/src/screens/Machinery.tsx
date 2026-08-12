@@ -9,6 +9,7 @@ import { api } from "@/lib/api";
 import { fmt } from "@/lib/format";
 import { seed } from "@/lib/seal";
 import { toneFor } from "@tlon/design";
+import { Guide } from "@/components/Guide";
 
 /**
  * What ran while you were not looking.
@@ -37,7 +38,10 @@ export function Agents() {
   return (
     <>
       <span className="kicker">Agent activity</span>
-      <h1>What was decided while you were away</h1>
+      <div className="guide-heading">
+        <h1>What was decided while you were away</h1>
+        <Guide id="agents" />
+      </div>
       <p className="sub">One line per attempt. Counts only — never what you wrote.</p>
 
       {/* "Nothing ran" and "something ran and found nothing" are different
@@ -125,9 +129,12 @@ export function Graph() {
   return (
     <>
       <span className="kicker">Graph · developer</span>
-      <h1>
-        {total} {total === 1 ? "node" : "nodes"}
-      </h1>
+      <div className="guide-heading">
+        <h1>
+          {total} {total === 1 ? "node" : "nodes"}
+        </h1>
+        <Guide id="graph" />
+      </div>
 
       <div className="row" style={{ gap: 10 }}>
         {summary.data.counts.map((c) => (
@@ -218,7 +225,10 @@ export function Explore() {
       <span className="kicker">Explore · developer</span>
       {/* The design titles this with what the screen claims rather than what it
           is called: position here is seeded, not settled. */}
-      <h1>Fixed positions, seeded by id</h1>
+      <div className="guide-heading">
+        <h1>Fixed positions, seeded by id</h1>
+        <Guide id="explore" />
+      </div>
       <p className="sub">
         Position carries no meaning — the same graph settles the same way every time. The edges
         carry the relationships.

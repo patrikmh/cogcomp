@@ -6,6 +6,7 @@ import { Empty, Failed, Loading } from "@/components/States";
 import { api } from "@/lib/api";
 import { DETECTOR_LABEL, fmt, stampOf } from "@/lib/format";
 import { Seal } from "@/lib/seal";
+import { Guide } from "@/components/Guide";
 
 /**
  * What came first.
@@ -56,7 +57,10 @@ export function PatternDetail() {
         Pattern · {detector}
         {pattern.tentative ? " · still forming" : ""}
       </span>
-      <h1>{pattern.label}</h1>
+      <div className="guide-heading">
+        <h1>{pattern.label}</h1>
+        <Guide id="pattern" />
+      </div>
       <p className="sub">
         {(INTRO[pattern.detector] ?? INTRO["exact-label"]!)(
           pattern.distinct_days,

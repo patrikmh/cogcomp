@@ -7,6 +7,7 @@ import { useDrawnFrom } from "@/lib/drawn-from";
 import { dayLabelOf } from "@/lib/format";
 import { Seal } from "@/lib/seal";
 import { useSession } from "@/state/session";
+import { Guide } from "@/components/Guide";
 
 /**
  * Find an entry.
@@ -32,7 +33,10 @@ export function Search() {
   return (
     <div className="scr">
       <span className="kicker">Find an entry</span>
-      <h1>Your own words, found</h1>
+      <div className="guide-heading">
+        <h1>Your own words, found</h1>
+        <Guide id="search" />
+      </div>
       <p className="sub">
         Literal text, newest first. Readings are not searched — they are not your words.
       </p>

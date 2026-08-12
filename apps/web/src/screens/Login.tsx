@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 import { ApiError } from "@/lib/api";
 import { useSession } from "@/state/session";
+import { Guide } from "@/components/Guide";
 
 /** What went wrong, in words. The server already writes these properly —
  *  "invalid email or password", "an account with that email already exists" —
@@ -46,7 +47,10 @@ export function Login() {
     <div style={{ maxWidth: 380 }}>
       <img src="/assets/tlon-logo.png" alt="Tlön" style={{ width: 120, opacity: 0.9 }} />
       {/* What the thing is, before asking anyone to sign into it. */}
-      <h1 style={{ marginTop: 26 }}>A private journal</h1>
+      <div className="guide-heading">
+        <h1 style={{ marginTop: 26 }}>A private journal</h1>
+        <Guide id="login" />
+      </div>
       <p className="sub">
         Twelve characters or more for the password. Nothing else is required, and nothing is
         public.

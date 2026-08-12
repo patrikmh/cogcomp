@@ -9,6 +9,7 @@ import { api } from "@/lib/api";
 import { DETECTOR_LABEL, deviceTimezone, fmt, localDay } from "@/lib/format";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
+import { Guide } from "@/components/Guide";
 
 /**
  * Headspace — a contour map of the record.
@@ -171,7 +172,10 @@ export function Headspace() {
   return (
     <>
       <span className="kicker">Headspace</span>
-      <h1 id="lensTitle">{LENS_LABEL[active]}</h1>
+      <div className="row">
+        <h1 id="lensTitle">{LENS_LABEL[active]}</h1>
+        <Guide id="headspace" lens={LENS_LABEL[active]} />
+      </div>
       <p className="sub" id="lensNote">
         {noteFor(active, counts, tz, changes.data?.not_enough_material ?? false)}
       </p>
