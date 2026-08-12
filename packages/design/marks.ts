@@ -118,3 +118,47 @@ export function ringRadius(i: number, k: number): number {
 export function ringSquash(i: number): number {
   return 0.86 + (i % 3) * 0.05;
 }
+
+/** The fourteen cells under a finding. */
+export const STRIP_CELLS = 14;
+
+function distribute(salt: string, n: number): number[] {
+  let h = 0;
+  for (const c of salt) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  const rnd = () => {
+    h = (h * 1664525 + 1013904223) >>> 0;
+    return h / 4294967296;
+  };
+  const cells = Array<number>(STRIP_CELLS).fill(0);
+  const order = [...Array(STRIP_CELLS).keys()].sort(() => rnd() - 0.5);
+  for (let i = 0; i < Math.max(0, Math.min(n, STRIP_CELLS)); i++) cells[order[i]!] = 1;
+  return cells;
+}
+
+/**
+ * Which of a fortnight's cells a finding lights, and which its other side does.
+ *
+ * Illustrative about *which* days — the caption says so — and exact about how
+ * many: the count is the finding's own `distinct_days`, sitting beside a
+ * sentence that states it. An ordering and a stated-against-recorded finding
+ * have two sides, and the second never lands on a day the first already holds,
+ * because they are the two halves of a pair rather than two tallies.
+ *
+ * Shared so both clients draw the same fourteen cells for the same finding.
+ */
+export function stripSeries(pattern: {
+  id: string;
+  detector: string;
+  distinct_days: number;
+  occurrences: number;
+}): { lit: number[]; second: number[] } {
+  const lit = distribute(pattern.id, Math.min(pattern.distinct_days, STRIP_CELLS));
+  const twoSided = pattern.detector === "stated-vs-recorded" || pattern.detector === "lag";
+  const second = twoSided
+    ? distribute(
+        pattern.id + "b",
+        Math.min(pattern.occurrences - pattern.distinct_days, STRIP_CELLS),
+      ).map((v, i) => (v && !lit[i] ? 1 : 0))
+    : lit.map(() => 0);
+  return { lit, second };
+}

@@ -2,7 +2,16 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 
-import { Observatory, Readout } from "@/components/Observatory";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { radii, type as scale } from "@tlon/design";
+
+import { Kicker, Rule } from "@/components/Marks";
+import { MotionSurface } from "@/components/MotionSurface";
+import { Observatory } from "@/components/Observatory";
+import { Rise } from "@/components/Rise";
+import { Seal } from "@/components/Seal";
+import { Strip } from "@/components/Strip";
+import { colors, fonts } from "@/theme";
 import { api, type Pattern } from "@/lib/api";
 import { patternDestination, patternMeta } from "@/lib/patterns";
 import { usePreferences } from "@/state/preferences";
@@ -66,55 +75,81 @@ export default function PatternsScreen() {
   const current = found.find((p) => p.id === selected) ?? null;
 
   return (
-    <Observatory
-      eyebrow="What keeps returning"
-      data={found.map((pattern) => ({
-        id: pattern.id,
-        // Relative to the strongest, so the picture is about this person's own
-        // material rather than an absolute scale that means nothing to them.
-        weight: pattern.occurrences / busiest,
-        tone: "Pattern",
-        tentative: pattern.tentative,
-      }))}
-      selected={selected}
-      onSelect={setSelected}
-      dotSize={9}
-      loading={patterns.isLoading}
-      error={patterns.isError ? "Could not load patterns." : null}
-      empty="Nothing has come back often enough to call a pattern yet."
-      hint={
-        found.length > 0
-          ? `${found.length} ${found.length === 1 ? "thing" : "things"} recurred. Bigger means more often — turn it, then tap one.`
-          : undefined
-      }
-      detail={
-        current && (
-          <Readout
-            tone="pattern"
-            sealId={current.id}
-            label={current.label}
-            meta={patternMeta(current)}
-            tentative={current.tentative}
-            openLabel={patternDestination(current).label}
-            onOpen={() => router.push(patternDestination(current).href)}
-          />
-        )
-      }
-      action={{
-        label: mine.isPending ? "Looking…" : "Look again",
-        onPress: () => mine.mutate(),
-        pending: mine.isPending,
-      }}
-      // Experiments is offered here and nowhere else a person can reach with
-      // the developer switch off, which is how replacing this link with /first
-      // made the whole feature unreachable for one commit. /first belongs on the
-      // empty state anyway — "what is it waiting for" is the question you have
-      // when nothing has been found, not when something has.
-      secondaryAction={
-        found.length > 0
-          ? { label: "Open experiments", onPress: () => router.push("/experiments") }
-          : { label: "What each detector is waiting for", onPress: () => router.push("/first") }
-      }
-    />
+    // The web's list, not a cloud of points. A finding is a claim with a shape:
+    // its seal, what it says, and the fortnight it rests on drawn underneath.
+    // A point sized by recurrence said only "this one is bigger".
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <Kicker>What keeps returning</Kicker>
+      <Text style={styles.title}>Patterns</Text>
+      <Text style={styles.sub}>
+        {found.length === 0
+          ? "Nothing has come back often enough to call a pattern yet."
+          : `${found.length} ${found.length === 1 ? "finding" : "findings"}. Counts, not verdicts — each one opens to the entries it counted.`}
+      </Text>
+      <Rule />
+
+      {found.map((pattern, i) => (
+        <Rise key={pattern.id} index={i}>
+          <MotionSurface
+            style={styles.row}
+            onPress={() => router.push(patternDestination(pattern).href)}
+            accessibilityRole="button"
+            accessibilityLabel={pattern.label}
+          >
+            <Seal id={pattern.id} size={40} />
+            <View style={styles.rowBody}>
+              <Text style={styles.label}>{pattern.label}</Text>
+              <Kicker>{patternMeta(pattern)}</Kicker>
+              {/* The fortnight it rests on. Which days is illustrative; how
+                  many is the number in the line above. */}
+              <Strip pattern={pattern} />
+              {/* No caption under the strip. The line above already states the
+                  true count — "8 entries across 7 days" — and the caption I put
+                  here restated it from `distinct_days`, which is not capped at
+                  fourteen: a finding resting on eighteen days read "18 of 14".
+                  The web's captions name the two sides of a two-sided finding
+                  and invite a hover, neither of which applies to a touch screen
+                  showing one strip. */}
+            </View>
+          </MotionSurface>
+        </Rise>
+      ))}
+
+      <View style={styles.actions}>
+        <MotionSurface
+          style={styles.action}
+          onPress={() => mine.mutate()}
+          disabled={mine.isPending}
+          accessibilityRole="button"
+        >
+          <Text style={styles.actionLabel}>{mine.isPending ? "Looking…" : "Look again"}</Text>
+        </MotionSurface>
+        <MotionSurface
+          style={styles.action}
+          onPress={() => router.push(found.length > 0 ? "/experiments" : "/first")}
+          accessibilityRole="button"
+        >
+          <Text style={styles.actionLabel}>
+            {found.length > 0 ? "Open experiments" : "What each detector is waiting for"}
+          </Text>
+        </MotionSurface>
+      </View>
+    </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.room },
+  content: { padding: 20, paddingBottom: 56, gap: 10 },
+  title: {
+    color: colors.ink, fontFamily: fonts.sansBold, fontSize: scale.title.size,
+    lineHeight: scale.title.line, letterSpacing: scale.title.tracking,
+  },
+  sub: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: scale.body.size, lineHeight: scale.body.line },
+  row: { flexDirection: "row", gap: 12, alignItems: "flex-start", paddingVertical: 12 },
+  rowBody: { flex: 1, gap: 6 },
+  label: { color: colors.ink, fontFamily: fonts.sans, fontSize: 16, lineHeight: 23 },
+  actions: { flexDirection: "row", gap: 8, flexWrap: "wrap", marginTop: 10 },
+  action: { borderWidth: 1, borderColor: colors.line, borderRadius: radii.surface, paddingVertical: 12, paddingHorizontal: 16 },
+  actionLabel: { color: colors.inkSoft, fontFamily: fonts.sans, fontSize: 15 },
+});

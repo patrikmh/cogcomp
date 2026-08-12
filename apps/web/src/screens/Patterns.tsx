@@ -6,6 +6,8 @@ import { Meter } from "@/components/Meter";
 import { Empty, Failed, Loading } from "@/components/States";
 import { api, type Pattern } from "@/lib/api";
 import { DETECTOR_LABEL, dateOf, deviceTimezone, fmt } from "@/lib/format";
+import { stripSeries } from "@tlon/design/marks";
+
 import { Seal } from "@/lib/seal";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
@@ -290,18 +292,6 @@ function Strip({ pattern, onPeek }: { pattern: Pattern; onPeek: (peek: string | 
 }
 
 /** A deterministic 14-cell distribution seeded by id, so a strip is stable. */
-function distribute(salt: string, n: number) {
-  let h = 0;
-  for (const c of salt) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  const rnd = () => {
-    h = (h * 1664525 + 1013904223) >>> 0;
-    return h / 4294967296;
-  };
-  const cells = Array<number>(14).fill(0);
-  const order = [...Array(14).keys()].sort(() => rnd() - 0.5);
-  for (let i = 0; i < Math.max(0, Math.min(n, 14)); i++) cells[order[i]!] = 1;
-  return cells;
-}
 
 /**
  * The two series a strip draws: what was counted, and — for a two-sided finding
@@ -317,13 +307,5 @@ function distribute(salt: string, n: number) {
  * the detector's floor. That is worth knowing on its own, and it is no reason
  * to leave the drawing untested.
  */
-export function stripSeries(pattern: Pick<Pattern, "id" | "detector" | "distinct_days" | "occurrences">) {
-  const lit = distribute(pattern.id, Math.min(pattern.distinct_days, 14));
-  const twoSided = pattern.detector === "stated-vs-recorded" || pattern.detector === "lag";
-  const second = twoSided
-    ? distribute(pattern.id + "b", Math.min(pattern.occurrences - pattern.distinct_days, 14)).map(
-        (v, i) => (v && !lit[i] ? 1 : 0),
-      )
-    : lit.map(() => 0);
-  return { lit, second };
-}
+
+export { stripSeries } from "@tlon/design/marks";
