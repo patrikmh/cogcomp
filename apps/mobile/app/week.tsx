@@ -9,6 +9,8 @@ import {
   View,
 } from "react-native";
 
+import { SECTIONS, asideOf } from "@tlon/copy/sections";
+
 import { Kicker, Rule } from "@/components/Marks";
 import { MotionSurface } from "@/components/MotionSurface";
 import { Seal } from "@/components/Seal";
@@ -109,7 +111,7 @@ export default function WeekScreen() {
               with nothing in it they could not have counted themselves, and it
               withholds the only part worth showing back. */}
           {(words.data?.weeks.at(-1)?.words ?? []).length > 0 && (
-            <Section title="Your own words for it" aside="counted, never interpreted">
+            <Section title={SECTIONS.words.title} aside={asideOf("words", true)}>
               <View style={styles.words}>
                 {words.data!.weeks.at(-1)!.words.map((word: string) => (
                   <Text key={word} style={styles.word}>
@@ -174,11 +176,11 @@ function Body({
       </View>
 
       <View style={styles.sectionRow}>
-        <Kicker heading>The rhythm</Kicker>
+        <Kicker heading>{SECTIONS.rhythm.title}</Kicker>
         <View style={styles.ruleFill}>
           <Rule />
         </View>
-        <Text style={styles.aside}>written days open</Text>
+        <Text style={styles.aside}>{asideOf("rhythm", true)}</Text>
       </View>
 
       <WeekChart
@@ -201,7 +203,7 @@ function Body({
             {summary.active_days} active {summary.active_days === 1 ? "day" : "days"}
           </Text>
 
-          <Section title="What you wrote" aside="kept verbatim">
+          <Section title={SECTIONS.acts.title} aside={asideOf("acts", true)}>
             {summary.days.flatMap((day) =>
               day.observations.map((observation) => (
                 <MotionSurface
@@ -217,7 +219,7 @@ function Body({
           </Section>
 
           {summary.recurring.length > 0 && (
-            <Section title="What kept returning" aside="strongest first">
+            <Section title={SECTIONS.returning.title} aside={asideOf("returning", true)}>
               {summary.recurring.map((item) => (
                 <Text key={`${item.kind}-${item.label}`} style={styles.body}>
                   {item.label} <Text style={styles.meta}>in {item.entries} entries</Text>
@@ -227,16 +229,16 @@ function Body({
           )}
 
           <Inferences
-            title="What they left behind"
-            aside="surest first"
+            title={SECTIONS.kept.title}
+            aside={asideOf("kept", true)}
             items={summary.inferred.filter((x) => !x.tentative)}
           />
           {/* Kept in its own section rather than mixed in and greyed out: a
               low-confidence guess beside a confident one reads as equally true
               however it is styled. */}
           <Inferences
-            title="Still forming"
-            aside="tentative — they may not hold"
+            title={SECTIONS.forming.title}
+            aside={asideOf("forming", true)}
             items={summary.inferred.filter((x) => x.tentative)}
           />
 

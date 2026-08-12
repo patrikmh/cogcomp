@@ -22,6 +22,22 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 API_PORT=8080
 WEB_PORT=8081
 API_URL="http://localhost:${API_PORT}"
+
+# The section names come from the design, through the same file both clients
+# render them from. Asserting on a literal here is how this suite came to
+# describe screens that had been renamed underneath it: the app changed, the
+# script did not, and nothing failed until the next full run.
+#
+#   section kept  ->  What they left behind
+section() {
+  python3 - "$ROOT" "$1" <<'PYSEC'
+import re, sys
+src = open(sys.argv[1] + "/packages/copy/sections.ts").read()
+found = re.search(r"\b" + re.escape(sys.argv[2]) + r":\s*\{[^}]*?title:\s*\"([^\"]+)\"", src)
+print(found.group(1) if found else "")
+PYSEC
+}
+
 WEB_URL="http://localhost:${WEB_PORT}"
 LOGS="$(mktemp -d)"
 EMAIL="e2e-$(date +%s)@example.com"
@@ -271,10 +287,10 @@ curl -sf -X POST "${API_URL}/v1/observations/${OID}/extract" \
 playwright-cli reload >/dev/null 2>&1
 sleep 3
 playwright-cli snapshot >/dev/null 2>&1
-snapshot_has_section "Less sure" \
+snapshot_has_section "$(section lessSure)" \
   && pass "tentative inference is in its own section" \
   || fail "tentative section missing"
-snapshot_has_section "What they left behind" \
+snapshot_has_section "$(section kept)" \
   && fail "a 0.3-confidence guess was presented as something the record stands behind" \
   || pass "guess kept out of the confident section"
 snapshot_contains "not a conclusion about you" \
@@ -297,7 +313,7 @@ playwright-cli click "$(ref_for 'This week')" >/dev/null 2>&1
 wait_for_snapshot "$ENTRY" 30 \
   && pass "current week renders the entry" \
   || fail "current week did not render the entry"
-snapshot_has_section "Still forming" \
+snapshot_has_section "$(section forming)" \
   && pass "current week renders the tentative inference" \
   || fail "tentative inference missing from current week"
 

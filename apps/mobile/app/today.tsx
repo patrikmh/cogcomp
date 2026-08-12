@@ -21,6 +21,8 @@ import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
 import { type as scale } from "@tlon/design";
+import { SECTIONS, asideOf } from "@tlon/copy/sections";
+
 import { Guide } from "@/components/Guide";
 
 /**
@@ -155,11 +157,11 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
       {/* Kicker, rule and aside on one line, as the web sets them: the rule
           takes the space between what the section is and what it promises. */}
       <View style={styles.sectionRow}>
-        <Kicker heading>The acts</Kicker>
+        <Kicker heading>{SECTIONS.acts.title}</Kicker>
         <View style={styles.ruleFill}>
           <Rule />
         </View>
-        <Text style={styles.aside}>kept verbatim</Text>
+        <Text style={styles.aside}>{asideOf("acts", true)}</Text>
       </View>
       {summary.observations.map((observation, i) => (
         <Rise key={observation.id} index={i}>
@@ -198,7 +200,7 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
       ))}
 
       {confident.length > 0 && (
-        <Section title="What they left behind" aside="surest first">
+        <Section title={SECTIONS.kept.title} aside={asideOf("kept", true)}>
           {confident.map((item) => (
             <Inference key={item.id} item={item} />
           ))}
@@ -206,7 +208,7 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
       )}
 
       {tentative.length > 0 && (
-        <Section title="Less sure" aside="unobserved, they grow vague">
+        <Section title={SECTIONS.lessSure.title} aside={asideOf("lessSure", true)}>
           {/* A separate section rather than mixed in and greyed out. A
               low-confidence guess sitting next to a confident one reads as
               equally true no matter how it is styled. */}
@@ -221,7 +223,7 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
           see that something had come up twice and had nowhere to go with it.
           The design ends the day here, on a link to the recurrence. */}
       {circling && (
-        <Section title="Circling">
+        <Section title={SECTIONS.circling.title}>
           <MotionSurface
             style={styles.circle}
             onPress={() => router.push("/patterns")}
@@ -242,7 +244,7 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
           is not looking at. */}
       {summary.inferred.length > 0 && (
         <Text style={styles.footnote}>
-          Everything under “What they left behind” and “Less sure” is a guess drawn from your
+          Everything under “{SECTIONS.kept.title}” and “{SECTIONS.lessSure.title}” is a guess drawn from your
           entries, not a conclusion about you. Tap one to see which words it came
           from.
         </Text>

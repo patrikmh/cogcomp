@@ -9,6 +9,7 @@ import { useDrawnFrom } from "@/lib/drawn-from";
 import { clockOf, deviceTimezone, fmt, localDay, shiftDay } from "@/lib/format";
 import { Seal } from "@/lib/seal";
 import { Guide } from "@/components/Guide";
+import { SECTIONS, asideOf } from "@tlon/copy/sections";
 
 /**
  * One day, as it happened.
@@ -102,9 +103,9 @@ export function Today() {
           </div>
 
           <div className="t-sec">
-            <span className="kicker">The acts</span>
+            <span className="kicker">{SECTIONS.acts.title}</span>
             <span className="rule" />
-            <span className="mono">kept verbatim</span>
+            <span className="mono">{asideOf("acts")}</span>
           </div>
           {summary.data!.observations.map((o, i) => (
             <div className={`j-entry${i === 0 ? " latest" : ""}`} key={o.id}>
@@ -138,9 +139,9 @@ export function Today() {
           {kept.length > 0 && (
             <>
               <div className="t-sec">
-                <span className="kicker">What they left behind</span>
+                <span className="kicker">{SECTIONS.kept.title}</span>
                 <span className="rule" />
-                <span className="mono">surest first</span>
+                <span className="mono">{asideOf("kept")}</span>
               </div>
               {kept.map((r) => (
                 <Reading key={r.id} reading={r} />
@@ -151,9 +152,9 @@ export function Today() {
           {faint.length > 0 && (
             <>
               <div className="t-sec">
-                <span className="kicker">Less sure</span>
+                <span className="kicker">{SECTIONS.lessSure.title}</span>
                 <span className="rule" />
-                <span className="mono">unobserved, they grow vague</span>
+                <span className="mono">{asideOf("lessSure")}</span>
               </div>
               {faint.map((r) => (
                 <Reading key={r.id} reading={r} />
@@ -183,7 +184,7 @@ export function Today() {
           {circling && (
             <>
               <div className="t-sec">
-                <span className="kicker">Circling</span>
+                <span className="kicker">{SECTIONS.circling.title}</span>
                 <span className="rule" />
               </div>
               <Link className="t-circle" to="/patterns">

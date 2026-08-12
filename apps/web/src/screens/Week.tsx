@@ -7,6 +7,7 @@ import { Failed, Loading } from "@/components/States";
 import { api } from "@/lib/api";
 import { DETECTOR_LABEL, deviceTimezone, localDay, mondayOf, shiftDay } from "@/lib/format";
 import { Seal } from "@/lib/seal";
+import { SECTIONS, asideOf } from "@tlon/copy/sections";
 
 /**
  * A week, as a rhythm.
@@ -103,7 +104,7 @@ export function Week() {
       </div>
 
       <div className="t-sec">
-        <span className="kicker">The rhythm</span>
+        <span className="kicker">{SECTIONS.rhythm.title}</span>
         <span className="rule" />
         <span className="mono">written days open · hover previews</span>
       </div>
@@ -154,9 +155,9 @@ export function Week() {
       {kept.length > 0 && (
         <>
           <div className="t-sec">
-            <span className="kicker">What kept returning</span>
+            <span className="kicker">{SECTIONS.returning.title}</span>
             <span className="rule" />
-            <span className="mono">strongest first</span>
+            <span className="mono">{asideOf("returning")}</span>
           </div>
           {kept.map((p) => (
             <PatternRow key={p.id} pattern={p} />
@@ -167,9 +168,9 @@ export function Week() {
       {forming.length > 0 && (
         <>
           <div className="t-sec">
-            <span className="kicker">Still forming</span>
+            <span className="kicker">{SECTIONS.forming.title}</span>
             <span className="rule" />
-            <span className="mono">tentative — they may not hold</span>
+            <span className="mono">{asideOf("forming")}</span>
           </div>
           {forming.map((p) => (
             <PatternRow key={p.id} pattern={p} />
@@ -189,9 +190,9 @@ export function Week() {
       {(words.data?.weeks.at(-1)?.words ?? []).length > 0 && (
         <>
           <div className="t-sec">
-            <span className="kicker">Your own words for it</span>
+            <span className="kicker">{SECTIONS.words.title}</span>
             <span className="rule" />
-            <span className="mono">counted, never interpreted</span>
+            <span className="mono">{asideOf("words")}</span>
           </div>
           <div className="p-comp">
             {words.data!.weeks.at(-1)!.words.map((word) => (
