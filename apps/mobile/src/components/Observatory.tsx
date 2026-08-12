@@ -46,6 +46,9 @@ interface Props {
    *  kicker naming it and a title stating its claim; screens built on this
    *  shell could carry only the first, so they were the ones left unnamed. */
   title?: string;
+  /** What the stage is made of, stated under it — counts, or a legend. Sits
+   *  between the object and the readout, where the design puts it. */
+  belowStage?: ReactNode;
   /** The key into the shared guide copy — a "?" beside the title saying what
    *  this screen shows and where it stops. */
   guide?: string;
@@ -78,6 +81,7 @@ export function Observatory({
   eyebrow,
   title,
   guide,
+  belowStage,
   stage,
   data,
   links,
@@ -131,6 +135,8 @@ export function Observatory({
           </Suspense>
         )}
       </View>
+
+      {belowStage}
 
       <View style={styles.readout}>
         {detail ?? (hint ? <Text style={styles.hint}>{hint}</Text> : null)}

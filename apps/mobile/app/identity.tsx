@@ -5,6 +5,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { MotionSurface } from "@/components/MotionSurface";
 import { IdentityComposition } from "@/components/IdentityComposition";
+import { IdentitySummary } from "@/components/IdentitySummary";
 import { Observatory } from "@/components/Observatory";
 import {
   api,
@@ -70,6 +71,11 @@ export default function IdentityScreen() {
     (node: IdentityNode) => !keptIds.has(node.id),
   );
   const everything = [...kept, ...offered];
+  // A removed reading is one the record still holds but no longer asserts — the
+  // tombstone the note below the figures is about.
+  const removedCount = everything.filter(
+    (node: IdentityNode) => node.epistemic_status === "user_rejected",
+  ).length;
   const current = everything.find((node) => node.id === selected) ?? null;
   const isKept = current ? keptIds.has(current.id) : false;
 
@@ -95,6 +101,18 @@ export default function IdentityScreen() {
           onSelect={(ring) => setSelected(ring.id)}
         />
       }
+      // What the picture is made of, counted — the design's four figures and
+      // the sentence saying what "kept" actually buys you. The hint underneath
+      // said "0 kept · 0 suggested" and stopped there, which is the size of the
+      // record without the reason anyone would care about the distinction.
+      belowStage={
+        <IdentitySummary
+          kept={kept.length}
+          tentative={offered.length}
+          kinds={new Set(everything.map((node: IdentityNode) => node.kind)).size}
+          removed={removedCount}
+        />
+      }
       data={everything.map((node: IdentityNode) => ({
         id: node.id,
         // Kept themes carry full weight; unplaced ones are present but slight.
@@ -112,7 +130,10 @@ export default function IdentityScreen() {
         projection.isError || candidates.isError ? "Could not load identity." : null
       }
       empty="Nothing has been suggested yet. This fills in as you write."
-      hint={`${kept.length} kept · ${offered.length} suggested. Filled is yours — tap one.`}
+      // The figures above already say how many of each there are. The design
+      // spends this line on how to read the picture instead — hovering on the
+      // web, tapping here.
+      hint="Tap a ring to see what it is. The dense core is you."
       detail={
         current && (
           <View style={styles.detail}>
