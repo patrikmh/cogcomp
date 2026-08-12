@@ -1,11 +1,13 @@
 import { useRouter } from "expo-router";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { Kicker, Rule } from "@/components/Marks";
 import { MotionSurface } from "@/components/MotionSurface";
 import { api } from "@/lib/api";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
+import { type as scale } from "@tlon/design";
 
 /**
  * Settings.
@@ -28,6 +30,14 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <Kicker>Settings</Kicker>
+      {/* The design says "Two switches and a way out" because the design has
+          two. This one has three, and a heading that miscounts what is directly
+          under it is the kind of small lie that makes someone stop trusting the
+          larger claims. */}
+      <Text style={styles.title}>Three switches and a way out</Text>
+      <Rule />
+
       <Switch
         label="Spoken replies"
         note="The agent reads its side aloud."
@@ -124,6 +134,13 @@ function Switch({
 }
 
 const styles = StyleSheet.create({
+  title: {
+    color: colors.ink,
+    fontFamily: fonts.sansBold,
+    fontSize: scale.title.size,
+    lineHeight: scale.title.line,
+    letterSpacing: scale.title.tracking,
+  },
   screen: { flex: 1, backgroundColor: colors.room },
   content: { padding: 20, gap: 4, paddingBottom: 40 },
   row: { flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 14 },

@@ -87,8 +87,12 @@ export default function PatternsScreen() {
     // its seal, what it says, and the fortnight it rests on drawn underneath.
     // A point sized by recurrence said only "this one is bigger".
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Kicker>What keeps returning</Kicker>
-      <Text style={styles.title}>Patterns</Text>
+      {/* The design's way round: the kicker names the screen, the title says
+          what the screen claims. This had them inverted, so the heading was the
+          word "Patterns" — which the tab bar already says — and the claim was
+          demoted to a label. */}
+      <Kicker>Patterns</Kicker>
+      <Text style={styles.title}>What keeps returning</Text>
       <Text style={styles.sub}>
         {found.length === 0
           ? "Nothing has come back often enough to call a pattern yet."

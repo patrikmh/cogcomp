@@ -51,9 +51,7 @@ export default function AgentsScreen() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Rising>
-        {/* No kicker here: the navigation header already says "Agent
-            activity", and the same two words twice, six pixels apart, is how a
-            screen starts to feel busy for no reason. */}
+        <Kicker>Agent activity</Kicker>
         <Text style={styles.title}>What was decided while you were away</Text>
         <Text style={styles.sub}>One line per attempt. Counts only — never what you wrote.</Text>
 

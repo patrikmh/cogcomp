@@ -132,7 +132,7 @@ function Gate() {
         <Stack.Screen name="agents" options={{ headerTitle: () => <TopBar /> }} />
         <Stack.Screen name="explore" options={{ title: "Explore" }} />
         <Stack.Screen name="node/[id]" options={{ title: "Where this came from" }} />
-        <Stack.Screen name="settings" options={{ title: "Settings" }} />
+        <Stack.Screen name="settings" options={{ headerTitle: () => <TopBar /> }} />
         <Stack.Screen name="first" options={{ headerTitle: () => <TopBar /> }} />
         <Stack.Screen name="search" options={{ headerTitle: () => <TopBar /> }} />
         <Stack.Screen name="words" options={{ headerTitle: () => <TopBar /> }} />
