@@ -97,3 +97,56 @@ export function isInferred(node: GraphNode): node is InferredNode {
 export function isTentative(inference: Inference): boolean {
   return inference.confidence < TENTATIVE_CONFIDENCE_THRESHOLD;
 }
+
+/** One reading, as it appears beside the act it was drawn from. */
+export interface Drawn {
+  id: string;
+  label: string;
+  confidence: number;
+  tentative: boolean;
+}
+
+/**
+ * Fold weekly readings into an index of act → what it left behind.
+ *
+ * Patterns are excluded, and that is the whole point of this being a function
+ * with a name. A pattern is a finding *across* acts — it cites many entries and
+ * means nothing about any one of them. Listing it under a single entry beside
+ * the words "drawn from this" claims something the record does not support, and
+ * it is the kind of claim this app exists not to make.
+ *
+ * It lives here rather than in either client because both clients show these
+ * chips, and the exclusion is a statement about the graph rather than about a
+ * screen. A second copy is a second place for a Pattern to leak into a claim
+ * about one entry.
+ */
+export function foldDrawnFrom(
+  weeks: {
+    id: string;
+    kind: string;
+    label: string;
+    confidence: number;
+    tentative: boolean;
+    source_observation_ids: string[];
+  }[][],
+): Map<string, Drawn[]> {
+  const index = new Map<string, Drawn[]>();
+  for (const readings of weeks) {
+    for (const reading of readings) {
+      if (reading.kind === "Pattern") continue;
+      for (const source of reading.source_observation_ids) {
+        const list = index.get(source) ?? [];
+        if (!list.some((r) => r.id === reading.id)) {
+          list.push({
+            id: reading.id,
+            label: reading.label,
+            confidence: reading.confidence,
+            tentative: reading.tentative,
+          });
+        }
+        index.set(source, list);
+      }
+    }
+  }
+  return index;
+}

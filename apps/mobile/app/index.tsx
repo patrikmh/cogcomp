@@ -10,11 +10,12 @@ import {
   useWindowDimensions,
 } from "react-native";
 
-import { Kicker } from "@/components/Marks";
+import { Chip, Kicker } from "@/components/Marks";
 import { MotionSurface } from "@/components/MotionSurface";
 import { Seal } from "@/components/Seal";
 import { RecordButton } from "@/components/RecordButton";
 import { ApiError, api, type ObservationResponse } from "@/lib/api";
+import { useDrawnFrom } from "@/lib/drawnFrom";
 import { uuidv7 } from "@/lib/ids";
 import { lazySkia } from "@/lib/lazySkia";
 import { useSession } from "@/state/session";
@@ -59,6 +60,8 @@ export default function JournalScreen() {
     enabled: Boolean(token && userId),
   });
 
+  const drawnFrom = useDrawnFrom(token, userId);
+
   const capture = useMutation({
     mutationFn: (content: string) =>
       api.createObservation(token!, {
@@ -97,6 +100,7 @@ export default function JournalScreen() {
   const size = Math.min(width * 0.86, height * 0.42, 380);
   // Nothing picked means the newest, so the screen always has something to say.
   const current = entries.find((e) => e.id === picked) ?? entries[0] ?? null;
+  const drawn = current ? (drawnFrom.get(current.id) ?? []) : [];
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -170,7 +174,27 @@ export default function JournalScreen() {
             <Text style={styles.readoutText} numberOfLines={4}>
               {current.content}
             </Text>
-            <Text style={styles.readoutOpen}>What came of this →</Text>
+            {/* What the entry actually produced, rather than a link offering to
+                go and find out. The web client has shown these since it was
+                ported; this said "What came of this →" and made you tap to learn
+                that the answer was sometimes nothing. */}
+            {drawn.length > 0 ? (
+              <>
+                <Kicker>Drawn from this</Kicker>
+                <View style={styles.drawn}>
+                  {drawn.slice(0, 4).map((reading) => (
+                    <Chip
+                      key={reading.id}
+                      label={reading.label}
+                      confidence={reading.confidence}
+                      tentative={reading.tentative}
+                    />
+                  ))}
+                </View>
+              </>
+            ) : (
+              <Text style={styles.readoutOpen}>Nothing drawn from this yet →</Text>
+            )}
           </View>
         </MotionSurface>
       ) : null}
@@ -253,6 +277,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.4,
   },
   readoutBody: { flex: 1, gap: 5 },
+  drawn: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   chips: { flexDirection: "row", gap: 10, alignItems: "center" },
   chip: {
     color: colors.cyan,

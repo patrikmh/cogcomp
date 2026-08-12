@@ -10,6 +10,10 @@ export default defineConfig({
     // "@tlon/design/tokens.css" into "…/tokens.ts/tokens.css".
     alias: [
       {
+        find: /^@tlon\/ontology$/,
+        replacement: fileURLToPath(new URL("../../packages/ontology/index.ts", import.meta.url)),
+      },
+      {
         find: "@tlon/design/marks",
         replacement: fileURLToPath(new URL("../../packages/design/marks.ts", import.meta.url)),
       },
