@@ -25,15 +25,22 @@ ROUTES=(${ROUTES:-"" journal today week search patterns identity experiments age
 # Wait for the route to stop changing rather than for a number of seconds. A
 # fixed sleep is either too short — which reads as the app missing everything
 # that had not arrived — or too long on every route to cover the slowest one.
+# Length alone is not enough. A screen whose second query is still in flight
+# reports a stable length for as long as that query takes, and two reads 0.4s
+# apart is well inside that window — which is how a sweep reported twenty
+# missing selectors on a route that had every one of them once the readings
+# arrived. Counting elements as well as characters catches the arrival of
+# markup that adds little text, and three stable reads makes a slow query have
+# to hold still for over a second before it is believed.
 settle() {
   local session="$1" last="" now="" stable=0
   for _ in $(seq 1 40); do
     now=$(playwright-cli -s="$session" eval \
-      '() => { const v=document.querySelector("#view")||document.body; const busy=v.querySelector(".empty")?.textContent==="…"; return busy ? "loading" : String(v.textContent||"").length }' \
+      '() => { const v=document.querySelector("#view")||document.body; const busy=v.querySelector(".empty")?.textContent==="…"; return busy ? "loading" : String(v.textContent||"").length + ":" + v.querySelectorAll("*").length }' \
       2>/dev/null | sed -n '2p' | tr -d '"')
     if [ -n "$now" ] && [ "$now" != "loading" ] && [ "$now" = "$last" ]; then
       stable=$((stable + 1))
-      [ "$stable" -ge 2 ] && return 0
+      [ "$stable" -ge 3 ] && return 0
     else
       stable=0
     fi
