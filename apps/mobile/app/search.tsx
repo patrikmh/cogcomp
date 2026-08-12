@@ -14,6 +14,7 @@ import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
 import { Rise, Rising } from "@/components/Rise";
 import { useReducedMotion } from "@/lib/motion";
+import { HEADINGS } from "@tlon/copy/headings";
 
 /**
  * Find an entry.
@@ -50,9 +51,9 @@ export default function SearchScreen() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Rising>
-      <Kicker>Find an entry</Kicker>
+      <Kicker>{HEADINGS.search.kicker}</Kicker>
       <View style={styles.headingRow}>
-        <Text style={styles.title}>Your own words, found</Text>
+        <Text style={styles.title}>{HEADINGS.search.title}</Text>
         <Guide id="search" />
       </View>
       <Text style={styles.sub}>

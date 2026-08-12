@@ -10,6 +10,7 @@ import { fmt } from "@/lib/format";
 import { seed } from "@/lib/seal";
 import { toneFor } from "@tlon/design";
 import { Guide } from "@/components/Guide";
+import { HEADINGS } from "@tlon/copy/headings";
 
 /**
  * What ran while you were not looking.
@@ -37,9 +38,9 @@ export function Agents() {
 
   return (
     <>
-      <span className="kicker">Agent activity</span>
+      <span className="kicker">{HEADINGS.agents.kicker}</span>
       <div className="guide-heading">
-        <h1>What was decided while you were away</h1>
+        <h1>{HEADINGS.agents.title}</h1>
         <Guide id="agents" />
       </div>
       <p className="sub">One line per attempt. Counts only — never what you wrote.</p>
@@ -128,7 +129,7 @@ export function Graph() {
 
   return (
     <>
-      <span className="kicker">Graph · developer</span>
+      <span className="kicker">{HEADINGS.graph.kicker}</span>
       <div className="guide-heading">
         <h1>
           {total} {total === 1 ? "node" : "nodes"}
@@ -222,11 +223,11 @@ export function Explore() {
           count that used to sit up here in a row of its own is gone with the
           row: the graph screen already says how many nodes there are, and this
           screen's caption says what it is for. */}
-      <span className="kicker">Explore · developer</span>
+      <span className="kicker">{HEADINGS.explore.kicker}</span>
       {/* The design titles this with what the screen claims rather than what it
           is called: position here is seeded, not settled. */}
       <div className="guide-heading">
-        <h1>Fixed positions, seeded by id</h1>
+        <h1>{HEADINGS.explore.title}</h1>
         <Guide id="explore" />
       </div>
       <p className="sub">

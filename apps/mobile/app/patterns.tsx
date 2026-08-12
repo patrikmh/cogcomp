@@ -16,6 +16,7 @@ import { api, type Pattern, type Theme } from "@/lib/api";
 import { patternDestination, patternMeta } from "@/lib/patterns";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
+import { HEADINGS } from "@tlon/copy/headings";
 
 /**
  * What keeps returning.
@@ -67,8 +68,8 @@ export default function PatternsScreen() {
     // should make finding the way back a hunt through settings.
     return (
       <Observatory
-        eyebrow="Patterns"
-        title="What keeps returning"
+        eyebrow={HEADINGS.patterns.kicker}
+        title={HEADINGS.patterns.title}
         data={[]}
         selected={null}
         onSelect={() => undefined}
@@ -92,8 +93,8 @@ export default function PatternsScreen() {
           what the screen claims. This had them inverted, so the heading was the
           word "Patterns" — which the tab bar already says — and the claim was
           demoted to a label. */}
-      <Kicker>Patterns</Kicker>
-      <Text style={styles.title}>What keeps returning</Text>
+      <Kicker>{HEADINGS.patterns.kicker}</Kicker>
+      <Text style={styles.title}>{HEADINGS.patterns.title}</Text>
       <Text style={styles.sub}>
         {found.length === 0
           ? "Nothing has come back often enough to call a pattern yet."

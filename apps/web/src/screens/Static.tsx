@@ -7,6 +7,7 @@ import { detectorsWaiting } from "@tlon/ontology";
 import { api } from "@/lib/api";
 import { localDay, mondayOf } from "@/lib/format";
 import { Guide } from "@/components/Guide";
+import { HEADINGS } from "@tlon/copy/headings";
 
 /** What the app does with what you write, in content rather than a consent wall. */
 export function Words() {
@@ -75,7 +76,7 @@ export function First() {
         First fortnight · new
       </span>
       <div className="guide-heading">
-        <h1>The machinery is filling</h1>
+        <h1>{HEADINGS.first.title}</h1>
         <Guide id="first" />
       </div>
       <p className="sub">

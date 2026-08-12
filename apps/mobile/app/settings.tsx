@@ -8,6 +8,7 @@ import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
 import { type as scale } from "@tlon/design";
+import { HEADINGS, switchesHeading } from "@tlon/copy/headings";
 
 /**
  * Settings.
@@ -20,6 +21,9 @@ import { type as scale } from "@tlon/design";
  * explanations that used to accompany them were reassurance, and reassurance
  * repeated on every screen stops being read.
  */
+/** How many switches this screen offers. The heading counts them. */
+const SWITCHES = 3;
+
 export default function SettingsScreen() {
   const router = useRouter();
   const token = useSession((s) => s.token);
@@ -30,12 +34,12 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Kicker>Settings</Kicker>
-      {/* The design says "Two switches and a way out" because the design has
-          two. This one has three, and a heading that miscounts what is directly
-          under it is the kind of small lie that makes someone stop trusting the
-          larger claims. */}
-      <Text style={styles.title}>Three switches and a way out</Text>
+      <Kicker>{HEADINGS.settings.kicker}</Kicker>
+      {/* Counted, not copied: the design says "Two switches" because the
+          design has two, and a heading that miscounts what is directly under it
+          is the kind of small wrongness that makes someone stop trusting the
+          larger claims on the same screen. */}
+      <Text style={styles.title}>{switchesHeading(SWITCHES)}</Text>
       <Rule />
 
       <Switch

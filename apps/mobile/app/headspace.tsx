@@ -17,6 +17,7 @@ import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
 import { type as scale } from "@tlon/design";
+import { HEADINGS } from "@tlon/copy/headings";
 
 /**
  * Headspace — where things stand.
@@ -139,7 +140,7 @@ export default function HeadspaceScreen() {
           what it shows. The design titles this screen with the lens rather than
           with the word "Headspace" — which the tab bar already says — so the
           heading changes as you change what you are looking at. */}
-      <Kicker>Headspace</Kicker>
+      <Kicker>{HEADINGS.headspace.kicker}</Kicker>
       <View style={styles.headingRow}>
         <Text style={styles.title}>{LENS_LABEL[lens]}</Text>
         {/* Lens-aware: what this screen is doing depends on which lens is on. */}

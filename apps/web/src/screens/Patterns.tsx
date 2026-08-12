@@ -11,6 +11,7 @@ import { stripSeries } from "@tlon/design/marks";
 import { Seal } from "@/lib/seal";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
+import { HEADINGS } from "@tlon/copy/headings";
 
 /**
  * What keeps returning.
@@ -77,7 +78,7 @@ export function Patterns() {
   return (
     <>
       <span className="kicker">Patterns · {deviceTimezone()}</span>
-      <h1>What keeps returning</h1>
+      <h1>{HEADINGS.patterns.title}</h1>
       <p className="t-sum">
         {found.length === 0
           ? // True, and on its own it leaves someone guessing whether they have

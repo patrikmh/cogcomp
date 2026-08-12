@@ -18,6 +18,7 @@ import { colors, fonts } from "@/theme";
 import { type as scale } from "@tlon/design";
 import { Kicker } from "@/components/Marks";
 import { Seal } from "@/components/Seal";
+import { HEADINGS } from "@tlon/copy/headings";
 
 /**
  * Identity, as something you assemble rather than something you are told.
@@ -81,9 +82,9 @@ export default function IdentityScreen() {
 
   return (
     <Observatory
-      eyebrow="Identity · a composition"
+      eyebrow={HEADINGS.identity.kicker}
       guide="identity"
-      title="Drawn from everything you kept"
+      title={HEADINGS.identity.title}
       // The web's composition rather than a head full of points: rings that
       // draw themselves on, the kept ones inked and doubled, the tentative ones
       // thin and faded, you at the centre already there.

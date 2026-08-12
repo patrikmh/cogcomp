@@ -8,6 +8,7 @@ import { dayLabelOf } from "@/lib/format";
 import { Seal } from "@/lib/seal";
 import { useSession } from "@/state/session";
 import { Guide } from "@/components/Guide";
+import { HEADINGS } from "@tlon/copy/headings";
 
 /**
  * Find an entry.
@@ -32,9 +33,9 @@ export function Search() {
 
   return (
     <div className="scr">
-      <span className="kicker">Find an entry</span>
+      <span className="kicker">{HEADINGS.search.kicker}</span>
       <div className="guide-heading">
-        <h1>Your own words, found</h1>
+        <h1>{HEADINGS.search.title}</h1>
         <Guide id="search" />
       </div>
       <p className="sub">

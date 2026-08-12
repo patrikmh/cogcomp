@@ -22,6 +22,7 @@ import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
 import { type as scale } from "@tlon/design";
 import { radii } from "@tlon/design";
+import { HEADINGS } from "@tlon/copy/headings";
 
 /**
  * The journal.
@@ -104,7 +105,7 @@ export default function JournalScreen() {
           headed and ruled, each act carries its seal, its time and what was
           drawn from it. */}
       <View style={styles.head}>
-        <Kicker>Journal</Kicker>
+        <Kicker>{HEADINGS.journal.kicker}</Kicker>
         <Text style={styles.count}>
           {observations.isSuccess
             ? `${entries.length} ${entries.length === 1 ? "act" : "acts"} kept`

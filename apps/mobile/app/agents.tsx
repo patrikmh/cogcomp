@@ -10,6 +10,7 @@ import { summaryLines } from "@/lib/agentActivity";
 import { api, type AgentRun } from "@/lib/api";
 import { useSession } from "@/state/session";
 import { colors, fonts, statusColor } from "@/theme";
+import { HEADINGS } from "@tlon/copy/headings";
 
 /**
  * What was decided while you were away.
@@ -52,9 +53,9 @@ export default function AgentsScreen() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Rising>
-        <Kicker>Agent activity</Kicker>
+        <Kicker>{HEADINGS.agents.kicker}</Kicker>
         <View style={styles.headingRow}>
-          <Text style={styles.title}>What was decided while you were away</Text>
+          <Text style={styles.title}>{HEADINGS.agents.title}</Text>
           <Guide id="agents" />
         </View>
         <Text style={styles.sub}>One line per attempt. Counts only — never what you wrote.</Text>

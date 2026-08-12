@@ -10,6 +10,7 @@ import { DETECTOR_LABEL, deviceTimezone, fmt, localDay } from "@/lib/format";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
 import { Guide } from "@/components/Guide";
+import { HEADINGS } from "@tlon/copy/headings";
 
 /**
  * Headspace — a contour map of the record.
@@ -171,7 +172,7 @@ export function Headspace() {
 
   return (
     <>
-      <span className="kicker">Headspace</span>
+      <span className="kicker">{HEADINGS.headspace.kicker}</span>
       <div className="row">
         <h1 id="lensTitle">{LENS_LABEL[active]}</h1>
         <Guide id="headspace" lens={LENS_LABEL[active]} />

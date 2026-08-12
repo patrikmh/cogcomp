@@ -6,6 +6,7 @@ import { GraphPanel } from "@/components/GraphPanel";
 import { Observatory, Readout } from "@/components/Observatory";
 import { api, type Subgraph } from "@/lib/api";
 import { useSession } from "@/state/session";
+import { HEADINGS } from "@tlon/copy/headings";
 
 /**
  * The graph, as a thing in space.
@@ -45,12 +46,12 @@ export default function ExploreScreen() {
 
   return (
     <Observatory
-      eyebrow="Explore · developer"
+      eyebrow={HEADINGS.explore.kicker}
       // The design titles this with what the screen claims rather than what it
       // is called, and the claim is the whole point of the screen: nothing here
       // is settled, so nothing can be read into where a thing sits.
       guide="explore"
-      title="Fixed positions, seeded by id"
+      title={HEADINGS.explore.title}
       stage={
         nodes.length > 0 && !graph.isLoading ? (
           <GraphPanel

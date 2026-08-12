@@ -8,6 +8,7 @@ import { api, type IdentityNode } from "@/lib/api";
 import { fmt } from "@/lib/format";
 import { useSession } from "@/state/session";
 import { Guide } from "@/components/Guide";
+import { HEADINGS } from "@tlon/copy/headings";
 
 /**
  * Identity, as a composition.
@@ -103,7 +104,7 @@ export function Identity() {
     <>
       <span className="kicker">Identity · a composition</span>
       <div className="guide-heading">
-        <h1>Drawn from everything you kept</h1>
+        <h1>{HEADINGS.identity.title}</h1>
         <Guide id="identity" />
       </div>
       <p className="sub">
