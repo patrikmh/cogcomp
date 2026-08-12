@@ -1,31 +1,30 @@
+import { radii, type as scale } from "@tlon/design";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { Observatory } from "@/components/Observatory";
+import { Kicker, Rule } from "@/components/Marks";
+import { MotionSurface } from "@/components/MotionSurface";
+import { Rise, Rising } from "@/components/Rise";
 import { summaryLines } from "@/lib/agentActivity";
 import { api, type AgentRun } from "@/lib/api";
 import { useSession } from "@/state/session";
-import { colors, fonts } from "@/theme";
-import { type as scale } from "@tlon/design";
+import { colors, fonts, statusColor } from "@/theme";
 
 /**
- * What ran while you were not looking.
+ * What was decided while you were away.
  *
- * This is the transparency surface for background work, so the thing it has to
- * make obvious is not *that* agents ran but *what kind* of thing each run was.
- * Colour carries status — succeeded, skipped, failed — and a failure is a red
- * point you cannot miss among the quiet ones, which a scrolling list of grey rows
- * never managed.
+ * One line per attempt, including the attempts that did nothing: "nothing ran"
+ * and "something ran and found nothing" are different answers to someone asking
+ * why their graph changed, and this screen exists so they can be told apart.
  *
- * Every run is here, including the ones that did nothing. "Nothing ran" and
- * "something ran and found nothing" are different answers to someone asking why
- * their graph changed, and this screen exists so they can tell them apart.
+ * The web has been a run log since it was ported and this client drew the same
+ * runs as points floating in a head. A log is a list of events in time — the
+ * head said nothing about any of them, and it cost the one thing a log is for,
+ * which is reading them in order. Counts only, never what anyone wrote.
  */
 export default function AgentsScreen() {
   const token = useSession((s) => s.token);
   const queryClient = useQueryClient();
-  const [selected, setSelected] = useState<string | null>(null);
 
   const runs = useQuery({
     queryKey: ["agent-runs"],
@@ -44,68 +43,144 @@ export default function AgentsScreen() {
 
   if (!token) return null;
 
-  const history: AgentRun[] = runs.data ?? [];
-  const current = history.find((run) => run.id === selected) ?? null;
-  const failures = history.filter((run) => run.status === "failed").length;
+  const all: AgentRun[] = runs.data ?? [];
+  const wrote = all.filter((run) => run.status === "succeeded").length;
+  const skipped = all.filter((run) => run.status === "skipped").length;
+  const failed = all.filter((run) => run.status === "failed").length;
 
   return (
-    <Observatory
-      eyebrow="What ran on its own"
-      data={history.map((run, index) => ({
-        id: run.id,
-        // Most recent heaviest, so the newest activity reads first.
-        weight: 1 - Math.min(index / Math.max(history.length, 10), 0.7),
-        // Status is the colour, so a failure is visible without reading a word.
-        tone: run.status,
-        // A run that did nothing is drawn hollow — present, but not an event.
-        tentative: run.status === "skipped",
-      }))}
-      selected={selected}
-      onSelect={setSelected}
-      dotSize={8}
-      loading={runs.isLoading}
-      error={runs.isError ? "Could not load activity." : null}
-      empty="Nothing has run in the background yet."
-      hint={
-        failures > 0
-          ? `${history.length} runs · ${failures} failed. Red is a failure — tap it.`
-          : `${history.length} ${history.length === 1 ? "run" : "runs"}. Hollow means it looked and found nothing.`
-      }
-      detail={
-        current && (
-          <View style={styles.detail}>
-            <Text style={styles.kind}>
-              {current.agent} · {current.status} ·{" "}
-              {current.trigger === "manual" ? "you asked" : "scheduled"}
-            </Text>
-            {summaryLines(current.summary).map((line: string) => (
-              <Text key={line} style={styles.line}>
-                {line}
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <Rising>
+        {/* No kicker here: the navigation header already says "Agent
+            activity", and the same two words twice, six pixels apart, is how a
+            screen starts to feel busy for no reason. */}
+        <Text style={styles.title}>What was decided while you were away</Text>
+        <Text style={styles.sub}>One line per attempt. Counts only — never what you wrote.</Text>
+
+        <View style={styles.summary}>
+          <Text style={styles.summaryText}>
+            {runs.isLoading
+              ? "Reading the log…"
+              : runs.isError
+                ? "Could not load activity."
+                : all.length === 0
+                  ? "Nothing has run yet."
+                  : `${all.length} ${all.length === 1 ? "attempt" : "attempts"} recorded: ${wrote} did work, ${skipped} had nothing to work on, ${failed} failed.`}
+          </Text>
+        </View>
+
+        <View style={styles.actions}>
+          <MotionSurface
+            style={styles.button}
+            onPress={() => runNow.mutate()}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: runNow.isPending }}
+          >
+            <Text style={styles.buttonLabel}>{runNow.isPending ? "RUNNING…" : "RUN NOW"}</Text>
+          </MotionSurface>
+          <Text style={styles.note}>A run you asked for always looks, and always reports.</Text>
+        </View>
+
+        {all.length > 0 && (
+          <>
+            <Kicker heading>Every run</Kicker>
+            <Rule />
+          </>
+        )}
+
+        {all.map((run, i) => (
+          <Rise key={run.id} index={i}>
+            <View style={styles.card}>
+              <View style={styles.cardHead}>
+                <View style={styles.agent}>
+                  <View style={[styles.dot, { backgroundColor: statusColor(run.status) }]} />
+                  <Text style={styles.agentName}>{run.agent}</Text>
+                </View>
+                <Text style={styles.meta}>
+                  {new Date(run.started_at).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}{" "}
+                  · {run.version}
+                </Text>
+              </View>
+              <Text style={styles.line}>
+                {statusLabel(run.status)} · {summaryLines(run.summary).join(" · ") || "nothing to report"}
               </Text>
-            ))}
-            {current.error && <Text style={styles.error}>{current.error}</Text>}
-            <Text style={styles.version}>{current.version}</Text>
-          </View>
-        )
-      }
-      action={{
-        label: runNow.isPending ? "Running…" : "Run them now",
-        onPress: () => runNow.mutate(),
-        pending: runNow.isPending,
-      }}
-    />
+              {run.error ? <Text style={styles.error}>{run.error}</Text> : null}
+            </View>
+          </Rise>
+        ))}
+      </Rising>
+    </ScrollView>
   );
 }
 
+/** The web's words for a status, so both logs read the same. */
+function statusLabel(status: string): string {
+  if (status === "failed") return "failed";
+  if (status === "skipped") return "nothing new to work on";
+  return "wrote";
+}
+
 const styles = StyleSheet.create({
-  detail: { gap: 4 },
-  kind: {
-    color: colors.inkMuted,
-    fontFamily: fonts.monoMedium, fontSize: scale.kicker.size,
-    letterSpacing: scale.kicker.tracking,
-    textTransform: "uppercase",
+  screen: { flex: 1, backgroundColor: colors.room },
+  content: { padding: 20, paddingBottom: 56, gap: 10 },
+  title: {
+    color: colors.ink,
+    fontFamily: fonts.sansBold,
+    fontSize: scale.title.size,
+    lineHeight: scale.title.line,
+    letterSpacing: scale.title.tracking,
   },
-  line: { color: colors.ink, fontFamily: fonts.sans, fontSize: 15, lineHeight: 21 },
-  error: { color: colors.danger, fontFamily: fonts.sans, fontSize: 13, lineHeight: 19 },
-  version: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: 11 },
+  sub: {
+    color: colors.inkMuted,
+    fontFamily: fonts.sans,
+    fontSize: scale.body.size,
+    lineHeight: scale.body.line,
+  },
+  summary: {
+    borderWidth: 1,
+    borderColor: colors.lineStrong,
+    borderRadius: radii.surface,
+    backgroundColor: colors.surface,
+    padding: 14,
+    marginTop: 4,
+  },
+  summaryText: {
+    color: colors.ink,
+    fontFamily: fonts.sans,
+    fontSize: scale.body.size,
+    lineHeight: scale.body.line,
+  },
+  actions: { gap: 8, marginTop: 4, marginBottom: 6 },
+  button: {
+    borderWidth: 1,
+    borderColor: colors.ink,
+    borderRadius: radii.surface,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  buttonLabel: {
+    color: colors.ink,
+    fontFamily: fonts.monoMedium,
+    fontSize: scale.kicker.size,
+    letterSpacing: scale.kicker.tracking,
+  },
+  note: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: scale.meta.size },
+  card: {
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radii.surface,
+    backgroundColor: colors.surface,
+    padding: 12,
+    gap: 8,
+  },
+  cardHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 },
+  agent: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1 },
+  dot: { width: 8, height: 8, borderRadius: 4 },
+  agentName: { color: colors.ink, fontFamily: fonts.sansSemi, fontSize: scale.body.size, flexShrink: 1 },
+  meta: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: scale.meta.size },
+  line: { color: colors.inkSoft, fontFamily: fonts.mono, fontSize: scale.meta.size, lineHeight: 18 },
+  error: { color: colors.danger, fontFamily: fonts.mono, fontSize: scale.meta.size },
 });

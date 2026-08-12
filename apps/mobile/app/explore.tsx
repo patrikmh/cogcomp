@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 
+import { GraphPanel } from "@/components/GraphPanel";
 import { Observatory, Readout } from "@/components/Observatory";
 import { api, type Subgraph } from "@/lib/api";
 import { useSession } from "@/state/session";
@@ -15,10 +16,15 @@ import { useSession } from "@/state/session";
  * things near each other for reasons that have nothing to do with what they mean,
  * and people read adjacency as significance.
  *
- * Here position carries no meaning at all. Points sit on a sphere by id, evenly
- * spread, and the *edges* carry the relationships — visibly, as threads you can
- * follow. Nothing is implied by where a thing sits, which is the honest version.
- * Turning the object is how you see behind things.
+ * Here position carries no meaning at all: a node sits where its own id puts it,
+ * so the same graph settles the same way every time, and the *edges* carry the
+ * relationships. Nothing is implied by where a thing sits.
+ *
+ * The web draws this as a flat panel and so does this now. The sphere inside a
+ * head silhouette was this client's own, and it made two claims the app does not
+ * get to make — that the record is a picture of a mind, and that turning it
+ * reveals something. Both clients read positions from the same `seed`, so a node
+ * is in the same place in both.
  */
 export default function ExploreScreen() {
   const token = useSession((s) => s.token);
@@ -39,7 +45,26 @@ export default function ExploreScreen() {
 
   return (
     <Observatory
-      eyebrow="Everything, connected"
+      eyebrow="Explore · developer"
+      // The web titles this with what the screen claims rather than what it is
+      // called, and the claim is the point of the screen.
+      stage={
+        nodes.length > 0 && !graph.isLoading ? (
+          <GraphPanel
+            nodes={nodes.map((node) => ({
+              id: node.id,
+              label: node.label,
+              kind: node.kind,
+              tentative: Boolean(node.tentative),
+            }))}
+            edges={(subgraph?.edges ?? []).map((edge) => ({
+              from: edge.from_id,
+              to: edge.to_id,
+            }))}
+            onSelect={(node) => setSelected(node.id)}
+          />
+        ) : undefined
+      }
       data={nodes.map((node) => ({
         id: node.id,
         // Entries are the fixed points the inferences hang off, so they read as
@@ -61,8 +86,8 @@ export default function ExploreScreen() {
       empty="Nothing to explore yet. Write an entry and the graph starts here."
       hint={
         subgraph?.truncated
-          ? `Showing ${subgraph.returned} of ${subgraph.total_nodes}. Filled is observed, hollow is a guess.`
-          : "Filled is something you wrote. Hollow is a guess. Drag to turn it."
+          ? `Showing ${subgraph.returned} of ${subgraph.total_nodes}. Position carries no meaning — the edges carry the relationships.`
+          : "Position carries no meaning — the edges carry the relationships. Tap a point to name it."
       }
       detail={
         current && (
