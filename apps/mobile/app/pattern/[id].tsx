@@ -11,6 +11,7 @@ import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
 import { radii } from "@tlon/design";
 import { type as scale } from "@tlon/design";
+import { Guide } from "@/components/Guide";
 
 /**
  * "You wrote this, and then a day later you wrote that."
@@ -54,7 +55,10 @@ function Body({ ordering }: { ordering: Ordering }) {
     <AtmosphericShell variant="secondary">
       <ScrollView contentContainerStyle={styles.screen}>
         <Text style={styles.kicker}>WHAT CAME FIRST</Text>
-        <Text style={styles.headline}>{ordering.label}</Text>
+        <View style={styles.headingRow}>
+          <Text style={[styles.headline, styles.headlineFill]}>{ordering.label}</Text>
+          <Guide id="pattern" />
+        </View>
 
         {/* Said before the evidence rather than in a footnote. Someone reading a
             list of "this, then that" will supply a cause if nobody says not to. */}
@@ -139,6 +143,8 @@ function Side({
 }
 
 const styles = StyleSheet.create({
+  headingRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 6 },
+  headlineFill: { flex: 1 },
   screen: { backgroundColor: colors.room, padding: 20, gap: 14, paddingBottom: 48 },
   kicker: { color: colors.cyan, fontFamily: fonts.mono, fontSize: 11, fontWeight: "700", letterSpacing: 1.8 },
   headline: { fontFamily: fonts.sans, fontSize: 20, lineHeight: 28, fontWeight: "600", color: colors.ink },

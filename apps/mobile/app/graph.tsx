@@ -17,6 +17,7 @@ import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
 import { radii } from "@tlon/design";
 import { type as scale } from "@tlon/design";
+import { Guide } from "@/components/Guide";
 
 /**
  * The dashboard: what is in the graph, and a way into any of it.
@@ -90,9 +91,14 @@ function Body({
     <AtmosphericShell variant="secondary">
       <ScrollView contentContainerStyle={styles.screen}>
       <View style={styles.instrumentHeader}>
-        <Text style={styles.kicker}>SIGNAL INSTRUMENT</Text>
-        <Text style={styles.title}>What is in the field?</Text>
-        <Text style={styles.intro}>A readable measure of the ideas your entries have made visible.</Text>
+        <Text style={styles.kicker}>GRAPH · DEVELOPER</Text>
+        <View style={styles.headingRow}>
+          <Text style={[styles.title, styles.headlineFill]}>
+            {graph.nodes.length} {graph.nodes.length === 1 ? "node" : "nodes"},{" "}
+            {graph.edges.length} {graph.edges.length === 1 ? "edge" : "edges"}
+          </Text>
+          <Guide id="graph" />
+        </View>
       </View>
       <FieldFrame label="Graph metric beacon field"><View style={styles.stats}>
         <MetricBeacon value={observations.length} label="source entries" />
@@ -175,6 +181,8 @@ function Stat({ value, label }: { value: number; label: string }) {
 }
 
 const styles = StyleSheet.create({
+  headingRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 6 },
+  headlineFill: { flex: 1 },
   screen: { backgroundColor: colors.room, padding: 20, gap: 14, paddingBottom: 44 },
   instrumentHeader: { gap: 6, paddingVertical: 8 },
   kicker: { color: colors.cyan, fontFamily: fonts.mono, fontSize: 11, fontWeight: "700", letterSpacing: 1.8 },

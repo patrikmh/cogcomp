@@ -18,6 +18,7 @@ import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
 import { radii } from "@tlon/design";
 import { type as scale } from "@tlon/design";
+import { Guide } from "@/components/Guide";
 
 /**
  * "Why do you think this?"
@@ -166,7 +167,10 @@ function Body({
       <Kicker>Evidence chain</Kicker>
       <Rule />
       <Kicker>{node.kind}</Kicker>
-      <Text style={styles.headline}>{node.label}</Text>
+      <View style={styles.headingRow}>
+        <Text style={[styles.headline, styles.headlineFill]}>{node.label}</Text>
+        <Guide id="node" />
+      </View>
 
       <View style={[styles.badge, tentative && styles.badgeTentative]}>
         <Text style={styles.badgeText}>
@@ -253,6 +257,8 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
+  headingRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 6 },
+  headlineFill: { flex: 1 },
   verdict: { gap: 8, marginTop: 18 },
   verdictAsk: { color: colors.inkSoft, fontFamily: fonts.sans, fontSize: 14 },
   verdictRow: { flexDirection: "row", gap: 10 },

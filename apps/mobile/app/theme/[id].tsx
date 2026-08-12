@@ -10,6 +10,7 @@ import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
 import { radii } from "@tlon/design";
 import { type as scale } from "@tlon/design";
+import { Guide } from "@/components/Guide";
 
 /**
  * A region of a life, opened.
@@ -54,7 +55,10 @@ function Body({ theme }: { theme: ThemeDetail }) {
     <AtmosphericShell variant="secondary">
       <ScrollView contentContainerStyle={styles.screen}>
         <Text style={styles.kicker}>A REGION, NOT A DIAGNOSIS</Text>
-        <Text style={styles.headline}>{theme.label}</Text>
+        <View style={styles.headingRow}>
+          <Text style={[styles.headline, styles.headlineFill]}>{theme.label}</Text>
+          <Guide id="theme" />
+        </View>
 
         <View style={[styles.badge, theme.tentative && styles.badgeTentative]}>
           <Text style={styles.badgeText}>
@@ -127,6 +131,8 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
+  headingRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 6 },
+  headlineFill: { flex: 1 },
   screen: { backgroundColor: colors.room, padding: 20, gap: 12, paddingBottom: 48 },
   kicker: { color: colors.pink, fontFamily: fonts.mono, fontSize: 11, fontWeight: "700", letterSpacing: 1.8 },
   headline: { fontFamily: fonts.sans, fontSize: 22, lineHeight: 30, fontWeight: "600", color: colors.ink },

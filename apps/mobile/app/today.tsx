@@ -20,6 +20,7 @@ import { useDrawnFrom } from "@/lib/drawnFrom";
 import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
 import { type as scale } from "@tlon/design";
+import { Guide } from "@/components/Guide";
 
 /**
  * One day, as it happened.
@@ -59,7 +60,12 @@ export default function TodayScreen() {
         <MotionSurface onPress={() => setDay(shiftDay(day, -1))} hitSlop={12}>
           <Text style={styles.navLink}>← Previous</Text>
         </MotionSurface>
-        <Text style={styles.date}>{isToday ? "Today" : day}</Text>
+        <View style={styles.dayRow}>
+          <Text style={styles.date}>{isToday ? "Today" : day}</Text>
+          {/* Beside the day rather than a heading: this screen has none,
+              because the day names itself. */}
+          <Guide id="today" />
+        </View>
         <MotionSurface
           onPress={() => setDay(shiftDay(day, 1))}
           hitSlop={12}
@@ -234,6 +240,7 @@ function shortTime(iso: string): string {
 }
 
 const styles = StyleSheet.create({
+  dayRow: { flexDirection: "row", alignItems: "center", gap: 2 },
   sub: {
     color: colors.inkMuted,
     fontFamily: fonts.sans,
