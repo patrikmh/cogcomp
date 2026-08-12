@@ -10,14 +10,15 @@ import {
   useWindowDimensions,
 } from "react-native";
 
+import { Kicker } from "@/components/Marks";
 import { MotionSurface } from "@/components/MotionSurface";
-import { NavOrbit } from "@/components/NavOrbit";
+import { Seal } from "@/components/Seal";
 import { RecordButton } from "@/components/RecordButton";
 import { ApiError, api, type ObservationResponse } from "@/lib/api";
 import { uuidv7 } from "@/lib/ids";
 import { lazySkia } from "@/lib/lazySkia";
 import { useSession } from "@/state/session";
-import { colors } from "@/theme";
+import { colors, fonts } from "@/theme";
 import { radii } from "@tlon/design";
 
 const LazyConstellation = lazySkia(() => import("@/components/Constellation"));
@@ -134,7 +135,7 @@ export default function JournalScreen() {
           <View style={[styles.spine, styles.spineDraft]} />
           <View style={styles.readoutBody}>
             <View style={styles.chips}>
-              <Text style={styles.chipDraft}>NOT SAVED YET</Text>
+              <Kicker tone={colors.warning}>Not saved yet</Kicker>
               <Text style={styles.chipQuiet}>
                 {draft.trim().split(/\s+/).length}{" "}
                 {draft.trim().split(/\s+/).length === 1 ? "word" : "words"}
@@ -155,19 +156,16 @@ export default function JournalScreen() {
           onPress={() => router.push(`/node/${current.id}`)}
           accessibilityRole="button"
         >
-          {/* A lit edge rather than a box. The point it belongs to is glowing in
-              the sky above, and the same colour running down the side is what
-              connects the two without drawing a line between them. */}
-          <View style={styles.spine} />
+          {/* The act's own seal, from the same geometry the web client draws —
+              the same id makes the same mark in both, which is what lets you
+              recognise an entry before reading it. */}
+          <Seal id={current.id} size={34} />
           <View style={styles.readoutBody}>
             <View style={styles.chips}>
-              <Text style={styles.chip}>
-                {current.source === "voice" ? "SPOKEN" : "WRITTEN"}
-              </Text>
-              <Text style={styles.chipQuiet}>{shortTime(current.captured_at)}</Text>
-              <Text style={styles.chipQuiet}>
-                {entries.length} {entries.length === 1 ? "entry" : "entries"}
-              </Text>
+              <Kicker>
+                {current.source === "voice" ? "Spoken" : "Written"} ·{" "}
+                {shortTime(current.captured_at)}
+              </Kicker>
             </View>
             <Text style={styles.readoutText} numberOfLines={4}>
               {current.content}
@@ -231,13 +229,6 @@ export default function JournalScreen() {
         <Text style={styles.talkLabel}>Talk it through instead</Text>
       </MotionSurface>
 
-      <NavOrbit
-        onSignOut={() => {
-          // Revoked server-side too, so a copied token cannot outlive sign-out.
-          void api.logout(token).catch(() => undefined);
-          void signOut();
-        }}
-      />
     </ScrollView>
   );
 }
@@ -257,7 +248,7 @@ const styles = StyleSheet.create({
   spineDraft: { backgroundColor: colors.violet },
   chipDraft: {
     color: colors.violet,
-    fontSize: 10,
+    fontFamily: fonts.sans, fontSize: 10,
     fontWeight: "700",
     letterSpacing: 1.4,
   },
@@ -265,14 +256,14 @@ const styles = StyleSheet.create({
   chips: { flexDirection: "row", gap: 10, alignItems: "center" },
   chip: {
     color: colors.cyan,
-    fontSize: 10,
+    fontFamily: fonts.sans, fontSize: 10,
     fontWeight: "700",
     letterSpacing: 1.4,
   },
-  chipQuiet: { color: colors.inkMuted, fontSize: 10, letterSpacing: 1.2 },
-  readoutOpen: { color: colors.cyan, fontSize: 12, fontWeight: "700" },
-  readoutHint: { color: colors.inkMuted, fontSize: 13, lineHeight: 19 },
-  readoutText: { color: colors.ink, fontSize: 16, lineHeight: 23 },
+  chipQuiet: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: 10, letterSpacing: 1.2 },
+  readoutOpen: { color: colors.cyan, fontFamily: fonts.sans, fontSize: 12, fontWeight: "700" },
+  readoutHint: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: 13, lineHeight: 19 },
+  readoutText: { color: colors.ink, fontFamily: fonts.sans, fontSize: 16, lineHeight: 23 },
   input: {
     backgroundColor: colors.roomRaised,
     // Only the left edge is lit, and it is the same cyan as the point the entry
@@ -290,7 +281,7 @@ const styles = StyleSheet.create({
     color: colors.ink,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    fontSize: 17,
+    fontFamily: fonts.sans, fontSize: 17,
     lineHeight: 24,
     minHeight: 96,
     textAlignVertical: "top",
@@ -302,9 +293,9 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     alignItems: "center",
   },
-  buttonLabel: { color: colors.room, fontSize: 16, fontWeight: "700" },
+  buttonLabel: { color: colors.room, fontFamily: fonts.sans, fontSize: 16, fontWeight: "700" },
   disabled: { opacity: 0.35 },
-  error: { color: colors.danger, fontSize: 13 },
+  error: { color: colors.danger, fontFamily: fonts.sans, fontSize: 13 },
   talk: { paddingVertical: 6 },
-  talkLabel: { color: colors.inkSoft, fontSize: 14, fontWeight: "700" },
+  talkLabel: { color: colors.inkSoft, fontFamily: fonts.sans, fontSize: 14, fontWeight: "700" },
 });

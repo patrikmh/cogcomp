@@ -5,7 +5,7 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { MotionSurface } from "@/components/MotionSurface";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
-import { colors } from "@/theme";
+import { colors, fonts } from "@/theme";
 
 /**
  * The developer menu.
@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 16 },
   dot: { width: 8, height: 8, borderRadius: 4 },
   copy: { flex: 1, gap: 3 },
-  label: { color: colors.ink, fontSize: 16, fontWeight: "600" },
-  note: { color: colors.inkMuted, fontSize: 12, lineHeight: 17 },
-  footnote: { color: colors.inkMuted, fontSize: 12, lineHeight: 18, paddingTop: 24 },
+  label: { color: colors.ink, fontFamily: fonts.sans, fontSize: 16, fontWeight: "600" },
+  note: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: 12, lineHeight: 17 },
+  footnote: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: 12, lineHeight: 18, paddingTop: 24 },
 });

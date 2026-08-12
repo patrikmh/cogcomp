@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { seed } from "@/lib/seal";
+import { loop } from "@tlon/design/marks";
 
 /**
  * Identity, drawn as concentric contours.
@@ -147,22 +147,3 @@ export function IdentityComposition({
   );
 }
 
-/** One organic contour loop: three harmonics and a seeded squash. */
-function loop(key: string, baseR: number, squash: number) {
-  const rnd = seed(key);
-  const harmonics = [0, 1, 2].map(() => ({
-    f: 2 + Math.floor(rnd() * 4),
-    a: 0.04 + rnd() * 0.12,
-    p: rnd() * Math.PI * 2,
-  }));
-  let d = "";
-  for (let i = 0; i <= 96; i++) {
-    const th = (i / 96) * Math.PI * 2;
-    let r = baseR;
-    for (const h of harmonics) r += baseR * h.a * Math.sin(th * h.f + h.p);
-    const x = 140 + Math.cos(th) * r;
-    const y = 140 + Math.sin(th) * r * squash;
-    d += (i ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1);
-  }
-  return d + "Z";
-}

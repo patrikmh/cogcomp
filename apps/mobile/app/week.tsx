@@ -15,7 +15,7 @@ import { api, type WeeklySummary } from "@/lib/api";
 import { deviceTimezone, localToday, mondayOfWeek, shiftWeek } from "@/lib/dates";
 import { lazySkia } from "@/lib/lazySkia";
 import { useSession } from "@/state/session";
-import { colors } from "@/theme";
+import { colors, fonts } from "@/theme";
 
 const LazyConstellation = lazySkia(() => import("@/components/Constellation"));
 
@@ -275,19 +275,19 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.room },
   content: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 48, gap: 8 },
   nav: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  link: { color: colors.inkSoft, fontSize: 14, fontWeight: "700" },
+  link: { color: colors.inkSoft, fontFamily: fonts.sans, fontSize: 14, fontWeight: "700" },
   disabled: { opacity: 0.3 },
-  date: { color: colors.ink, fontSize: 16, fontWeight: "700" },
+  date: { color: colors.ink, fontFamily: fonts.sans, fontSize: 16, fontWeight: "700" },
   spine: { flexDirection: "row", gap: 6, paddingVertical: 14 },
   cell: { flex: 1, alignItems: "center", gap: 5 },
   bar: { width: "100%", height: 34, borderRadius: 3, backgroundColor: colors.lineStrong },
   barActive: { backgroundColor: colors.cyan },
-  cellDay: { color: colors.inkMuted, fontSize: 11 },
-  cellCount: { color: colors.inkSoft, fontSize: 12, fontWeight: "700" },
+  cellDay: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: 11 },
+  cellCount: { color: colors.inkSoft, fontFamily: fonts.sans, fontSize: 12, fontWeight: "700" },
   sky: { alignItems: "center", justifyContent: "center" },
   vocabulary: {
     color: colors.inkMuted,
-    fontSize: 13,
+    fontFamily: fonts.sans, fontSize: 13,
     lineHeight: 19,
     marginTop: 14,
     paddingTop: 12,
@@ -295,28 +295,28 @@ const styles = StyleSheet.create({
     borderTopColor: colors.line,
   },
   loader: { marginTop: 40 },
-  error: { color: colors.danger, fontSize: 14 },
-  empty: { color: colors.inkMuted, fontSize: 15, paddingTop: 20 },
-  count: { color: colors.inkMuted, fontSize: 13 },
+  error: { color: colors.danger, fontFamily: fonts.sans, fontSize: 14 },
+  empty: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: 15, paddingTop: 20 },
+  count: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: 13 },
   readout: { gap: 3 },
   readoutMeta: {
     color: colors.cyan,
-    fontSize: 11,
+    fontFamily: fonts.sans, fontSize: 11,
     fontWeight: "700",
     letterSpacing: 1.4,
     textTransform: "uppercase",
   },
-  readoutText: { color: colors.ink, fontSize: 16, lineHeight: 23 },
+  readoutText: { color: colors.ink, fontFamily: fonts.sans, fontSize: 16, lineHeight: 23 },
   section: { gap: 6, paddingTop: 14 },
   heading: {
     color: colors.cyan,
-    fontSize: 11,
+    fontFamily: fonts.sans, fontSize: 11,
     fontWeight: "700",
     letterSpacing: 1.4,
     textTransform: "uppercase",
   },
-  body: { color: colors.ink, fontSize: 15, lineHeight: 22 },
+  body: { color: colors.ink, fontFamily: fonts.sans, fontSize: 15, lineHeight: 22 },
   quiet: { color: colors.inkSoft },
-  meta: { color: colors.inkMuted, fontSize: 12 },
-  footnote: { color: colors.inkMuted, fontSize: 12, lineHeight: 18, paddingTop: 18 },
+  meta: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: 12 },
+  footnote: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: 12, lineHeight: 18, paddingTop: 18 },
 });

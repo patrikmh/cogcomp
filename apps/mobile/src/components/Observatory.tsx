@@ -10,7 +10,7 @@ import {
 import { MotionSurface } from "@/components/MotionSurface";
 import { lazySkia } from "@/lib/lazySkia";
 import type { Datum } from "@/lib/orbital";
-import { colors } from "@/theme";
+import { colors, fonts } from "@/theme";
 
 const LazyConstellation = lazySkia(() => import("@/components/Constellation"));
 
@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.room, paddingHorizontal: 20 },
   eyebrow: {
     color: colors.cyan,
-    fontSize: 11,
+    fontFamily: fonts.sans, fontSize: 11,
     fontWeight: "700",
     letterSpacing: 2,
     textTransform: "uppercase",
@@ -178,25 +178,25 @@ const styles = StyleSheet.create({
   },
   stage: { flex: 1, alignItems: "center", justifyContent: "center" },
   readout: { minHeight: 104, justifyContent: "flex-start", paddingBottom: 4 },
-  hint: { color: colors.inkMuted, fontSize: 13, lineHeight: 19 },
+  hint: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: 13, lineHeight: 19 },
   empty: {
     color: colors.inkMuted,
-    fontSize: 15,
+    fontFamily: fonts.sans, fontSize: 15,
     lineHeight: 22,
     textAlign: "center",
     maxWidth: 300,
   },
-  error: { color: colors.danger, fontSize: 14 },
+  error: { color: colors.danger, fontFamily: fonts.sans, fontSize: 14 },
   detail: { gap: 5 },
   detailKind: {
     color: colors.inkMuted,
-    fontSize: 11,
+    fontFamily: fonts.sans, fontSize: 11,
     fontWeight: "700",
     letterSpacing: 1.4,
     textTransform: "uppercase",
   },
-  detailLabel: { color: colors.ink, fontSize: 19, lineHeight: 26 },
-  open: { color: colors.cyan, fontSize: 13, fontWeight: "700", paddingTop: 2 },
+  detailLabel: { color: colors.ink, fontFamily: fonts.sans, fontSize: 19, lineHeight: 26 },
+  open: { color: colors.cyan, fontFamily: fonts.sans, fontSize: 13, fontWeight: "700", paddingTop: 2 },
   action: {
     borderWidth: 1,
     borderColor: colors.lineStrong,
@@ -206,6 +206,6 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   pending: { opacity: 0.45 },
-  actionLabel: { color: colors.ink, fontSize: 15, fontWeight: "700" },
+  actionLabel: { color: colors.ink, fontFamily: fonts.sans, fontSize: 15, fontWeight: "700" },
   secondaryAction: { alignItems: "center", paddingBottom: 18 },
 });

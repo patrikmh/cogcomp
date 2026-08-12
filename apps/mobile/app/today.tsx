@@ -15,7 +15,7 @@ import { api, type DailySummary } from "@/lib/api";
 import { deviceTimezone, localToday, shiftDay } from "@/lib/dates";
 import { lazySkia } from "@/lib/lazySkia";
 import { useSession } from "@/state/session";
-import { colors } from "@/theme";
+import { colors, fonts } from "@/theme";
 
 const LazyConstellation = lazySkia(() => import("@/components/Constellation"));
 
@@ -239,33 +239,33 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  navLink: { color: colors.inkSoft, fontSize: 14, fontWeight: "700" },
+  navLink: { color: colors.inkSoft, fontFamily: fonts.sans, fontSize: 14, fontWeight: "700" },
   disabled: { opacity: 0.3 },
-  date: { color: colors.ink, fontSize: 16, fontWeight: "700" },
+  date: { color: colors.ink, fontFamily: fonts.sans, fontSize: 16, fontWeight: "700" },
   sky: { alignItems: "center", justifyContent: "center" },
   loader: { marginTop: 40 },
-  error: { color: colors.danger, fontSize: 14 },
-  empty: { color: colors.inkMuted, fontSize: 15, paddingTop: 24 },
-  count: { color: colors.inkMuted, fontSize: 13 },
+  error: { color: colors.danger, fontFamily: fonts.sans, fontSize: 14 },
+  empty: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: 15, paddingTop: 24 },
+  count: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: 13 },
   readout: { gap: 3, paddingBottom: 2 },
   readoutMeta: {
     color: colors.cyan,
-    fontSize: 11,
+    fontFamily: fonts.sans, fontSize: 11,
     fontWeight: "700",
     letterSpacing: 1.4,
     textTransform: "uppercase",
   },
-  readoutText: { color: colors.ink, fontSize: 16, lineHeight: 23 },
+  readoutText: { color: colors.ink, fontFamily: fonts.sans, fontSize: 16, lineHeight: 23 },
   section: { gap: 6, paddingTop: 12 },
   sectionTitle: {
     color: colors.cyan,
-    fontSize: 11,
+    fontFamily: fonts.sans, fontSize: 11,
     fontWeight: "700",
     letterSpacing: 1.4,
     textTransform: "uppercase",
   },
-  body: { color: colors.ink, fontSize: 15, lineHeight: 22 },
+  body: { color: colors.ink, fontFamily: fonts.sans, fontSize: 15, lineHeight: 22 },
   quiet: { color: colors.inkSoft },
-  meta: { color: colors.inkMuted, fontSize: 12 },
-  footnote: { color: colors.inkMuted, fontSize: 12, lineHeight: 18, paddingTop: 16 },
+  meta: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: 12 },
+  footnote: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: 12, lineHeight: 18, paddingTop: 16 },
 });

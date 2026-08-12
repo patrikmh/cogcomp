@@ -6,7 +6,7 @@ import { Observatory } from "@/components/Observatory";
 import { summaryLines } from "@/lib/agentActivity";
 import { api, type AgentRun } from "@/lib/api";
 import { useSession } from "@/state/session";
-import { colors } from "@/theme";
+import { colors, fonts } from "@/theme";
 
 /**
  * What ran while you were not looking.
@@ -100,12 +100,12 @@ const styles = StyleSheet.create({
   detail: { gap: 4 },
   kind: {
     color: colors.inkMuted,
-    fontSize: 11,
+    fontFamily: fonts.sans, fontSize: 11,
     fontWeight: "700",
     letterSpacing: 1.4,
     textTransform: "uppercase",
   },
-  line: { color: colors.ink, fontSize: 15, lineHeight: 21 },
-  error: { color: colors.danger, fontSize: 13, lineHeight: 19 },
-  version: { color: colors.inkMuted, fontSize: 11 },
+  line: { color: colors.ink, fontFamily: fonts.sans, fontSize: 15, lineHeight: 21 },
+  error: { color: colors.danger, fontFamily: fonts.sans, fontSize: 13, lineHeight: 19 },
+  version: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: 11 },
 });

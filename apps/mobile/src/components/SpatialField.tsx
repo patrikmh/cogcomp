@@ -2,7 +2,7 @@ import { Link } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { ReactNode } from "react";
 import { dockDestinations } from "@/lib/destinations";
-import { colors } from "@/theme";
+import { colors, fonts } from "@/theme";
 import { constellationPoint } from "@/lib/spatial";
 
 /** Shared, static geometry for the Living Observatory routes. */
@@ -68,8 +68,8 @@ export function FieldFrame({ children, label = "Living Observatory field" }: { c
  *
  *  Now it is rendered once by the root layout and pinned to the bottom, so it is
  *  the same bar everywhere and cannot be missing from a screen by omission. */
-export function SpatialDock() {
-  return <View accessibilityRole="toolbar" accessibilityLabel="Observatory routes" style={styles.dock}>{dockDestinations().map(({ href, label, tone }) => <Link key={href} href={href} asChild><Pressable accessibilityRole="link" style={({ pressed }) => [styles.dockItem, pressed && styles.pressed]}><View style={[styles.dockMark, { backgroundColor: tone }]} /><Text style={styles.dockLabel}>{label}</Text></Pressable></Link>)}</View>;
+export function SpatialDock({ developer = false }: { developer?: boolean }) {
+  return <View accessibilityRole="toolbar" accessibilityLabel="Observatory routes" style={styles.dock}>{dockDestinations(developer).map(({ href, label, tone, quiet }) => <Link key={href} href={href} asChild><Pressable accessibilityRole="link" style={({ pressed }) => [styles.dockItem, pressed && styles.pressed]}><View style={[styles.dockMark, { backgroundColor: tone }, quiet && styles.dockMarkQuiet]} /><Text style={[styles.dockLabel, quiet && styles.dockLabelQuiet]}>{label}</Text></Pressable></Link>)}</View>;
 }
 
 export function LoadingLens({ label = "Reading the field…" }: { label?: string }) { return <View accessibilityRole="progressbar" style={styles.state}><View style={styles.loadingRing} /><Text style={styles.stateText}>{label}</Text></View>; }
@@ -85,13 +85,16 @@ const styles = StyleSheet.create({
   pearlRow: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 54, paddingVertical: 8, paddingRight: 8 },
   pearl: { width: 14, height: 14, borderRadius: 7, backgroundColor: colors.cyan, shadowColor: colors.cyan, shadowOpacity: 0.7, shadowRadius: 8 },
   pearlTentative: { backgroundColor: "transparent", borderWidth: 1, borderColor: colors.warning, shadowOpacity: 0 },
-  pearlCopy: { flex: 1, gap: 3 }, pearlLabel: { color: colors.ink, fontSize: 16, lineHeight: 22 }, pearlMeta: { color: colors.inkMuted, fontSize: 12 },
+  pearlCopy: { flex: 1, gap: 3 }, pearlLabel: { color: colors.ink, fontFamily: fonts.sans, fontSize: 16, lineHeight: 22 }, pearlMeta: { color: colors.inkMuted, fontSize: 12 },
   pressed: { opacity: 0.65 },
-  beacon: { alignItems: "center", justifyContent: "center", minWidth: 82, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.lineStrong }, beaconValue: { fontSize: 25, fontWeight: "700" }, beaconLabel: { color: colors.inkMuted, fontSize: 10, textAlign: "center" },
+  beacon: { alignItems: "center", justifyContent: "center", minWidth: 82, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.lineStrong }, beaconValue: { fontFamily: fonts.sans, fontSize: 25, fontWeight: "700" }, beaconLabel: { color: colors.inkMuted, fontSize: 10, textAlign: "center" },
   rail: { position: "relative", paddingLeft: 20, marginTop: 8 }, railSpine: { position: "absolute", left: 6, top: 0, bottom: 0, width: 1, backgroundColor: colors.lineStrong }, railItems: { gap: 4 },
-  constellation: { height: 190, position: "relative", overflow: "hidden", borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line }, constellationNode: { position: "absolute", width: 82, gap: 4 }, constellationDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.cyan }, constellationLabel: { color: colors.inkSoft, fontSize: 10, lineHeight: 13 },
+  constellation: { height: 190, position: "relative", overflow: "hidden", borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line }, constellationNode: { position: "absolute", width: 82, gap: 4 }, constellationDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.cyan }, constellationLabel: { color: colors.inkSoft, fontFamily: fonts.sans, fontSize: 10, lineHeight: 13 },
   fieldFrame: { minHeight: 120, position: "relative", overflow: "hidden", borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, paddingVertical: 12 },
   dock: { flexDirection: "row", justifyContent: "space-around", alignItems: "center", borderTopWidth: 1, borderColor: colors.line, paddingTop: 8, paddingBottom: 8, backgroundColor: colors.room },
-  dockItem: { alignItems: "center", gap: 3, paddingHorizontal: 5, paddingVertical: 4 }, dockMark: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.cyan }, dockLabel: { color: colors.inkMuted, fontSize: 10 },
+  dockItem: { alignItems: "center", gap: 3, paddingHorizontal: 5, paddingVertical: 4 },
+  // `quiet` finally does something. It has been on Settings since the list was
+  // written and no menu had ever read it.
+  dockMarkQuiet: { opacity: 0.5 }, dockLabelQuiet: { opacity: 0.6 }, dockMark: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.cyan }, dockLabel: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: 10 },
   state: { alignItems: "center", justifyContent: "center", gap: 10, minHeight: 120, padding: 24 }, loadingRing: { width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: colors.cyan, borderRightColor: "transparent" }, emptyRing: { width: 22, height: 22, borderRadius: 11, borderWidth: 1, borderColor: colors.lineStrong }, errorRing: { borderColor: colors.danger }, stateText: { color: colors.inkMuted, textAlign: "center", lineHeight: 20 },
 });

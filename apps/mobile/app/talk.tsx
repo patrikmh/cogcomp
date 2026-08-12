@@ -24,7 +24,7 @@ import { useContinuousVoice } from "@/lib/useContinuousVoice";
 import { useSpokenReply } from "@/lib/useSpokenReply";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
-import { colors } from "@/theme";
+import { colors, fonts } from "@/theme";
 import { radii, type as scale } from "@tlon/design";
 
 const LazyBlob = lazySkia(() => import("@/components/Blob"));
@@ -449,7 +449,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.lineStrong,
   },
   liveDotOn: { backgroundColor: colors.cyan },
-  liveLabel: { color: colors.inkSoft, fontSize: 15, fontWeight: "700" },
+  liveLabel: { color: colors.inkSoft, fontFamily: fonts.sans, fontSize: 15, fontWeight: "700" },
   liveLabelOn: { color: colors.ink },
   screen: { flex: 1, backgroundColor: colors.room },
   // Focus mode goes dark. Not for style: the blob is a light source, and on white
@@ -459,29 +459,29 @@ const styles = StyleSheet.create({
   stageControl: { alignItems: "center" },
   stageControlFocus: { flex: 1, alignSelf: "stretch", justifyContent: "center" },
   stageFocus: { flex: 1, justifyContent: "center", paddingTop: 0 },
-  stageHint: { fontSize: 12, color: colors.inkMuted },
+  stageHint: { fontFamily: fonts.sans, fontSize: 12, color: colors.inkMuted },
   voiceToggle: {
-    fontSize: 11,
+    fontFamily: fonts.sans, fontSize: 11,
     color: colors.inkMuted,
     textDecorationLine: "underline",
     paddingVertical: 4,
   },
   voiceToggleFocus: { color: colors.inkMuted },
-  stageHintFocus: { fontSize: 14, color: colors.inkMuted },
+  stageHintFocus: { fontFamily: fonts.sans, fontSize: 14, color: colors.inkMuted },
   focusBody: { paddingHorizontal: 28, paddingBottom: 12, minHeight: 90 },
   focusReply: {
     color: colors.ink,
-    fontSize: 18,
+    fontFamily: fonts.sans, fontSize: 18,
     lineHeight: 26,
     textAlign: "center",
   },
   thread: { padding: 16, gap: 10, paddingBottom: 24 },
-  opening: { color: colors.inkMuted, fontSize: 15, lineHeight: 22, marginTop: 8 },
+  opening: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: 15, lineHeight: 22, marginTop: 8 },
   bubble: { borderRadius: radii.surface, padding: 12, maxWidth: "88%" },
   mine: { alignSelf: "flex-end", backgroundColor: colors.ink },
-  mineText: { color: colors.room, fontSize: 16, lineHeight: 22 },
+  mineText: { color: colors.room, fontFamily: fonts.sans, fontSize: 16, lineHeight: 22 },
   theirs: { alignSelf: "flex-start", backgroundColor: colors.surfaceBright },
-  theirsText: { color: colors.ink, fontSize: 16, lineHeight: 22 },
+  theirsText: { color: colors.ink, fontFamily: fonts.sans, fontSize: 16, lineHeight: 22 },
   thinking: { alignSelf: "flex-start", marginVertical: 4 },
   crisis: {
     borderWidth: 1,
@@ -491,9 +491,9 @@ const styles = StyleSheet.create({
     gap: 6,
     marginTop: 8,
   },
-  crisisTitle: { fontWeight: "700", fontSize: 15, color: colors.danger },
-  crisisLine: { fontSize: 15, lineHeight: 22, color: colors.ink },
-  crisisNote: { fontSize: 12, color: colors.inkMuted, lineHeight: 18 },
+  crisisTitle: { fontWeight: "700", fontFamily: fonts.sans, fontSize: 15, color: colors.danger },
+  crisisLine: { fontFamily: fonts.sans, fontSize: 15, lineHeight: 22, color: colors.ink },
+  crisisNote: { fontFamily: fonts.sans, fontSize: 12, color: colors.inkMuted, lineHeight: 18 },
   composer: {
     borderTopWidth: 1,
     borderTopColor: colors.line,
@@ -509,7 +509,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.surface,
     padding: 12,
     minHeight: 64,
-    fontSize: 16,
+    fontFamily: fonts.sans, fontSize: 16,
     textAlignVertical: "top",
   },
   actions: { flexDirection: "row", gap: 8 },
@@ -520,7 +520,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: "center",
   },
-  sendLabel: { color: colors.room, fontWeight: "600", fontSize: 16 },
+  sendLabel: { color: colors.room, fontWeight: "600", fontFamily: fonts.sans, fontSize: 16 },
   finish: {
     flex: 1,
     borderWidth: 1,
@@ -530,19 +530,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   finishFocus: { borderColor: colors.inkSoft },
-  finishLabel: { color: colors.ink, fontWeight: "600", fontSize: 16 },
+  finishLabel: { color: colors.ink, fontWeight: "600", fontFamily: fonts.sans, fontSize: 16 },
   finishLabelFocus: { color: colors.ink },
   // Quiet, like the design's `.talk-corner`: reachable without shouting, and
   // never competing with the thing someone came here to do.
   urgent: { justifyContent: "center", paddingVertical: 12, paddingHorizontal: 4 },
   urgentLabel: {
     color: colors.inkMuted,
-    fontSize: scale.kicker.size,
+    fontFamily: fonts.sans, fontSize: scale.kicker.size,
     letterSpacing: scale.kicker.tracking,
     textTransform: "uppercase",
   },
   disabled: { opacity: 0.35 },
-  error: { color: colors.danger, fontSize: 13 },
-  footnote: { fontSize: 11, color: colors.inkMuted, textAlign: "center" },
+  error: { color: colors.danger, fontFamily: fonts.sans, fontSize: 13 },
+  footnote: { fontFamily: fonts.sans, fontSize: 11, color: colors.inkMuted, textAlign: "center" },
   footnoteFocus: { color: colors.inkMuted },
 });

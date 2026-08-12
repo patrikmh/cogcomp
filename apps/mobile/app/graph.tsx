@@ -14,7 +14,7 @@ import { MotionSurface } from "@/components/MotionSurface";
 import { InferenceLens, MetricBeacon, FieldFrame, LoadingLens, ErrorLens, EmptyLens } from "@/components/SpatialField";
 import { api, type GraphNode, type Subgraph } from "@/lib/api";
 import { useSession } from "@/state/session";
-import { colors } from "@/theme";
+import { colors, fonts } from "@/theme";
 import { radii } from "@tlon/design";
 import { type as scale } from "@tlon/design";
 
@@ -177,9 +177,9 @@ function Stat({ value, label }: { value: number; label: string }) {
 const styles = StyleSheet.create({
   screen: { backgroundColor: colors.room, padding: 20, gap: 14, paddingBottom: 44 },
   instrumentHeader: { gap: 6, paddingVertical: 8 },
-  kicker: { color: colors.cyan, fontSize: 11, fontWeight: "700", letterSpacing: 1.8 },
-  title: { color: colors.ink, fontSize: scale.title.size, fontWeight: "700", letterSpacing: -0.7 },
-  intro: { color: colors.inkSoft, fontSize: 14, lineHeight: 20 },
+  kicker: { color: colors.cyan, fontFamily: fonts.mono, fontSize: 11, fontWeight: "700", letterSpacing: 1.8 },
+  title: { color: colors.ink, fontFamily: fonts.sans, fontSize: scale.title.size, fontWeight: "700", letterSpacing: -0.7 },
+  intro: { color: colors.inkSoft, fontFamily: fonts.sans, fontSize: 14, lineHeight: 20 },
   stats: { flexDirection: "row", gap: 12 },
   stat: {
     flex: 1,
@@ -191,8 +191,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 2,
   },
-  statValue: { fontSize: 24, fontWeight: "700", color: colors.ink },
-  statLabel: { fontSize: 11, color: colors.inkMuted, textAlign: "center" },
+  statValue: { fontFamily: fonts.sans, fontSize: 24, fontWeight: "700", color: colors.ink },
+  statLabel: { fontFamily: fonts.sans, fontSize: 11, color: colors.inkMuted, textAlign: "center" },
   explore: {
     borderWidth: 1,
     backgroundColor: colors.surfaceBright,
@@ -201,9 +201,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: "center",
   },
-  exploreLabel: { fontSize: 15, fontWeight: "600", color: colors.ink },
+  exploreLabel: { fontFamily: fonts.sans, fontSize: 15, fontWeight: "600", color: colors.ink },
   toggle: { paddingVertical: 6 },
-  toggleText: { fontSize: 14, color: colors.inkSoft },
+  toggleText: { fontFamily: fonts.sans, fontSize: 14, color: colors.inkSoft },
   kinds: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   chip: {
     backgroundColor: colors.surfaceBright,
@@ -211,11 +211,11 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 10,
   },
-  chipText: { fontSize: 12, color: colors.inkSoft },
+  chipText: { fontFamily: fonts.sans, fontSize: 12, color: colors.inkSoft },
   chipActive: { borderWidth: 1, borderColor: colors.cyan },
   sectionTitle: {
     marginTop: 12,
-    fontSize: 13,
+    fontFamily: fonts.sans, fontSize: 13,
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.6,
@@ -233,10 +233,10 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   cardTentative: { borderStyle: "dashed", borderColor: colors.lineStrong },
-  cardLabel: { fontSize: 16, lineHeight: 22, color: colors.ink },
-  meta: { fontSize: 12, color: colors.inkMuted },
-  quiet: { color: colors.inkMuted, marginTop: 16, fontSize: 15 },
+  cardLabel: { fontFamily: fonts.sans, fontSize: 16, lineHeight: 22, color: colors.ink },
+  meta: { fontFamily: fonts.sans, fontSize: 12, color: colors.inkMuted },
+  quiet: { color: colors.inkMuted, marginTop: 16, fontFamily: fonts.sans, fontSize: 15 },
   loader: { marginTop: 40 },
   error: { color: colors.danger, padding: 16 },
-  footnote: { marginTop: 24, fontSize: 12, lineHeight: 18, color: colors.inkMuted },
+  footnote: { marginTop: 24, fontFamily: fonts.sans, fontSize: 12, lineHeight: 18, color: colors.inkMuted },
 });

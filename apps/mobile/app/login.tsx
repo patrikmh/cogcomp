@@ -14,7 +14,7 @@ import { MotionSurface } from "@/components/MotionSurface";
 import { FieldFrame } from "@/components/SpatialField";
 import { AtmosphericShell } from "@/components/Atmospheric";
 import { ApiError, api } from "@/lib/api";
-import { colors } from "@/theme";
+import { colors, fonts } from "@/theme";
 import { useSession } from "@/state/session";
 import { radii } from "@tlon/design";
 
@@ -153,9 +153,9 @@ const styles = StyleSheet.create({
   // again without something visibly overflowing instead.
   dockLabelWide: { minWidth: 260 },
   dockLabel: { flex: 1, gap: 12, paddingLeft: 8 },
-  dockKicker: { color: colors.cyan, fontSize: 11, fontWeight: "700", letterSpacing: 2 },
-  dockTitle: { color: colors.ink, fontSize: 34, lineHeight: 39, fontWeight: "700" },
-  dockCopy: { color: colors.inkMuted, fontSize: 15, lineHeight: 22, maxWidth: 250 },
+  dockKicker: { color: colors.cyan, fontFamily: fonts.mono, fontSize: 11, fontWeight: "700", letterSpacing: 2 },
+  dockTitle: { color: colors.ink, fontFamily: fonts.sans, fontSize: 34, lineHeight: 39, fontWeight: "700" },
+  dockCopy: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: 15, lineHeight: 22, maxWidth: 250 },
   form: { width: "100%", maxWidth: 460, alignSelf: "center", gap: 12 },
   // In the wide two-column layout the form sits in a row, where width:100% makes
   // it claim the whole bay and squeezes the text column to nothing — which is
@@ -163,8 +163,8 @@ const styles = StyleSheet.create({
   // keeps both columns real.
   formWide: { width: 460, flexGrow: 0, flexShrink: 0, alignSelf: "auto" },
   header: { marginBottom: 12, gap: 4 },
-  title: { fontSize: 32, fontWeight: "700", color: colors.ink, letterSpacing: -0.6 },
-  subtitle: { fontSize: 16, color: colors.inkMuted },
+  title: { fontFamily: fonts.sans, fontSize: 32, fontWeight: "700", color: colors.ink, letterSpacing: -0.6 },
+  subtitle: { fontFamily: fonts.sans, fontSize: 16, color: colors.inkMuted },
   input: {
     backgroundColor: colors.surface,
     color: colors.ink,
@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
     borderColor: colors.lineStrong,
     borderRadius: radii.surface,
     padding: 14,
-    fontSize: 16,
+    fontFamily: fonts.sans, fontSize: 16,
   },
   button: {
     backgroundColor: colors.violet,
@@ -182,14 +182,14 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   buttonDisabled: { opacity: 0.4 },
-  buttonLabel: { color: colors.room, fontWeight: "600", fontSize: 16 },
+  buttonLabel: { color: colors.room, fontWeight: "600", fontFamily: fonts.sans, fontSize: 16 },
   switch: { color: colors.inkSoft, textAlign: "center", paddingVertical: 8 },
-  hint: { fontSize: 13, color: colors.inkMuted },
-  hintWarn: { fontSize: 13, color: colors.warning },
-  error: { color: colors.danger, fontSize: 14 },
+  hint: { fontFamily: fonts.sans, fontSize: 13, color: colors.inkMuted },
+  hintWarn: { fontFamily: fonts.sans, fontSize: 13, color: colors.warning },
+  error: { color: colors.danger, fontFamily: fonts.sans, fontSize: 14 },
   footnote: {
     marginTop: 16,
-    fontSize: 12,
+    fontFamily: fonts.sans, fontSize: 12,
     lineHeight: 18,
     color: colors.inkMuted,
     textAlign: "center",

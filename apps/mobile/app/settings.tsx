@@ -5,7 +5,7 @@ import { MotionSurface } from "@/components/MotionSurface";
 import { api } from "@/lib/api";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
-import { colors } from "@/theme";
+import { colors, fonts } from "@/theme";
 
 /**
  * Settings.
@@ -143,11 +143,11 @@ const styles = StyleSheet.create({
   },
   knobOn: { backgroundColor: colors.cyan, alignSelf: "flex-end" },
   copy: { flex: 1, gap: 2 },
-  label: { color: colors.ink, fontSize: 16, fontWeight: "600" },
-  note: { color: colors.inkMuted, fontSize: 12, lineHeight: 17 },
+  label: { color: colors.ink, fontFamily: fonts.sans, fontSize: 16, fontWeight: "600" },
+  note: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: 12, lineHeight: 17 },
   link: { paddingVertical: 14 },
-  linkLabel: { color: colors.cyan, fontSize: 14, fontWeight: "700" },
-  signOut: { color: colors.inkSoft, fontSize: 15, fontWeight: "700" },
+  linkLabel: { color: colors.cyan, fontFamily: fonts.sans, fontSize: 14, fontWeight: "700" },
+  signOut: { color: colors.inkSoft, fontFamily: fonts.sans, fontSize: 15, fontWeight: "700" },
   spacer: { height: 12 },
-  footnote: { color: colors.inkMuted, fontSize: 12, lineHeight: 18, paddingTop: 20 },
+  footnote: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: 12, lineHeight: 18, paddingTop: 20 },
 });

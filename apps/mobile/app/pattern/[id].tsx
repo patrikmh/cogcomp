@@ -7,7 +7,7 @@ import { MotionSurface } from "@/components/MotionSurface";
 import { ErrorLens, LoadingLens } from "@/components/SpatialField";
 import { api, type Occasion, type Ordering, type Written } from "@/lib/api";
 import { useSession } from "@/state/session";
-import { colors } from "@/theme";
+import { colors, fonts } from "@/theme";
 import { radii } from "@tlon/design";
 
 /**
@@ -131,9 +131,9 @@ function Side({
 
 const styles = StyleSheet.create({
   screen: { backgroundColor: colors.room, padding: 20, gap: 14, paddingBottom: 48 },
-  kicker: { color: colors.cyan, fontSize: 11, fontWeight: "700", letterSpacing: 1.8 },
-  headline: { fontSize: 20, lineHeight: 28, fontWeight: "600", color: colors.ink },
-  lead: { fontSize: 15, lineHeight: 22, color: colors.inkSoft },
+  kicker: { color: colors.cyan, fontFamily: fonts.mono, fontSize: 11, fontWeight: "700", letterSpacing: 1.8 },
+  headline: { fontFamily: fonts.sans, fontSize: 20, lineHeight: 28, fontWeight: "600", color: colors.ink },
+  lead: { fontFamily: fonts.sans, fontSize: 15, lineHeight: 22, color: colors.inkSoft },
   occasion: {
     backgroundColor: colors.surface,
     borderWidth: 1,
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
   },
   side: { gap: 6 },
   sideLabel: {
-    fontSize: 11,
+    fontFamily: fonts.sans, fontSize: 11,
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.6,
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
   // The gap is the whole claim, so it is rendered as a step between the two
   // entries rather than as text attached to either of them.
   gap: {
-    fontSize: 12,
+    fontFamily: fonts.sans, fontSize: 12,
     color: colors.cyan,
     borderLeftWidth: 3,
     borderLeftColor: colors.line,
@@ -170,8 +170,8 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     gap: 4,
   },
-  entryText: { fontSize: 16, lineHeight: 23, color: colors.ink },
-  meta: { fontSize: 12, color: colors.inkMuted },
+  entryText: { fontFamily: fonts.sans, fontSize: 16, lineHeight: 23, color: colors.ink },
+  meta: { fontFamily: fonts.sans, fontSize: 12, color: colors.inkMuted },
   open: {
     marginTop: 18,
     borderWidth: 1,
@@ -180,6 +180,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: "center",
   },
-  openLabel: { color: colors.inkSoft, fontSize: 15, fontWeight: "700" },
-  footnote: { marginTop: 12, fontSize: 12, lineHeight: 18, color: colors.inkMuted },
+  openLabel: { color: colors.inkSoft, fontFamily: fonts.sans, fontSize: 15, fontWeight: "700" },
+  footnote: { marginTop: 12, fontFamily: fonts.sans, fontSize: 12, lineHeight: 18, color: colors.inkMuted },
 });

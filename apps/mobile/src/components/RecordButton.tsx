@@ -2,7 +2,8 @@ import { Audio } from "expo-av";
 import { useEffect, useRef, useState } from "react";
 import { Alert, StyleSheet, Text, View } from "react-native";
 import { MotionSurface } from "@/components/MotionSurface";
-import { colors } from "@/theme";
+import { colors, fonts } from "@/theme";
+import { radii } from "@tlon/design";
 
 export type RecordState = "idle" | "recording" | "uploading";
 type State = RecordState;
@@ -198,9 +199,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.lineStrong,
     backgroundColor: colors.surface,
-    // A pill, because it is held rather than clicked — the shape says "press and
-    // keep pressing" in a way a rectangle does not.
-    borderRadius: 999,
+    // 3px, like every other control. This was a pill on the argument that the
+    // shape says "press and keep pressing" — but the web client's HOLD TO RECORD
+    // is a 3px button making the same promise in words, and in this design only
+    // a switch is round. One product cannot have two answers to what a button
+    // holds.
+    borderRadius: radii.surface,
     flexDirection: "row",
     justifyContent: "center",
     gap: 10,
@@ -212,9 +216,9 @@ const styles = StyleSheet.create({
   // with a light label at normal-text contrast.
   recording: { backgroundColor: colors.surfaceBright, borderColor: colors.danger },
   disabled: { opacity: 0.4 },
-  label: { fontSize: 16, fontWeight: "600", color: colors.inkSoft },
+  label: { fontFamily: fonts.sans, fontSize: 16, fontWeight: "600", color: colors.inkSoft },
   labelDark: { color: colors.ink },
   labelRecording: { color: colors.ink },
-  note: { fontSize: 11, color: colors.inkMuted, textAlign: "center" },
+  note: { fontFamily: fonts.sans, fontSize: 11, color: colors.inkMuted, textAlign: "center" },
   noteDark: { color: colors.inkMuted },
 });

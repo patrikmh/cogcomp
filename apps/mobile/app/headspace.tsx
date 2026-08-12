@@ -10,7 +10,7 @@ import { deviceTimezone, localToday } from "@/lib/dates";
 import { type Lens, lensesFor, resolveLens } from "@/lib/lenses";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
-import { colors } from "@/theme";
+import { colors, fonts } from "@/theme";
 
 /**
  * Headspace — where things stand.
@@ -349,7 +349,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.room },
   findingsOff: {
     color: colors.inkMuted,
-    fontSize: 13,
+    fontFamily: fonts.sans, fontSize: 13,
     lineHeight: 19,
     paddingHorizontal: 4,
     paddingBottom: 6,
@@ -368,7 +368,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   reviewedFill: { height: 4, borderRadius: 999, backgroundColor: colors.cyan },
-  reviewedLabel: { color: colors.inkMuted, fontSize: 11 },
+  reviewedLabel: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: 11 },
   lens: {
     paddingVertical: 8,
     paddingHorizontal: 14,
@@ -377,6 +377,6 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
   },
   lensOn: { borderColor: colors.cyan, backgroundColor: colors.surfaceBright },
-  lensLabel: { color: colors.inkMuted, fontSize: 13, fontWeight: "700" },
+  lensLabel: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: 13, fontWeight: "700" },
   lensLabelOn: { color: colors.ink },
 });

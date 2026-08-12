@@ -1,4 +1,13 @@
+// One weight per import, not the package barrel. The barrel's index requires
+// every weight and every italic, and Metro bundles what is required — importing
+// five faces that way shipped fourteen megabytes of TTF for the five we use.
+import { IBMPlexMono_400Regular } from "@expo-google-fonts/ibm-plex-mono/400Regular";
+import { IBMPlexMono_500Medium } from "@expo-google-fonts/ibm-plex-mono/500Medium";
+import { IBMPlexSans_400Regular } from "@expo-google-fonts/ibm-plex-sans/400Regular";
+import { IBMPlexSans_600SemiBold } from "@expo-google-fonts/ibm-plex-sans/600SemiBold";
+import { IBMPlexSans_700Bold } from "@expo-google-fonts/ibm-plex-sans/700Bold";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { useFonts } from "expo-font";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useMemo } from "react";
@@ -70,8 +79,24 @@ function Gate() {
   const segments = useSegments();
   // Not on the login screen: there is nowhere to go from there but in.
   const showDock = segments[0] !== "login";
+  // /dev is offered by Settings too; the bar carries it when the switch is on
+  // so a developer is not made to go through Settings every time.
+  const developer = usePreferences((s) => s.developer);
 
-  if (!ready) {
+  // The product's voice, rather than whatever the device defaults to. Held
+  // alongside the session read that was already here: a first paint in San
+  // Francisco that reflows into IBM Plex a moment later is worse than a spinner
+  // for the same moment, because the reflow moves text somebody has started
+  // reading.
+  const [fontsLoaded] = useFonts({
+    IBMPlexSans_400Regular,
+    IBMPlexSans_600SemiBold,
+    IBMPlexSans_700Bold,
+    IBMPlexMono_400Regular,
+    IBMPlexMono_500Medium,
+  });
+
+  if (!ready || !fontsLoaded) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.room }}>
         <ActivityIndicator color={colors.cyan} />
@@ -118,7 +143,7 @@ function Gate() {
           every route shares instead of a component eighteen screens each have
           to remember to render — which is how five of them ended up being
           destinations you could arrive at and not leave. */}
-      {showDock && <SpatialDock />}
+      {showDock && <SpatialDock developer={developer} />}
     </>
   );
 }

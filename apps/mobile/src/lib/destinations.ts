@@ -53,21 +53,18 @@ export const DEVELOPER: Destination = {
 };
 
 /**
- * The Journal's menu: everywhere, plus the quiet corners.
+ * The bar along the bottom: the way back to writing, the four, then Settings.
  *
- * Settings is here rather than in the dock because you go there on purpose and
- * rarely; Dev only when the switch is on.
- */
-export function orbitDestinations(developer: boolean): Destination[] {
-  return developer ? [...CORE, SETTINGS, DEVELOPER] : [...CORE, SETTINGS];
-}
-
-/**
- * The dock on detail screens: the way back to writing, then the same four.
+ * Journal leads because the most likely next move from anywhere is returning to
+ * where you write. Settings trails because you go there on purpose and rarely —
+ * it is drawn dimmer rather than left out, which is what `quiet` is for.
  *
- * Journal leads because the dock appears on screens you reached by following
- * something, and the most likely next move is returning to where you write.
+ * There used to be a second menu, an orbit on the Journal, holding these plus
+ * the quiet corners. It listed the same four destinations as the bar directly
+ * beneath it once the bar became persistent, so it went. Settings only ever
+ * appeared there, which for one commit made it unreachable — hence its being
+ * here now rather than nowhere.
  */
-export function dockDestinations(): Destination[] {
-  return [JOURNAL, ...CORE];
+export function dockDestinations(developer = false): Destination[] {
+  return developer ? [JOURNAL, ...CORE, SETTINGS, DEVELOPER] : [JOURNAL, ...CORE, SETTINGS];
 }

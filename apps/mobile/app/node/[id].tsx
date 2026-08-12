@@ -13,7 +13,7 @@ import { EvidenceRail, FieldFrame, LoadingLens, ErrorLens, ObservablePearl } fro
 import { MotionSurface } from "@/components/MotionSurface";
 import { api, type Explanation, type Judgement } from "@/lib/api";
 import { useSession } from "@/state/session";
-import { colors } from "@/theme";
+import { colors, fonts } from "@/theme";
 import { radii } from "@tlon/design";
 
 /**
@@ -252,7 +252,7 @@ function Row({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create({
   verdict: { gap: 8, marginTop: 18 },
-  verdictAsk: { color: colors.inkSoft, fontSize: 14 },
+  verdictAsk: { color: colors.inkSoft, fontFamily: fonts.sans, fontSize: 14 },
   verdictRow: { flexDirection: "row", gap: 10 },
   choice: {
     flex: 1,
@@ -264,9 +264,9 @@ const styles = StyleSheet.create({
   },
   choiceYes: { borderColor: colors.cyan, backgroundColor: colors.surfaceBright },
   choiceNo: { borderColor: colors.warning, backgroundColor: colors.surfaceBright },
-  choiceLabel: { color: colors.inkSoft, fontSize: 15, fontWeight: "700" },
+  choiceLabel: { color: colors.inkSoft, fontFamily: fonts.sans, fontSize: 15, fontWeight: "700" },
   choiceLabelOn: { color: colors.ink },
-  verdictNote: { color: colors.inkMuted, fontSize: 12, lineHeight: 18 },
+  verdictNote: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: 12, lineHeight: 18 },
   meter: {
     height: 6,
     borderRadius: 999,
@@ -286,15 +286,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.room,
   },
   screen: { backgroundColor: colors.room, padding: 20, gap: 14, paddingBottom: 48 },
-  kicker: { color: colors.cyan, fontSize: 11, fontWeight: "700", letterSpacing: 1.8 },
+  kicker: { color: colors.cyan, fontFamily: fonts.mono, fontSize: 11, fontWeight: "700", letterSpacing: 1.8 },
   kind: {
-    fontSize: 12,
+    fontFamily: fonts.sans, fontSize: 12,
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.6,
     color: colors.inkMuted,
   },
-  headline: { fontSize: 22, lineHeight: 30, fontWeight: "600", color: colors.ink },
+  headline: { fontFamily: fonts.sans, fontSize: 22, lineHeight: 30, fontWeight: "600", color: colors.ink },
   badge: {
     alignSelf: "flex-start",
     backgroundColor: colors.surfaceBright,
@@ -303,8 +303,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   badgeTentative: { backgroundColor: colors.surfaceBright },
-  badgeText: { fontSize: 13, color: colors.inkSoft },
-  lead: { fontSize: 15, lineHeight: 22, color: colors.inkSoft, marginTop: 8 },
+  badgeText: { fontFamily: fonts.sans, fontSize: 13, color: colors.inkSoft },
+  lead: { fontFamily: fonts.sans, fontSize: 15, lineHeight: 22, color: colors.inkSoft, marginTop: 8 },
   source: {
     backgroundColor: colors.surface,
     marginLeft: 10,
@@ -314,8 +314,8 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     gap: 4,
   },
-  sourceText: { fontSize: 16, lineHeight: 23, color: colors.ink },
-  meta: { fontSize: 12, color: colors.inkMuted },
+  sourceText: { fontFamily: fonts.sans, fontSize: 16, lineHeight: 23, color: colors.ink },
+  meta: { fontFamily: fonts.sans, fontSize: 12, color: colors.inkMuted },
   provenance: {
     backgroundColor: colors.surface,
     marginTop: 20,
@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   provenanceTitle: {
-    fontSize: 12,
+    fontFamily: fonts.sans, fontSize: 12,
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.6,
@@ -334,9 +334,9 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   row: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
-  rowLabel: { fontSize: 13, color: colors.inkMuted },
-  rowValue: { fontSize: 13, flexShrink: 1, textAlign: "right", color: colors.ink },
+  rowLabel: { fontFamily: fonts.sans, fontSize: 13, color: colors.inkMuted },
+  rowValue: { fontFamily: fonts.sans, fontSize: 13, flexShrink: 1, textAlign: "right", color: colors.ink },
   loader: { marginTop: 40 },
   error: { color: colors.danger, padding: 16 },
-  footnote: { marginTop: 20, fontSize: 12, lineHeight: 18, color: colors.inkMuted },
+  footnote: { marginTop: 20, fontFamily: fonts.sans, fontSize: 12, lineHeight: 18, color: colors.inkMuted },
 });

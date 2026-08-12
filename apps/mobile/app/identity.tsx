@@ -12,7 +12,7 @@ import {
   type IdentityProjection,
 } from "@/lib/api";
 import { useSession } from "@/state/session";
-import { colors } from "@/theme";
+import { colors, fonts } from "@/theme";
 
 /**
  * Identity, as something you assemble rather than something you are told.
@@ -129,12 +129,12 @@ const styles = StyleSheet.create({
   detail: { gap: 5 },
   kind: {
     color: colors.inkMuted,
-    fontSize: 11,
+    fontFamily: fonts.sans, fontSize: 11,
     fontWeight: "700",
     letterSpacing: 1.4,
     textTransform: "uppercase",
   },
-  label: { color: colors.ink, fontSize: 19, lineHeight: 26 },
+  label: { color: colors.ink, fontFamily: fonts.sans, fontSize: 19, lineHeight: 26 },
   actions: { flexDirection: "row", gap: 22, paddingTop: 2 },
-  act: { color: colors.cyan, fontSize: 13, fontWeight: "700" },
+  act: { color: colors.cyan, fontFamily: fonts.sans, fontSize: 13, fontWeight: "700" },
 });

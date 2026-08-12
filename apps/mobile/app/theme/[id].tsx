@@ -7,7 +7,7 @@ import { MotionSurface } from "@/components/MotionSurface";
 import { ErrorLens, LoadingLens } from "@/components/SpatialField";
 import { api, type ThemeDetail, type ThemeMember } from "@/lib/api";
 import { useSession } from "@/state/session";
-import { colors } from "@/theme";
+import { colors, fonts } from "@/theme";
 import { radii } from "@tlon/design";
 
 /**
@@ -127,8 +127,8 @@ function Row({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create({
   screen: { backgroundColor: colors.room, padding: 20, gap: 12, paddingBottom: 48 },
-  kicker: { color: colors.pink, fontSize: 11, fontWeight: "700", letterSpacing: 1.8 },
-  headline: { fontSize: 22, lineHeight: 30, fontWeight: "600", color: colors.ink },
+  kicker: { color: colors.pink, fontFamily: fonts.mono, fontSize: 11, fontWeight: "700", letterSpacing: 1.8 },
+  headline: { fontFamily: fonts.sans, fontSize: 22, lineHeight: 30, fontWeight: "600", color: colors.ink },
   badge: {
     alignSelf: "flex-start",
     backgroundColor: colors.surfaceBright,
@@ -137,10 +137,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   badgeTentative: { backgroundColor: colors.surfaceBright },
-  badgeText: { fontSize: 13, color: colors.inkSoft },
-  lead: { fontSize: 15, lineHeight: 22, color: colors.inkSoft, marginTop: 4 },
+  badgeText: { fontFamily: fonts.sans, fontSize: 13, color: colors.inkSoft },
+  lead: { fontFamily: fonts.sans, fontSize: 15, lineHeight: 22, color: colors.inkSoft, marginTop: 4 },
   sectionTitle: {
-    fontSize: 12,
+    fontFamily: fonts.sans, fontSize: 12,
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.6,
@@ -160,9 +160,9 @@ const styles = StyleSheet.create({
   dot: { width: 9, height: 9, borderRadius: 999, backgroundColor: colors.pink },
   dotTentative: { backgroundColor: "transparent", borderWidth: 1, borderColor: colors.warning },
   memberBody: { flex: 1, gap: 2 },
-  memberLabel: { fontSize: 16, color: colors.ink },
-  meta: { fontSize: 12, color: colors.inkMuted },
-  chevron: { color: colors.inkMuted, fontSize: 15 },
+  memberLabel: { fontFamily: fonts.sans, fontSize: 16, color: colors.ink },
+  meta: { fontFamily: fonts.sans, fontSize: 12, color: colors.inkMuted },
+  chevron: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: 15 },
   provenance: {
     backgroundColor: colors.surface,
     marginTop: 18,
@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   provenanceTitle: {
-    fontSize: 12,
+    fontFamily: fonts.sans, fontSize: 12,
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.6,
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   row: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
-  rowLabel: { fontSize: 13, color: colors.inkMuted },
-  rowValue: { fontSize: 13, flexShrink: 1, textAlign: "right", color: colors.ink },
-  footnote: { marginTop: 18, fontSize: 12, lineHeight: 18, color: colors.inkMuted },
+  rowLabel: { fontFamily: fonts.sans, fontSize: 13, color: colors.inkMuted },
+  rowValue: { fontFamily: fonts.sans, fontSize: 13, flexShrink: 1, textAlign: "right", color: colors.ink },
+  footnote: { marginTop: 18, fontFamily: fonts.sans, fontSize: 12, lineHeight: 18, color: colors.inkMuted },
 });

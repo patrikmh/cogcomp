@@ -40,18 +40,42 @@ export const colors = {
   coral: shared.rust,
 } as const;
 
+/**
+ * The two faces, by the name the font loader registers them under.
+ *
+ * React Native picks a face by family name and ignores `fontWeight` once a
+ * family is named, so a weight is a different family here rather than a
+ * property — which is why these are spelled out instead of derived.
+ */
+export const fonts = {
+  sans: "IBMPlexSans_400Regular",
+  sansSemi: "IBMPlexSans_600SemiBold",
+  sansBold: "IBMPlexSans_700Bold",
+  mono: "IBMPlexMono_400Regular",
+  monoMedium: "IBMPlexMono_500Medium",
+} as const;
+
 export const theme = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.room },
   scroll: { backgroundColor: colors.room },
   content: { padding: 18, gap: 12, paddingBottom: 44 },
   title: {
-    color: colors.ink, fontSize: scale.title.size, lineHeight: scale.title.line,
-    fontWeight: "700", letterSpacing: scale.title.tracking,
+    color: colors.ink, fontFamily: fonts.sansBold, fontSize: scale.title.size,
+    lineHeight: scale.title.line, letterSpacing: scale.title.tracking,
   },
-  body: { color: colors.ink, fontSize: scale.body.size, lineHeight: scale.body.line },
-  meta: { color: colors.inkMuted, fontSize: scale.meta.size, lineHeight: scale.meta.line },
+  body: {
+    color: colors.ink, fontFamily: fonts.sans,
+    fontSize: scale.body.size, lineHeight: scale.body.line,
+  },
+  meta: {
+    color: colors.inkMuted, fontFamily: fonts.mono,
+    fontSize: scale.meta.size, lineHeight: scale.meta.line,
+  },
+  /** The design's kicker: mono, uppercase, and spaced so it reads as an
+   *  instrument marking rather than as shouting. */
   sectionTitle: {
-    color: colors.cyan, fontSize: 12, fontWeight: "700", letterSpacing: 1.4,
+    color: colors.inkMuted, fontFamily: fonts.monoMedium, fontSize: scale.kicker.size,
+    lineHeight: scale.kicker.line, letterSpacing: scale.kicker.tracking,
     textTransform: "uppercase",
   },
   surface: {
@@ -62,10 +86,13 @@ export const theme = StyleSheet.create({
     backgroundColor: colors.violet, borderRadius: radii.surface, paddingVertical: 13,
     alignItems: "center",
   },
-  primaryLabel: { color: colors.room, fontSize: scale.body.size, fontWeight: "700" },
+  primaryLabel: {
+    color: colors.room, fontFamily: fonts.sansBold, fontSize: scale.body.size,
+  },
   input: {
     backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.lineStrong,
-    borderRadius: radii.surface, color: colors.ink, padding: 14, fontSize: scale.body.size,
+    borderRadius: radii.surface, color: colors.ink, padding: 14,
+    fontFamily: fonts.sans, fontSize: scale.body.size,
   },
 });
 

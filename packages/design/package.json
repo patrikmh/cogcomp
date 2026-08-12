@@ -6,6 +6,7 @@
   "main": "tokens.ts",
   "exports": {
     ".": "./tokens.ts",
+    "./marks": "./marks.ts",
     "./tokens.css": "./tokens.css"
   }
 }
