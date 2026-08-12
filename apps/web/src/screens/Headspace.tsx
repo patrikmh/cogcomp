@@ -2,6 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
+import { readingBudget } from "@tlon/design/marks";
+
 import { mountHeadspace, type Stage, type Whorl } from "@/lib/headspace";
 import { api } from "@/lib/api";
 import { DETECTOR_LABEL, deviceTimezone, fmt, localDay } from "@/lib/format";
@@ -314,11 +316,8 @@ export function readingsOn<T extends { id: string; kind: string }>(
   // the survey labels stop being legible, which is the map losing the two things
   // it exists to show. Patterns are never dropped — they are the point — so the
   // readings give way to them.
-  return eligible.slice(0, Math.max(6, WHORL_BUDGET - patternCount));
+  return eligible.slice(0, readingBudget(patternCount));
 }
-
-/** Whorls the map draws before it becomes a fog. Counts you and today. */
-const WHORL_BUDGET = 20;
 
 /** How many whorls the map holds: you, the patterns, today, and the readings. */
 export function headspaceCount(

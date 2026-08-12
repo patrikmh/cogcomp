@@ -206,3 +206,18 @@ export function backOut(k: number): number {
   const c3 = c1 + 1;
   return 1 + c3 * Math.pow(k - 1, 3) + c1 * Math.pow(k - 1, 2);
 }
+
+/**
+ * Whorls the survey draws before it becomes a fog. Counts you and today.
+ *
+ * The camera frames the whole massif, so every extra whorl shrinks all the
+ * others: past this the patterns stop reading as massifs and the labels stop
+ * being legible, which is the map losing the two things it exists to show.
+ * Patterns are never dropped — they are the point — so the readings give way.
+ */
+export const WHORL_BUDGET = 20;
+
+/** How many readings fit alongside the patterns, never fewer than six. */
+export function readingBudget(patternCount: number): number {
+  return Math.max(6, WHORL_BUDGET - patternCount);
+}

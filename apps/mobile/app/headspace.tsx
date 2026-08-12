@@ -3,6 +3,8 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
+import { readingBudget } from "@tlon/design/marks";
+
 import { HeadspaceMap, type Whorl } from "@/components/HeadspaceMap";
 import { MotionSurface } from "@/components/MotionSurface";
 import { Observatory, Readout } from "@/components/Observatory";
@@ -87,6 +89,7 @@ export default function HeadspaceScreen() {
   if (!token) return null;
 
   const points = pointsFor(lens, today.data, graph.data, patterns.data, changed.data, themes.data);
+  const whorls = whorlsFor(lens, points);
   const current = points.find((p) => p.id === selected) ?? null;
   const loading =
     (lens === "today" && today.isLoading) ||
@@ -158,7 +161,7 @@ export default function HeadspaceScreen() {
         stage={
           points.length > 0 && !loading ? (
             <HeadspaceMap
-              whorls={whorlsFor(lens, points)}
+              whorls={whorls}
               onSelect={(whorl: Whorl) =>
                 whorl.id === "you" ? router.push("/identity") : setSelected(whorl.id)
               }
@@ -184,7 +187,7 @@ export default function HeadspaceScreen() {
               "Not enough written across both weeks to compare them."
             : EMPTY[lens]
         }
-        hint={hintFor(lens, points.length)}
+        hint={hintFor(lens, points.length, whorls.length)}
         secondaryAction={
           // Only under the lens it belongs to. The Patterns screen says more
           // about a recurrence than a point can — how many entries and days it
@@ -241,7 +244,7 @@ const EMPTY: Record<Lens, string> = {
   changed: "Nothing moved between this week and last.",
 };
 
-function hintFor(lens: Lens, count: number): string {
+function hintFor(lens: Lens, count: number, drawn: number): string {
   if (count === 0) return "";
   if (lens === "changed") {
     return `${count} ${count === 1 ? "thing" : "things"} moved since last week. Counts only — what it means is yours.`;
@@ -253,7 +256,11 @@ function hintFor(lens: Lens, count: number): string {
     return `${count} ${count === 1 ? "region" : "regions"}. Bigger holds more things — tap to see what is in one.`;
   }
   if (lens === "all") {
-    return `${count} in view. Filled is what you wrote, hollow is a guess.`;
+    // When the map cannot hold everything it says so. A survey that silently
+    // draws a fifth of the record and captions it as the whole is a worse lie
+    // than a survey that draws less.
+    const held = drawn - 1 < count ? `${drawn - 1} of ${count} drawn — the rest are still kept. ` : "";
+    return `${held}Bigger is more; dashed is less sure.`;
   }
   return `${count} in today. Drag to turn it, tap to read one.`;
 }
@@ -272,9 +279,17 @@ function whorlsFor(lens: Lens, points: Point[]): Whorl[] {
     lens === "all"
       ? [{ id: "you", label: "you", group: "you", weight: 1, bar: 0, tentative: false }]
       : [];
+  // The web's budget, from the web's constant. A record of a hundred and
+  // thirty-nine readings drawn in full is not a survey of anything — the camera
+  // frames the lot, every whorl shrinks, and the massifs that are the point of
+  // the map stop reading as massifs. Patterns are never dropped.
+  const patterns = points.filter((p) => lens === "patterns" || p.kind === "Pattern");
+  const rest = points
+    .filter((p) => !patterns.includes(p))
+    .slice(0, readingBudget(patterns.length));
   return [
     ...you,
-    ...points.map((point) => ({
+    ...[...patterns, ...rest].map((point) => ({
       id: point.id,
       label: point.label,
       group: (lens === "patterns" || point.kind === "Pattern"
