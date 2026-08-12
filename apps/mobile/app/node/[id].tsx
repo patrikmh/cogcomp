@@ -17,6 +17,7 @@ import { api, type Explanation, type Judgement } from "@/lib/api";
 import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
 import { radii } from "@tlon/design";
+import { type as scale } from "@tlon/design";
 
 /**
  * "Why do you think this?"
@@ -296,10 +297,9 @@ const styles = StyleSheet.create({
   screen: { backgroundColor: colors.room, padding: 20, gap: 14, paddingBottom: 48 },
   actHead: { flexDirection: "row", alignItems: "center", gap: 10 },
   kind: {
-    fontFamily: fonts.sans, fontSize: 12,
-    fontWeight: "700",
+    fontFamily: fonts.monoMedium, fontSize: scale.kicker.size,
     textTransform: "uppercase",
-    letterSpacing: 0.6,
+    letterSpacing: scale.kicker.tracking,
     color: colors.inkMuted,
   },
   headline: { fontFamily: fonts.sans, fontSize: 22, lineHeight: 30, fontWeight: "600", color: colors.ink },
@@ -334,10 +334,9 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   provenanceTitle: {
-    fontFamily: fonts.sans, fontSize: 12,
-    fontWeight: "700",
+    fontFamily: fonts.monoMedium, fontSize: scale.kicker.size,
     textTransform: "uppercase",
-    letterSpacing: 0.6,
+    letterSpacing: scale.kicker.tracking,
     color: colors.inkMuted,
     marginBottom: 2,
   },

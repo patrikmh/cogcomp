@@ -7,6 +7,7 @@ import { summaryLines } from "@/lib/agentActivity";
 import { api, type AgentRun } from "@/lib/api";
 import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
+import { type as scale } from "@tlon/design";
 
 /**
  * What ran while you were not looking.
@@ -100,9 +101,8 @@ const styles = StyleSheet.create({
   detail: { gap: 4 },
   kind: {
     color: colors.inkMuted,
-    fontFamily: fonts.sans, fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 1.4,
+    fontFamily: fonts.monoMedium, fontSize: scale.kicker.size,
+    letterSpacing: scale.kicker.tracking,
     textTransform: "uppercase",
   },
   line: { color: colors.ink, fontFamily: fonts.sans, fontSize: 15, lineHeight: 21 },

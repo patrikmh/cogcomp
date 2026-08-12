@@ -18,6 +18,7 @@ import { deviceTimezone, localToday, mondayOfWeek, shiftWeek } from "@/lib/dates
 import { lazySkia } from "@/lib/lazySkia";
 import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
+import { type as scale } from "@tlon/design";
 
 const LazyConstellation = lazySkia(() => import("@/components/Constellation"));
 
@@ -307,9 +308,8 @@ const styles = StyleSheet.create({
   readout: { gap: 3 },
   readoutMeta: {
     color: colors.cyan,
-    fontFamily: fonts.sans, fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 1.4,
+    fontFamily: fonts.monoMedium, fontSize: scale.kicker.size,
+    letterSpacing: scale.kicker.tracking,
     textTransform: "uppercase",
   },
   readoutText: { color: colors.ink, fontFamily: fonts.sans, fontSize: 16, lineHeight: 23 },
@@ -318,9 +318,8 @@ const styles = StyleSheet.create({
   section: { gap: 6, paddingTop: 14 },
   heading: {
     color: colors.cyan,
-    fontFamily: fonts.sans, fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 1.4,
+    fontFamily: fonts.monoMedium, fontSize: scale.kicker.size,
+    letterSpacing: scale.kicker.tracking,
     textTransform: "uppercase",
   },
   body: { color: colors.ink, fontFamily: fonts.sans, fontSize: 15, lineHeight: 22 },

@@ -537,7 +537,7 @@ const styles = StyleSheet.create({
   urgent: { justifyContent: "center", paddingVertical: 12, paddingHorizontal: 4 },
   urgentLabel: {
     color: colors.inkMuted,
-    fontFamily: fonts.sans, fontSize: scale.kicker.size,
+    fontFamily: fonts.monoMedium, fontSize: scale.kicker.size,
     letterSpacing: scale.kicker.tracking,
     textTransform: "uppercase",
   },

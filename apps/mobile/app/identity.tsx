@@ -13,6 +13,7 @@ import {
 } from "@/lib/api";
 import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
+import { type as scale } from "@tlon/design";
 
 /**
  * Identity, as something you assemble rather than something you are told.
@@ -129,9 +130,8 @@ const styles = StyleSheet.create({
   detail: { gap: 5 },
   kind: {
     color: colors.inkMuted,
-    fontFamily: fonts.sans, fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 1.4,
+    fontFamily: fonts.monoMedium, fontSize: scale.kicker.size,
+    letterSpacing: scale.kicker.tracking,
     textTransform: "uppercase",
   },
   label: { color: colors.ink, fontFamily: fonts.sans, fontSize: 19, lineHeight: 26 },

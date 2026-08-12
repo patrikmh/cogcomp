@@ -9,6 +9,7 @@ import { api, type Occasion, type Ordering, type Written } from "@/lib/api";
 import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
 import { radii } from "@tlon/design";
+import { type as scale } from "@tlon/design";
 
 /**
  * "You wrote this, and then a day later you wrote that."
@@ -145,10 +146,9 @@ const styles = StyleSheet.create({
   },
   side: { gap: 6 },
   sideLabel: {
-    fontFamily: fonts.sans, fontSize: 11,
-    fontWeight: "700",
+    fontFamily: fonts.monoMedium, fontSize: scale.kicker.size,
     textTransform: "uppercase",
-    letterSpacing: 0.6,
+    letterSpacing: scale.kicker.tracking,
     color: colors.inkMuted,
   },
   // The gap is the whole claim, so it is rendered as a step between the two

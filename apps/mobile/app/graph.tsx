@@ -218,10 +218,9 @@ const styles = StyleSheet.create({
   chipActive: { borderWidth: 1, borderColor: colors.cyan },
   sectionTitle: {
     marginTop: 12,
-    fontFamily: fonts.sans, fontSize: 13,
-    fontWeight: "700",
+    fontFamily: fonts.monoMedium, fontSize: scale.kicker.size,
     textTransform: "uppercase",
-    letterSpacing: 0.6,
+    letterSpacing: scale.kicker.tracking,
     color: colors.inkMuted,
   },
   card: {

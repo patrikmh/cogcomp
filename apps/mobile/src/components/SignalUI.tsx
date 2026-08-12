@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 import { MotionSurface } from "@/components/MotionSurface";
 import { colors, fonts } from "@/theme";
+import { type as scale } from "@tlon/design";
 
 export function Eyebrow({ children }: { children: React.ReactNode }) {
   return <Text style={styles.eyebrow}>{children}</Text>;
@@ -19,7 +20,7 @@ export function ActionLink({ label, onPress, disabled = false }: { label: string
 }
 
 const styles = StyleSheet.create({
-  eyebrow: { color: colors.cyan, fontFamily: fonts.sans, fontSize: 11, fontWeight: "700", letterSpacing: 1.8, textTransform: "uppercase" },
+  eyebrow: { color: colors.cyan, fontFamily: fonts.monoMedium, fontSize: scale.kicker.size, letterSpacing: scale.kicker.tracking, textTransform: "uppercase" },
   rule: { height: 1, backgroundColor: colors.line, opacity: 0.9 },
   dot: { width: 7, height: 7, borderRadius: 4 },
   action: { minHeight: 44, justifyContent: "center" },
