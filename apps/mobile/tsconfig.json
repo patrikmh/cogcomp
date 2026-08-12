@@ -14,6 +14,9 @@
       "@tlon/design/marks": [
         "../../packages/design/marks.ts"
       ],
+      "@tlon/design/icons": [
+        "../../packages/design/icons.ts"
+      ],
       "@tlon/design": [
         "../../packages/design/tokens.ts"
       ]

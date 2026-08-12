@@ -3,7 +3,6 @@ import { StyleSheet, useWindowDimensions, View } from "react-native";
 
 import { lazySkia } from "@/lib/lazySkia";
 import { colors } from "@/theme";
-import { SpatialDock } from "@/components/SpatialField";
 
 const LazyBlob = lazySkia(() => import("@/components/Blob"));
 

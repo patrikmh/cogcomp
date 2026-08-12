@@ -20,7 +20,8 @@
       "@tlon/copy": ["../../packages/copy/disclosure.ts"],
       "@tlon/ontology": ["../../packages/ontology/index.ts"],
       "@tlon/design": ["../../packages/design/tokens.ts"],
-      "@tlon/design/marks": ["../../packages/design/marks.ts"]
+      "@tlon/design/marks": ["../../packages/design/marks.ts"],
+      "@tlon/design/icons": ["../../packages/design/icons.ts"]
     }
   },
   "include": ["src", "vite.config.ts"]

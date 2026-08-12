@@ -1,7 +1,6 @@
 import { Link } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { ReactNode } from "react";
-import { dockDestinations } from "@/lib/destinations";
 import { colors, fonts } from "@/theme";
 import { constellationPoint } from "@/lib/spatial";
 
@@ -54,22 +53,6 @@ export function SpatialConstellation({ ids, labels, onSelect }: { ids: string[];
 
 export function FieldFrame({ children, label = "Living Observatory field" }: { children: ReactNode; label?: string }) {
   return <View accessibilityLabel={label} style={styles.fieldFrame}><Orbit /><Orbit small />{children}</View>;
-}
-
-/** The bar along the bottom. Same destinations as the Journal's orbit — see
- *  `@/lib/destinations` for why that is one list and not two.
- *
- *  It used to sit in the flow at the end of a screen's content, on the eight
- *  screens that happened to wrap themselves in `AtmosphericShell`. Neither half
- *  of that worked: you had to scroll to the bottom to reach it, and the five
- *  screens it points *at* — Journal, Headspace, Today, Week, Identity — were all
- *  in the ten that did not have it. Arriving at Today from a pattern left you
- *  with the back button and nothing else.
- *
- *  Now it is rendered once by the root layout and pinned to the bottom, so it is
- *  the same bar everywhere and cannot be missing from a screen by omission. */
-export function SpatialDock({ developer = false }: { developer?: boolean }) {
-  return <View accessibilityRole="toolbar" accessibilityLabel="Observatory routes" style={styles.dock}>{dockDestinations(developer).map(({ href, label, tone, quiet }) => <Link key={href} href={href} asChild><Pressable accessibilityRole="link" style={({ pressed }) => [styles.dockItem, pressed && styles.pressed]}><View style={[styles.dockMark, { backgroundColor: tone }, quiet && styles.dockMarkQuiet]} /><Text style={[styles.dockLabel, quiet && styles.dockLabelQuiet]}>{label}</Text></Pressable></Link>)}</View>;
 }
 
 export function LoadingLens({ label = "Reading the field…" }: { label?: string }) { return <View accessibilityRole="progressbar" style={styles.state}><View style={styles.loadingRing} /><Text style={styles.stateText}>{label}</Text></View>; }

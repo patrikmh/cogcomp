@@ -14,7 +14,7 @@ import { useEffect, useMemo } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { SpatialDock } from "@/components/SpatialField";
+import { TabBar } from "@/components/TabBar";
 import { createUserQueryClient } from "@/state/queryClient";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
@@ -144,7 +144,7 @@ function Gate() {
           every route shares instead of a component eighteen screens each have
           to remember to render — which is how five of them ended up being
           destinations you could arrive at and not leave. */}
-      {showDock && !waiting && <SpatialDock developer={developer} />}
+      {showDock && !waiting && <TabBar />}
       {/* Over the navigator, never instead of it.
           expo-router requires a navigator on the *first* render: returning a
           plain View while waiting means the auth gate's redirect fires before

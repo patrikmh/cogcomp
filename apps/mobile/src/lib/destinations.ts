@@ -1,70 +1,91 @@
-import { colors } from "@/theme";
+import type { GlyphName } from "@tlon/design/icons";
 
 /**
  * Where a person can go, decided once.
  *
- * There are two menus — the orbit on the Journal and the dock on detail
- * screens — and until now each held its own hard-coded list. They drifted: the
- * orbit had been cut from eight destinations to four while the dock still
- * offered the three that were deliberately demoted, so the same app told you
- * two different things about itself depending on which screen you were on.
+ * The design has two menus and they do different jobs. Along the bottom sit
+ * five tabs — the four places you move between while using the app, and a way
+ * to everything else. Behind that fifth tab is the whole map, grouped by what
+ * each thing is *for*: what you put in, what you look back at, what was found,
+ * what you are testing, and the machinery underneath.
  *
- * Both now compose this list. A destination that should appear in one menu and
- * not the other is a decision expressed here, in one place, rather than a
- * difference nobody meant.
+ * The grouping is the argument. A flat list of twelve destinations says they
+ * are twelve equivalent things; these headings say that looking back at a week
+ * and reading the agent log are not the same kind of act, and that the second
+ * one is machinery you may audit rather than a place to spend time.
+ *
+ * Each row carries how much is behind it. A count is not decoration here — it
+ * is the difference between a door you open and a door you know is worth
+ * opening — and where there is nothing to count, nothing is shown rather than a
+ * zero, because "0" reads as a failure and an absence is not one.
  */
 export interface Destination {
   href: string;
   label: string;
-  tone: string;
-  /** A corner you go to on purpose and rarely. Rendered dimmer, never omitted. */
-  quiet?: boolean;
+  glyph: GlyphName;
+  /** Which count to show beside it, if any. Resolved where the data is. */
+  count?: "headspace" | "journal" | "today" | "week" | "patterns" | "identity" | "experiments" | "agents" | "graph";
 }
 
-export const JOURNAL: Destination = { href: "/", label: "Journal", tone: colors.cyan };
+export interface Group {
+  /** The kicker above the group. */
+  title: string;
+  items: Destination[];
+}
 
 /**
- * The four places worth reaching from anywhere, in the order someone wants them.
+ * The bar along the bottom: four places, then everything else.
  *
- * Headspace first, because "where do things stand" is the question people
- * arrive with. Then the two time windows, then the slowest-moving view of all.
- * Graph, Patterns and Activity are deliberately absent: they are machinery or
- * lenses onto material these four already show.
+ * Head leads because "where do things stand" is the question people arrive
+ * with. Journal is next because writing is what the app is for. Talk and Today
+ * follow, and More is not a destination at all — it opens the map.
  */
-export const CORE: Destination[] = [
-  { href: "/headspace", label: "Headspace", tone: colors.pink },
-  { href: "/today", label: "Today", tone: colors.cyan },
-  { href: "/week", label: "Week", tone: colors.cyan },
-  { href: "/identity", label: "Identity", tone: colors.violet },
+export const TABS: (Destination & { glyph: GlyphName })[] = [
+  { href: "/headspace", label: "Head", glyph: "headspace" },
+  { href: "/", label: "Journal", glyph: "journal" },
+  { href: "/talk", label: "Talk", glyph: "talk" },
+  { href: "/today", label: "Today", glyph: "today" },
 ];
 
-export const SETTINGS: Destination = {
-  href: "/settings",
-  label: "Settings",
-  tone: colors.lineStrong,
-  quiet: true,
-};
+export const GROUPS: Group[] = [
+  {
+    title: "Capture",
+    items: [
+      { href: "/headspace", label: "Headspace", glyph: "headspace", count: "headspace" },
+      { href: "/", label: "Journal", glyph: "journal", count: "journal" },
+      { href: "/talk", label: "Talk it through", glyph: "talk" },
+    ],
+  },
+  {
+    title: "Looking back",
+    items: [
+      { href: "/today", label: "Today", glyph: "today", count: "today" },
+      { href: "/week", label: "This week", glyph: "week", count: "week" },
+      { href: "/search", label: "Find an entry", glyph: "search" },
+    ],
+  },
+  {
+    title: "Findings",
+    items: [
+      { href: "/patterns", label: "Patterns", glyph: "patterns", count: "patterns" },
+      { href: "/identity", label: "Identity", glyph: "identity", count: "identity" },
+    ],
+  },
+  {
+    title: "Self-authorship",
+    items: [{ href: "/experiments", label: "Experiments", glyph: "experiments", count: "experiments" }],
+  },
+  {
+    title: "Machinery",
+    items: [
+      { href: "/agents", label: "Agent activity", glyph: "agents", count: "agents" },
+      { href: "/graph", label: "Graph", glyph: "graph", count: "graph" },
+      { href: "/settings", label: "Settings", glyph: "settings" },
+    ],
+  },
+];
 
-export const DEVELOPER: Destination = {
-  href: "/dev",
-  label: "Dev",
-  tone: colors.lineStrong,
-  quiet: true,
-};
-
-/**
- * The bar along the bottom: the way back to writing, the four, then Settings.
- *
- * Journal leads because the most likely next move from anywhere is returning to
- * where you write. Settings trails because you go there on purpose and rarely —
- * it is drawn dimmer rather than left out, which is what `quiet` is for.
- *
- * There used to be a second menu, an orbit on the Journal, holding these plus
- * the quiet corners. It listed the same four destinations as the bar directly
- * beneath it once the bar became persistent, so it went. Settings only ever
- * appeared there, which for one commit made it unreachable — hence its being
- * here now rather than nowhere.
- */
-export function dockDestinations(developer = false): Destination[] {
-  return developer ? [JOURNAL, ...CORE, SETTINGS, DEVELOPER] : [JOURNAL, ...CORE, SETTINGS];
+/** Everywhere the map leads. Used to prove no screen is stranded. */
+export function allDestinations(): Destination[] {
+  return GROUPS.flatMap((group) => group.items);
 }
