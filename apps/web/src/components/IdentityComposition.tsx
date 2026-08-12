@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { loop } from "@tlon/design/marks";
+import { loop, loopsOf, ringRadius, ringSquash } from "@tlon/design/marks";
 
 /**
  * Identity, drawn as concentric contours.
@@ -29,15 +29,6 @@ export interface Ring {
   evidence?: string;
 }
 
-/** How many loops a ring is drawn with — detail is confidence, made visible.
- *
- *  Two unless the reading is tentative or removed. This used to give the second
- *  loop only to *kept* readings, so a confidently offered one was drawn as
- *  faintly as a doubtful one. The rule is about how sure the reading is, not
- *  about whether you have answered it yet. */
-export function loopsOf(ring: Pick<Ring, "tentative" | "removed">): number[] {
-  return !ring.tentative && !ring.removed ? [0, 1] : [0];
-}
 
 export function IdentityComposition({
   rings,
@@ -129,7 +120,7 @@ export function IdentityComposition({
               <path
                 key={k}
                 className="id-path"
-                d={loop(ring.id + k, 24 + i * 14 - k * 5, 0.86 + (i % 3) * 0.05)}
+                d={loop(ring.id + k, ringRadius(i, k), ringSquash(i))}
               />
             ))}
           </g>
@@ -147,3 +138,5 @@ export function IdentityComposition({
   );
 }
 
+
+export { loopsOf } from "@tlon/design/marks";

@@ -60,10 +60,15 @@ interface Props {
   dotSize?: number;
   /** Draw the scene inside a head. See Constellation. */
   frame?: "none" | "head";
+  /** A screen's own stage, instead of the constellation. Identity draws the
+   *  web's contour composition here — the rings say which readings are kept and
+   *  how sure each is, which a cloud of identical points cannot. */
+  stage?: ReactNode;
 }
 
 export function Observatory({
   eyebrow,
+  stage,
   data,
   links,
   selected,
@@ -94,6 +99,8 @@ export function Observatory({
           <Text style={styles.error}>{error}</Text>
         ) : data.length === 0 ? (
           <Text style={styles.empty}>{empty}</Text>
+        ) : stage ? (
+          stage
         ) : (
           <Suspense fallback={<View style={{ width: size, height: size }} />}>
             <LazyConstellation

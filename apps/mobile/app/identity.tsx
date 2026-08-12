@@ -4,6 +4,7 @@ import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { MotionSurface } from "@/components/MotionSurface";
+import { IdentityComposition } from "@/components/IdentityComposition";
 import { Observatory } from "@/components/Observatory";
 import {
   api,
@@ -75,6 +76,23 @@ export default function IdentityScreen() {
   return (
     <Observatory
       eyebrow="What you keep close"
+      // The web's composition rather than a head full of points: rings that
+      // draw themselves on, the kept ones inked and doubled, the tentative ones
+      // thin and faded, you at the centre already there.
+      stage={
+        <IdentityComposition
+          rings={ringsForComposition(kept, offered, keptIds).map((node: IdentityNode) => ({
+            id: node.id,
+            label: node.label,
+            kind: node.kind,
+            confidence: node.confidence ?? 0,
+            kept: keptIds.has(node.id),
+            tentative: !keptIds.has(node.id),
+            removed: false,
+          }))}
+          onSelect={(ring) => setSelected(ring.id)}
+        />
+      }
       data={everything.map((node: IdentityNode) => ({
         id: node.id,
         // Kept themes carry full weight; unplaced ones are present but slight.
@@ -147,3 +165,24 @@ const styles = StyleSheet.create({
   actions: { flexDirection: "row", gap: 22, paddingTop: 2 },
   act: { color: colors.cyan, fontFamily: fonts.sans, fontSize: 13, fontWeight: "700" },
 });
+
+/**
+ * The seven the composition draws, and in what order.
+ *
+ * The web's rule, for the web's reason: kept readings first, surest-first inside
+ * each group, and never more than seven. Beyond that the loops stop reading as
+ * nested contours and become a scribble — forty-three of them is a ball of wool.
+ * Sorting by confidence alone would also bury what someone actually kept beneath
+ * whatever the extractor was most literal about.
+ */
+function ringsForComposition(
+  kept: IdentityNode[],
+  offered: IdentityNode[],
+  keptIds: Set<unknown>,
+): IdentityNode[] {
+  const surestFirst = (a: IdentityNode, b: IdentityNode) =>
+    (b.confidence ?? 0) - (a.confidence ?? 0);
+  const mine = kept.filter((n) => keptIds.has(n.id)).sort(surestFirst);
+  const theirs = offered.filter((n) => !keptIds.has(n.id)).sort(surestFirst);
+  return [...mine, ...theirs].slice(0, 7);
+}

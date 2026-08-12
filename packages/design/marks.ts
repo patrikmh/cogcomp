@@ -98,3 +98,23 @@ export function loop(key: string, baseR: number, squash: number): string {
 /** The viewBoxes these are drawn against, so a renderer does not guess. */
 export const SEAL_VIEWBOX = 64;
 export const COMPOSITION_VIEWBOX = 280;
+
+/**
+ * How many loops a ring is drawn with — detail is confidence, made visible.
+ *
+ * Two unless the reading is tentative or removed. The rule is about how sure the
+ * reading is, not about whether you have answered it yet, which is why a
+ * confidently offered reading gets the same weight as one you kept.
+ */
+export function loopsOf(ring: { tentative?: boolean; removed?: boolean }): number[] {
+  return !ring.tentative && !ring.removed ? [0, 1] : [0];
+}
+
+/** Where ring `i` sits, and how much it is squashed. Shared so both clients
+ *  space the composition identically. */
+export function ringRadius(i: number, k: number): number {
+  return 24 + i * 14 - k * 5;
+}
+export function ringSquash(i: number): number {
+  return 0.86 + (i % 3) * 0.05;
+}
