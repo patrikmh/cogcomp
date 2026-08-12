@@ -23,6 +23,7 @@ import { Today } from "@/screens/Today";
 import { Week } from "@/screens/Week";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
+import { GuideHost } from "@/components/Guide";
 
 export function App() {
   const { token, ready, restore } = useSession();
@@ -88,6 +89,10 @@ export function App() {
         Skip to the page
       </a>
       <RailWithCounts />
+      {/* One dialog for the whole app, as the design has it, so the "?" on any
+          screen opens the same plate — and so the plate is in the document
+          before it is asked to fade in. */}
+      <GuideHost>
       <main id="screen">
         {/* The landing goes full-bleed; everything else sits in the reading
             column. Declared rather than toggled imperatively — React owns this
@@ -118,6 +123,7 @@ export function App() {
           </Routes>
         </div>
       </main>
+      </GuideHost>
     </div>
   );
 }
