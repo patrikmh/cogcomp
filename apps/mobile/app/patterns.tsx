@@ -91,6 +91,7 @@ export default function PatternsScreen() {
         current && (
           <Readout
             tone="pattern"
+            sealId={current.id}
             label={current.label}
             meta={patternMeta(current)}
             tentative={current.tentative}

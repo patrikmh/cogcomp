@@ -14,6 +14,8 @@ import {
 import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
 import { type as scale } from "@tlon/design";
+import { Kicker } from "@/components/Marks";
+import { Seal } from "@/components/Seal";
 
 /**
  * Identity, as something you assemble rather than something you are told.
@@ -94,10 +96,16 @@ export default function IdentityScreen() {
       detail={
         current && (
           <View style={styles.detail}>
-            <Text style={styles.kind}>
-              {current.kind.toLowerCase()} · {isKept ? "kept" : "suggested"}
-              {current.tentative ? " · tentative" : ""}
-            </Text>
+            {/* Its own mark, as everywhere else. This screen has its own detail
+                block rather than the shared Readout because it carries Place and
+                Release, so the head has to be repeated here — the same head. */}
+            <View style={styles.detailHead}>
+              <Seal id={current.id} size={26} />
+              <Kicker>
+                {current.kind} · {isKept ? "kept" : "suggested"}
+                {current.tentative ? " · tentative" : ""}
+              </Kicker>
+            </View>
             <Text style={styles.label} numberOfLines={2}>
               {current.label}
             </Text>
@@ -127,6 +135,7 @@ export default function IdentityScreen() {
 }
 
 const styles = StyleSheet.create({
+  detailHead: { flexDirection: "row", alignItems: "center", gap: 9 },
   detail: { gap: 5 },
   kind: {
     color: colors.inkMuted,

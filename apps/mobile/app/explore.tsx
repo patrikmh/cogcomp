@@ -68,6 +68,7 @@ export default function ExploreScreen() {
         current && (
           <Readout
             tone={current.kind}
+            sealId={current.id}
             label={current.label}
             meta={
               current.confidence !== null

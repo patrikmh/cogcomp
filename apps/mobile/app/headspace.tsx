@@ -184,7 +184,8 @@ export default function HeadspaceScreen() {
           current && (
             <Readout
               tone={current.kind}
-              label={current.label}
+              sealId={current.id}
+            label={current.label}
               meta={current.meta}
               tentative={current.tentative}
               openLabel={lens === "regions" ? "See what is in it →" : undefined}

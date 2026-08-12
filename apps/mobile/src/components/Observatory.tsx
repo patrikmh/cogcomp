@@ -12,6 +12,8 @@ import { lazySkia } from "@/lib/lazySkia";
 import type { Datum } from "@/lib/orbital";
 import { colors, fonts } from "@/theme";
 import { type as scale } from "@tlon/design";
+import { Kicker } from "@/components/Marks";
+import { Seal } from "@/components/Seal";
 
 const LazyConstellation = lazySkia(() => import("@/components/Constellation"));
 
@@ -140,6 +142,7 @@ export function Readout({
   tentative = false,
   onOpen,
   openLabel = "Where this came from →",
+  sealId,
 }: {
   tone: string;
   label: string;
@@ -147,14 +150,22 @@ export function Readout({
   tentative?: boolean;
   onOpen?: () => void;
   openLabel?: string;
+  /** The thing's id, so it can be stamped with its own mark. */
+  sealId?: string;
 }) {
   return (
     <View style={styles.detail}>
-      <Text style={styles.detailKind}>
-        {tone.toLowerCase()}
-        {meta ? ` · ${meta}` : ""}
-        {tentative ? " · tentative" : ""}
-      </Text>
+      {/* Every screen that points at one thing shows the same mark for it —
+          patterns, identity, headspace, agents and explore all read out through
+          here, so this is one seal in five places rather than five decisions. */}
+      <View style={styles.detailHead}>
+        {sealId ? <Seal id={sealId} size={26} /> : null}
+        <Kicker>
+          {tone}
+          {meta ? ` · ${meta}` : ""}
+          {tentative ? " · tentative" : ""}
+        </Kicker>
+      </View>
       <Text style={styles.detailLabel} numberOfLines={3}>
         {label}
       </Text>
@@ -193,6 +204,7 @@ const styles = StyleSheet.create({
     maxWidth: 300,
   },
   error: { color: colors.danger, fontFamily: fonts.sans, fontSize: 14 },
+  detailHead: { flexDirection: "row", alignItems: "center", gap: 9 },
   detail: { gap: 5 },
   detailKind: {
     color: colors.inkMuted,

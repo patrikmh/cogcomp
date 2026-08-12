@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { AtmosphericShell } from "@/components/Atmospheric";
+import { Seal } from "@/components/Seal";
 import { MotionSurface } from "@/components/MotionSurface";
 import { ErrorLens, LoadingLens } from "@/components/SpatialField";
 import { api, type Occasion, type Ordering, type Written } from "@/lib/api";
@@ -120,10 +121,17 @@ function Side({
           style={styles.entry}
           accessibilityLabel={`${label}, ${day}: ${entry.content}`}
         >
-          <Text style={styles.entryText}>{entry.content}</Text>
-          <Text style={styles.meta}>
-            {new Date(entry.captured_at).toLocaleString()} · {entry.source}
-          </Text>
+          {/* The act's seal, as the web puts one on every evidence row. This is
+              the screen arguing that two things happened in an order, so being
+              able to recognise *which* acts it is arguing from matters more here
+              than anywhere. */}
+          <Seal id={entry.id} size={28} />
+          <View style={styles.entryBody}>
+            <Text style={styles.entryText}>{entry.content}</Text>
+            <Text style={styles.meta}>
+              {new Date(entry.captured_at).toLocaleString()} · {entry.source}
+            </Text>
+          </View>
         </View>
       ))}
     </View>
@@ -162,13 +170,14 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     marginLeft: 10,
   },
+  entryBody: { flex: 1, gap: 4 },
+  // A row with the act's seal rather than a block with a coloured bar down its
+  // side. The seal says *which* act; a cyan bar only said "an act".
   entry: {
-    marginLeft: 10,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.cyan,
-    paddingLeft: 12,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
     paddingVertical: 6,
-    gap: 4,
   },
   entryText: { fontFamily: fonts.sans, fontSize: 16, lineHeight: 23, color: colors.ink },
   meta: { fontFamily: fonts.sans, fontSize: 12, color: colors.inkMuted },
