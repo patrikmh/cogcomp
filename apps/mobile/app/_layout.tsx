@@ -11,7 +11,7 @@ import { useFonts } from "expo-font";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useMemo } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { SpatialDock } from "@/components/SpatialField";
@@ -96,13 +96,7 @@ function Gate() {
     IBMPlexMono_500Medium,
   });
 
-  if (!ready || !fontsLoaded) {
-    return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.room }}>
-        <ActivityIndicator color={colors.cyan} />
-      </View>
-    );
-  }
+  const waiting = !ready || !fontsLoaded;
 
   return (
     <>
@@ -143,7 +137,29 @@ function Gate() {
           every route shares instead of a component eighteen screens each have
           to remember to render — which is how five of them ended up being
           destinations you could arrive at and not leave. */}
-      {showDock && <SpatialDock developer={developer} />}
+      {showDock && !waiting && <SpatialDock developer={developer} />}
+      {/* Over the navigator, never instead of it.
+          expo-router requires a navigator on the *first* render: returning a
+          plain View while waiting means the auth gate's redirect fires before
+          the Root Layout has mounted, and the whole app renders nothing at all.
+          That window used to be the milliseconds of a storage read, so it never
+          showed; waiting on fonts widened it enough to take production down.
+          Rendering the Stack underneath and covering it costs nothing and
+          cannot reintroduce that. */}
+      {waiting && (
+        <View style={styles.waiting} pointerEvents="none">
+          <ActivityIndicator color={colors.cyan} />
+        </View>
+      )}
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  waiting: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.room,
+  },
+});
