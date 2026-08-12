@@ -13,6 +13,7 @@ import { PanResponder, StyleSheet, View } from "react-native";
 import { type BlobState, motionFor, withEnergy } from "@/lib/blobShape";
 import { MAX_EXTENT, project, toPath } from "@/lib/blobSphere";
 import { useReducedMotion } from "@/lib/motion";
+import { colors } from "@/theme";
 
 /**
  * The sphere — the thing you talk to.
@@ -39,8 +40,21 @@ import { useReducedMotion } from "@/lib/motion";
 const FPS = 30;
 
 /** Per-ring colour, indexed by the ring's stable `index` so a ring keeps its
- *  colour as it orbits rather than changing hue halfway round. */
-const RING_COLOURS = ["#22d3ee", "#a855f7", "#ec4899", "#818cf8", "#67e8f9", "#c084fc"];
+ *  colour as it orbits rather than changing hue halfway round.
+ *
+ *  The product's palette rather than the one this started life with. These were
+ *  the last old colours in the app — Tailwind cyan, purple and pink — and they
+ *  survived every sweep because they sit in an array that no rule about
+ *  epistemic status applies to. They are decoration, which is exactly why they
+ *  should be the product's decoration and not another product's. */
+const RING_COLOURS = [
+  colors.violet,
+  colors.cyan,
+  colors.pink,
+  colors.inkSoft,
+  colors.warning,
+  colors.lineStrong,
+];
 
 /** How far the glow extends past the body, as a multiple of its radius. */
 const HALO_SCALE = 1.2;
@@ -194,7 +208,7 @@ export default function Blob({ state, size, paused = false, energy = 0 }: Props)
           <RadialGradient
             c={vec(centre, centre)}
             r={radius * HALO_SCALE}
-            colors={["#0b0718", "#0b0718dd", "#140b2e55", "#14082400"]}
+            colors={[colors.room, `${colors.room}dd`, `${colors.surfaceBright}55`, `${colors.surface}00`]}
             positions={[0, 0.5, 0.76, 1]}
           />
           <BlurMask blur={12} style="normal" />
@@ -205,7 +219,7 @@ export default function Blob({ state, size, paused = false, energy = 0 }: Props)
           <RadialGradient
             c={vec(centre, centre)}
             r={radius * 1.15}
-            colors={["#7c3aed00", "#a855f733", "#ec489944", "#00000000"]}
+            colors={[`${colors.violet}00`, `${colors.violet}33`, `${colors.pink}44`, "#00000000"]}
           />
           <BlurMask blur={18 * motion.glow + 8} style="normal" />
         </Circle>

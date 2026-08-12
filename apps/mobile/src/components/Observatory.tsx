@@ -206,13 +206,6 @@ const styles = StyleSheet.create({
   error: { color: colors.danger, fontFamily: fonts.sans, fontSize: 14 },
   detailHead: { flexDirection: "row", alignItems: "center", gap: 9 },
   detail: { gap: 5 },
-  detailKind: {
-    color: colors.inkMuted,
-    fontFamily: fonts.sans, fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 1.4,
-    textTransform: "uppercase",
-  },
   detailLabel: { color: colors.ink, fontFamily: fonts.sans, fontSize: 19, lineHeight: 26 },
   open: { color: colors.cyan, fontFamily: fonts.sans, fontSize: 13, fontWeight: "700", paddingTop: 2 },
   action: {

@@ -252,7 +252,7 @@ export default function Constellation({
           <RadialGradient
             c={vec(centre, centreY)}
             r={inHead ? size * 0.42 : size / 2}
-            colors={["#160e2e", "#0d0a1c99", "#08080c00"]}
+            colors={[colors.surfaceBright, `${colors.surface}99`, `${colors.room}00`]}
           />
           <BlurMask blur={22} style="normal" />
         </Circle>
@@ -270,7 +270,7 @@ export default function Constellation({
               style="stroke"
               strokeWidth={[1, 0.85, 0.7][i]}
               strokeCap="round"
-              color="#c4b5fd"
+              color={colors.lineStrong}
               opacity={[0.18, 0.12, 0.07][i]}
             />
           ))}
@@ -281,7 +281,7 @@ export default function Constellation({
               style="stroke"
               strokeWidth={i === 0 ? 0.7 : 0.6}
               strokeCap="round"
-              color="#c4b5fd"
+              color={colors.lineStrong}
               opacity={[0.13, 0.09, 0.06, 0.04][i]}
             />
           ))}
@@ -297,7 +297,7 @@ export default function Constellation({
                   key={`${r}-${i}`}
                   p1={vec(point.sx, point.sy)}
                   p2={vec(next.sx, next.sy)}
-                  color="#8b7fd4"
+                  color={colors.line}
                   strokeWidth={0.7 + point.depth * 0.9}
                   opacity={0.05 + 0.16 * point.depth}
                 />
@@ -313,7 +313,7 @@ export default function Constellation({
               key={i}
               p1={vec(pair.from.sx, pair.from.sy)}
               p2={vec(pair.to.sx, pair.to.sy)}
-              color="#8b7fd4"
+              color={colors.line}
               strokeWidth={0.6 + pair.depth}
               opacity={0.08 + 0.3 * pair.depth}
             />
@@ -393,7 +393,7 @@ export default function Constellation({
               style="stroke"
               strokeWidth={1.25}
               strokeCap="round"
-              color="#c4b5fd"
+              color={colors.lineStrong}
               opacity={0.52}
             />
           </>

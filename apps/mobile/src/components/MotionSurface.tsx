@@ -91,6 +91,6 @@ function extractLayoutStyle(style: StyleProp<ViewStyle>): ViewStyle {
 
 const styles = StyleSheet.create({
   wrapper: { alignSelf: "stretch" },
-  hovered: { shadowColor: "#ffffff", shadowOpacity: 0.12, shadowRadius: 5, elevation: 2 },
+  hovered: { shadowColor: colors.ink, shadowOpacity: 0.12, shadowRadius: 5, elevation: 2 },
   focused: { shadowColor: colors.cyan, shadowOpacity: 0.28, shadowRadius: 7, elevation: 3 },
 });
