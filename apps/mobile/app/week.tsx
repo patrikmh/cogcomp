@@ -245,7 +245,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   return (
     <View style={styles.section}>
       {/* The same head as every other section in both clients. */}
-      <Kicker>{title}</Kicker>
+      <Kicker heading>{title}</Kicker>
       <Rule />
       {children}
     </View>

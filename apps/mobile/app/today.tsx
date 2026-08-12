@@ -215,7 +215,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       {/* Kicker and rule, as the web has them. This was a green sans label,
           which read as a heading competing with the words underneath rather
           than as a marking on the side of the instrument. */}
-      <Kicker>{title}</Kicker>
+      <Kicker heading>{title}</Kicker>
       <Rule />
       {children}
     </View>

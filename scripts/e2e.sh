@@ -94,7 +94,11 @@ experiment_language_clean() {
 # the end of a line. Matching the bare word would also hit the footnote, which
 # names both section titles in prose.
 snapshot_has_section() {
-  grep -qE ": $1\$" "$(latest_snapshot)" 2>/dev/null
+  # Either shape. A section title is a heading now — the mobile client marks the
+  # ones that genuinely title a section with a header role at level 2, which is
+  # how a screen reader user navigates between them — and a heading puts its text
+  # in the accessible name rather than after a colon.
+  grep -qE ": $1\$|heading \"$1\"" "$(latest_snapshot)" 2>/dev/null
 }
 
 wait_for_snapshot() {

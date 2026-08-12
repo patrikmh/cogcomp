@@ -15,13 +15,28 @@ import { colors, fonts } from "@/theme";
  * with no confidence in it are just text.
  */
 
-/** Mono, uppercase, widely spaced. Labels a section without competing with it. */
-export function Kicker({ children, tone = colors.inkMuted }: {
+/**
+ * Mono, uppercase, widely spaced. Labels a section without competing with it.
+ *
+ * Not a heading by default, which it was for a while. Most kickers are metadata
+ * — "Written · 15:30", "pattern · 8 entries · 95% confident" — and announcing
+ * those as headings fills a screen reader's heading list with things nobody
+ * would navigate by. `heading` marks the ones that genuinely title a section,
+ * and they come in at level 2 rather than sharing level 1 with the screen's own
+ * title.
+ */
+export function Kicker({ children, tone = colors.inkMuted, heading = false }: {
   children: React.ReactNode;
   tone?: string;
+  /** This kicker titles a section, rather than describing one thing. */
+  heading?: boolean;
 }) {
   return (
-    <Text style={[styles.kicker, { color: tone }]} accessibilityRole="header">
+    <Text
+      style={[styles.kicker, { color: tone }]}
+      accessibilityRole={heading ? "header" : undefined}
+      aria-level={heading ? 2 : undefined}
+    >
       {children}
     </Text>
   );
