@@ -96,7 +96,6 @@ export default function HeadspaceScreen() {
     (lens === "today" && today.isLoading) ||
     (lens === "all" && graph.isLoading) ||
     (lens === "patterns" && patterns.isLoading) ||
-    (lens === "regions" && themes.isLoading) ||
     (lens === "changed" && changed.isLoading);
 
   return (
@@ -219,13 +218,10 @@ export default function HeadspaceScreen() {
             label={current.label}
               meta={current.meta}
               tentative={current.tentative}
-              openLabel={lens === "regions" ? "See what is in it →" : undefined}
               onOpen={
-                lens === "changed"
-                  ? undefined
-                  : lens === "regions"
-                    ? () => router.push(`/theme/${current.id}`)
-                    : () => router.push(`/node/${current.id}`)
+                // A change has no node to open: it is derived from two windows
+                // rather than stored, and the readout is the whole of it.
+                lens === "changed" ? undefined : () => router.push(`/node/${current.id}`)
               }
             />
           )
@@ -257,9 +253,7 @@ function countFor(
       ? today?.inferred.length
       : id === "patterns"
         ? patterns?.length
-        : id === "regions"
-          ? themes?.length
-          : id === "changed"
+        : id === "changed"
             ? changed?.changes.length
             : points.length;
   return n || undefined;
@@ -280,9 +274,6 @@ const EMPTY: Record<Lens, string> = {
   today: "Nothing recorded today.",
   all: "Nothing here yet. It fills in as you write.",
   patterns: "Nothing has come back often enough to call recurring.",
-  // Not "no regions found": a region needs three things that keep appearing
-  // together, which is a lot of writing, and saying so is the honest empty.
-  regions: "No group of things has turned up together often enough yet.",
   // Two possible reasons, and they mean different things — resolved below.
   changed: "Nothing moved between this week and last.",
 };
@@ -294,9 +285,6 @@ function hintFor(lens: Lens, count: number, drawn: number): string {
   }
   if (lens === "patterns") {
     return `${count} ${count === 1 ? "thing" : "things"} recurred. Bigger means more often.`;
-  }
-  if (lens === "regions") {
-    return `${count} ${count === 1 ? "region" : "regions"}. Bigger holds more things — tap to see what is in one.`;
   }
   if (lens === "all") {
     // When the map cannot hold everything it says so. A survey that silently
@@ -357,21 +345,6 @@ function pointsFor(
   changed: Awaited<ReturnType<typeof api.temporalChanges>> | undefined,
   themes: Awaited<ReturnType<typeof api.listThemes>> | undefined,
 ): Point[] {
-  if (lens === "regions") {
-    if (!themes) return [];
-    const largest = Math.max(...themes.map((theme) => theme.member_count), 1);
-    return themes.map((theme) => ({
-      id: theme.id,
-      // The membership is the name. Nothing here invents a heading for a region
-      // of someone's life.
-      label: theme.label,
-      kind: "region",
-      meta: `${theme.member_count} things · ${Math.round(theme.confidence * 100)}% confident`,
-      weight: theme.member_count / largest,
-      tone: "Theme",
-      tentative: theme.tentative,
-    }));
-  }
   if (lens === "changed") {
     if (!changed) return [];
     return changed.changes.map((change) => ({

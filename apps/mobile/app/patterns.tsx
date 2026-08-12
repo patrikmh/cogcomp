@@ -12,7 +12,7 @@ import { Rise } from "@/components/Rise";
 import { Seal } from "@/components/Seal";
 import { Strip } from "@/components/Strip";
 import { colors, fonts } from "@/theme";
-import { api, type Pattern } from "@/lib/api";
+import { api, type Pattern, type Theme } from "@/lib/api";
 import { patternDestination, patternMeta } from "@/lib/patterns";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
@@ -40,6 +40,14 @@ export default function PatternsScreen() {
   const patterns = useQuery({
     queryKey: ["patterns", userId],
     queryFn: () => api.listPatterns(token!),
+    enabled: Boolean(token && userId) && showFindings,
+  });
+
+  const themes = useQuery({
+    queryKey: ["themes", userId],
+    queryFn: () => api.listThemes(token!),
+    // Same condition as the patterns above: with findings off, the app does not
+    // ask the server for conclusions the person has said they do not want.
     enabled: Boolean(token && userId) && showFindings,
   });
 
@@ -115,6 +123,40 @@ export default function PatternsScreen() {
         </Rise>
       ))}
 
+      {/* Regions, where the web and the design both put them: beside the other
+          findings rather than behind a lens of their own. A region is a group
+          that keeps turning up together, which is the same kind of claim as a
+          recurrence and belongs on the same page as one. */}
+      {(themes.data ?? []).length > 0 && (
+        <>
+          <View style={styles.sectionRow}>
+            <Kicker heading>Regions</Kicker>
+            <View style={styles.ruleFill}>
+              <Rule />
+            </View>
+            <Text style={styles.aside}>groups, not pairs</Text>
+          </View>
+          {themes.data!.map((theme: Theme, i: number) => (
+            <Rise key={theme.id} index={found.length + i}>
+              <MotionSurface
+                style={styles.row}
+                onPress={() => router.push(`/theme/${theme.id}`)}
+                accessibilityRole="button"
+                accessibilityLabel={theme.label}
+              >
+                <Seal id={theme.id} size={40} stamp />
+                <View style={styles.rowBody}>
+                  <Text style={styles.label}>{theme.label}</Text>
+                  <Kicker>
+                    {`${theme.member_count} things · held since ${new Date(theme.first_seen_at).toLocaleDateString()}`}
+                  </Kicker>
+                </View>
+              </MotionSurface>
+            </Rise>
+          ))}
+        </>
+      )}
+
       <View style={styles.actions}>
         <MotionSurface
           style={styles.action}
@@ -139,6 +181,9 @@ export default function PatternsScreen() {
 }
 
 const styles = StyleSheet.create({
+  sectionRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 14 },
+  ruleFill: { flex: 1 },
+  aside: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: scale.meta.size },
   screen: { flex: 1, backgroundColor: colors.room },
   content: { padding: 20, paddingBottom: 56, gap: 10 },
   title: {
