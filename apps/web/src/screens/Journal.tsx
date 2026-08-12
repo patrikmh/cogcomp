@@ -8,6 +8,7 @@ import { api, type Observation } from "@/lib/api";
 import { useDrawnFrom } from "@/lib/drawn-from";
 import { clockOf, dayLabelOf, fmt } from "@/lib/format";
 import { useSession } from "@/state/session";
+import { EMPTY as EMPTY_COPY } from "@tlon/copy/empty";
 
 /**
  * The journal.
@@ -137,7 +138,7 @@ export function Journal() {
         ) : entries.isError ? (
           <Failed />
         ) : list.length === 0 ? (
-          <Empty label="Nothing written yet. What you write here stays here." />
+          <Empty label={EMPTY_COPY.journal} />
         ) : (
           groups.map((group, gi) => (
             <div key={group.day}>

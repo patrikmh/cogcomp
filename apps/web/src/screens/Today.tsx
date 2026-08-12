@@ -10,6 +10,7 @@ import { clockOf, deviceTimezone, fmt, localDay, shiftDay } from "@/lib/format";
 import { Seal } from "@/lib/seal";
 import { Guide } from "@/components/Guide";
 import { SECTIONS, asideOf } from "@tlon/copy/sections";
+import { EMPTY as EMPTY_COPY } from "@tlon/copy/empty";
 
 /**
  * One day, as it happened.
@@ -85,7 +86,7 @@ export function Today() {
           <p className="sub">
             {offset > 0 ? "Tomorrow." : new Date(`${day}T12:00:00`).toLocaleDateString([], { weekday: "long" })}.
           </p>
-          <div className="empty">Nothing recorded. The day stays empty until it isn&rsquo;t.</div>
+          <div className="empty">{EMPTY_COPY.day}</div>
         </>
       ) : (
         <>

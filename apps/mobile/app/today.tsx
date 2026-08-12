@@ -24,6 +24,7 @@ import { type as scale } from "@tlon/design";
 import { SECTIONS, asideOf } from "@tlon/copy/sections";
 
 import { Guide } from "@/components/Guide";
+import { EMPTY as EMPTY_COPY } from "@tlon/copy/empty";
 
 /**
  * One day, as it happened.
@@ -129,7 +130,7 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
   if (summary.entry_count === 0) {
     // Stated plainly, with no nudge to write. A day with nothing in it is a fact
     // about the day, not a failure to be corrected.
-    return <Text style={styles.empty}>Nothing recorded. The day stays empty until it isn’t.</Text>;
+    return <Text style={styles.empty}>{EMPTY_COPY.day}</Text>;
   }
 
   const confident = summary.inferred.filter((i) => !i.tentative);

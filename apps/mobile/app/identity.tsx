@@ -19,6 +19,7 @@ import { type as scale } from "@tlon/design";
 import { Kicker } from "@/components/Marks";
 import { Seal } from "@/components/Seal";
 import { HEADINGS } from "@tlon/copy/headings";
+import { EMPTY as EMPTY_COPY } from "@tlon/copy/empty";
 
 /**
  * Identity, as something you assemble rather than something you are told.
@@ -130,7 +131,7 @@ export default function IdentityScreen() {
       error={
         projection.isError || candidates.isError ? "Could not load identity." : null
       }
-      empty="Nothing has been suggested yet. This fills in as you write."
+      empty={EMPTY_COPY.identity}
       // The figures above already say how many of each there are. The design
       // spends this line on how to read the picture instead — hovering on the
       // web, tapping here.

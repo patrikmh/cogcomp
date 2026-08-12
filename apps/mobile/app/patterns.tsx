@@ -17,6 +17,7 @@ import { patternDestination, patternMeta } from "@/lib/patterns";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
 import { HEADINGS } from "@tlon/copy/headings";
+import { EMPTY as EMPTY_COPY } from "@tlon/copy/empty";
 
 /**
  * What keeps returning.
@@ -97,7 +98,7 @@ export default function PatternsScreen() {
       <Text style={styles.title}>{HEADINGS.patterns.title}</Text>
       <Text style={styles.sub}>
         {found.length === 0
-          ? "Nothing has come back often enough to call a pattern yet."
+          ? EMPTY_COPY.patterns
           : `${found.length} ${found.length === 1 ? "finding" : "findings"}. Counts, not verdicts — each one opens to the entries it counted.`}
       </Text>
       <Rule />

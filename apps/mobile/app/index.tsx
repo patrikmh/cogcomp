@@ -23,6 +23,7 @@ import { colors, fonts } from "@/theme";
 import { type as scale } from "@tlon/design";
 import { radii } from "@tlon/design";
 import { HEADINGS } from "@tlon/copy/headings";
+import { EMPTY as EMPTY_COPY } from "@tlon/copy/empty";
 
 /**
  * The journal.
@@ -114,7 +115,7 @@ export default function JournalScreen() {
       </View>
 
       {entries.length === 0 && observations.isSuccess ? (
-        <Text style={styles.empty}>Nothing written yet. What you write here stays here.</Text>
+        <Text style={styles.empty}>{EMPTY_COPY.journal}</Text>
       ) : (
         days.map((group, gi) => (
           <View key={group.day}>

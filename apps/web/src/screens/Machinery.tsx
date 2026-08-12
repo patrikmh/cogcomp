@@ -11,6 +11,7 @@ import { seed } from "@/lib/seal";
 import { toneFor } from "@tlon/design";
 import { Guide } from "@/components/Guide";
 import { HEADINGS } from "@tlon/copy/headings";
+import { EMPTY as EMPTY_COPY } from "@tlon/copy/empty";
 
 /**
  * What ran while you were not looking.
@@ -50,7 +51,7 @@ export function Agents() {
       <div className="card" style={{ borderColor: "var(--line2)" }}>
         <p style={{ margin: 0 }}>
           {all.length === 0
-            ? "Nothing has run yet."
+            ? EMPTY_COPY.agents
             : `${all.length} ${all.length === 1 ? "attempt" : "attempts"} recorded: ${wrote} did work, ${skipped} had nothing to work on, ${failed} failed.`}
         </p>
       </div>

@@ -18,6 +18,7 @@ import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
 import { type as scale } from "@tlon/design";
 import { HEADINGS } from "@tlon/copy/headings";
+import { EMPTY as EMPTY_COPY } from "@tlon/copy/empty";
 
 /**
  * Headspace — where things stand.
@@ -212,7 +213,7 @@ export default function HeadspaceScreen() {
           lens === "changed" && changed.data?.not_enough_material
             ? // "Could not look" and "looked and nothing moved" are different
               // answers, and only one of them says anything about the person.
-              "Not enough written across both weeks to compare them."
+              EMPTY_COPY.notEnough
             : EMPTY[lens]
         }
         hint={hintFor(lens, points.length, whorls.length)}
@@ -303,12 +304,16 @@ const LENS_NOTE: Record<Lens, string> = {
   changed: "What moved between this week and last.",
 };
 
+/** The lens's own empty, from the shared sentences. Two clients saying
+ *  different things about the same absence is how "nothing recorded today" and
+ *  "nothing recorded — the day stays empty until it isn't" came to describe the
+ *  same day depending on which one you opened. */
 const EMPTY: Record<Lens, string> = {
-  today: "Nothing recorded today.",
-  all: "Nothing here yet. It fills in as you write.",
-  patterns: "Nothing has come back often enough to call recurring.",
+  today: EMPTY_COPY.day,
+  all: EMPTY_COPY.everything,
+  patterns: EMPTY_COPY.patterns,
   // Two possible reasons, and they mean different things — resolved below.
-  changed: "Nothing moved between this week and last.",
+  changed: EMPTY_COPY.changed,
 };
 
 function hintFor(lens: Lens, count: number, drawn: number): string {

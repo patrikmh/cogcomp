@@ -11,6 +11,7 @@
       "@tlon/copy/guides": ["../../packages/copy/guides.ts"],
       "@tlon/copy/sections": ["../../packages/copy/sections.ts"],
       "@tlon/copy/headings": ["../../packages/copy/headings.ts"],
+      "@tlon/copy/empty": ["../../packages/copy/empty.ts"],
       "@tlon/ontology": [
         "../../packages/ontology/index.ts"
       ],

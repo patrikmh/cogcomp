@@ -11,6 +11,7 @@ import { api, type AgentRun } from "@/lib/api";
 import { useSession } from "@/state/session";
 import { colors, fonts, statusColor } from "@/theme";
 import { HEADINGS } from "@tlon/copy/headings";
+import { EMPTY as EMPTY_COPY } from "@tlon/copy/empty";
 
 /**
  * What was decided while you were away.
@@ -67,7 +68,7 @@ export default function AgentsScreen() {
               : runs.isError
                 ? "Could not load activity."
                 : all.length === 0
-                  ? "Nothing has run yet."
+                  ? EMPTY_COPY.agents
                   : `${all.length} ${all.length === 1 ? "attempt" : "attempts"} recorded: ${wrote} did work, ${skipped} had nothing to work on, ${failed} failed.`}
           </Text>
         </View>

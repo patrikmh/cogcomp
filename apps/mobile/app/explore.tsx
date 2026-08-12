@@ -7,6 +7,7 @@ import { Observatory, Readout } from "@/components/Observatory";
 import { api, type Subgraph } from "@/lib/api";
 import { useSession } from "@/state/session";
 import { HEADINGS } from "@tlon/copy/headings";
+import { EMPTY as EMPTY_COPY } from "@tlon/copy/empty";
 
 /**
  * The graph, as a thing in space.
@@ -87,7 +88,7 @@ export default function ExploreScreen() {
       onSelect={setSelected}
       loading={graph.isLoading}
       error={graph.isError ? "Could not load the graph." : null}
-      empty="Nothing to explore yet. Write an entry and the graph starts here."
+      empty={EMPTY_COPY.explore}
       hint={
         subgraph?.truncated
           ? `Showing ${subgraph.returned} of ${subgraph.total_nodes}. Position carries no meaning — the edges carry the relationships.`
