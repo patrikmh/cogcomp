@@ -208,14 +208,19 @@ const styles = StyleSheet.create({
   toggle: { paddingVertical: 6 },
   toggleText: { fontFamily: fonts.sans, fontSize: 14, color: colors.inkSoft },
   kinds: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  // The design's `.pill`: 3px, bordered, mono, on the plain surface. This was a
+  // round sans lozenge on the raised one — four small departures that together
+  // made the same control look like a different product's.
   chip: {
-    backgroundColor: colors.surfaceBright,
-    borderRadius: 999,
-    paddingVertical: 4,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radii.surface,
+    paddingVertical: 6,
     paddingHorizontal: 10,
   },
-  chipText: { fontFamily: fonts.sans, fontSize: 12, color: colors.inkSoft },
-  chipActive: { borderWidth: 1, borderColor: colors.cyan },
+  chipText: { fontFamily: fonts.mono, fontSize: scale.meta.size, color: colors.inkSoft },
+  chipActive: { borderColor: colors.ink },
   sectionTitle: {
     marginTop: 12,
     fontFamily: fonts.monoMedium, fontSize: scale.kicker.size,

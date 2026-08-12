@@ -26,6 +26,7 @@ import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
 import { radii, type as scale } from "@tlon/design";
+import { Pill } from "@/components/Marks";
 
 const LazyBlob = lazySkia(() => import("@/components/Blob"));
 
@@ -287,9 +288,12 @@ export default function TalkScreen() {
             <Text style={styles.crisisTitle}>If you need someone now</Text>
             {crisis.length > 0 ? (
               crisis.map((line) => (
-                <Text key={line} style={styles.crisisLine}>
+                // Pills, as the web has them: each service is a separate thing
+                // you can act on, not a paragraph to read through while in no
+                // state to read paragraphs.
+                <Pill key={line} tone={colors.ink}>
                   {line}
-                </Text>
+                </Pill>
               ))
             ) : (
               <Text style={styles.crisisLine}>

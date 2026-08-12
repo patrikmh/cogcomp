@@ -51,6 +51,22 @@ export function Chip({ label, confidence, tentative = false }: {
 }
 
 /**
+ * A bordered label with no number in it.
+ *
+ * The same mark as a chip, minus the confidence — for things that are named
+ * rather than measured: a kind, a count, a phone number you can ring. The web
+ * uses `.pill` for exactly these and it would be wrong to give them a
+ * confidence they do not have.
+ */
+export function Pill({ children, tone }: { children: React.ReactNode; tone?: string }) {
+  return (
+    <View style={[styles.chip, tone ? { borderColor: tone } : null]}>
+      <Text style={[styles.chipText, tone ? { color: tone } : null]}>{children}</Text>
+    </View>
+  );
+}
+
+/**
  * The line an act hangs from, with the time it was written.
  *
  * Vertical rule, a dot at the act, and the clock in mono beside it — the shape
