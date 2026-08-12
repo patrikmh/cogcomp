@@ -77,6 +77,8 @@ export default function WeekScreen() {
             style={styles.pager}
             onPress={() => setWeek(shiftWeek(week, -1))}
             hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Previous week"
           >
             <Text style={styles.link}>← PREV</Text>
           </MotionSurface>
@@ -85,6 +87,8 @@ export default function WeekScreen() {
             disabled={current}
             onPress={() => setWeek(shiftWeek(week, 1))}
             hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Next week"
           >
             <Text style={[styles.link, current && styles.disabled]}>NEXT →</Text>
           </MotionSurface>

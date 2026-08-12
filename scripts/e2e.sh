@@ -256,12 +256,13 @@ step "The daily summary"
 playwright-cli click "$(ref_for 'Today')" >/dev/null 2>&1
 sleep 3
 playwright-cli snapshot >/dev/null 2>&1
-snapshot_contains "1 entry" && pass "today reports one entry" || fail "entry count wrong"
+snapshot_contains "1 act" && pass "today reports one act" || fail "act count wrong"
 snapshot_contains "$ENTRY" && pass "entry shown under what you wrote" || fail "entry missing"
 
 step "A low-confidence inference is presented as a guess"
 # No UI for extraction yet, so it is triggered directly. What is being verified is
-# the rendering: a 0.3-confidence guess must not sit under "Noticed".
+# the rendering: a 0.3-confidence guess must not sit under the confident
+# heading, which the design calls "What they left behind".
 OID="$(curl -s "${API_URL}/v1/observations" -H "Authorization: Bearer ${TOKEN}" \
   | python3 -c 'import json,sys; print(json.load(sys.stdin)["observations"][0]["id"])')"
 curl -sf -X POST "${API_URL}/v1/observations/${OID}/extract" \
@@ -270,11 +271,11 @@ curl -sf -X POST "${API_URL}/v1/observations/${OID}/extract" \
 playwright-cli reload >/dev/null 2>&1
 sleep 3
 playwright-cli snapshot >/dev/null 2>&1
-snapshot_has_section "Less sure about" \
+snapshot_has_section "Less sure" \
   && pass "tentative inference is in its own section" \
   || fail "tentative section missing"
-snapshot_has_section "Noticed" \
-  && fail "a 0.3-confidence guess was presented as something noticed" \
+snapshot_has_section "What they left behind" \
+  && fail "a 0.3-confidence guess was presented as something the record stands behind" \
   || pass "guess kept out of the confident section"
 snapshot_contains "not a conclusion about you" \
   && pass "inferences are framed as hypotheses" \
@@ -284,14 +285,19 @@ step "The weekly report is navigable, deterministic, and explainable"
 # Use the link a person sees on the journal rather than making the route itself
 # the thing under test. The stub extractor above makes the tentative card stable.
 playwright-cli goto "${WEB_URL}/" >/dev/null 2>&1
-wait_for_snapshot "Week" 30 \
-  && pass "journal exposes the Week link" \
-  || fail "Week link missing from the journal"
-playwright-cli click "$(ref_for 'Week')" >/dev/null 2>&1
+# The bar holds four places and a way to everything else; the week is on the
+# map behind More, under "Looking back".
+wait_for_snapshot "More" 30 \
+  && pass "journal exposes the way to everything else" \
+  || fail "no route out of the journal"
+playwright-cli click "$(ref_for 'More places to go')" >/dev/null 2>&1
+sleep 1
+playwright-cli snapshot >/dev/null 2>&1
+playwright-cli click "$(ref_for 'This week')" >/dev/null 2>&1
 wait_for_snapshot "$ENTRY" 30 \
   && pass "current week renders the entry" \
   || fail "current week did not render the entry"
-snapshot_has_section "Less sure about" \
+snapshot_has_section "Still forming" \
   && pass "current week renders the tentative inference" \
   || fail "tentative inference missing from current week"
 
@@ -320,7 +326,9 @@ playwright-cli goto "${WEB_URL}/week" >/dev/null 2>&1
 wait_for_snapshot "This week" 30 \
   && pass "returned to the Week report" \
   || fail "could not return to the Week report"
-playwright-cli click "$(ref_for 'Previous')" >/dev/null 2>&1
+# The pagers show which week or day they go to; their accessible names say
+# what they do, which is the handle that survives the label changing.
+playwright-cli click "$(ref_for 'Previous week')" >/dev/null 2>&1
 wait_for_snapshot "Nothing recorded." 30 \
   && pass "previous empty week says nothing was recorded" \
   || fail "previous empty week not reported"
@@ -379,7 +387,7 @@ playwright-cli snapshot >/dev/null 2>&1
 playwright-cli goto "${WEB_URL}/today" >/dev/null 2>&1
 sleep 3
 playwright-cli snapshot >/dev/null 2>&1
-playwright-cli click "$(ref_for 'Previous')" >/dev/null 2>&1
+playwright-cli click "$(ref_for 'Previous day')" >/dev/null 2>&1
 sleep 2
 playwright-cli snapshot >/dev/null 2>&1
 snapshot_contains "Nothing recorded" \

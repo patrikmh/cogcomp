@@ -61,7 +61,16 @@ export default function TodayScreen() {
         {/* Named days, not "previous" and "next": the button says where it
             goes, so moving through the week never needs a mental subtraction.
             The web client has said this for as long as it has had the screen. */}
-        <MotionSurface style={styles.pager} onPress={() => setDay(shiftDay(day, -1))} hitSlop={12}>
+        <MotionSurface
+          style={styles.pager}
+          onPress={() => setDay(shiftDay(day, -1))}
+          hitSlop={12}
+          accessibilityRole="button"
+          // The visible label is the day itself; the accessible name says what
+          // the control does, which is what a screen reader and a test both
+          // need and what a three-letter weekday cannot carry.
+          accessibilityLabel="Previous day"
+        >
           <Text style={styles.navLink}>← {weekdayOf(shiftDay(day, -1))}</Text>
         </MotionSurface>
         <View style={styles.dayRow}>
@@ -74,6 +83,8 @@ export default function TodayScreen() {
           style={styles.pager}
           onPress={() => setDay(shiftDay(day, 1))}
           hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Next day"
           // There is nothing recorded in the future.
           disabled={isToday}
         >
