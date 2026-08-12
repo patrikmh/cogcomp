@@ -8,6 +8,7 @@ import { api, type ObservationResponse, type Pattern } from "@/lib/api";
 import { localToday, mondayOfWeek } from "@/lib/dates";
 import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
+import { Rising } from "@/components/Rise";
 
 /**
  * The first fortnight.
@@ -49,6 +50,7 @@ export default function FirstScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <Rising>
       <Kicker>First fortnight · new</Kicker>
       <Text style={styles.title}>The machinery is filling</Text>
       <Text style={styles.sub}>
@@ -72,6 +74,7 @@ export default function FirstScreen() {
         Today is {localToday()}. Nothing here is generated to fill the space — a detector
         with nothing to say says nothing.
       </Text>
+      </Rising>
     </ScrollView>
   );
 }

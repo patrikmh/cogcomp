@@ -12,7 +12,7 @@ import {
 
 import { Chip, Kicker, Rule } from "@/components/Marks";
 import { MotionSurface } from "@/components/MotionSurface";
-import { Rise } from "@/components/Rise";
+import { Rise, Rising } from "@/components/Rise";
 import { Seal } from "@/components/Seal";
 import { api, type DailySummary } from "@/lib/api";
 import { deviceTimezone, localToday, shiftDay } from "@/lib/dates";
@@ -55,6 +55,7 @@ export default function TodayScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <Rising>
       <View style={styles.nav}>
         <MotionSurface onPress={() => setDay(shiftDay(day, -1))} hitSlop={12}>
           <Text style={styles.navLink}>← Previous</Text>
@@ -77,6 +78,7 @@ export default function TodayScreen() {
       ) : (
         <SummaryBody summary={summary.data} />
       )}
+      </Rising>
     </ScrollView>
   );
 }

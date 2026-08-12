@@ -11,6 +11,7 @@ import { api, type ObservationResponse } from "@/lib/api";
 import { useDrawnFrom } from "@/lib/drawnFrom";
 import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
+import { Rising } from "@/components/Rise";
 
 /**
  * Find an entry.
@@ -45,6 +46,7 @@ export default function SearchScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <Rising>
       <Kicker>Find an entry</Kicker>
       <Text style={styles.title}>Your own words, found</Text>
       <Text style={styles.sub}>
@@ -105,6 +107,7 @@ export default function SearchScreen() {
           </MotionSurface>
         );
       })}
+      </Rising>
     </ScrollView>
   );
 }

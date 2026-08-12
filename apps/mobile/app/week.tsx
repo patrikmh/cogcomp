@@ -19,6 +19,7 @@ import { lazySkia } from "@/lib/lazySkia";
 import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
 import { type as scale } from "@tlon/design";
+import { Rising } from "@/components/Rise";
 
 const LazyConstellation = lazySkia(() => import("@/components/Constellation"));
 
@@ -58,6 +59,7 @@ export default function WeekScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <Rising>
       <View style={styles.nav}>
         <MotionSurface onPress={() => setWeek(shiftWeek(week, -1))} hitSlop={12}>
           <Text style={styles.link}>← Previous</Text>
@@ -86,6 +88,7 @@ export default function WeekScreen() {
           )}
         </>
       )}
+      </Rising>
     </ScrollView>
   );
 }

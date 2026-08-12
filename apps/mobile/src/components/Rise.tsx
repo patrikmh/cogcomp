@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { Children, useEffect, useRef } from "react";
 import { Animated, Easing, type ViewStyle } from "react-native";
 
 import { useReducedMotion } from "@/lib/motion";
@@ -20,7 +20,32 @@ import { useReducedMotion } from "@/lib/motion";
  */
 const RISE_MS = 500;
 const RISE_PX = 14;
-const STAGGER_MS = 40;
+/** 30ms apart, and nothing waits longer than 300 — the web's `.scr > *`
+ *  nth-child delays, which stop incrementing at the eleventh child so a long
+ *  screen does not take a second and a half to finish arriving. */
+const STAGGER_MS = 30;
+const STAGGER_CAP_MS = 300;
+
+/**
+ * Every top-level block of a screen, arriving in sequence.
+ *
+ * The web gives `.scr > *` the same treatment, which is what makes a screen feel
+ * like it settles rather than blinks. Applying it per-list only, as this did at
+ * first, animates the one part of a screen that was already the most obviously
+ * alive and leaves the rest static — which reads as less considered than no
+ * motion at all.
+ */
+export function Rising({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      {Children.toArray(children).map((child, i) => (
+        <Rise key={i} index={i}>
+          {child}
+        </Rise>
+      ))}
+    </>
+  );
+}
 
 export function Rise({
   children,
@@ -43,7 +68,7 @@ export function Rise({
     const animation = Animated.timing(progress, {
       toValue: 1,
       duration: RISE_MS,
-      delay: Math.min(index, 8) * STAGGER_MS,
+      delay: Math.min(index * STAGGER_MS, STAGGER_CAP_MS),
       easing: Easing.bezier(0.2, 0.8, 0.2, 1),
       useNativeDriver: true,
     });

@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
+import { Rising } from "@/components/Rise";
 
 /**
  * Settings.
@@ -28,6 +29,7 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <Rising>
       <Switch
         label="Spoken replies"
         note="The agent reads its side aloud."
@@ -82,6 +84,7 @@ export default function SettingsScreen() {
         Text is sent to a model to extract readings. Audio is transcribed, then discarded.
         Nothing is shared with anyone else.
       </Text>
+      </Rising>
     </ScrollView>
   );
 }
