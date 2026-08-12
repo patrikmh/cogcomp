@@ -16,7 +16,7 @@ import { AtmosphericShell } from "@/components/Atmospheric";
 import { ApiError, api } from "@/lib/api";
 import { colors, fonts } from "@/theme";
 import { useSession } from "@/state/session";
-import { radii } from "@tlon/design";
+import { radii, type as scale } from "@tlon/design";
 
 const MIN_PASSWORD_LENGTH = 12;
 
@@ -154,7 +154,11 @@ const styles = StyleSheet.create({
   dockLabelWide: { minWidth: 260 },
   dockLabel: { flex: 1, gap: 12, paddingLeft: 8 },
   dockKicker: { color: colors.cyan, fontFamily: fonts.mono, fontSize: 11, fontWeight: "700", letterSpacing: 2 },
-  dockTitle: { color: colors.ink, fontFamily: fonts.sans, fontSize: 34, lineHeight: 39, fontWeight: "700" },
+  dockTitle: {
+    color: colors.ink, fontFamily: fonts.sansBold,
+    fontSize: scale.title.size, lineHeight: scale.title.line,
+    letterSpacing: scale.title.tracking,
+  },
   dockCopy: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: 15, lineHeight: 22, maxWidth: 250 },
   form: { width: "100%", maxWidth: 460, alignSelf: "center", gap: 12 },
   // In the wide two-column layout the form sits in a row, where width:100% makes
@@ -163,7 +167,10 @@ const styles = StyleSheet.create({
   // keeps both columns real.
   formWide: { width: 460, flexGrow: 0, flexShrink: 0, alignSelf: "auto" },
   header: { marginBottom: 12, gap: 4 },
-  title: { fontFamily: fonts.sans, fontSize: 32, fontWeight: "700", color: colors.ink, letterSpacing: -0.6 },
+  title: {
+    fontFamily: fonts.sansBold, fontSize: scale.title.size, lineHeight: scale.title.line,
+    color: colors.ink, letterSpacing: scale.title.tracking,
+  },
   subtitle: { fontFamily: fonts.sans, fontSize: 16, color: colors.inkMuted },
   input: {
     backgroundColor: colors.surface,

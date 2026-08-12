@@ -10,7 +10,9 @@ import {
   useWindowDimensions,
 } from "react-native";
 
+import { Kicker, Rule } from "@/components/Marks";
 import { MotionSurface } from "@/components/MotionSurface";
+import { Seal } from "@/components/Seal";
 import { api, type WeeklySummary } from "@/lib/api";
 import { deviceTimezone, localToday, mondayOfWeek, shiftWeek } from "@/lib/dates";
 import { lazySkia } from "@/lib/lazySkia";
@@ -196,9 +198,11 @@ function Body({ summary }: { summary: WeeklySummary }) {
               day.observations.map((observation) => (
                 <MotionSurface
                   key={observation.id}
+                  style={styles.wrote}
                   onPress={() => router.push(`/node/${observation.id}`)}
                 >
-                  <Text style={styles.body}>{observation.content}</Text>
+                  <Seal id={observation.id} size={28} />
+                  <Text style={[styles.body, styles.wroteText]}>{observation.content}</Text>
                 </MotionSurface>
               )),
             )}
@@ -239,7 +243,9 @@ function Body({ summary }: { summary: WeeklySummary }) {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <View style={styles.section}>
-      <Text style={styles.heading}>{title}</Text>
+      {/* The same head as every other section in both clients. */}
+      <Kicker>{title}</Kicker>
+      <Rule />
       {children}
     </View>
   );
@@ -307,6 +313,8 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   readoutText: { color: colors.ink, fontFamily: fonts.sans, fontSize: 16, lineHeight: 23 },
+  wrote: { flexDirection: "row", gap: 10, alignItems: "flex-start", paddingVertical: 4 },
+  wroteText: { flex: 1 },
   section: { gap: 6, paddingTop: 14 },
   heading: {
     color: colors.cyan,

@@ -191,7 +191,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 2,
   },
-  statValue: { fontFamily: fonts.sans, fontSize: 24, fontWeight: "700", color: colors.ink },
+  statValue: {
+    fontFamily: fonts.sansBold, fontSize: scale.title.size,
+    lineHeight: scale.title.line, color: colors.ink,
+  },
   statLabel: { fontFamily: fonts.sans, fontSize: 11, color: colors.inkMuted, textAlign: "center" },
   explore: {
     borderWidth: 1,

@@ -10,7 +10,9 @@ import {
   useWindowDimensions,
 } from "react-native";
 
+import { Chip, Kicker, Rule } from "@/components/Marks";
 import { MotionSurface } from "@/components/MotionSurface";
+import { Seal } from "@/components/Seal";
 import { api, type DailySummary } from "@/lib/api";
 import { deviceTimezone, localToday, shiftDay } from "@/lib/dates";
 import { lazySkia } from "@/lib/lazySkia";
@@ -157,9 +159,11 @@ function SummaryBody({ summary }: { summary: DailySummary }) {
         {summary.observations.map((observation) => (
           <MotionSurface
             key={observation.id}
+            style={styles.wrote}
             onPress={() => router.push(`/node/${observation.id}`)}
           >
-            <Text style={styles.body}>{observation.content}</Text>
+            <Seal id={observation.id} size={28} />
+            <Text style={[styles.body, styles.wroteText]}>{observation.content}</Text>
           </MotionSurface>
         ))}
       </Section>
@@ -205,7 +209,11 @@ function SummaryBody({ summary }: { summary: DailySummary }) {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
+      {/* Kicker and rule, as the web has them. This was a green sans label,
+          which read as a heading competing with the words underneath rather
+          than as a marking on the side of the instrument. */}
+      <Kicker>{title}</Kicker>
+      <Rule />
       {children}
     </View>
   );
@@ -220,13 +228,8 @@ function Inference({
 }) {
   const router = useRouter();
   return (
-    <MotionSurface onPress={() => router.push(`/node/${item.id}`)}>
-      <Text style={[styles.body, tentative && styles.quiet]}>
-        {item.label}{" "}
-        <Text style={styles.meta}>
-          {item.kind.toLowerCase()} · {Math.round(item.confidence * 100)}%
-        </Text>
-      </Text>
+    <MotionSurface onPress={() => router.push(`/node/${item.id}`)} style={styles.reading}>
+      <Chip label={item.label} confidence={item.confidence} tentative={tentative || item.tentative} />
     </MotionSurface>
   );
 }
@@ -256,6 +259,9 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   readoutText: { color: colors.ink, fontFamily: fonts.sans, fontSize: 16, lineHeight: 23 },
+  wrote: { flexDirection: "row", gap: 10, alignItems: "flex-start", paddingVertical: 4 },
+  wroteText: { flex: 1 },
+  reading: { paddingVertical: 3 },
   section: { gap: 6, paddingTop: 12 },
   sectionTitle: {
     color: colors.cyan,
