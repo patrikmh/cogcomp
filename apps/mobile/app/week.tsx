@@ -98,10 +98,23 @@ export default function WeekScreen() {
       ) : (
         <>
           <Body summary={query.data} other={other.data?.entry_count ?? 0} current={current} />
-          {/* Placed under the week rather than above it: what you wrote comes
-              first, and this is a remark about it. */}
-          {words.data?.weeks.at(-1) && (
-            <Text style={styles.vocabulary}>{words.data.weeks.at(-1)!.description}</Text>
+          {/* The words themselves, not a tally of them. This client fetched
+              the vocabulary and printed only its description — "13 different
+              words for how you felt" — while the words sat unread in the
+              response. A count of someone's own language is the one summary
+              with nothing in it they could not have counted themselves, and it
+              withholds the only part worth showing back. */}
+          {(words.data?.weeks.at(-1)?.words ?? []).length > 0 && (
+            <Section title="Your own words for it" aside="counted, never interpreted">
+              <View style={styles.words}>
+                {words.data!.weeks.at(-1)!.words.map((word: string) => (
+                  <Text key={word} style={styles.word}>
+                    {word}
+                  </Text>
+                ))}
+              </View>
+              <Text style={styles.vocabulary}>{words.data!.weeks.at(-1)!.description}</Text>
+            </Section>
           )}
         </>
       )}
@@ -184,7 +197,7 @@ function Body({
             {summary.active_days} active {summary.active_days === 1 ? "day" : "days"}
           </Text>
 
-          <Section title="What you wrote">
+          <Section title="What you wrote" aside="kept verbatim">
             {summary.days.flatMap((day) =>
               day.observations.map((observation) => (
                 <MotionSurface
@@ -200,7 +213,7 @@ function Body({
           </Section>
 
           {summary.recurring.length > 0 && (
-            <Section title="Came up more than once">
+            <Section title="What kept returning" aside="strongest first">
               {summary.recurring.map((item) => (
                 <Text key={`${item.kind}-${item.label}`} style={styles.body}>
                   {item.label} <Text style={styles.meta}>in {item.entries} entries</Text>
@@ -210,14 +223,16 @@ function Body({
           )}
 
           <Inferences
-            title="Noticed"
+            title="What they left behind"
+            aside="surest first"
             items={summary.inferred.filter((x) => !x.tentative)}
           />
           {/* Kept in its own section rather than mixed in and greyed out: a
               low-confidence guess beside a confident one reads as equally true
               however it is styled. */}
           <Inferences
-            title="Less sure about"
+            title="Still forming"
+            aside="tentative — they may not hold"
             items={summary.inferred.filter((x) => x.tentative)}
           />
 
@@ -231,12 +246,26 @@ function Body({
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  aside,
+  children,
+}: {
+  title: string;
+  /** How the section is ordered, or what it holds — at the far end of the
+   *  rule, where the design puts it. */
+  aside?: string;
+  children: React.ReactNode;
+}) {
   return (
     <View style={styles.section}>
-      {/* The same head as every other section in both clients. */}
-      <Kicker heading>{title}</Kicker>
-      <Rule />
+      <View style={styles.sectionRow}>
+        <Kicker heading>{title}</Kicker>
+        <View style={styles.ruleFill}>
+          <Rule />
+        </View>
+        {aside ? <Text style={styles.aside}>{aside}</Text> : null}
+      </View>
       {children}
     </View>
   );
@@ -244,15 +273,17 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function Inferences({
   title,
+  aside,
   items,
 }: {
   title: string;
+  aside?: string;
   items: WeeklySummary["inferred"];
 }) {
   const router = useRouter();
   if (items.length === 0) return null;
   return (
-    <Section title={title}>
+    <Section title={title} aside={aside}>
       {items.map((item) => (
         <MotionSurface key={item.id} onPress={() => router.push(`/node/${item.id}`)}>
           <Text style={[styles.body, item.tentative && styles.quiet]}>
@@ -269,6 +300,17 @@ function Inferences({
 }
 
 const styles = StyleSheet.create({
+  words: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 },
+  word: {
+    color: colors.inkSoft,
+    fontFamily: fonts.mono,
+    fontSize: scale.meta.size,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: 2,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+  },
   pagers: { flexDirection: "row", gap: 8 },
   /** Ghosted: paging is not what the screen is for. */
   pager: {

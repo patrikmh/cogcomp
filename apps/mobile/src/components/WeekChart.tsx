@@ -59,7 +59,7 @@ export function WeekChart({
             <View style={styles.sealSlot}>
               {written ? <Seal id={day.date} size={32} /> : null}
             </View>
-            <Bar height={height} index={i} />
+            <Bar height={height} index={i} today={day.date === today} />
             <Text style={[styles.day, day.date === today && styles.dayToday]}>
               {weekdayOf(day.date)}
             </Text>
@@ -85,7 +85,7 @@ export function WeekChart({
   );
 }
 
-function Bar({ height, index }: { height: number; index: number }) {
+function Bar({ height, index, today }: { height: number; index: number; today: boolean }) {
   const reduced = useReducedMotion();
   const grow = useRef(new Animated.Value(reduced ? 1 : 0)).current;
 
@@ -110,6 +110,9 @@ function Bar({ height, index }: { height: number; index: number }) {
     <Animated.View
       style={[
         styles.bar,
+        // Today is lit. The column you are standing in should be findable
+        // without counting across from Monday.
+        today && styles.barToday,
         { height },
         {
           // React Native scales about the centre; CSS gives this bar
@@ -160,6 +163,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 2,
     borderTopRightRadius: 2,
   },
+  barToday: { backgroundColor: colors.cyan },
   day: {
     color: colors.inkMuted,
     fontFamily: fonts.mono,
@@ -167,5 +171,5 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
     textTransform: "uppercase",
   },
-  dayToday: { color: colors.ink },
+  dayToday: { color: colors.cyan },
 });
