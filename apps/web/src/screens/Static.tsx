@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
+import { DISCLOSURES, DISCLOSURE_HEADING } from "@tlon/copy";
+
 import { api } from "@/lib/api";
 import { localDay, mondayOf } from "@/lib/format";
 
@@ -16,56 +18,17 @@ export function Words() {
             but swallow the separator the design has between the two halves. */}
         Before your first entry · new
       </span>
-      <h1>What happens to your words</h1>
+      <h1>{DISCLOSURE_HEADING}</h1>
+      {/* The sentences come from `@tlon/copy`, which both clients read. Two
+          independently maintained privacy pages is how the mobile one came to
+          say entries "stay on your account" while they were being sent to a
+          model. */}
       <div className="cards">
-      <div className="card">
-        <p>
-          What you write is stored on your account and shown back to you. It is not shared with
-          anyone, and nothing here is sold or advertised against.
-        </p>
-      </div>
-      <div className="card">
-        <p>
-          To draw readings from an entry, its text is sent to a language model. The readings come
-          back with a confidence score and a link to the exact words that produced them — which is
-          why every claim in this app can be opened and argued with.
-        </p>
-      </div>
-      <div className="card">
-        <p>
-          A spoken entry is transcribed and the audio is then discarded. It is never written to the
-          database and never becomes part of your record — only the transcript is kept.
-        </p>
-      </div>
-      {/* The design discloses this and this page did not. Agents read entries
-          on a schedule without anyone pressing anything, which is the one thing
-          here that happens while you are not looking — so it is the last thing
-          that should have been left out. */}
-      <div className="card">
-        <p>
-          Background agents read your entries on a schedule to look for shape across time. Nothing
-          about that is hidden: every run is listed in{" "}
-          <Link to="/agents">Agent activity</Link>, including the ones that looked and found
-          nothing.
-        </p>
-      </div>
-      {/* The design makes this claim here and the app only made it on Identity,
-          which you reach after writing rather than before. It is the thing most
-          worth knowing in advance: a reading is a quality the record noticed,
-          not a label it is putting on you. */}
-      <div className="card">
-        <p>
-          A reading is a quality — “rest”, “the water” — never a noun hung on you. Nothing here
-          gets to name you: the app shows what it has noticed and leaves the rest visible but
-          unclaimed.
-        </p>
-      </div>
-      <div className="card">
-        <p>
-          Nothing is ever diagnosed, scored, or ranked against other people. The app reports counts
-          you can check, and stops.
-        </p>
-      </div>
+        {DISCLOSURES.map((item) => (
+          <div className="card" key={item.title}>
+            <p>{item.body}</p>
+          </div>
+        ))}
       </div>
       <div className="row" style={{ marginTop: 18 }}>
         <Link className="btn" to="/journal">

@@ -17,6 +17,7 @@
     "verbatimModuleSyntax": true,
     "paths": {
       "@/*": ["./src/*"],
+      "@tlon/copy": ["../../packages/copy/disclosure.ts"],
       "@tlon/ontology": ["../../packages/ontology/index.ts"],
       "@tlon/design": ["../../packages/design/tokens.ts"],
       "@tlon/design/marks": ["../../packages/design/marks.ts"]

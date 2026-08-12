@@ -74,6 +74,10 @@ export default function SettingsScreen() {
           it is next to the part that was missing. Same wording as the web
           client, because two clients of one product should not describe the
           same handling differently. */}
+      <MotionSurface style={styles.link} onPress={() => router.push("/words")}>
+        <Text style={styles.linkLabel}>What happens to your words</Text>
+      </MotionSurface>
+
       <Text style={styles.footnote}>
         Text is sent to a model to extract readings. Audio is transcribed, then discarded.
         Nothing is shared with anyone else.

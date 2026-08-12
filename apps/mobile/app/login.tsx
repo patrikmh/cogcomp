@@ -17,10 +17,12 @@ import { ApiError, api } from "@/lib/api";
 import { colors, fonts } from "@/theme";
 import { useSession } from "@/state/session";
 import { radii, type as scale } from "@tlon/design";
+import { useRouter } from "expo-router";
 
 const MIN_PASSWORD_LENGTH = 12;
 
 export default function LoginScreen() {
+  const router = useRouter();
   const signIn = useSession((s) => s.signIn);
   const { width } = useWindowDimensions();
   const [mode, setMode] = useState<"login" | "signup">("login");
@@ -127,6 +129,11 @@ export default function LoginScreen() {
             Your entries are stored on your account and sent to a model to extract
             readings. Nothing is shared with anyone else.
           </Text>
+          {/* Before signing up, not after. The web client offers this here for
+              the same reason: it is the one moment the page is actually for. */}
+          <MotionSurface onPress={() => router.push("/words")} accessibilityRole="button">
+            <Text style={styles.wordsLink}>What happens to your words →</Text>
+          </MotionSurface>
         </View>
         </FieldFrame>
         </View>
@@ -194,6 +201,9 @@ const styles = StyleSheet.create({
   hint: { fontFamily: fonts.sans, fontSize: 13, color: colors.inkMuted },
   hintWarn: { fontFamily: fonts.sans, fontSize: 13, color: colors.warning },
   error: { color: colors.danger, fontFamily: fonts.sans, fontSize: 14 },
+  wordsLink: {
+    color: colors.inkSoft, fontFamily: fonts.sans, fontSize: 13, paddingTop: 10,
+  },
   footnote: {
     marginTop: 16,
     fontFamily: fonts.sans, fontSize: 12,

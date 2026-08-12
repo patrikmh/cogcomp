@@ -18,6 +18,7 @@ config.resolver.extraNodeModules = {
   // Ontology used to be types-only, which is why the comment above says it never
   // needed this. `foldDrawnFrom` is a value, so now it does.
   "@tlon/ontology": path.resolve(workspace, "packages/ontology"),
+  "@tlon/copy": path.resolve(workspace, "packages/copy"),
 };
 config.resolver.nodeModulesPaths = [
   path.resolve(__dirname, "node_modules"),
