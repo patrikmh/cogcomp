@@ -127,9 +127,16 @@ export default function JournalScreen() {
                   accessibilityLabel={entry.content}
                 >
                   <Text style={styles.time}>{shortTime(entry.captured_at)}</Text>
-                  <View style={styles.spine} />
+                  {/* A hairline with a dot on it, filled on the latest act and
+                      hollow on the rest — the design's `.j-spine`. This was a
+                      2px cyan bar, which spent the colour this product reserves
+                      for what is live on saying "here is a list". */}
+                  <View style={styles.spine}>
+                    <View style={styles.spineLine} />
+                    <View style={[styles.spineDot, gi === 0 && i === 0 && styles.spineDotLatest]} />
+                  </View>
                   <View style={styles.act}>
-                    <Seal id={entry.id} size={34} />
+                    <Seal id={entry.id} size={gi === 0 && i === 0 ? 58 : 52} />
                     <View style={styles.actBody}>
                       {gi === 0 && i === 0 && <Kicker>Latest · saved</Kicker>}
                       <Text style={styles.entryText}>{entry.content}</Text>
@@ -148,7 +155,7 @@ export default function JournalScreen() {
                           </View>
                         </View>
                       ) : (
-                        <Text style={styles.readoutOpen}>nothing drawn from this yet →</Text>
+                        <Text style={styles.readoutOpen}>nothing drawn from this yet</Text>
                       )}
                     </View>
                   </View>
@@ -239,7 +246,27 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 20, paddingBottom: 32, gap: 10, paddingTop: 8 },
   sky: { alignItems: "center", justifyContent: "center" },
   readout: { flexDirection: "row", gap: 12, paddingVertical: 4 },
-  spine: { width: 2, borderRadius: 1, backgroundColor: colors.cyan, opacity: 0.7 },
+  spine: { width: 22, alignSelf: "stretch" },
+  spineLine: {
+    position: "absolute",
+    left: "50%",
+    top: 24,
+    bottom: 0,
+    width: 1,
+    backgroundColor: colors.line,
+  },
+  spineDot: {
+    position: "absolute",
+    left: 8,
+    top: 25,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: colors.lineStrong,
+    backgroundColor: colors.room,
+  },
+  spineDotLatest: { borderColor: colors.ink, backgroundColor: colors.ink },
   spineDraft: { backgroundColor: colors.violet },
   chipDraft: {
     color: colors.violet,
@@ -250,14 +277,25 @@ const styles = StyleSheet.create({
   head: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
   count: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: 12 },
   empty: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: 15, lineHeight: 22, paddingVertical: 10 },
-  day: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 14, marginBottom: 6 },
+  day: { flexDirection: "row", alignItems: "baseline", gap: 14, marginTop: 30, marginBottom: 4 },
   rule: { flex: 1, height: 1, backgroundColor: colors.line },
   // Time down the left, a hairline spine, then the act — the web's j-entry.
   entry: { flexDirection: "row", alignItems: "flex-start", gap: 10, paddingVertical: 8 },
-  time: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: 12, minWidth: 40, paddingTop: 2 },
+  // Right-aligned against the spine, dropped to meet the first line of the act
+  // rather than the top of its seal — the design's `.j-time`.
+  time: {
+    color: colors.inkMuted,
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    lineHeight: 15,
+    letterSpacing: 0.6,
+    minWidth: 40,
+    textAlign: "right",
+    paddingTop: 20,
+  },
   act: { flex: 1, flexDirection: "row", gap: 10, alignItems: "flex-start" },
   actBody: { flex: 1, gap: 6 },
-  entryText: { color: colors.ink, fontFamily: fonts.sans, fontSize: 16, lineHeight: 23 },
+  entryText: { color: colors.inkSoft, fontFamily: fonts.sans, fontSize: 15.5, lineHeight: 24 },
   chipRow: { gap: 6 },
   readoutBody: { flex: 1, gap: 5 },
   drawn: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
@@ -270,7 +308,13 @@ const styles = StyleSheet.create({
   },
   chipQuiet: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: 10, letterSpacing: 1.2 },
   findLink: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: 12, paddingVertical: 6 },
-  readoutOpen: { color: colors.cyan, fontFamily: fonts.sans, fontSize: 12, fontWeight: "700" },
+  readoutOpen: {
+    color: colors.inkMuted,
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
   readoutHint: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: 13, lineHeight: 19 },
   readoutText: { color: colors.ink, fontFamily: fonts.sans, fontSize: 16, lineHeight: 23 },
   input: {
@@ -315,7 +359,15 @@ function dayLabel(iso: string): string {
   const day = iso.slice(0, 10);
   const today = new Date().toISOString().slice(0, 10);
   const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-  if (day === today) return "Today";
-  if (day === yesterday) return "Yesterday";
-  return new Date(iso).toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" });
+  // The design names the day *and* dates it — "Today · Wednesday 4 February".
+  // "Today" alone is unambiguous only while you are reading it today; scrolled
+  // back a week it is the one heading that cannot be checked against anything.
+  const dated = new Date(iso).toLocaleDateString([], {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+  if (day === today) return `Today · ${dated}`;
+  if (day === yesterday) return `Yesterday · ${dated}`;
+  return dated;
 }

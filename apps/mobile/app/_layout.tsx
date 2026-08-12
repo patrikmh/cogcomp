@@ -117,7 +117,7 @@ function Gate() {
         }}
       >
         <Stack.Screen name="login" options={{ headerShown: false }} />
-        <Stack.Screen name="index" options={{ title: "Journal" }} />
+        <Stack.Screen name="index" options={{ headerTitle: () => <TopBar /> }} />
         <Stack.Screen name="headspace" options={{ headerTitle: () => <TopBar /> }} />
         <Stack.Screen name="today" options={{ headerTitle: () => <TopBar /> }} />
         <Stack.Screen name="week" options={{ headerTitle: () => <TopBar /> }} />
