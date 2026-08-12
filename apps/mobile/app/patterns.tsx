@@ -105,7 +105,7 @@ export default function PatternsScreen() {
         onPress: () => mine.mutate(),
         pending: mine.isPending,
       }}
-      secondaryAction={{ label: "Open experiments", onPress: () => router.push("/experiments") }}
+      secondaryAction={{ label: "What each detector is waiting for", onPress: () => router.push("/first") }}
     />
   );
 }

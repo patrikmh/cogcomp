@@ -150,3 +150,81 @@ export function foldDrawnFrom(
   }
   return index;
 }
+
+/**
+ * What each detector is waiting for, before it can find anything.
+ *
+ * These numbers are the backend's thresholds, not round ones chosen to look
+ * tidy, and `scripts/check_ontology_sync.py` asserts they still match the Python
+ * they are copied from. Without that check this is a screen that confidently
+ * tells someone they need four weeks when the detector wants five — the same
+ * failure mode as a stale privacy page, and harder to notice.
+ */
+export const DETECTOR_THRESHOLDS = {
+  /** `patterns.MIN_DISTINCT_DAYS` — the same thing on two different days. */
+  recurrenceDays: 2,
+  /** `periodicity.MIN_DISTINCT_WEEKS` — a weekday shape needs four weeks. */
+  calendarWeeks: 4,
+  /** `lag.MIN_MATCH_WEEKS` — an ordering needs three. */
+  orderingWeeks: 3,
+  /** `tension.MIN_OBSERVED_DAYS` — ten days before stated is compared to done. */
+  tensionDays: 10,
+} as const;
+
+export interface DetectorWait {
+  name: string;
+  needs: string;
+  standing: string;
+  ready: boolean;
+}
+
+/**
+ * The four detectors, and where each one stands for this person.
+ *
+ * Shared because both clients show it and it is arithmetic over thresholds
+ * rather than layout. Stated-vs-recorded is never "ready" on a day count alone:
+ * it also needs an intention the person actually stated, which no counter can
+ * see. Claiming otherwise would be the app promising a finding it has no way to
+ * know is coming.
+ */
+export function detectorsWaiting(input: {
+  days: number;
+  weeks: number;
+  found: string[];
+}): DetectorWait[] {
+  const has = (detector: string) => input.found.includes(detector);
+  const t = DETECTOR_THRESHOLDS;
+  const dayCount = `you have written on ${input.days} ${input.days === 1 ? "day" : "days"}`;
+  const weekCount = `you have ${input.weeks} ${input.weeks === 1 ? "week" : "weeks"}`;
+
+  return [
+    {
+      name: "Recurrence",
+      needs: "the same thing written on two different days",
+      standing: has("exact-label") ? "found" : dayCount,
+      ready: has("exact-label") || input.days >= t.recurrenceDays,
+    },
+    {
+      name: "Calendar shape",
+      needs: "writing in four different weeks",
+      standing: has("weekday") ? "found" : weekCount,
+      ready: has("weekday") || input.weeks >= t.calendarWeeks,
+    },
+    {
+      name: "Ordering",
+      needs: "two things recorded apart, across three weeks",
+      standing: has("lag") ? "found" : weekCount,
+      ready: has("lag") || input.weeks >= t.orderingWeeks,
+    },
+    {
+      name: "Stated vs recorded",
+      needs: "something you said you would do, and ten days to check it against",
+      standing: has("stated-vs-recorded")
+        ? "found"
+        : input.days >= t.tensionDays
+          ? "waiting on something you said you would do"
+          : dayCount,
+      ready: has("stated-vs-recorded"),
+    },
+  ];
+}

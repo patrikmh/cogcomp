@@ -177,6 +177,30 @@ def main() -> int:
     else:
         print(f"  ✓ all agree on {json_threshold}")
 
+    # The thresholds the "first fortnight" screen quotes at people.
+    #
+    # Both clients tell someone what each detector is still waiting for, using
+    # numbers copied out of the Python. A copy that drifts does not fail — it
+    # confidently tells a person they need four weeks when the detector wants
+    # five, which is worse than saying nothing and is invisible without this.
+    print("\nDetector thresholds agree")
+    ts = TS.read_text()
+    sources = {
+        "recurrenceDays": (ROOT / "apps/backend/tlon/patterns.py", r"MIN_DISTINCT_DAYS = (\d+)"),
+        "calendarWeeks": (ROOT / "apps/backend/tlon/periodicity.py", r"MIN_DISTINCT_WEEKS = (\d+)"),
+        "orderingWeeks": (ROOT / "apps/backend/tlon/lag.py", r"MIN_MATCH_WEEKS = (\d+)"),
+        "tensionDays": (ROOT / "apps/backend/tlon/tension.py", r"MIN_OBSERVED_DAYS = (\d+)"),
+    }
+    for key, (path, pattern) in sources.items():
+        in_ts = re.search(rf"{key}: (\d+)", ts)
+        in_py = re.search(pattern, path.read_text())
+        if not in_ts or not in_py:
+            fail(f"could not read {key} from both index.ts and {path.name}")
+        elif in_ts.group(1) != in_py.group(1):
+            fail(f"{key}: index.ts says {in_ts.group(1)}, {path.name} says {in_py.group(1)}")
+        else:
+            print(f"  ✓ {key} = {in_py.group(1)}")
+
     if problems:
         print(f"\n{len(problems)} problem(s) found.")
         return 1

@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
 import { DISCLOSURES, DISCLOSURE_HEADING } from "@tlon/copy";
+import { detectorsWaiting } from "@tlon/ontology";
 
 import { api } from "@/lib/api";
 import { localDay, mondayOf } from "@/lib/format";
@@ -59,53 +60,13 @@ export function First() {
   const days = new Set(written.map((o) => localDay(new Date(o.captured_at))));
   const weeks = new Set([...days].map((d) => mondayOf(d)));
   const found = patterns.data ?? [];
-  const has = (detector: string) => found.some((p) => p.detector === detector);
 
-  // What each detector is actually waiting for, in its own terms. The numbers
-  // are the thresholds in the backend, not round ones chosen to look tidy:
-  // recurrence wants the same thing on two days, calendar shape wants four
-  // distinct weeks, ordering wants three, stated-against-recorded wants ten
-  // days of material before it will compare anything.
-  const waiting = [
-    {
-      name: "Recurrence",
-      needs: "the same thing written on two different days",
-      standing: has("exact-label")
-        ? "found"
-        : `you have written on ${days.size} ${days.size === 1 ? "day" : "days"}`,
-      ready: has("exact-label") || days.size >= 2,
-    },
-    {
-      name: "Calendar shape",
-      needs: "writing in four different weeks",
-      standing: has("weekday")
-        ? "found"
-        : `you have ${weeks.size} ${weeks.size === 1 ? "week" : "weeks"}`,
-      ready: has("weekday") || weeks.size >= 4,
-    },
-    {
-      name: "Ordering",
-      needs: "two things recorded apart, across three weeks",
-      standing: has("lag")
-        ? "found"
-        : `you have ${weeks.size} ${weeks.size === 1 ? "week" : "weeks"}`,
-      ready: has("lag") || weeks.size >= 3,
-    },
-    {
-      name: "Stated vs recorded",
-      needs: "something you said you would do, and ten days to check it against",
-      // Never "ready": this one also needs an intention you actually stated,
-      // which is not something the day count can tell us. Claiming ready when
-      // the second condition may be unmet would be the app promising a finding
-      // it has no way to know is coming.
-      standing: has("stated-vs-recorded")
-        ? "found"
-        : days.size >= 10
-          ? "waiting on something you said you would do"
-          : `you have written on ${days.size} ${days.size === 1 ? "day" : "days"}`,
-      ready: has("stated-vs-recorded"),
-    },
-  ];
+  // The arithmetic and the thresholds live in `@tlon/ontology`, shared with the
+  // mobile client and checked against the Python by
+  // `scripts/check_ontology_sync.py`. Two clients quoting different numbers at
+  // someone about the same detector is the failure this prevents.
+  const waiting = detectorsWaiting({ days: days.size, weeks: weeks.size, found: found.map((p) => p.detector) });
+
 
   return (
     <>
