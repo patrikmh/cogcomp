@@ -46,6 +46,14 @@ export default function WeekScreen() {
     queryFn: () => api.weeklySummary(token!, week, tz),
     enabled: Boolean(token),
   });
+  // The week before this one, so the two can be set side by side. A week's
+  // shape means little on its own — "four of seven days" is only informative
+  // against what the week before held.
+  const other = useQuery({
+    queryKey: ["summary", "week", shiftWeek(week, -1), tz],
+    queryFn: () => api.weeklySummary(token!, shiftWeek(week, -1), tz),
+    enabled: Boolean(token),
+  });
   // Not a finding: these are the person's own words counted back to them, the
   // way the entry count is. It stays when patterns are switched off.
   const words = useQuery({
@@ -59,18 +67,28 @@ export default function WeekScreen() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Rising>
+      {/* Which week, over which days, in whose clock — then the pager. The
+          kicker says all three because "this week" means nothing without them
+          once you have paged back twice. */}
       <View style={styles.nav}>
-        <MotionSurface onPress={() => setWeek(shiftWeek(week, -1))} hitSlop={12}>
-          <Text style={styles.link}>← Previous</Text>
-        </MotionSurface>
-        <Text style={styles.date}>{week}</Text>
-        <MotionSurface
-          disabled={current}
-          onPress={() => setWeek(shiftWeek(week, 1))}
-          hitSlop={12}
-        >
-          <Text style={[styles.link, current && styles.disabled]}>Next →</Text>
-        </MotionSurface>
+        <Kicker>{`${current ? "This week" : `Week of ${week}`} · Mon–Sun · ${tz}`}</Kicker>
+        <View style={styles.pagers}>
+          <MotionSurface
+            style={styles.pager}
+            onPress={() => setWeek(shiftWeek(week, -1))}
+            hitSlop={12}
+          >
+            <Text style={styles.link}>← PREV</Text>
+          </MotionSurface>
+          <MotionSurface
+            style={styles.pager}
+            disabled={current}
+            onPress={() => setWeek(shiftWeek(week, 1))}
+            hitSlop={12}
+          >
+            <Text style={[styles.link, current && styles.disabled]}>NEXT →</Text>
+          </MotionSurface>
+        </View>
       </View>
 
       {query.isLoading ? (
@@ -79,7 +97,7 @@ export default function WeekScreen() {
         <Text style={styles.error}>Could not load this week.</Text>
       ) : (
         <>
-          <Body summary={query.data} />
+          <Body summary={query.data} other={other.data?.entry_count ?? 0} current={current} />
           {/* Placed under the week rather than above it: what you wrote comes
               first, and this is a remark about it. */}
           {words.data?.weeks.at(-1) && (
@@ -92,12 +110,60 @@ export default function WeekScreen() {
   );
 }
 
-function Body({ summary }: { summary: WeeklySummary }) {
+function Body({
+  summary,
+  other,
+  current,
+}: {
+  summary: WeeklySummary;
+  /** Acts in the week before this one, for the comparison. */
+  other: number;
+  current: boolean;
+}) {
   const router = useRouter();
 
 
+  const acts = summary.entry_count;
+  const both = Math.max(acts, other, 1);
+  const vs =
+    acts === other
+      ? "as many acts as the week before"
+      : `${Math.abs(acts - other)} ${acts > other ? "more" : "fewer"} than the week before`;
+
   return (
     <>
+      <Text style={styles.title}>Writing on {summary.active_days} of 7 days</Text>
+      <Text style={styles.tally}>
+        {acts} {acts === 1 ? "act" : "acts"} · {vs}
+      </Text>
+
+      {/* Two weeks side by side, as lengths. Counts only — no verdict about
+          which of them was the better week. */}
+      <View style={styles.vs}>
+        <View style={styles.vsRow}>
+          <Text style={styles.vsName}>{current ? "this week" : "that week"}</Text>
+          <View style={styles.vsTrack}>
+            <View style={[styles.vsFill, { width: `${Math.round((acts / both) * 100)}%` }]} />
+          </View>
+          <Text style={styles.vsCount}>{acts} acts</Text>
+        </View>
+        <View style={styles.vsRow}>
+          <Text style={styles.vsName}>the week before</Text>
+          <View style={styles.vsTrack}>
+            <View style={[styles.vsFill, styles.vsFillOther, { width: `${Math.round((other / both) * 100)}%` }]} />
+          </View>
+          <Text style={styles.vsCount}>{other} acts</Text>
+        </View>
+      </View>
+
+      <View style={styles.sectionRow}>
+        <Kicker heading>The rhythm</Kicker>
+        <View style={styles.ruleFill}>
+          <Rule />
+        </View>
+        <Text style={styles.aside}>written days open</Text>
+      </View>
+
       <WeekChart
         days={summary.days}
         today={localToday()}
@@ -203,6 +269,43 @@ function Inferences({
 }
 
 const styles = StyleSheet.create({
+  pagers: { flexDirection: "row", gap: 8 },
+  /** Ghosted: paging is not what the screen is for. */
+  pager: {
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: 3,
+    paddingVertical: 7,
+    paddingHorizontal: 11,
+  },
+  title: {
+    color: colors.ink,
+    fontFamily: fonts.sansBold,
+    fontSize: scale.title.size,
+    lineHeight: scale.title.line,
+    letterSpacing: scale.title.tracking,
+    marginTop: 12,
+  },
+  tally: {
+    color: colors.inkMuted,
+    fontFamily: fonts.mono,
+    fontSize: 10.5,
+    lineHeight: 17,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    marginTop: 10,
+  },
+  vs: { gap: 9, marginTop: 18 },
+  vsRow: { flexDirection: "row", alignItems: "center", gap: 14 },
+  vsName: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: scale.meta.size, width: 92 },
+  vsTrack: { flex: 1, height: 8, borderRadius: 4, backgroundColor: colors.surfaceBright, overflow: "hidden" },
+  vsFill: { height: 8, borderRadius: 4, backgroundColor: colors.cyan },
+  /** The other week is drawn quieter: it is context, not the subject. */
+  vsFillOther: { backgroundColor: colors.lineStrong },
+  vsCount: { color: colors.inkSoft, fontFamily: fonts.mono, fontSize: scale.meta.size, width: 54, textAlign: "right" },
+  sectionRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 30 },
+  ruleFill: { flex: 1 },
+  aside: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: scale.meta.size },
   peek: {
     marginTop: 12,
     minHeight: 20,
