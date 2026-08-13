@@ -10,7 +10,7 @@ import {
 } from "react-native";
 
 import { Chip, Kicker } from "@/components/Marks";
-import { Rise } from "@/components/Rise";
+import { DAY_STAGGER_CAP_MS, DAY_STAGGER_MS, Rise } from "@/components/Rise";
 import { MotionSurface } from "@/components/MotionSurface";
 import { Seal } from "@/components/Seal";
 import Svg, { Path } from "react-native-svg";
@@ -124,7 +124,16 @@ export default function JournalScreen() {
               <View style={styles.rule} />
             </View>
             {group.list.map((entry, i) => (
-              <Rise key={entry.id} index={gi * 2 + i}>
+              // Delayed by its day, not by its position in the stream: the
+              // design cascades `.j-day` at 55ms and lets the acts inside a day
+              // arrive with it, so a day reads as a day rather than as a list
+              // of separately arriving lines.
+              <Rise
+                key={entry.id}
+                index={gi}
+                stagger={DAY_STAGGER_MS}
+                cap={DAY_STAGGER_CAP_MS}
+              >
                 <MotionSurface
                   style={styles.entry}
                   onPress={() => router.push(`/node/${entry.id}`)}

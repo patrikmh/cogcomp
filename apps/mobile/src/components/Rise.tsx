@@ -25,6 +25,11 @@ const RISE_PX = 14;
  *  screen does not take a second and a half to finish arriving. */
 const STAGGER_MS = 30;
 const STAGGER_CAP_MS = 300;
+/** The journal cascades by day rather than by act — `Math.min(gi * 55, 700)`
+ *  in the design — so a day arrives as a day. Its cap is longer because the
+ *  steps are, and because a stream of many days should still finish. */
+export const DAY_STAGGER_MS = 55;
+export const DAY_STAGGER_CAP_MS = 700;
 
 /**
  * Every top-level block of a screen, arriving in sequence.
@@ -53,6 +58,7 @@ export function Rise({
   style,
   duration = RISE_MS,
   stagger = STAGGER_MS,
+  cap = STAGGER_CAP_MS,
   restartKey,
 }: {
   children: React.ReactNode;
@@ -64,6 +70,8 @@ export function Rise({
   /** Search results step 50ms apart on the web rather than 30 — a shorter list
    *  of answers, each worth landing separately. */
   stagger?: number;
+  /** How long the cascade may run before everything left arrives together. */
+  cap?: number;
   /** Changing this re-runs the animation. Search results re-animate on every
    *  query on the web, because each search is a new answer rather than the same
    *  list filtered. */
@@ -81,13 +89,13 @@ export function Rise({
     const animation = Animated.timing(progress, {
       toValue: 1,
       duration,
-      delay: Math.min(index * stagger, STAGGER_CAP_MS),
+      delay: Math.min(index * stagger, cap),
       easing: Easing.bezier(0.2, 0.8, 0.2, 1),
       useNativeDriver: true,
     });
     animation.start();
     return () => animation.stop();
-  }, [progress, index, reduced, duration, stagger, restartKey]);
+  }, [progress, index, reduced, duration, stagger, cap, restartKey]);
 
   return (
     <Animated.View
