@@ -25,14 +25,14 @@ import { colors } from "@/theme";
  * the same generator that shapes the harmonics. This replaces a head silhouette with points floating inside it, which
  * was this client's own idea and said nothing the rings do not.
  *
- * The motion is the web's as well: each ring strokes itself on over 1100ms with
- * cubic-bezier(.22,.61,.36,1), staggered 95ms outward after a 140ms beat, and
+ * The motion is the design's: each ring strokes itself on over 700ms with
+ * cubic-bezier(.2,.8,.2,1), staggered 95ms outward after a 140ms beat, and
  * then the whole thing breathes — a 1.2% scale on a slow sine, so the picture is
  * alive without moving. The core is left out of the drawing-on, because you were
  * already there before anything was noticed about you.
  */
-const DRAW_MS = 1100;
-const DRAW_EASING = Easing.bezier(0.22, 0.61, 0.36, 1);
+const DRAW_MS = 700;
+const DRAW_EASING = Easing.bezier(0.2, 0.8, 0.2, 1);
 const FIRST_DELAY_MS = 140;
 const STAGGER_MS = 95;
 /** The stylesheet's opacity for a tentative stroke, which the erosion rides on. */

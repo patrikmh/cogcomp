@@ -69,7 +69,7 @@ export function IdentityComposition({
       const length = path.getTotalLength();
       path.style.strokeDasharray = String(length);
       path.style.strokeDashoffset = String(length);
-      path.style.transition = "stroke-dashoffset 1100ms cubic-bezier(.22,.61,.36,1)";
+      path.style.transition = "stroke-dashoffset 700ms cubic-bezier(.2,.8,.2,1)";
       window.setTimeout(() => {
         path.style.strokeDashoffset = "0";
       }, 140 + i * 95);
