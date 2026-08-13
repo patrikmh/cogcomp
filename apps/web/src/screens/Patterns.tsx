@@ -12,7 +12,7 @@ import { Seal } from "@/lib/seal";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
 import { HEADINGS } from "@tlon/copy/headings";
-import { STRIP_CELLS } from "@tlon/design/marks";
+import { STRIP_CELLS, daysOfFortnight } from "@tlon/design/marks";
 
 /**
  * What keeps returning.
@@ -187,12 +187,8 @@ function Row({ pattern }: { pattern: Pattern }) {
         </div>
         <div className="p-met">
           <Meter confidence={pattern.confidence} />
-          {/* Only while the finding fits inside the fortnight: past it, "18 /
-              14" is nonsense and the count stands on its own. */}
           <span className="mono">
-            {pattern.distinct_days <= STRIP_CELLS
-              ? `${pattern.distinct_days} / ${STRIP_CELLS}`
-              : `${pattern.distinct_days} days`}
+            {daysOfFortnight(pattern.distinct_days).replace(" of ", " / ")}
           </span>
         </div>
       </Link>

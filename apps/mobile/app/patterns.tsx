@@ -10,10 +10,11 @@ import { MotionSurface } from "@/components/MotionSurface";
 import { Observatory } from "@/components/Observatory";
 import { Rise } from "@/components/Rise";
 import { Seal } from "@/components/Seal";
-import { STRIP_CELLS } from "@tlon/design/marks";
+import { STRIP_CELLS, daysOfFortnight } from "@tlon/design/marks";
 
 import { Composition } from "@/components/Composition";
 import { Strip } from "@/components/Strip";
+import { StripLegend } from "@/components/StripLegend";
 import { colors, fonts } from "@/theme";
 import { api, type Pattern, type Theme } from "@/lib/api";
 import { patternDestination, patternMeta } from "@/lib/patterns";
@@ -151,14 +152,17 @@ export default function PatternsScreen() {
                     the same nonsense a caption here once printed. Past the
                     window the count stands on its own. */}
                 <Text style={styles.metCount}>
-                  {pattern.distinct_days <= fortnight
-                    ? `${pattern.distinct_days} / ${fortnight}`
-                    : `${pattern.distinct_days} days`}
+                  {daysOfFortnight(pattern.distinct_days).replace(" of ", " / ")}
                 </Text>
               </View>
               {/* The fortnight it rests on. Which days is illustrative; how
                   many is the number in the line above. */}
               <Strip pattern={pattern} />
+              {/* What the strip is showing. A two-sided finding draws its
+                  halves in ink and sand, and nothing said which was which —
+                  two colours and no way to learn what they mean is worse than
+                  one colour, because it looks like it is telling you something. */}
+              <StripLegend pattern={pattern} />
               {/* What the finding is made of. A recurrence is a count over
                   readings, not a fact about a person, and unless those readings
                   are named and reachable the count is the end of the chain

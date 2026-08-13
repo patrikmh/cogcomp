@@ -221,3 +221,16 @@ export const WHORL_BUDGET = 20;
 export function readingBudget(patternCount: number): number {
   return Math.max(6, WHORL_BUDGET - patternCount);
 }
+
+/**
+ * A count of days, framed by the fortnight only when it fits inside one.
+ *
+ * "5 of 14 days" is informative; "18 of 14 days" is nonsense, and a record
+ * older than two weeks produces the second. The design's fixtures never exceed
+ * fourteen, so the framing always looks safe in the prototype — which is how
+ * this was written three times in three components before it was written once
+ * here.
+ */
+export function daysOfFortnight(days: number): string {
+  return days <= STRIP_CELLS ? `${days} of ${STRIP_CELLS}` : `${days}`;
+}
