@@ -76,20 +76,37 @@ export function sealRings(id: string): string[] {
  * because these are drawn large and a seal's roughness reads as texture at 34px
  * and as a wobble at 280.
  */
-export function loop(key: string, baseR: number, squash: number): string {
-  const rnd = seed(key);
-  const harmonics = [0, 1, 2].map(() => ({
+export function loop(key: string, baseR: number, squash?: number): string {
+  // The seal's PRNG, not the wordmark's. The design draws a contour loop with
+  // the same multiply-with-carry it draws a seal with — this used `seed`, the
+  // xorshift the wordmark uses, so every ring in the composition was a
+  // different shape from the one the design draws for the same reading.
+  let h = 0;
+  for (const c of key) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  const rnd = () => {
+    h = (h * 1664525 + 1013904223) >>> 0;
+    return h / 4294967296;
+  };
+  // Two harmonics, not three, and a shallower floor: `0.05 + rnd() * 0.12`.
+  const harmonics = [0, 1].map(() => ({
     f: 2 + Math.floor(rnd() * 4),
-    a: 0.04 + rnd() * 0.12,
+    a: 0.05 + rnd() * 0.12,
     p: rnd() * Math.PI * 2,
   }));
+  const squashed = squash ?? 0.9 + rnd() * 0.16;
   let d = "";
-  for (let i = 0; i <= 96; i++) {
-    const th = (i / 96) * Math.PI * 2;
+  // Sixty segments. Ninety-six was this port's own idea, on the grounds that a
+  // loop drawn at 280 needs more resolution than a seal at 34 — which is true
+  // of a circle and false of this shape, because the harmonics are what the eye
+  // reads and they are the same either way.
+  for (let i = 0; i <= 60; i++) {
+    const th = (i / 60) * Math.PI * 2;
     let r = baseR;
-    for (const h of harmonics) r += baseR * h.a * Math.sin(th * h.f + h.p);
+    for (const harmonic of harmonics) {
+      r += baseR * harmonic.a * Math.sin(th * harmonic.f + harmonic.p);
+    }
     const x = 140 + Math.cos(th) * r;
-    const y = 140 + Math.sin(th) * r * squash;
+    const y = 140 + Math.sin(th) * r * squashed;
     d += (i ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1);
   }
   return d + "Z";

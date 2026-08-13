@@ -1,3 +1,5 @@
+import { loop } from "@tlon/design/marks";
+
 import { fit, place, type Whorl } from "./HeadspaceMap";
 
 /**
@@ -79,11 +81,23 @@ describe("the headspace survey", () => {
       const [x, z, w, h] = fit(placed).split(" ").map(Number) as [number, number, number, number];
       expect(w).toBeGreaterThan(0);
       expect(h).toBeGreaterThan(0);
+      // Against the drawn path, not the nominal radius. A whorl's radius is
+      // the base its harmonics are applied to and the shape is usually smaller
+      // than it — so asserting the frame holds `x ± radius` was passing on a
+      // coincidence, and stopped the day the loop's harmonics matched the
+      // design's. What the frame must hold is what is drawn.
       for (const one of placed) {
-        expect(one.x - one.radius).toBeGreaterThanOrEqual(x);
-        expect(one.x + one.radius).toBeLessThanOrEqual(x + w);
-        expect(one.z - one.radius).toBeGreaterThanOrEqual(z);
-        expect(one.z + one.radius).toBeLessThanOrEqual(z + h);
+        const points = loop(one.id + "0", one.radius, 0.9)
+          .slice(1, -1)
+          .split(/[ML]/)
+          .filter(Boolean)
+          .map((pair) => pair.trim().split(" ").map(Number));
+        for (const [px, pz] of points) {
+          expect(px! + one.x - 140).toBeGreaterThanOrEqual(x);
+          expect(px! + one.x - 140).toBeLessThanOrEqual(x + w);
+          expect(pz! + one.z - 140).toBeGreaterThanOrEqual(z);
+          expect(pz! + one.z - 140).toBeLessThanOrEqual(z + h);
+        }
       }
     }
   });
