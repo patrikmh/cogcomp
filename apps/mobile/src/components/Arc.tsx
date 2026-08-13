@@ -25,6 +25,9 @@ const BAR_MS = 500;
 const BAR_STAGGER_MS = 24;
 const BAR_EASING = Easing.bezier(0.2, 0, 0, 1);
 const STRIP_HEIGHT = 34;
+/** The detail screen draws the same arc taller — `.x-strip.big` — because there
+ *  it is the subject rather than a line in a list. */
+const BIG_HEIGHT = 56;
 const EMPTY_HEIGHT = 4;
 
 export function Arc({
@@ -32,12 +35,15 @@ export function Arc({
   days,
   checkins,
   state,
+  big = false,
 }: {
   id: string;
   days: number;
   checkins: number;
   /** The app's own vocabulary: draft, active, paused, completed, cancelled. */
   state: string;
+  /** The detail screen's taller arc. */
+  big?: boolean;
 }) {
   const reduced = useReducedMotion();
   const started = state !== "draft";
@@ -69,7 +75,10 @@ export function Arc({
   }, [grow, id, reduced]);
 
   return (
-    <View style={styles.strip} accessibilityElementsHidden>
+    <View
+      style={[styles.strip, big && styles.stripBig]}
+      accessibilityElementsHidden
+    >
       {cells.map((on, i) => (
         <View key={i} style={styles.cell}>
           <Animated.View
@@ -80,9 +89,9 @@ export function Arc({
               on
                 ? {
                     transform: [
-                      { translateY: STRIP_HEIGHT / 2 },
+                      { translateY: (big ? BIG_HEIGHT : STRIP_HEIGHT) / 2 },
                       { scaleY: grow[i]! },
-                      { translateY: -STRIP_HEIGHT / 2 },
+                      { translateY: -(big ? BIG_HEIGHT : STRIP_HEIGHT) / 2 },
                     ],
                   }
                 : null,
@@ -96,6 +105,7 @@ export function Arc({
 
 const styles = StyleSheet.create({
   strip: { flexDirection: "row", gap: 3, height: STRIP_HEIGHT, alignItems: "flex-end", marginTop: 14 },
+  stripBig: { height: BIG_HEIGHT, marginTop: 18 },
   cell: { flex: 1, minWidth: 0, height: "100%", justifyContent: "flex-end" },
   bar: { width: "100%", borderTopLeftRadius: 2, borderTopRightRadius: 2, backgroundColor: colors.line },
   running: { backgroundColor: colors.cyan },

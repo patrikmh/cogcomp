@@ -12,6 +12,7 @@ import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
 import { radii } from "@tlon/design";
 import { type as scale } from "@tlon/design";
+import { Arc } from "@/components/Arc";
 import { SECTIONS } from "@tlon/copy/sections";
 
 const assessments: NonNullable<Experiment["outcome"]>["assessment"][] = ["met", "partly_met", "not_met", "unclear"];
@@ -50,7 +51,35 @@ export default function ExperimentDetail() {
   if (query.isError || !experiment) return <AtmosphericShell><View style={styles.screen}><Text accessibilityRole="alert" style={styles.error}>Could not load this experiment.</Text><MotionSurface onPress={refresh}><Text style={styles.link}>Reload</Text></MotionSurface></View></AtmosphericShell>;
   const mutationError = [transition, link, attach, saveObservation, complete, remove].find((m) => m.isError)?.error;
   return <AtmosphericShell variant="secondary"><ScrollView contentContainerStyle={styles.screen} accessibilityLabel="Experiment detail">
-    <Text style={styles.kicker}>EXPERIMENT · {experiment.state.toUpperCase()}</Text><Text style={styles.title}>{experiment.title}</Text>
+    <Text style={styles.kicker}>EXPERIMENT</Text><Text style={styles.title}>{experiment.title}</Text>
+    {/* The state as a pill, coloured by what it is: live while it runs, ink
+        once it is over, dotted while it is still a draft — the design's
+        `.x-state`. It was a word appended to the kicker, where it read as part
+        of the screen's name rather than as the thing that changes. */}
+    <View style={styles.stateRow}>
+      <Text
+        style={[
+          styles.state,
+          experiment.state === "active" && styles.stateRunning,
+          experiment.state === "completed" && styles.stateDone,
+          experiment.state === "draft" && styles.stateDraft,
+        ]}
+      >
+        {experiment.state}
+      </Text>
+      <Text style={styles.stateMeta}>
+        {experiment.checkins?.length ?? 0} of {experiment.duration_days} check-ins
+      </Text>
+    </View>
+    {/* The arc at the size the design gives it here: on this screen it is the
+        subject rather than a line in a list. */}
+    <Arc
+      id={experiment.id}
+      days={experiment.duration_days}
+      checkins={experiment.checkins?.length ?? 0}
+      state={experiment.state}
+      big
+    />
     <Text style={styles.body}>Optional self-observation, not diagnosis or medical treatment.</Text>
     {/* The design groups these under a heading rather than listing them bare
         under the title: the hypothesis, the action and the criterion are one
@@ -70,4 +99,22 @@ export default function ExperimentDetail() {
 }
 
 function Button({ label, accessibilityLabel, onPress, disabled }: { label: string; accessibilityLabel?: string; onPress: () => void; disabled?: boolean }) { return <MotionSurface accessibilityRole="button" accessibilityLabel={accessibilityLabel ?? label} accessibilityState={{ disabled }} onPress={onPress} disabled={disabled} style={[styles.button, disabled && styles.disabled]}><Text style={styles.buttonText}>{label}</Text></MotionSurface>; }
-const styles = StyleSheet.create({ aside: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: scale.meta.size }, screen: { padding: 20, gap: 14, paddingBottom: 48 }, kicker: { color: colors.cyan, fontFamily: fonts.sans, fontSize: 11, fontWeight: "700", letterSpacing: 1.4 }, title: { color: colors.ink, fontSize: scale.title.size, fontWeight: "700" }, body: { color: colors.ink, fontSize: 15, lineHeight: 22 }, meta: { color: colors.inkMuted, lineHeight: 20 }, actions: { flexDirection: "row", gap: 8, flexWrap: "wrap" }, button: { backgroundColor: colors.cyan, borderRadius: radii.surface, padding: 13, alignItems: "center" }, buttonText: { color: colors.room, fontWeight: "700" }, disabled: { opacity: 0.4 }, section: { gap: 9, marginTop: 8 }, heading: { color: colors.ink, fontWeight: "700", fontSize: 17 }, input: { minHeight: 90, padding: 12, borderRadius: radii.surface, backgroundColor: colors.surface, color: colors.ink, textAlignVertical: "top" }, pending: { borderWidth: 1, borderColor: colors.cyan }, pattern: { padding: 12, borderRadius: radii.surface, backgroundColor: colors.surface }, checkin: { padding: 12, borderRadius: radii.surface, borderWidth: 1, borderColor: colors.lineStrong, gap: 4 }, choices: { flexDirection: "row", flexWrap: "wrap", gap: 8 }, choice: { padding: 10, borderRadius: radii.surface, borderWidth: 1, borderColor: colors.lineStrong }, selected: { borderColor: colors.cyan }, confirmation: { padding: 14, borderRadius: radii.surface, borderWidth: 1, borderColor: colors.lineStrong, gap: 8 }, outcome: { padding: 14, borderRadius: radii.surface, backgroundColor: colors.surface, gap: 6 }, error: { color: colors.danger }, link: { color: colors.cyan, fontWeight: "700", paddingVertical: 8 } });
+const styles = StyleSheet.create({
+  stateRow: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 10 },
+  state: {
+    color: colors.inkMuted,
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    paddingVertical: 5,
+    paddingHorizontal: 9,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: 2,
+  },
+  stateRunning: { color: colors.cyan, borderColor: colors.cyan },
+  stateDone: { color: colors.ink, borderColor: colors.lineStrong },
+  stateDraft: { color: colors.inkMuted, borderStyle: "dotted" },
+  stateMeta: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: scale.meta.size },
+  aside: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: scale.meta.size }, screen: { padding: 20, gap: 14, paddingBottom: 48 }, kicker: { color: colors.cyan, fontFamily: fonts.sans, fontSize: 11, fontWeight: "700", letterSpacing: 1.4 }, title: { color: colors.ink, fontSize: scale.title.size, fontWeight: "700" }, body: { color: colors.ink, fontSize: 15, lineHeight: 22 }, meta: { color: colors.inkMuted, lineHeight: 20 }, actions: { flexDirection: "row", gap: 8, flexWrap: "wrap" }, button: { backgroundColor: colors.cyan, borderRadius: radii.surface, padding: 13, alignItems: "center" }, buttonText: { color: colors.room, fontWeight: "700" }, disabled: { opacity: 0.4 }, section: { gap: 9, marginTop: 8 }, heading: { color: colors.ink, fontWeight: "700", fontSize: 17 }, input: { minHeight: 90, padding: 12, borderRadius: radii.surface, backgroundColor: colors.surface, color: colors.ink, textAlignVertical: "top" }, pending: { borderWidth: 1, borderColor: colors.cyan }, pattern: { padding: 12, borderRadius: radii.surface, backgroundColor: colors.surface }, checkin: { padding: 12, borderRadius: radii.surface, borderWidth: 1, borderColor: colors.lineStrong, gap: 4 }, choices: { flexDirection: "row", flexWrap: "wrap", gap: 8 }, choice: { padding: 10, borderRadius: radii.surface, borderWidth: 1, borderColor: colors.lineStrong }, selected: { borderColor: colors.cyan }, confirmation: { padding: 14, borderRadius: radii.surface, borderWidth: 1, borderColor: colors.lineStrong, gap: 8 }, outcome: { padding: 14, borderRadius: radii.surface, backgroundColor: colors.surface, gap: 6 }, error: { color: colors.danger }, link: { color: colors.cyan, fontWeight: "700", paddingVertical: 8 } });
