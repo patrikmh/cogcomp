@@ -5,7 +5,7 @@ import { useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { radii, type as scale } from "@tlon/design";
 
-import { Kicker, Rule } from "@/components/Marks";
+import { Kicker, Meter, Rule } from "@/components/Marks";
 import { MotionSurface } from "@/components/MotionSurface";
 import { Observatory } from "@/components/Observatory";
 import { Rise } from "@/components/Rise";
@@ -136,6 +136,16 @@ export default function PatternsScreen() {
             <View style={styles.rowBody}>
               <Text style={styles.label}>{pattern.label}</Text>
               <Kicker>{patternMeta(pattern)}</Kicker>
+              {/* The same figure as a length, at the end of the row where the
+                  design puts it. "70% confident" is a phrase people skim; a bar
+                  visibly two thirds full is not, and a finding sits beside
+                  readings that are metered the same way. */}
+              <View style={styles.met}>
+                <Meter confidence={pattern.confidence} tentative={pattern.tentative} />
+                <Text style={styles.metCount}>
+                  {pattern.distinct_days} / {busiestDays}
+                </Text>
+              </View>
               {/* The fortnight it rests on. Which days is illustrative; how
                   many is the number in the line above. */}
               <Strip pattern={pattern} />
@@ -245,6 +255,8 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   rowBody: { flex: 1, gap: 6 },
+  met: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 2 },
+  metCount: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: scale.meta.size },
   label: { color: colors.ink, fontFamily: fonts.sans, fontSize: 16, lineHeight: 23 },
   actions: { flexDirection: "row", gap: 8, flexWrap: "wrap", marginTop: 10 },
   action: { borderWidth: 1, borderColor: colors.line, borderRadius: radii.surface, paddingVertical: 12, paddingHorizontal: 16 },
