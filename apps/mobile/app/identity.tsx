@@ -44,7 +44,7 @@ export default function IdentityScreen() {
   const scope = ["identity", userId] as const;
   const projection = useQuery<IdentityProjection>({
     queryKey: scope,
-    queryFn: () => api.identity(token!),
+    queryFn: () => api.identity(token!, true),
     enabled: Boolean(token && userId),
   });
   const candidates = useQuery<IdentityCandidates>({
@@ -76,7 +76,7 @@ export default function IdentityScreen() {
   // A removed reading is one the record still holds but no longer asserts — the
   // tombstone the note below the figures is about.
   const removedCount = everything.filter(
-    (node: IdentityNode) => node.epistemic_status === "user_rejected",
+    (node: IdentityNode) => node.status === "removed",
   ).length;
   const current = everything.find((node) => node.id === selected) ?? null;
   const isKept = current ? keptIds.has(current.id) : false;
@@ -97,8 +97,13 @@ export default function IdentityScreen() {
             kind: node.kind,
             confidence: node.confidence ?? 0,
             kept: keptIds.has(node.id),
-            tentative: !keptIds.has(node.id),
-            removed: false,
+            tentative: !keptIds.has(node.id) && node.status !== "removed",
+            // A reading you took back. The composition has always been able to
+            // draw one — dashed, faint, and not stroked on, because it is not
+            // arriving — but was passed `false` unconditionally, so the summary
+            // promised that removed readings stay as a tombstone while the
+            // picture beside it could never show one.
+            removed: node.status === "removed",
           }))}
           onSelect={(ring) => setSelected(ring.id)}
         />
@@ -207,7 +212,15 @@ function ringsForComposition(
 ): IdentityNode[] {
   const surestFirst = (a: IdentityNode, b: IdentityNode) =>
     (b.confidence ?? 0) - (a.confidence ?? 0);
+  // The projection's own status, as the web reads it: a reading you took
+  // back is "removed" there, which is not the same field as the epistemic
+  // status the extractor set.
+  const removed = (n: IdentityNode) => n.status === "removed";
   const mine = kept.filter((n) => keptIds.has(n.id)).sort(surestFirst);
-  const theirs = offered.filter((n) => !keptIds.has(n.id)).sort(surestFirst);
-  return [...mine, ...theirs].slice(0, 7);
+  const theirs = offered.filter((n) => !keptIds.has(n.id) && !removed(n)).sort(surestFirst);
+  // The tombstones go last and outside the budget of seven: they are the
+  // record of something taken back, and dropping them to make room for a
+  // live reading would lose exactly what the summary says is never lost.
+  const tombs = [...kept, ...offered].filter(removed).sort(surestFirst).slice(0, 2);
+  return [...[...mine, ...theirs].slice(0, 7), ...tombs];
 }

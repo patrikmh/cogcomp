@@ -682,8 +682,14 @@ export const api = {
     return request<GraphSummary>("/v1/graph/summary", token);
   },
 
-  identity(token: string) {
-    return request<IdentityProjection>("/v1/identity", token);
+  /** The projection. `withRemoved` also returns what the person took back —
+   *  the tombstones the identity screen says are never lost, which this client
+   *  never asked for and therefore could never draw. */
+  identity(token: string, withRemoved = false) {
+    return request<IdentityProjection>(
+      `/v1/identity${withRemoved ? "?include_removed=true" : ""}`,
+      token,
+    );
   },
 
   identityCandidates(token: string) {
