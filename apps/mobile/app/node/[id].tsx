@@ -19,6 +19,8 @@ import { colors, fonts } from "@/theme";
 import { radii } from "@tlon/design";
 import { type as scale } from "@tlon/design";
 import { Guide } from "@/components/Guide";
+import { HEADINGS } from "@tlon/copy/headings";
+import { SECTIONS } from "@tlon/copy/sections";
 
 /**
  * "Why do you think this?"
@@ -146,9 +148,16 @@ function Body({
           {/* The same mark as on the journal — arriving here from an entry, you
               should see the shape you tapped. */}
           <Seal id={node.id} size={34} />
-          <Kicker>Your entry</Kicker>
+          <Kicker>{HEADINGS.node.kicker}</Kicker>
         </View>
         <Text style={styles.headline}>{node.label}</Text>
+        {/* No guide on an entry: it is the person's own words and has nothing
+            to explain. The pill says what it is *not* — a claim — because that
+            is the distinction the whole record rests on. */}
+        <View style={styles.pills}>
+          <Text style={styles.pill}>{node.kind.toLowerCase()}</Text>
+          <Text style={styles.pill}>observation · makes no claim</Text>
+        </View>
         <Text style={styles.footnote}>
           This is something you wrote. Everything else in the graph is drawn from
           entries like this one.
@@ -164,18 +173,19 @@ function Body({
   return (
     <AtmosphericShell variant="secondary">
       <ScrollView contentContainerStyle={styles.screen}>
-      <Kicker>Evidence chain</Kicker>
-      <Rule />
-      <Kicker>{node.kind}</Kicker>
+      <Kicker>{HEADINGS.node.kicker}</Kicker>
       <View style={styles.headingRow}>
         <Text style={[styles.headline, styles.headlineFill]}>{node.label}</Text>
         <Guide id="node" />
       </View>
 
-      <View style={[styles.badge, tentative && styles.badgeTentative]}>
-        <Text style={styles.badgeText}>
-          {tentative ? "A tentative guess" : "A guess"} ·{" "}
-          {Math.round(confidence * 100)}% confident
+      {/* Kind, then how sure — two pills, as the design sets them. "Growing
+          vague" rather than "a tentative guess": a reading below the threshold
+          is not merely uncertain, it is fading, and the word says so. */}
+      <View style={styles.pills}>
+        <Text style={styles.pill}>{node.kind.toLowerCase()}</Text>
+        <Text style={[styles.pill, tentative && styles.pillTentative]}>
+          {tentative ? "growing vague" : "confident"} · {confidence.toFixed(2)}
         </Text>
       </View>
 
@@ -197,6 +207,16 @@ function Body({
         This is a hypothesis drawn from your own words, not a conclusion about
         you. It came from:
       </Text>
+
+      {/* The design heads the evidence rather than letting it follow a
+          sentence: "The acts behind it" names what the list is, so the entries
+          read as the reading's grounds and not as more prose. */}
+      <View style={styles.sectionRow}>
+        <Kicker heading>{SECTIONS.evidence.title}</Kicker>
+        <View style={styles.ruleFill}>
+          <Rule />
+        </View>
+      </View>
 
       <EvidenceRail label="Evidence chain from hypothesis to source">
       {derived_from.length === 0 ? (
@@ -257,6 +277,20 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
+  pills: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 12 },
+  sectionRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 22 },
+  ruleFill: { flex: 1 },
+  pill: {
+    color: colors.inkSoft,
+    fontFamily: fonts.mono,
+    fontSize: scale.meta.size,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: 2,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+  },
+  pillTentative: { color: colors.warning, borderColor: colors.warning },
   headingRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 6 },
   headlineFill: { flex: 1 },
   verdict: { gap: 8, marginTop: 18 },
