@@ -12,6 +12,7 @@ import { Seal } from "@/lib/seal";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
 import { HEADINGS } from "@tlon/copy/headings";
+import { STRIP_CELLS } from "@tlon/design/marks";
 
 /**
  * What keeps returning.
@@ -76,7 +77,6 @@ export function Patterns() {
   const found = patterns.data ?? [];
   const held = found.filter((p) => !p.tentative).sort((a, b) => b.distinct_days - a.distinct_days);
   const forming = found.filter((p) => p.tentative);
-  const busiest = Math.max(1, ...found.map((p) => p.occurrences));
   const strongest = held[0];
 
   return (
@@ -106,7 +106,7 @@ export function Patterns() {
             <span className="mono">strongest first</span>
           </div>
           {held.map((p) => (
-            <Row key={p.id} pattern={p} busiest={busiest} />
+            <Row key={p.id} pattern={p} />
           ))}
         </>
       )}
@@ -119,7 +119,7 @@ export function Patterns() {
             <span className="mono">tentative — they may not hold</span>
           </div>
           {forming.map((p) => (
-            <Row key={p.id} pattern={p} busiest={busiest} />
+            <Row key={p.id} pattern={p} />
           ))}
         </>
       )}
@@ -155,9 +155,14 @@ export function Patterns() {
   );
 }
 
-function Row({ pattern, busiest }: { pattern: Pattern; busiest: number }) {
+function Row({ pattern }: { pattern: Pattern }) {
   const [peek, setPeek] = useState<string | null>(null);
-  const strength = pattern.occurrences / busiest;
+  // Days against the fortnight, as the design divides it — its fixtures read
+  // `days: 9, busiest: 14`, and 14 is the window the strip below draws. This
+  // divided occurrences by the busiest finding, which compares a count of
+  // mentions to a different count of mentions and makes the strongest finding
+  // always full.
+  const strength = Math.min(pattern.distinct_days / STRIP_CELLS, 1);
   const composition = useQuery({
     queryKey: ["neighbours", pattern.id],
     queryFn: () => api.neighbours(pattern.id),
@@ -183,7 +188,7 @@ function Row({ pattern, busiest }: { pattern: Pattern; busiest: number }) {
         <div className="p-met">
           <Meter confidence={pattern.confidence} />
           <span className="mono">
-            {pattern.distinct_days} / {pattern.occurrences}
+            {pattern.distinct_days} / {STRIP_CELLS}
           </span>
         </div>
       </Link>

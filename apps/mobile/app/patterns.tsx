@@ -10,6 +10,8 @@ import { MotionSurface } from "@/components/MotionSurface";
 import { Observatory } from "@/components/Observatory";
 import { Rise } from "@/components/Rise";
 import { Seal } from "@/components/Seal";
+import { STRIP_CELLS } from "@tlon/design/marks";
+
 import { Composition } from "@/components/Composition";
 import { Strip } from "@/components/Strip";
 import { colors, fonts } from "@/theme";
@@ -87,11 +89,12 @@ export default function PatternsScreen() {
 
   const found: Pattern[] = patterns.data ?? [];
   const busiest = Math.max(...found.map((p) => p.occurrences), 1);
-  // The strength bar is sized in *days*, against the most days any finding here
-  // rests on — "sized against your own busiest fortnight", as the design says
-  // on the ordering screen. Sizing it against occurrences instead would compare
-  // a count of days to a count of mentions.
-  const busiestDays = Math.max(...found.map((p) => p.distinct_days), 1);
+  // Days against the fortnight, which is what the design divides by: its
+  // fixtures all read `busiest: 14`, and 14 is the same window the strip under
+  // each finding draws. Sizing against the busiest finding instead would make
+  // the strongest one always full, which says nothing — every record has a
+  // strongest. Sizing against occurrences would compare days to mentions.
+  const fortnight = STRIP_CELLS;
   const current = found.find((p) => p.id === selected) ?? null;
 
   return (
@@ -128,7 +131,7 @@ export default function PatternsScreen() {
             <View
               style={[
                 styles.power,
-                { width: `${Math.round((pattern.distinct_days / busiestDays) * 100)}%` },
+                { width: `${Math.round(Math.min(pattern.distinct_days / fortnight, 1) * 100)}%` },
               ]}
               pointerEvents="none"
             />
@@ -143,7 +146,7 @@ export default function PatternsScreen() {
               <View style={styles.met}>
                 <Meter confidence={pattern.confidence} tentative={pattern.tentative} />
                 <Text style={styles.metCount}>
-                  {pattern.distinct_days} / {busiestDays}
+                  {pattern.distinct_days} / {fortnight}
                 </Text>
               </View>
               {/* The fortnight it rests on. Which days is illustrative; how
