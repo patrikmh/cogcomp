@@ -1,5 +1,5 @@
 import { toneFor } from "@tlon/design";
-import { seed } from "@tlon/design/marks";
+import { EXPLORE_PANEL, explorePosition } from "@tlon/design/marks";
 import { useMemo } from "react";
 import { StyleSheet, View } from "react-native";
 import Svg, { Circle, Line } from "react-native-svg";
@@ -17,14 +17,15 @@ import { colors } from "@/theme";
  * silhouette. The head implied the record was a picture of a mind, which is a
  * claim the app does not get to make, and the sphere it rotated on implied
  * proximity meant something. The web's panel makes neither claim, and both
- * clients now read positions from the same `seed`, so a node sits in the same
- * place in both.
+ * clients place a node with the design's own `explorePosition`, so a node sits
+ * in the same place in both and in the same place the design would put it.
  *
  * Entries are left out, as on the web — they are the acts the readings hang off
  * rather than nodes in the same sense, and including them buries the structure
  * this screen exists to show.
  */
-const PANEL = { width: 800, height: 540 };
+/** The design's panel: 640x360, and every node placed on it by its id. */
+const PANEL = EXPLORE_PANEL;
 
 export interface GraphNode {
   id: string;
@@ -46,8 +47,7 @@ export function GraphPanel({
   const at = useMemo(() => {
     const map = new Map<string, { x: number; y: number }>();
     for (const node of drawn) {
-      const rnd = seed(node.id);
-      map.set(node.id, { x: 60 + rnd() * 680, y: 60 + rnd() * 420 });
+      map.set(node.id, explorePosition(node.id));
     }
     return map;
   }, [drawn]);

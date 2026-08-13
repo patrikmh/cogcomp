@@ -7,7 +7,7 @@ import { Meter } from "@/components/Meter";
 import { Failed, Loading } from "@/components/States";
 import { api } from "@/lib/api";
 import { fmt } from "@/lib/format";
-import { seed } from "@/lib/seal";
+import { EXPLORE_PANEL, explorePosition } from "@tlon/design/marks";
 import { toneFor } from "@tlon/design";
 import { Guide } from "@/components/Guide";
 import { HEADINGS } from "@tlon/copy/headings";
@@ -220,10 +220,7 @@ export function Explore() {
 
   const nodes = graph.data.nodes.filter((n) => n.kind !== "Observation");
   const at = new Map(
-    nodes.map((n) => {
-      const rnd = seed(n.id);
-      return [n.id, { x: 60 + rnd() * 680, y: 60 + rnd() * 420 }] as const;
-    }),
+    nodes.map((n) => [n.id, explorePosition(n.id)] as const),
   );
 
   return (
@@ -248,7 +245,7 @@ export function Explore() {
           the svg itself the rule matched nothing and the graph floated on the
           page with no edges to it. */}
       <div id="explore">
-        <svg viewBox="0 0 800 540" role="img" aria-label="The graph, as points and threads">
+        <svg viewBox={`0 0 ${EXPLORE_PANEL.width} ${EXPLORE_PANEL.height}`} role="img" aria-label="The graph, as points and threads">
           {graph.data.edges.map((e, i) => {
             const a = at.get(e.from_id);
             const b = at.get(e.to_id);

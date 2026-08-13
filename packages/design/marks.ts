@@ -270,3 +270,31 @@ export function readingBudget(patternCount: number): number {
 export function daysOfFortnight(days: number): string {
   return days <= STRIP_CELLS ? `${days} of ${STRIP_CELLS}` : `${days}`;
 }
+
+/**
+ * A single stable number in [0,1) for a key — the design's own hash.
+ *
+ * Distinct from `seed`, which returns a generator you call repeatedly. This
+ * returns one value per key, so `at(id + "x")` and `at(id + "y")` are
+ * independent and a node's position does not depend on the order anything was
+ * drawn in. The design uses it to place the explore graph, where the whole
+ * claim of the screen is that position is stable and means nothing.
+ */
+export function at(key: string): number {
+  let x = 0x9e3779b9;
+  for (let i = 0; i < key.length; i++) {
+    x ^= key.charCodeAt(i) + i * 0x85ebca6b;
+    x = Math.imul(x ^ (x >>> 15), 0x2545f491);
+    x = (x ^ (x >>> 13)) >>> 0;
+  }
+  return (x >>> 8) / 0x1000000;
+}
+
+/** The explore panel, and where a node sits on it. The design's numbers. */
+export const EXPLORE_PANEL = { width: 640, height: 360 };
+export function explorePosition(id: string): { x: number; y: number } {
+  return {
+    x: 70 + Math.round(at(id + "x") * 470),
+    y: 46 + Math.round(at(id + "y") * 268),
+  };
+}
