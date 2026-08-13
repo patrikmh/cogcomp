@@ -6,6 +6,7 @@ import { Failed, Loading } from "@/components/States";
 import { api } from "@/lib/api";
 import { fmt, stampOf } from "@/lib/format";
 import { Guide } from "@/components/Guide";
+import { HEADINGS } from "@tlon/copy/headings";
 
 /**
  * Where this came from.
@@ -39,9 +40,13 @@ export function Node() {
   if (is_observed) {
     return (
       <>
-        <span className="kicker">Where this came from</span>
+        <span className="kicker">{HEADINGS.node.kicker}</span>
         <h1>{node.label}</h1>
+        {/* The kind first, then what it is not. The design shows both on an
+            entry as it does on a reading; this showed only the second, so an
+            entry was the one node that never said what kind of thing it was. */}
         <div className="row" style={{ gap: 12 }}>
+          <span className="pill">{node.kind.toLowerCase()}</span>
           <span className="pill">observation · makes no claim</span>
         </div>
         <p className="sub" style={{ marginTop: 18 }}>
@@ -57,7 +62,7 @@ export function Node() {
 
   return (
     <>
-      <span className="kicker">Where this came from</span>
+      <span className="kicker">{HEADINGS.node.kicker}</span>
       <div className="guide-heading">
         <h1>{node.label}</h1>
         <Guide id="node" />

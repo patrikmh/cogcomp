@@ -54,11 +54,23 @@ function Body({ ordering }: { ordering: Ordering }) {
   return (
     <AtmosphericShell variant="secondary">
       <ScrollView contentContainerStyle={styles.screen}>
-        <Text style={styles.kicker}>WHAT CAME FIRST</Text>
+        {/* The design names the detector in the kicker — "Pattern · lag" —
+            so the reader knows which machine made the claim before reading it,
+            and says "still forming" where the finding has not settled. */}
+        <Text style={styles.kicker}>Pattern · what came first</Text>
         <View style={styles.headingRow}>
           <Text style={[styles.headline, styles.headlineFill]}>{ordering.label}</Text>
           <Guide id="pattern" />
         </View>
+
+        {/* The design puts a count and a caveat here — "N of M days · sized
+            against your own busiest fortnight, no absolute scale". This screen
+            is served by the ordering endpoint, which carries the occasions and
+            the gap but neither day count, so the caveat is stated without a
+            number rather than with an invented one. */}
+        <Text style={styles.tally}>
+          {`${occasions.length} ${occasions.length === 1 ? "occasion" : "occasions"} · counted in your own record, no absolute scale`}
+        </Text>
 
         {/* Said before the evidence rather than in a footnote. Someone reading a
             list of "this, then that" will supply a cause if nobody says not to. */}
@@ -143,6 +155,15 @@ function Side({
 }
 
 const styles = StyleSheet.create({
+  tally: {
+    color: colors.inkMuted,
+    fontFamily: fonts.mono,
+    fontSize: 10.5,
+    lineHeight: 17,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    marginTop: 10,
+  },
   headingRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 6 },
   headlineFill: { flex: 1 },
   screen: { backgroundColor: colors.room, padding: 20, gap: 14, paddingBottom: 48 },
