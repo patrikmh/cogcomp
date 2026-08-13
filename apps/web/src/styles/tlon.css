@@ -29,6 +29,9 @@
   #rail:not(:hover):not(:focus-within) a,#rail:not(:hover):not(:focus-within) .grp,
   #rail:not(:hover):not(:focus-within) .foot{pointer-events:none}
   #rail:hover,#rail:focus-within{width:252px}
+  /* Collapsed, only the current screen's key keeps its outline — the rest read
+     as glyphs rather than as a column of empty boxes. */
+  #rail:not(:hover):not(:focus-within) a:not([aria-current]) .key{border-color:transparent}
   #rail .logo{position:relative;height:58px;margin:2px 20px 18px;min-width:212px}
   #rail .logo img{position:absolute;left:0;top:50%;transform:translateY(-50%);transition:opacity .18s}
   #rail .logo .mark{width:150px;left:13px;top:34px;transform:translate(-50%,0);opacity:.9;
@@ -78,7 +81,8 @@
   .pill{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:3px;
     padding:6px 10px;font:400 12px/1 "IBM Plex Mono",monospace;color:var(--dim);background:var(--surface)}
   .pill.tent{border-style:dashed;color:var(--sand)}
-  .btn{border:1px solid var(--line);border-radius:3px;background:var(--surface);color:var(--ink);
+  .btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;
+    border:1px solid var(--line);border-radius:3px;background:var(--surface);color:var(--ink);
     padding:10px 14px;font:400 12px/1 "IBM Plex Mono",monospace;letter-spacing:.08em;cursor:pointer;
     text-transform:uppercase;transition:border-color .15s,background .15s}
   .btn:hover{border-color:var(--kept);background:var(--surface2)}
