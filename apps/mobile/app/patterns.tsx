@@ -87,6 +87,11 @@ export default function PatternsScreen() {
 
   const found: Pattern[] = patterns.data ?? [];
   const busiest = Math.max(...found.map((p) => p.occurrences), 1);
+  // The strength bar is sized in *days*, against the most days any finding here
+  // rests on — "sized against your own busiest fortnight", as the design says
+  // on the ordering screen. Sizing it against occurrences instead would compare
+  // a count of days to a count of mentions.
+  const busiestDays = Math.max(...found.map((p) => p.distinct_days), 1);
   const current = found.find((p) => p.id === selected) ?? null;
 
   return (
@@ -115,6 +120,18 @@ export default function PatternsScreen() {
             accessibilityRole="button"
             accessibilityLabel={pattern.label}
           >
+            {/* How strong this finding is, as a length behind the row: the
+                design's `.p-pow`, sized against the busiest finding in the
+                record and not against any absolute standard. A number says
+                five days; this says five days *compared to what*, which is the
+                only frame the record can honestly offer. */}
+            <View
+              style={[
+                styles.power,
+                { width: `${Math.round((pattern.distinct_days / busiestDays) * 100)}%` },
+              ]}
+              pointerEvents="none"
+            />
             <Seal id={pattern.id} size={40} stamp />
             <View style={styles.rowBody}>
               <Text style={styles.label}>{pattern.label}</Text>
@@ -207,7 +224,26 @@ const styles = StyleSheet.create({
     lineHeight: scale.title.line, letterSpacing: scale.title.tracking,
   },
   sub: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: scale.body.size, lineHeight: scale.body.line },
-  row: { flexDirection: "row", gap: 12, alignItems: "flex-start", paddingVertical: 12 },
+  row: {
+    flexDirection: "row",
+    gap: 12,
+    alignItems: "flex-start",
+    paddingVertical: 12,
+    position: "relative",
+    overflow: "hidden",
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+  },
+  power: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: colors.surface,
+    borderRightWidth: 1,
+    borderRightColor: colors.lineStrong,
+    opacity: 0.5,
+  },
   rowBody: { flex: 1, gap: 6 },
   label: { color: colors.ink, fontFamily: fonts.sans, fontSize: 16, lineHeight: 23 },
   actions: { flexDirection: "row", gap: 8, flexWrap: "wrap", marginTop: 10 },
