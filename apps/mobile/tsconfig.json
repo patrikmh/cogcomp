@@ -12,6 +12,7 @@
       "@tlon/copy/sections": ["../../packages/copy/sections.ts"],
       "@tlon/copy/headings": ["../../packages/copy/headings.ts"],
       "@tlon/copy/empty": ["../../packages/copy/empty.ts"],
+      "@tlon/copy/detectors": ["../../packages/copy/detectors.ts"],
       "@tlon/ontology": [
         "../../packages/ontology/index.ts"
       ],

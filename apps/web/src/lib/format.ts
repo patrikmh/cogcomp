@@ -1,5 +1,3 @@
-import type { Detector } from "./api";
-
 export const fmt = (c: number) => c.toFixed(2);
 
 /**
@@ -9,13 +7,9 @@ export const fmt = (c: number) => c.toFixed(2);
  * prose ("stated vs recorded"). Mapped in one place so no screen invents a
  * third vocabulary.
  */
-export const DETECTOR_LABEL: Record<Detector, string> = {
-  "exact-label": "recurrence",
-  weekday: "calendar shape",
-  lag: "ordering",
-  "same-day-order": "ordering, within a day",
-  "stated-vs-recorded": "stated vs recorded",
-};
+/** Re-exported so existing imports keep working; the list itself is shared
+ *  with the mobile client, which had none of its own. */
+export { DETECTOR_LABEL } from "@tlon/copy/detectors";
 
 /** Local ISO date, not toISOString — that converts to UTC and returns
  *  yesterday for anyone west of Greenwich in the evening. */

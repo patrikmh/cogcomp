@@ -18,6 +18,10 @@ export default defineConfig({
         replacement: fileURLToPath(new URL("../../packages/ontology/index.ts", import.meta.url)),
       },
       {
+        find: "@tlon/copy/detectors",
+        replacement: fileURLToPath(new URL("../../packages/copy/detectors.ts", import.meta.url)),
+      },
+      {
         find: "@tlon/copy/empty",
         replacement: fileURLToPath(new URL("../../packages/copy/empty.ts", import.meta.url)),
       },

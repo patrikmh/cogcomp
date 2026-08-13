@@ -6,7 +6,9 @@ import { AtmosphericShell } from "@/components/Atmospheric";
 import { Seal } from "@/components/Seal";
 import { MotionSurface } from "@/components/MotionSurface";
 import { ErrorLens, LoadingLens } from "@/components/SpatialField";
-import { api, type Occasion, type Ordering, type Written } from "@/lib/api";
+import { DETECTOR_LABEL } from "@tlon/copy/detectors";
+
+import { api, type Occasion, type Ordering, type Pattern, type Written } from "@/lib/api";
 import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
 import { radii } from "@tlon/design";
@@ -29,12 +31,23 @@ import { Guide } from "@/components/Guide";
 export default function PatternOrderingScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const token = useSession((s) => s.token);
+  const userId = useSession((s) => s.userId);
 
   const ordering = useQuery({
     queryKey: ["ordering", id],
     queryFn: () => api.patternOrdering(token!, id!),
     enabled: Boolean(token && id),
   });
+  // The ordering endpoint carries the occasions and the gap between them, but
+  // not how many days the finding rests on or which detector made it. Those
+  // live on the pattern, and the design states both under the title — so the
+  // pattern is read too rather than the numbers being left out or invented.
+  const patterns = useQuery({
+    queryKey: ["patterns", userId],
+    queryFn: () => api.listPatterns(token!),
+    enabled: Boolean(token),
+  });
+  const pattern = (patterns.data ?? []).find((p: Pattern) => p.id === id);
 
   if (!token) return null;
 
@@ -43,10 +56,10 @@ export default function PatternOrderingScreen() {
     return <ErrorLens label="This pattern has no ordered evidence." />;
   }
 
-  return <Body ordering={ordering.data} />;
+  return <Body ordering={ordering.data} pattern={pattern} />;
 }
 
-function Body({ ordering }: { ordering: Ordering }) {
+function Body({ ordering, pattern }: { ordering: Ordering; pattern?: Pattern }) {
   const router = useRouter();
   const { lag_days, occasions } = ordering;
   const gap = `${lag_days} ${lag_days === 1 ? "day" : "days"}`;
@@ -57,7 +70,13 @@ function Body({ ordering }: { ordering: Ordering }) {
         {/* The design names the detector in the kicker — "Pattern · lag" —
             so the reader knows which machine made the claim before reading it,
             and says "still forming" where the finding has not settled. */}
-        <Text style={styles.kicker}>Pattern · what came first</Text>
+        {/* The design names the detector that made the claim, and says when a
+            finding has not settled. */}
+        <Text style={styles.kicker}>
+          {`Pattern · ${pattern ? DETECTOR_LABEL[pattern.detector] ?? pattern.detector : "what came first"}${
+            pattern?.tentative ? " · still forming" : ""
+          }`}
+        </Text>
         <View style={styles.headingRow}>
           <Text style={[styles.headline, styles.headlineFill]}>{ordering.label}</Text>
           <Guide id="pattern" />
@@ -68,8 +87,13 @@ function Body({ ordering }: { ordering: Ordering }) {
             is served by the ordering endpoint, which carries the occasions and
             the gap but neither day count, so the caveat is stated without a
             number rather than with an invented one. */}
+        {/* "Sized against your own busiest fortnight, no absolute scale" is
+            the design's caveat and it earns its place: a count with no stated
+            frame invites comparison to a standard nobody set. */}
         <Text style={styles.tally}>
-          {`${occasions.length} ${occasions.length === 1 ? "occasion" : "occasions"} · counted in your own record, no absolute scale`}
+          {pattern
+            ? `${pattern.distinct_days} of ${pattern.occurrences} days · sized against your own busiest fortnight, no absolute scale`
+            : `${occasions.length} ${occasions.length === 1 ? "occasion" : "occasions"} · counted in your own record, no absolute scale`}
         </Text>
 
         {/* Said before the evidence rather than in a footnote. Someone reading a
