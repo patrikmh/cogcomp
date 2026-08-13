@@ -7,6 +7,7 @@ added because the one before it came back clean over a real fault.
 python3 scripts/parity/stylesheet.py '<design>/tlon.html'   # every rule, every value
 python3 scripts/parity/typography.py '<design>/tlon.html'   # every font declaration
 python3 scripts/parity/tokens.py '<design>/tlon.html'       # the palette, design against both clients
+python3 scripts/parity/motion.py '<design>/tlon-mobile.html' # every duration and easing, against mobile's constants
 python3 scripts/parity/states.py '<design>/tlon.html'       # every hover/focus rule, and whether it can fire
 scripts/parity/sweep.sh '<design>/tlon.html'                 # shape + copy, every route, both sides
 ```
