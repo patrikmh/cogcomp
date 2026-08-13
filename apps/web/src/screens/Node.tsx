@@ -29,6 +29,13 @@ export function Node() {
       // showing those have to be told.
       void client.invalidateQueries({ queryKey: ["patterns"] });
       void client.invalidateQueries({ queryKey: ["summary"] });
+      // The two clients had different lists here, each missing what the other
+      // remembered. These are the rest: the map and the graph draw the reading,
+      // the identity screen offers it, and a comparison between two weeks
+      // counts it.
+      void client.invalidateQueries({ queryKey: ["graph"] });
+      void client.invalidateQueries({ queryKey: ["identity"] });
+      void client.invalidateQueries({ queryKey: ["temporal"] });
     },
   });
 

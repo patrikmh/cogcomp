@@ -74,6 +74,13 @@ function Verdict({ nodeId, status }: { nodeId: string; status: string }) {
       void client.invalidateQueries({ queryKey: ["patterns"] });
       void client.invalidateQueries({ queryKey: ["temporal"] });
       void client.invalidateQueries({ queryKey: ["graph"] });
+      // Identity is one of those screens. A reading you have just rejected is
+      // still offered as a candidate there until something says otherwise,
+      // and the composition would go on drawing a ring for it.
+      void client.invalidateQueries({ queryKey: ["identity"] });
+      // And the day it was drawn on, which lists it under what the record
+      // stands behind.
+      void client.invalidateQueries({ queryKey: ["summary"] });
     },
   });
 
