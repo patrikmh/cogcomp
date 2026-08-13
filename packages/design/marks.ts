@@ -110,10 +110,19 @@ export function loopsOf(ring: { tentative?: boolean; removed?: boolean }): numbe
   return !ring.tentative && !ring.removed ? [0, 1] : [0];
 }
 
-/** Where ring `i` sits, and how much it is squashed. Shared so both clients
- *  space the composition identically. */
+/**
+ * Where ring `i` sits, and how much it is squashed. Shared so both clients
+ * space the composition identically.
+ *
+ * The design steps by 13, not 14. A pixel a ring sounds like nothing and is
+ * not: by the ninth ring — which this composition reaches once tombstones are
+ * drawn outside the budget of seven — the difference is eight pixels, and the
+ * outermost loop sits that much closer to the edge of a 280 box whose centre is
+ * at 140. The harmonics add up to a third of the base radius on top of that,
+ * so the outer ring is exactly where clipping would first show.
+ */
 export function ringRadius(i: number, k: number): number {
-  return 24 + i * 14 - k * 5;
+  return 24 + i * 13 - k * 5;
 }
 export function ringSquash(i: number): number {
   return 0.86 + (i % 3) * 0.05;
