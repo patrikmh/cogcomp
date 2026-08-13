@@ -13,6 +13,7 @@ import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
 import { radii } from "@tlon/design";
 import { type as scale } from "@tlon/design";
+import { Arc } from "@/components/Arc";
 import { HEADINGS } from "@tlon/copy/headings";
 import { SECTIONS } from "@tlon/copy/sections";
 
@@ -67,7 +68,11 @@ export default function ExperimentsScreen() {
     {experiments.isLoading && <ActivityIndicator accessibilityLabel="Loading experiments" color={colors.cyan} />}
     {experiments.isError && <View><Text accessibilityRole="alert" style={styles.error}>Could not load experiments.</Text><MotionSurface onPress={() => void experiments.refetch()}><Text style={styles.link}>Try again</Text></MotionSurface></View>}
     {!experiments.isLoading && !experiments.isError && all.length === 0 && <Text style={styles.intro}>Nothing started yet. An experiment is a question you decided to try.</Text>}
-    {all.map((experiment: Experiment) => <MotionSurface key={experiment.id} accessibilityRole="button" accessibilityLabel={`Open experiment ${experiment.title}`} onPress={() => router.push(`/experiment/${experiment.id}`)} style={styles.card}><Seal id={experiment.id} size={28} stamp /><View style={styles.cardBody}><Text style={styles.cardTitle}>{experiment.title}</Text><Text style={styles.meta}>{experiment.state} · {experiment.duration_days} days · {cadenceLabel[experiment.cadence]}</Text></View></MotionSurface>)}
+    {all.map((experiment: Experiment) => <MotionSurface key={experiment.id} accessibilityRole="button" accessibilityLabel={`Open experiment ${experiment.title}`} onPress={() => router.push(`/experiment/${experiment.id}`)} style={styles.card}><Seal id={experiment.id} size={28} stamp /><View style={styles.cardBody}><Text style={styles.cardTitle}>{experiment.title}</Text><Text style={styles.meta}>{experiment.state} · {experiment.checkins?.length ?? 0} of {experiment.duration_days} check-ins · {cadenceLabel[experiment.cadence]}</Text>
+      {/* The arc: one cell per day of the experiment, lit on the days it was
+          checked in. The list said how long an experiment runs and never how it
+          is going, which is the one thing you open this screen to see. */}
+      <Arc id={experiment.id} days={experiment.duration_days} checkins={experiment.checkins?.length ?? 0} state={experiment.state} /></View></MotionSurface>)}
 
     <View style={styles.sectionRow}>
       <Text style={styles.kicker}>Try a question</Text>

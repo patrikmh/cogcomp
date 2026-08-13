@@ -48,7 +48,8 @@ IMPLEMENTED_BY: dict[str, list[str]] = {
     # A finding's seal, stamped rather than stroked.
     "pSeal": ["Seal.tsx"],
     # Bars growing out of a baseline: a fortnight under a finding, and a week.
-    "pBar": ["Strip.tsx", "WeekChart.tsx"],
+    # A fortnight under a finding, a week's columns, and an experiment's arc.
+    "pBar": ["Strip.tsx", "WeekChart.tsx", "Arc.tsx"],
     # A confidence meter filling from zero.
     "sMeter": ["Marks.tsx"],
     # The wash behind a search match.
