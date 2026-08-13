@@ -27,6 +27,10 @@ const DIM_HEIGHT = 3;
 /** The strip's own height, so a bar can be pinned to its baseline while it
  *  grows — React Native scales about the centre, CSS about the origin. */
 const STRIP_HEIGHT = 26;
+/** The other half of a pair is drawn shorter as well as differently coloured —
+ *  `.p-bar.r` is 55% tall — so a glance separates the two sides by shape and
+ *  not by colour alone. */
+const SECOND_HEIGHT = "55%";
 
 export function Strip({ pattern }: {
   pattern: { id: string; detector: string; distinct_days: number; occurrences: number };
@@ -71,7 +75,9 @@ export function Strip({ pattern }: {
             <Animated.View
               style={[
                 styles.bar,
-                dim ? { height: DIM_HEIGHT } : { height: "100%" },
+                dim
+                  ? { height: DIM_HEIGHT }
+                  : { height: other && !on ? SECOND_HEIGHT : "100%" },
                 dim && styles.dim,
                 other && !on ? styles.secondSide : null,
                 // A hairline day does not grow: there is nothing there to rise.
@@ -102,6 +108,8 @@ const styles = StyleSheet.create({
   // Grown from the bottom, as `transform-origin: bottom` does on the web.
   bar: { width: "100%", borderTopLeftRadius: 2, borderTopRightRadius: 2, backgroundColor: colors.ink },
   dim: { backgroundColor: colors.line },
-  /** The other half of a pair, never on a day the first side holds. */
-  secondSide: { backgroundColor: colors.lineStrong },
+  /** The other half of a pair, never on a day the first side holds. Sand at
+   *  three quarters, as the design draws it: the recorded side of a
+   *  stated-versus-recorded finding, or the later half of an ordering. */
+  secondSide: { backgroundColor: colors.warning, opacity: 0.75 },
 });
