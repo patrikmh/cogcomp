@@ -51,8 +51,14 @@ export const radii = { surface: 3, chip: 2, pill: 999 } as const;
 
 export const type = {
   body: { size: 16, line: 23, weight: "400" },
-  title: { size: 25, line: 30, weight: "700", tracking: -0.4 },
-  heading: { size: 17, line: 24, weight: "600" },
+  /** `h1` in the design: 25/28, tracked -.01em. The line height was 30 here,
+   *  which opens a two-line title by two pixels more than the design sets and
+   *  is visible on every screen that wraps its heading. */
+  title: { size: 25, line: 28, weight: "700", tracking: -0.4 },
+  /** `h2`: 16/22 at 600. This was 17/24 — a size the design does not use for a
+   *  heading at all, which made every section heading a point larger than the
+   *  body it sat above rather than the same size in a heavier weight. */
+  heading: { size: 16, line: 22, weight: "600" },
   meta: { size: 12, line: 17, weight: "400" },
   /** Uppercase mono labels. The letter-spacing is what makes them read as
    *  instrument markings rather than as shouting. */
