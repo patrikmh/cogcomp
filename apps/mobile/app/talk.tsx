@@ -331,7 +331,9 @@ export default function TalkScreen() {
             style={styles.input}
             value={draft}
             onChangeText={setDraft}
-            placeholder="Say something…"
+            // The design's words. "Say something" asks for speech; "say what
+            // happened" asks for the thing this app is for.
+            placeholder="Say what happened"
             multiline
             editable={Boolean(conversationId) && !say.isPending}
           />
@@ -356,7 +358,10 @@ export default function TalkScreen() {
             onPress={() => finish.mutate()}
           >
             <Text style={[styles.finishLabel, focus && styles.finishLabelFocus]}>
-              {finish.isPending ? "Saving…" : "Finish & save"}
+              {/* The design says what closing does rather than that it saves:
+                  "close · keeps your turns". Which turns are kept is the
+                  question someone has while deciding whether to close. */}
+              {finish.isPending ? "Saving…" : "Close · keeps your turns"}
             </Text>
           </MotionSurface>
           {/* The design puts this on the talk screen and the web client has it;
