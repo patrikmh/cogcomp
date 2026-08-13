@@ -10,6 +10,7 @@ import { MotionSurface } from "@/components/MotionSurface";
 import { Observatory } from "@/components/Observatory";
 import { Rise } from "@/components/Rise";
 import { Seal } from "@/components/Seal";
+import { Composition } from "@/components/Composition";
 import { Strip } from "@/components/Strip";
 import { colors, fonts } from "@/theme";
 import { api, type Pattern, type Theme } from "@/lib/api";
@@ -121,6 +122,11 @@ export default function PatternsScreen() {
               {/* The fortnight it rests on. Which days is illustrative; how
                   many is the number in the line above. */}
               <Strip pattern={pattern} />
+              {/* What the finding is made of. A recurrence is a count over
+                  readings, not a fact about a person, and unless those readings
+                  are named and reachable the count is the end of the chain
+                  rather than a step in it. */}
+              <Composition token={token!} patternId={pattern.id} />
               {/* No caption under the strip. The line above already states the
                   true count — "8 entries across 7 days" — and the caption I put
                   here restated it from `distinct_days`, which is not capped at

@@ -692,6 +692,17 @@ export const api = {
     );
   },
 
+  /** The readings a finding is made of — its SUPPORTS neighbours. The web
+   *  client has had this since it was ported; this one never asked, so a
+   *  recurrence here could not be decomposed into the readings behind it. */
+  neighbours(token: string, nodeId: string) {
+    return request<{
+      node: GraphNode;
+      neighbours: (GraphNode & { cites_entries?: number })[];
+      edges: { from_id: string; to_id: string }[];
+    }>(`/v1/graph/nodes/${nodeId}/neighbours`, token);
+  },
+
   identityCandidates(token: string) {
     return request<IdentityCandidates>("/v1/identity/candidates", token);
   },
