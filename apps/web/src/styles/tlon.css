@@ -179,7 +179,7 @@
   .j-entry.latest .j-act p{font-size:19px;line-height:30px}
   .j-seal{transition:transform .3s cubic-bezier(.2,.8,.2,1),opacity .2s}
   .j-act:hover .j-seal{transform:scale(1.07) rotate(4deg);opacity:1}
-  #cap:focus-within{border-color:var(--line2)}
+  #cap:focus-within{border-bottom-color:var(--ink)}
   /* The composer is focused on arrival, and a ring drawn around it on every
      visit is a shout where the design wanted a caret. The bar's own border
      lighting is the affordance here, and a text field shows a caret besides. */
@@ -437,7 +437,7 @@
   .talk-crisis{position:absolute;bottom:44px;left:50%;transform:translateX(-50%);max-width:420px;text-align:center;color:var(--muted);background:var(--panel);border:1px solid var(--line);padding:16px 20px}
 
   /* ---------- orb stage (headspace) ---------- */
-  #orbwrap{position:relative;flex:1 1 auto;min-height:500px;margin:2px 0 6px}
+  #orbwrap{position:relative;flex:1 1 auto;height:auto;min-height:0;margin:0 0 2px}
   #orbwrap::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:1;
     background:radial-gradient(120% 95% at 50% 42%,transparent 58%,rgba(5,8,7,.55) 100%)}
   #readout{position:absolute;left:0;bottom:14px;z-index:3;width:100%;
