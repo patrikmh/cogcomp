@@ -3,7 +3,6 @@ import {
   loop,
   loopsOf,
   ringRadius,
-  ringSquash,
 } from "@tlon/design/marks";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Easing, View } from "react-native";
@@ -21,8 +20,9 @@ import { colors } from "@/theme";
  *
  * The same composition the web draws, from the same geometry: `loop` places the
  * contours, `loopsOf` decides how many each ring gets, and the two clients space
- * them identically because `ringRadius` and `ringSquash` are shared rather than
- * copied. This replaces a head silhouette with points floating inside it, which
+ * them identically because `ringRadius` is shared rather than copied, and
+ * because neither passes a squash — the design lets `loop` draw its own from
+ * the same generator that shapes the harmonics. This replaces a head silhouette with points floating inside it, which
  * was this client's own idea and said nothing the rings do not.
  *
  * The motion is the web's as well: each ring strokes itself on over 1100ms with
@@ -97,7 +97,7 @@ export function IdentityComposition({
       rings.map((ring, i) =>
         loopsOf(ring).map((k) => ({
           key: `${ring.id}-${k}`,
-          d: loop(ring.id + k, ringRadius(i, k), ringSquash(i)),
+          d: loop(ring.id + k, ringRadius(i, k)),
           ring,
           i,
         })),

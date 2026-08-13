@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { loop, loopsOf, ringRadius, ringSquash } from "@tlon/design/marks";
+import { loop, loopsOf, ringRadius } from "@tlon/design/marks";
 
 /**
  * Identity, drawn as concentric contours.
@@ -120,7 +120,7 @@ export function IdentityComposition({
               <path
                 key={k}
                 className="id-path"
-                d={loop(ring.id + k, ringRadius(i, k), ringSquash(i))}
+                d={loop(ring.id + k, ringRadius(i, k))}
               />
             ))}
           </g>

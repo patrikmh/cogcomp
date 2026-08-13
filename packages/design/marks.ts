@@ -141,6 +141,16 @@ export function loopsOf(ring: { tentative?: boolean; removed?: boolean }): numbe
 export function ringRadius(i: number, k: number): number {
   return 24 + i * 13 - k * 5;
 }
+/**
+ * How much a ring is squashed.
+ *
+ * Kept for the headspace map, which places whorls itself and needs a stable
+ * squash per whorl. The identity composition no longer calls it: the design
+ * passes no squash there and lets `loop` draw its own from the same PRNG that
+ * shapes the harmonics, so a ring's roundness varies with its id rather than
+ * with its position in the stack. Three ranks of squash repeating every third
+ * ring is a pattern the eye finds, and there is nothing behind it.
+ */
 export function ringSquash(i: number): number {
   return 0.86 + (i % 3) * 0.05;
 }
