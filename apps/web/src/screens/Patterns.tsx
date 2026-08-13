@@ -187,8 +187,12 @@ function Row({ pattern }: { pattern: Pattern }) {
         </div>
         <div className="p-met">
           <Meter confidence={pattern.confidence} />
+          {/* Only while the finding fits inside the fortnight: past it, "18 /
+              14" is nonsense and the count stands on its own. */}
           <span className="mono">
-            {pattern.distinct_days} / {STRIP_CELLS}
+            {pattern.distinct_days <= STRIP_CELLS
+              ? `${pattern.distinct_days} / ${STRIP_CELLS}`
+              : `${pattern.distinct_days} days`}
           </span>
         </div>
       </Link>

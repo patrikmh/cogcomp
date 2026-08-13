@@ -145,8 +145,15 @@ export default function PatternsScreen() {
                   readings that are metered the same way. */}
               <View style={styles.met}>
                 <Meter confidence={pattern.confidence} tentative={pattern.tentative} />
+                {/* Days over the fortnight — but only while the finding fits
+                    inside one. A record older than two weeks produces findings
+                    resting on more days than the window has, and "18 / 14" is
+                    the same nonsense a caption here once printed. Past the
+                    window the count stands on its own. */}
                 <Text style={styles.metCount}>
-                  {pattern.distinct_days} / {fortnight}
+                  {pattern.distinct_days <= fortnight
+                    ? `${pattern.distinct_days} / ${fortnight}`
+                    : `${pattern.distinct_days} days`}
                 </Text>
               </View>
               {/* The fortnight it rests on. Which days is illustrative; how
