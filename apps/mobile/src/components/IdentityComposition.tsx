@@ -35,6 +35,8 @@ const DRAW_MS = 1100;
 const DRAW_EASING = Easing.bezier(0.22, 0.61, 0.36, 1);
 const FIRST_DELAY_MS = 140;
 const STAGGER_MS = 95;
+/** The stylesheet's opacity for a tentative stroke, which the erosion rides on. */
+const TENTATIVE_STROKE_OPACITY = 0.55;
 
 export interface Ring {
   id: string;
@@ -58,12 +60,16 @@ export function IdentityComposition({
   const reduced = useReducedMotion();
   const [progress, setProgress] = useState(reduced ? 1 : 0);
   const [breath, setBreath] = useState(1);
+  // Seconds since arrival, on the same clock as the breath. The tentative
+  // rings erode against it.
+  const [seconds, setSeconds] = useState(0);
   const started = useRef(0);
 
   useEffect(() => {
     if (reduced) {
       setProgress(1);
       setBreath(1);
+      setSeconds(0);
       return;
     }
     setProgress(0);
@@ -75,6 +81,7 @@ export function IdentityComposition({
       const elapsed = Date.now() - started.current;
       setProgress(Math.min(elapsed / (DRAW_MS + FIRST_DELAY_MS + rings.length * STAGGER_MS), 1));
       setBreath(1 + Math.sin((elapsed / 1000) * 0.5) * 0.012);
+      setSeconds(elapsed / 1000);
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
@@ -105,6 +112,28 @@ export function IdentityComposition({
     [rings],
   );
 
+  /** Where ring `i` sits among the tentative ones, which is what the erosion
+   *  phases against — a ring's position in the full list would smear the
+   *  phases apart as settled readings accumulated between them. */
+  const tentativeOrder = useMemo(() => {
+    const order = new Map<number, number>();
+    let n = 0;
+    rings.forEach((ring, i) => {
+      if (ring.tentative && !ring.removed) order.set(i, n++);
+    });
+    return order;
+  }, [rings]);
+
+  /** A tentative ring will not hold still: the record is not sure of it, and
+   *  the design says so by eroding it rather than dimming it to a fixed value.
+   *  The web draws this as a group opacity over the stylesheet's .55 on the
+   *  stroke; there is no group to nest here, so the two are multiplied. */
+  const tentativeOpacity = (i: number) => {
+    if (reduced) return TENTATIVE_STROKE_OPACITY;
+    const n = tentativeOrder.get(i) ?? 0;
+    return TENTATIVE_STROKE_OPACITY * (0.4 + Math.sin(seconds * 0.8 + n * 1.3) * 0.16);
+  };
+
   return (
     <View accessibilityLabel="What has been noticed about you, as rings">
       <Svg
@@ -124,7 +153,9 @@ export function IdentityComposition({
               fill="none"
               stroke={strokeFor(ring)}
               strokeWidth={ring.tentative || ring.removed ? 1 : 1.1}
-              strokeOpacity={ring.removed ? 0.4 : ring.tentative ? 0.55 : 1}
+              strokeOpacity={
+                ring.removed ? 0.4 : ring.tentative ? tentativeOpacity(i) : 1
+              }
               strokeDasharray={ring.removed ? "2 4" : "1"}
               {...({ pathLength: 1 } as object)}
               strokeDashoffset={ring.removed ? 0 : 1 - drawnAt(i)}

@@ -77,13 +77,25 @@ export function IdentityComposition({
 
     // And then it breathes, very slightly, so the picture is alive without
     // moving. Stopped on unmount so navigating away leaves nothing running.
+    //
+    // The tentative rings erode on the same clock, each on its own phase. A
+    // tentative reading is one the record is not yet sure of, and the design
+    // says so by refusing to let it hold a steady opacity — the stylesheet's
+    // flat `.55` states the same thing and then sits there, which reads as
+    // settled. Nothing else on the composition wavers.
     let alive = true;
     let raf = 0;
     const start = performance.now();
+    const tentative = Array.from(
+      svg.querySelectorAll<SVGGElement>(".id-ring.tent"),
+    );
     const breathe = (now: number) => {
       if (!alive) return;
       const t = (now - start) / 1000;
       svg.style.transform = `scale(${1 + Math.sin(t * 0.5) * 0.012})`;
+      tentative.forEach((ring, i) => {
+        ring.style.opacity = String(0.4 + Math.sin(t * 0.8 + i * 1.3) * 0.16);
+      });
       raf = requestAnimationFrame(breathe);
     };
     raf = requestAnimationFrame(breathe);
