@@ -50,6 +50,10 @@ export function Patterns() {
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: ["patterns", userId] });
       void client.invalidateQueries({ queryKey: ["themes", userId] });
+      // Mining writes pattern nodes into the graph; the map and the graph
+      // screen draw them. The mobile client refreshed this and this one did
+      // not.
+      void client.invalidateQueries({ queryKey: ["graph"] });
     },
   });
 

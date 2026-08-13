@@ -58,6 +58,9 @@ export default function PatternsScreen() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["patterns", userId] });
       void queryClient.invalidateQueries({ queryKey: ["graph"] });
+      // Mining produces regions as well as recurrences, and this screen shows
+      // both now. Without this, "Look again" refreshed half of what it found.
+      void queryClient.invalidateQueries({ queryKey: ["themes", userId] });
     },
   });
 

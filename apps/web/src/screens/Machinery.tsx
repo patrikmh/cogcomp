@@ -26,7 +26,15 @@ export function Agents() {
   const runs = useQuery({ queryKey: ["agent-runs"], queryFn: () => api.agentRuns(50) });
   const run = useMutation({
     mutationFn: api.runAgents,
-    onSuccess: () => void client.invalidateQueries({ queryKey: ["agent-runs"] }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["agent-runs"] });
+      // A run that did work changes what the findings screens hold. The mobile
+      // client refreshed these and this one did not, so a manual run here
+      // reported itself and nothing else.
+      void client.invalidateQueries({ queryKey: ["patterns"] });
+      void client.invalidateQueries({ queryKey: ["themes"] });
+      void client.invalidateQueries({ queryKey: ["graph"] });
+    },
   });
 
   if (runs.isLoading) return <Loading />;
