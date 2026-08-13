@@ -19,6 +19,9 @@ import { colors, fonts } from "@/theme";
  * made of readings the app is more and less sure of, and a chip that hides that
  * makes them all look equally solid.
  */
+/** How many chips fit before the row becomes a wall. */
+const SHOWN = 6;
+
 export function Composition({
   token,
   patternId,
@@ -40,7 +43,7 @@ export function Composition({
       {made.length === 0 ? (
         <Text style={[styles.chip, styles.gone]}>nothing drawn from entries yet</Text>
       ) : (
-        made.slice(0, 6).map((reading) => (
+        made.slice(0, SHOWN).map((reading) => (
           <MotionSurface
             key={reading.id}
             onPress={() => router.push(`/node/${reading.id}`)}
@@ -52,6 +55,13 @@ export function Composition({
             </Text>
           </MotionSurface>
         ))
+      )}
+      {/* What is not shown, said rather than dropped. The design's findings are
+          made of one or two readings and the row never overflows there; a real
+          one can be made of a dozen, and a list that silently keeps the first
+          six looks complete. */}
+      {made.length > SHOWN && (
+        <Text style={styles.more}>{`+${made.length - SHOWN} more`}</Text>
       )}
     </View>
   );
@@ -79,4 +89,5 @@ const styles = StyleSheet.create({
   /** A reading the record is no longer sure of: dotted and dimmed, as the
    *  design draws `.c.gone`. */
   gone: { borderStyle: "dotted", opacity: 0.6 },
+  more: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: 10, letterSpacing: 0.6 },
 });

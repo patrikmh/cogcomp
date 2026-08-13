@@ -49,7 +49,11 @@ export function Arc({
   const started = state !== "draft";
   const cells = Array.from({ length: Math.max(1, Math.min(days, 42)) }, (_, i) => {
     const rnd = seed(`${id}:${i}`);
-    return started && rnd() < checkins / Math.max(1, days);
+    // Clamped: an experiment can hold more check-ins than it has days — two on
+    // one day is ordinary — and an unclamped ratio lights every cell, which
+    // reads as "checked in daily, without fail" for a record that says no such
+    // thing.
+    return started && rnd() < Math.min(checkins / Math.max(1, days), 1);
   });
   const grow = useRef(cells.map(() => new Animated.Value(reduced ? 1 : 0))).current;
 
