@@ -54,7 +54,9 @@ export const type = {
   /** `h1` in the design: 25/28, tracked -.01em. The line height was 30 here,
    *  which opens a two-line title by two pixels more than the design sets and
    *  is visible on every screen that wraps its heading. */
-  title: { size: 25, line: 28, weight: "700", tracking: -0.4 },
+  //  Tracking is stated in pixels because React Native has no `em`; the design
+  //  sets -.01em on a 25px title, which is -0.25 and not the -0.4 this carried.
+  title: { size: 25, line: 28, weight: "700", tracking: -0.25 },
   /** `h2`: 16/22 at 600. This was 17/24 — a size the design does not use for a
    *  heading at all, which made every section heading a point larger than the
    *  body it sat above rather than the same size in a heavier weight. */
@@ -62,7 +64,9 @@ export const type = {
   meta: { size: 12, line: 17, weight: "400" },
   /** Uppercase mono labels. The letter-spacing is what makes them read as
    *  instrument markings rather than as shouting. */
-  kicker: { size: 11, line: 14, weight: "500", tracking: 1.8 },
+  //  .14em on 11px is 1.54. This said 1.8, which is a sixth wider than the
+  //  design sets and adds up across a word of uppercase mono.
+  kicker: { size: 11, line: 14, weight: "500", tracking: 1.54 },
 } as const;
 
 export type ColorToken = keyof typeof colors;
