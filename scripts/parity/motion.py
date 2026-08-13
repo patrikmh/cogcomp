@@ -18,14 +18,12 @@ mobile client's constants. A constant the client has and the design does not is
 reported but allowed — the port has states the prototype never had, and some of
 them legitimately need motion the design never named.
 
-What this cannot tell you: the check is over the *set* of values the client
-uses, not over which component uses which. If a seal is given the strip's curve
-and the strip keeps its own, both curves are still present and this passes. It
-catches a value dropped or mistyped out of the codebase entirely, which is the
-transcription error it was written for; it does not catch two components
-swapping. Tested by hand: retyping `DRAW_MS = 900` as 950 fails with
-"jSealDraw: 900ms", and changing that component's easing alone does not fail,
-because `sMark` shares the curve.
+Each of the design's animations is also tied to the component that implements
+it, so a curve swapped between two components fails rather than passing because
+both values are still present somewhere. That mapping is the one thing here a
+person has to maintain: a new screen animating in a new way needs a line in
+`IMPLEMENTED_BY`, and a design animation this client has no equivalent for
+belongs there as `None` with a reason.
 """
 
 import pathlib
@@ -36,28 +34,59 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 MOBILE = ROOT / "apps/mobile/src/components"
 MOBILE_APP = ROOT / "apps/mobile/app"
 
+# Which file must carry each animation's numbers. The design names a motion;
+# this says where it lives, so a curve moved from one component to another is
+# a failure rather than a value that happens to still exist somewhere.
+IMPLEMENTED_BY: dict[str, list[str]] = {
+    # An act rising into the journal, and the same arrival on record screens.
+    "jEnter": ["Rise.tsx"],
+    "sUp": ["Rise.tsx"],
+    # An act's seal drawing itself on, in both the journal's and the record
+    # screens' vocabulary.
+    "jSealDraw": ["Seal.tsx"],
+    "sSeal": ["Seal.tsx"],
+    # A finding's seal, stamped rather than stroked.
+    "pSeal": ["Seal.tsx"],
+    # Bars growing out of a baseline: a fortnight under a finding, and a week.
+    "pBar": ["Strip.tsx", "WeekChart.tsx"],
+    # A confidence meter filling from zero.
+    "sMeter": ["Marks.tsx"],
+    # The wash behind a search match.
+    "sMark": ["search.tsx"],
+}
 
-def design_animations(html: str) -> dict[str, tuple[float, str]]:
-    """Every `animation: <name> <duration> <easing>` the design declares."""
-    found: dict[str, tuple[float, str]] = {}
+
+def design_animations(html: str) -> dict[str, set[tuple[int, str]]]:
+    """Every `animation: <name> <duration> <easing>` the design declares.
+
+    A keyframe can be declared at more than one duration and both are the
+    design's: `pBar` grows a finding's fortnight over .5s and a week's column
+    over .45s, and `sSeal` draws at .8s in one place and .9s in another. So
+    every pair is kept, and a component satisfies the check by using any of
+    them — reducing this to one number per name is what made the week's columns
+    read as wrong when they were right.
+    """
+    found: dict[str, set[tuple[int, str]]] = {}
     for match in re.finditer(
         r"animation:\s*([\w-]+)\s+([\d.]+)s\s+(cubic-bezier\([^)]*\)|linear|ease[\w-]*)",
         html,
     ):
-        name, seconds, easing = match.group(1), float(match.group(2)), match.group(3)
-        # A name can appear with two durations — the design draws a seal at .8s
-        # in one place and .9s in another. Keep the longest, which is the one
-        # the screens this client ports use.
-        if name not in found or seconds > found[name][0]:
-            found[name] = (seconds, easing.replace(" ", ""))
+        name = match.group(1)
+        pair = (round(float(match.group(2)) * 1000), match.group(3).replace(" ", ""))
+        found.setdefault(name, set()).add(pair)
     return found
 
 
-def mobile_source() -> str:
-    parts = []
+def mobile_files() -> dict[str, str]:
+    """Every mobile source file that could carry a motion constant, by name."""
+    out: dict[str, str] = {}
     for path in sorted(MOBILE.rglob("*.tsx")) + sorted(MOBILE_APP.rglob("*.tsx")):
-        parts.append(path.read_text())
-    return "\n".join(parts)
+        out[path.name] = path.read_text()
+    return out
+
+
+def mobile_source(files: dict[str, str]) -> str:
+    return "\n".join(files.values())
 
 
 def milliseconds(source: str) -> set[int]:
@@ -86,7 +115,8 @@ def main() -> int:
 
     html = pathlib.Path(sys.argv[1]).read_text()
     design = design_animations(html)
-    source = mobile_source()
+    files = mobile_files()
+    source = mobile_source(files)
     have_ms = milliseconds(source)
     have_easing = easings(source)
 
@@ -94,12 +124,30 @@ def main() -> int:
 
     missing_duration = []
     missing_easing = []
-    for name, (seconds, easing) in sorted(design.items()):
-        ms = round(seconds * 1000)
-        if ms not in have_ms:
-            missing_duration.append(f"{name}: {ms}ms")
-        if easing.startswith("cubic-bezier") and easing not in have_easing:
-            missing_easing.append(f"{name}: {easing}")
+    for name, pairs in sorted(design.items()):
+        if not any(ms in have_ms for ms, _ in pairs):
+            missing_duration.append(f"{name}: {sorted(ms for ms, _ in pairs)}ms")
+        curves = {e for _, e in pairs if e.startswith("cubic-bezier")}
+        if curves and not (curves & have_easing):
+            missing_easing.append(f"{name}: {sorted(curves)}")
+
+    misplaced = []
+    for name, pairs in sorted(design.items()):
+        owners = IMPLEMENTED_BY.get(name)
+        if not owners:
+            misplaced.append(f"{name}: no component named for it in IMPLEMENTED_BY")
+            continue
+        wanted_ms = {ms for ms, _ in pairs}
+        wanted_curves = {e for _, e in pairs if e.startswith("cubic-bezier")}
+        for owner in owners:
+            text = files.get(owner)
+            if text is None:
+                misplaced.append(f"{name}: {owner} does not exist")
+                continue
+            if not (milliseconds(text) & wanted_ms):
+                misplaced.append(f"{name}: {owner} uses none of {sorted(wanted_ms)}ms")
+            if wanted_curves and not (easings(text) & wanted_curves):
+                misplaced.append(f"{name}: {owner} uses none of {sorted(wanted_curves)}")
 
     if missing_duration:
         print("\ndurations the design states and the client does not use:")
@@ -110,7 +158,12 @@ def main() -> int:
         for line in missing_easing:
             print("   ", line)
 
-    if not missing_duration and not missing_easing:
+    if misplaced:
+        print("\nanimations not implemented where they are named:")
+        for line in misplaced:
+            print("   ", line)
+
+    if not missing_duration and not missing_easing and not misplaced:
         print("\nmotion matches")
         return 0
     return 1
