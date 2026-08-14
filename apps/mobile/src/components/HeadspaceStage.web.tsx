@@ -79,13 +79,28 @@ export function HeadspaceStage({
     const node = host.current as unknown as HTMLElement | null;
     if (!node || whorls.length === 0) return;
 
+    // What the pointer is over, which is all the stage's own callback reports.
+    // It fires on hover, not on choosing: the desktop passes it straight to a
+    // `focus` state and uses it to write the readout. Wiring it to selection
+    // would open identity when someone merely swept the pointer across the
+    // middle of the map.
+    let under: Whorl | null = null;
     const mounted = mountHeadspace(node, whorls.map(toStageWhorl), (focused) => {
-      if (!focused) return;
-      const original = whorls.find((w) => w.id === focused.id);
-      if (original) select.current(original);
+      under = focused ? (whorls.find((w) => w.id === focused.id) ?? null) : null;
     });
+
+    // Choosing is a click, and it has to be handled here. The stage does have a
+    // click of its own, but it navigates by assigning `location.hash`, which is
+    // the desktop's HashRouter — this client's router uses real paths, so that
+    // would write a fragment nothing reads.
+    const onClick = () => {
+      if (under) select.current(under);
+    };
+    node.addEventListener("click", onClick);
+
     stage.current = mounted;
     return () => {
+      node.removeEventListener("click", onClick);
       mounted.dispose();
       stage.current = null;
     };
