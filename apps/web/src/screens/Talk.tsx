@@ -2,7 +2,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 
 import { api } from "@/lib/api";
-import { seed } from "@/lib/seal";
 import { usePreferences } from "@/state/preferences";
 
 /**
@@ -241,23 +240,8 @@ export function Talk() {
 
 /** Nested harmonic rings, amplitude driven by what the conversation is doing —
  *  and, while it speaks, by the actual loudness of the words being said. */
-/** The gap between rings. Deviation is measured in these, so contours nest. */
-const SPACING = 32;
-
-/** Each ring's own contour, seeded once: three harmonics, as everywhere else. */
-const SHAPES = Array.from({ length: 9 }, (_, ring) => {
-  const rnd = seed(`talk-avatar-${ring}`);
-  // Amplitudes are in units of ring *spacing*, not radius. Scaled by radius the
-  // outer rings deviated further than the gap to their neighbour and the
-  // contours crossed, which a contour map can never do — and it read as tangle
-  // rather than as depth. In these units every ring wanders about as much as
-  // every other, and the nesting always holds.
-  return [0, 1, 2].map(() => ({
-    a: 0.06 + rnd() * 0.1,
-    f: 2 + Math.floor(rnd() * 4),
-    p: rnd() * Math.PI * 2,
-  }));
-});
+/** Nine, as the design draws them. */
+const RINGS = 9;
 
 function useAvatar(
   ref: React.RefObject<HTMLCanvasElement | null>,
@@ -290,40 +274,54 @@ function useAvatar(
         energy = 1;
       }
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.strokeStyle = mode === "stopped" ? "#5f6b68" : "#a7c3c8";
-      for (let ring = 0; ring < 9; ring++) {
-        const base = 60 + ring * SPACING;
-        const shape = SHAPES[ring]!;
-        ctx.globalAlpha = 0.16 + (1 - ring / 9) * 0.4;
-        ctx.lineWidth = 1.1;
+      // The design's own arithmetic, and its numbers rather than ones near
+      // them. It lays the rings out on a 720 box, so everything below is in
+      // that space and scaled at the end — the canvas here is whatever the
+      // screen gave us, and hard-coding 720 would draw a shape that only
+      // happened to fit one size.
+      const C = 360;
+      const scale = Math.min(canvas.width, canvas.height) / (C * 2);
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+      for (let k = 0; k < RINGS; k++) {
+        const f = k / (RINGS - 1);
+        const base = 90 + f * 186;
+        // Voice opens the shape rather than starting it: at rest the rings
+        // still carry .35 of their amplitude, so the avatar is a thing that is
+        // listening rather than a thing that is off.
+        const amp = (18 + f * 48) * (0.35 + energy);
         ctx.beginPath();
-        for (let i = 0; i <= 90; i++) {
-          const th = (i / 90) * Math.PI * 2;
-          // The shape is the ring's own, and it is there whether anyone is
-          // speaking or not — this is drawn in the same hand as the seals and
-          // the map. Voice moves a shape that already exists; without the
-          // seeded part the avatar sat as nine perfect circles and read as a
-          // loading spinner rather than as something listening.
-          let form = 0;
-          for (const h of shape) form += h.a * Math.sin(th * h.f + h.p);
-          const breath =
-            Math.sin(th * 3 + t * 1.1 + ring * 0.4) * 0.05 +
-            Math.sin(th * 5 - t * 0.7 + ring * 0.2) * 0.03;
-          const r = base + SPACING * form + base * breath * energy;
-          const x = canvas.width / 2 + Math.cos(th) * r;
-          const y = canvas.height / 2 + Math.sin(th) * r * 0.92;
+        for (let i = 0; i <= 240; i++) {
+          const th = (i / 240) * Math.PI * 2;
+          const r =
+            base +
+            amp * 0.45 * Math.sin(th * 3 + t * 0.7 + k * 0.6) +
+            amp * 0.3 * Math.sin(th * 5 - t * 1.1 + k * 0.9) +
+            amp * 0.18 * Math.sin(th * 2 + t * 0.4 - k * 0.4);
+          const x = cx + Math.cos(th) * r * scale;
+          const y = cy + Math.sin(th) * r * 0.94 * scale;
           if (i) ctx.lineTo(x, y);
           else ctx.moveTo(x, y);
         }
         ctx.closePath();
+        // The outermost ring is inked heavier, which is what gives the shape an
+        // edge rather than a fade.
+        ctx.lineWidth = k === RINGS - 1 ? 2.4 : 1.5;
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle =
+          mode === "stopped"
+            ? `rgba(154,166,162,${0.14 + f * 0.18})`
+            : mode === "speaking"
+              ? `rgba(230,185,92,${0.28 + f * 0.5})`
+              : `rgba(167,195,200,${0.3 + f * 0.5})`;
         ctx.stroke();
       }
       // You, at the centre of the conversation. The one filled thing on the
       // screen, so the rings read as around something.
-      ctx.globalAlpha = mode === "stopped" ? 0.35 : 0.85;
-      ctx.fillStyle = mode === "stopped" ? "#5f6b68" : "#c6e070";
       ctx.beginPath();
-      ctx.arc(canvas.width / 2, canvas.height / 2, 15 + energy * 6, 0, Math.PI * 2);
+      ctx.arc(cx, cy, (20 + energy * 28) * scale, 0, Math.PI * 2);
+      ctx.fillStyle = mode === "speaking" ? "#e6b95c" : "#c6e070";
+      ctx.globalAlpha = mode === "stopped" ? 0.3 : mode === "idle" ? 0.5 : 0.9;
       ctx.fill();
       ctx.globalAlpha = 1;
       if (!reduced) raf = requestAnimationFrame(draw);
