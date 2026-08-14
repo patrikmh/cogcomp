@@ -152,16 +152,10 @@ export default function PatternsScreen() {
               ]}
               pointerEvents="none"
             />
-            {/* Seal, what the finding is, and how strong it is — three columns
-                across, as the design sets `.p-top`. The meter used to sit under
-                the meta inside the text column, which read as another line of
-                description rather than as the measure of the row. */}
-            <View style={styles.top}>
-              <Seal id={pattern.id} size={40} stamp />
-              <View style={styles.rowBody}>
-                <Text style={styles.label}>{pattern.label}</Text>
-                <Kicker>{patternMeta(pattern)}</Kicker>
-              </View>
+            <Seal id={pattern.id} size={40} stamp />
+            <View style={styles.rowBody}>
+              <Text style={styles.label}>{pattern.label}</Text>
+              <Kicker>{patternMeta(pattern)}</Kicker>
               {/* The same figure as a length, at the end of the row where the
                   design puts it. "70% confident" is a phrase people skim; a bar
                   visibly two thirds full is not, and a finding sits beside
@@ -177,12 +171,9 @@ export default function PatternsScreen() {
                   {daysOfFortnight(pattern.distinct_days).replace(" of ", " / ")}
                 </Text>
               </View>
-            </View>
-            {/* The fortnight it rests on, full width beneath the row rather
-                than indented past the seal — the design's `.p-stripwrap` is a
-                sibling of `.p-top`, not a child of its text column. Which days
-                is illustrative; how many is the number above. */}
-            <Strip pattern={pattern} />
+              {/* The fortnight it rests on. Which days is illustrative; how
+                  many is the number in the line above. */}
+              <Strip pattern={pattern} />
               {/* What the strip is showing. A two-sided finding draws its
                   halves in ink and sand, and nothing said which was which —
                   two colours and no way to learn what they mean is worse than
@@ -200,6 +191,7 @@ export default function PatternsScreen() {
                   The web's captions name the two sides of a two-sided finding
                   and invite a hover, neither of which applies to a touch screen
                   showing one strip. */}
+            </View>
           </MotionSurface>
         </Rise>
       ))}
@@ -273,7 +265,7 @@ const styles = StyleSheet.create({
   },
   sub: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: scale.body.size, lineHeight: scale.body.line },
   row: {
-    flexDirection: "column",
+    flexDirection: "row",
     gap: 12,
     alignItems: "flex-start",
     paddingVertical: 12,
@@ -292,11 +284,8 @@ const styles = StyleSheet.create({
     borderRightColor: colors.lineStrong,
     opacity: 0.5,
   },
-  /** Seal, text, measure — across. The strip is a sibling of this, not a child
-   *  of its text column, so it runs the full width beneath. */
-  top: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
-  rowBody: { flex: 1, gap: 6, minWidth: 0 },
-  met: { flexDirection: "column", alignItems: "flex-end", gap: 7 },
+  rowBody: { flex: 1, gap: 6 },
+  met: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 2 },
   metCount: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: scale.meta.size },
   label: { color: colors.ink, fontFamily: fonts.sans, fontSize: 16, lineHeight: 23 },
   actions: { flexDirection: "row", gap: 8, flexWrap: "wrap", marginTop: 10 },
