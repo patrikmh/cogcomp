@@ -60,41 +60,48 @@ export default function TodayScreen() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Rising>
+      {/* The design's arrangement: which day this is on the left, named and
+          dated and with the zone it was reckoned in, and both pagers together
+          on the right. The day used to sit centred between them, which read as
+          a title with two arrows rather than as a date beside its controls, and
+          left nowhere to say the zone. */}
       <View style={styles.nav}>
-        {/* Named days, not "previous" and "next": the button says where it
-            goes, so moving through the week never needs a mental subtraction.
-            The web client has said this for as long as it has had the screen. */}
-        <MotionSurface
-          style={styles.pager}
-          onPress={() => setDay(shiftDay(day, -1))}
-          hitSlop={12}
-          accessibilityRole="button"
-          // The visible label is the day itself; the accessible name says what
-          // the control does, which is what a screen reader and a test both
-          // need and what a three-letter weekday cannot carry.
-          accessibilityLabel="Previous day"
-        >
-          <Text style={styles.navLink}>← {weekdayOf(shiftDay(day, -1))}</Text>
-        </MotionSurface>
         <View style={styles.dayRow}>
-          <Text style={styles.date}>{isToday ? "Today" : day}</Text>
+          <Kicker>{`${isToday ? "Today" : "Day"} · ${longDayOf(day)} (${deviceTimezone()})`}</Kicker>
           {/* Beside the day rather than a heading: this screen has none,
               because the day names itself. */}
           <Guide id="today" />
         </View>
-        <MotionSurface
-          style={styles.pager}
-          onPress={() => setDay(shiftDay(day, 1))}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Next day"
-          // There is nothing recorded in the future.
-          disabled={isToday}
-        >
-          <Text style={[styles.navLink, isToday && styles.disabled]}>
-            {weekdayOf(shiftDay(day, 1))} →
-          </Text>
-        </MotionSurface>
+        <View style={styles.pagers}>
+          {/* Named days, not "previous" and "next": the button says where it
+              goes, so moving through the week never needs a mental subtraction.
+              The web client has said this for as long as it has had the screen. */}
+          <MotionSurface
+            style={styles.pager}
+            onPress={() => setDay(shiftDay(day, -1))}
+            hitSlop={12}
+            accessibilityRole="button"
+            // The visible label is the day itself; the accessible name says what
+            // the control does, which is what a screen reader and a test both
+            // need and what a three-letter weekday cannot carry.
+            accessibilityLabel="Previous day"
+          >
+            <Text style={styles.navLink}>← {weekdayOf(shiftDay(day, -1))}</Text>
+          </MotionSurface>
+          <MotionSurface
+            style={styles.pager}
+            onPress={() => setDay(shiftDay(day, 1))}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Next day"
+            // There is nothing recorded in the future.
+            disabled={isToday}
+          >
+            <Text style={[styles.navLink, isToday && styles.disabled]}>
+              {weekdayOf(shiftDay(day, 1))} →
+            </Text>
+          </MotionSurface>
+        </View>
       </View>
 
       {summary.isLoading ? (
@@ -138,11 +145,6 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
 
   return (
     <>
-      <Text style={styles.sub}>
-        Not objects in space — a heterogeneous series of independent acts.{" "}
-        {new Date(`${day}T12:00:00`).toLocaleDateString([], { weekday: "long" })}, as it
-        happened.
-      </Text>
       {/* What the day holds, counted. The web states this before anything is
           drawn, so the shape of the day is known before it is read. */}
       <Text style={styles.tally}>
@@ -332,6 +334,16 @@ function weekdayOf(day: string): string {
   return new Date(`${day}T12:00:00`).toLocaleDateString([], { weekday: "short" });
 }
 
+/** "Sat 15 Aug" — the design dates the day as well as naming it, so a screen
+ *  reached from a week away says which day it is without arithmetic. */
+function longDayOf(day: string): string {
+  return new Date(`${day}T12:00:00`).toLocaleDateString([], {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+}
+
 function shortTime(iso: string): string {
   return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
@@ -399,7 +411,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    // Wraps, as the design's row wraps: on a narrow screen the date takes the
+    // first line and the pagers drop below it rather than crushing together.
+    flexWrap: "wrap",
+    gap: 8,
   },
+  pagers: { flexDirection: "row", alignItems: "center", gap: 8 },
   navLink: {
     color: colors.inkMuted,
     fontFamily: fonts.mono,
