@@ -28,7 +28,7 @@ import { colors, fonts } from "@/theme";
 import { radii, type as scale } from "@tlon/design";
 import { Pill } from "@/components/Marks";
 
-const LazyBlob = lazySkia(() => import("@/components/Blob"));
+const LazyBlob = lazySkia(() => import("@/components/TalkAvatar"));
 
 /** Big enough to be a presence, small enough that the thread is still the page.
  *  In focus mode it is scaled up rather than replaced. */
