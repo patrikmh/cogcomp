@@ -46,6 +46,28 @@ function strokeFor(state: BlobState, f: number): string {
   return `rgba(167,195,200,${0.3 + f * 0.5})`;
 }
 
+/**
+ * Where the envelope is heading, for a state with no voice behind it.
+ *
+ * The design does not hold the amplitude still between utterances — it gives
+ * each state a target that is itself moving, and eases towards it. Idle drifts
+ * on a slow sine; listening swells and carries a faster tremor over the top;
+ * stopped falls almost flat. Held at one number the rings breathe at a constant
+ * depth, which reads as a loop rather than as attention.
+ */
+function targetFor(state: BlobState, t: number): number {
+  if (state === "listening") {
+    return 0.16 + 0.1 * (0.5 + 0.5 * Math.sin(t * 1.7)) + 0.06 * Math.abs(Math.sin(t * 4.3));
+  }
+  if (state === "speaking") return 0.34 + 0.26 * Math.abs(Math.sin(t * 6.1));
+  if (state === "thinking") return 0.16 + 0.1 * (0.5 + 0.5 * Math.sin(t * 1.7));
+  return 0.06 + 0.02 * Math.sin(t * 0.5);
+}
+
+/** How fast the envelope closes on its target, per frame. The design's — slow
+ *  enough that a state change is a swell rather than a jump. */
+const EASE = 0.07;
+
 /** Seconds since mount. Paused freezes rather than resets: the shape is a pure
  *  function of time, so resuming picks up where it stopped. */
 function useSeconds(paused: boolean): number {
@@ -71,12 +93,15 @@ function useSeconds(paused: boolean): number {
 export function TalkAvatar({
   state,
   size,
-  energy = 0.32,
+  energy,
   paused = false,
 }: {
   state: BlobState;
   size: number;
-  /** 0–1, how loud it is at this instant. */
+  /** 0–1, how loud it is at this instant, measured from the voice actually
+   *  playing. Absent between utterances, where the design's own dynamics stand
+   *  in — a real envelope is better than a simulated one and there is only a
+   *  real one while something is being said. */
   energy?: number;
   paused?: boolean;
 }) {
@@ -84,11 +109,20 @@ export function TalkAvatar({
   const t = useSeconds(paused || reduced);
   const scale = size / BOX;
 
+  // Eased towards its target rather than snapped to it, so a change of state
+  // swells instead of stepping. Held in a ref because it is a running value,
+  // not something to re-render on.
+  const env = useRef(0.08);
+  const live = energy ?? 0;
+  const target = live > 0 ? live : targetFor(state, t);
+  env.current += (target - env.current) * EASE;
+  const level = reduced ? targetFor(state, 0) : env.current;
+
   const rings = [];
   for (let k = 0; k < RINGS; k++) {
     const f = k / (RINGS - 1);
     const base = 90 + f * 186;
-    const amp = (18 + f * 48) * (0.35 + energy);
+    const amp = (18 + f * 48) * (0.35 + level);
     const path = Skia.Path.Make();
     for (let i = 0; i <= SEGMENTS; i++) {
       const th = (i / SEGMENTS) * Math.PI * 2;
@@ -108,7 +142,7 @@ export function TalkAvatar({
   }
 
   const dot = Skia.Path.Make();
-  dot.addCircle(C * scale, C * scale, (20 + energy * 28) * scale);
+  dot.addCircle(C * scale, C * scale, (20 + level * 28) * scale);
 
   return (
     <View style={{ width: size, height: size }}>

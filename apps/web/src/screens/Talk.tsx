@@ -255,11 +255,24 @@ function useAvatar(
     const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
     let frame = 0;
     let raf = 0;
+    /** The running envelope, eased towards its target each frame. Starts where
+     *  the design starts it. */
+    let eased = 0.08;
 
     const draw = () => {
       frame += 1;
       const t = frame / 60;
-      let energy = mode === "thinking" ? 0.55 : mode === "stopped" ? 0.15 : 0.32;
+      // Where the amplitude is heading when no voice is behind it. The design
+      // gives each state a target that is itself moving and eases towards it,
+      // rather than holding one number: idle drifts on a slow sine, thinking
+      // swells with a tremor over the top, stopped falls almost flat. Held
+      // still, the rings breathe at a constant depth and read as a loop.
+      let energy =
+        mode === "stopped"
+          ? 0.04
+          : mode === "thinking"
+            ? 0.16 + 0.1 * (0.5 + 0.5 * Math.sin(t * 1.7)) + 0.06 * Math.abs(Math.sin(t * 4.3))
+            : 0.06 + 0.02 * Math.sin(t * 0.5);
       const env = envelope.current;
       if (env) {
         // Interpolated by playback position rather than stepped, so the shape
@@ -271,8 +284,15 @@ function useAvatar(
         const b = env.values[Math.min(i + 1, env.values.length - 1)] ?? a;
         energy = 0.3 + (a + (b - a) * lerp) * 1.5;
       } else if (mode === "speaking") {
-        energy = 1;
+        // Speaking with no measured envelope behind it — no voice configured,
+        // or the clip failed. The design's own figure for talking, rather than
+        // pinning it open at 1.
+        energy = 0.34 + 0.26 * Math.abs(Math.sin(t * 6.1));
       }
+      // Eased towards the target rather than snapped to it, at the design's
+      // rate, so a change of state swells instead of stepping.
+      eased += (energy - eased) * 0.07;
+      energy = eased;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       // The design's own arithmetic, and its numbers rather than ones near
       // them. It lays the rings out on a 720 box, so everything below is in
