@@ -274,8 +274,10 @@ const styles = StyleSheet.create({
   sub: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: scale.body.size, lineHeight: scale.body.line },
   row: {
     flexDirection: "column",
+    // Explicit, so the strip — which has no width of its own, only cells that
+    // flex — inherits the row's full width instead of resolving to zero.
+    alignItems: "stretch",
     gap: 12,
-    alignItems: "flex-start",
     paddingVertical: 12,
     position: "relative",
     overflow: "hidden",
@@ -296,7 +298,10 @@ const styles = StyleSheet.create({
    *  of its text column, so it runs the full width beneath. */
   top: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
   rowBody: { flex: 1, gap: 6, minWidth: 0 },
-  met: { flexDirection: "column", alignItems: "flex-end", gap: 7 },
+  /** Narrow on purpose. `Meter`'s track is 180 wide with `maxWidth: "100%"`,
+   *  so given a column of its own it claimed 180 and crushed the text beside it
+   *  to three wrapped lines; constrained here it shrinks to fit instead. */
+  met: { width: 96, alignItems: "flex-end", gap: 7 },
   metCount: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: scale.meta.size },
   label: { color: colors.ink, fontFamily: fonts.sans, fontSize: 16, lineHeight: 23 },
   actions: { flexDirection: "row", gap: 8, flexWrap: "wrap", marginTop: 10 },
