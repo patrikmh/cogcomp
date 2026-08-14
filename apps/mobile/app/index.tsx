@@ -442,11 +442,16 @@ function dayLabel(iso: string): string {
   // The design names the day *and* dates it — "Today · Wednesday 4 February".
   // "Today" alone is unambiguous only while you are reading it today; scrolled
   // back a week it is the one heading that cannot be checked against anything.
-  const dated = new Date(iso).toLocaleDateString([], {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
+  // Assembled part by part rather than asked for whole. Requesting all three
+  // at once hands the order to the runtime's locale, which on a US default
+  // returns "Saturday, August 15" — the month before the day, and a comma the
+  // design does not have. The parts are still localised; only their order is
+  // ours, and it is the design's.
+  const at = new Date(iso);
+  const weekday = at.toLocaleDateString([], { weekday: "long" });
+  const dayNumber = at.toLocaleDateString([], { day: "numeric" });
+  const month = at.toLocaleDateString([], { month: "long" });
+  const dated = `${weekday} ${dayNumber} ${month}`;
   if (day === today) return `Today · ${dated}`;
   if (day === yesterday) return `Yesterday · ${dated}`;
   return dated;
