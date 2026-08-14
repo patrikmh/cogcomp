@@ -6,6 +6,7 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { radii, type as scale } from "@tlon/design";
 
 import { Kicker, Meter, Rule } from "@/components/Marks";
+import { deviceTimezone } from "@/lib/dates";
 import { MotionSurface } from "@/components/MotionSurface";
 import { Observatory } from "@/components/Observatory";
 import { Rise } from "@/components/Rise";
@@ -107,7 +108,10 @@ export default function PatternsScreen() {
           what the screen claims. This had them inverted, so the heading was the
           word "Patterns" — which the tab bar already says — and the claim was
           demoted to a label. */}
-      <Kicker>{HEADINGS.patterns.kicker}</Kicker>
+      {/* The zone belongs here as it does on Today and Week. This screen counts
+          days — "3 of 14 writing days" — and which clock decides where a day
+          ends decides what it counted. */}
+      <Kicker>{`${HEADINGS.patterns.kicker} · ${deviceTimezone()}`}</Kicker>
       <Text style={styles.title}>{HEADINGS.patterns.title}</Text>
       <Text style={styles.sub}>
         {found.length === 0
