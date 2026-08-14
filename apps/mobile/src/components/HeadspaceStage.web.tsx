@@ -102,8 +102,27 @@ export function HeadspaceStage({
     // click of its own, but it navigates by assigning `location.hash`, which is
     // the desktop's HashRouter — this client's router uses real paths, so that
     // would write a fragment nothing reads.
-    const onClick = () => {
-      if (under) select.current(under);
+    //
+    // What the stage knows about is the pointer, and a finger does not hover:
+    // on a touch screen nothing moves across a whorl before the tap, so the
+    // raycast has never been told where the finger is and reports nothing under
+    // it. Telling it where the tap landed, and giving it a frame to look, is
+    // what makes a whorl selectable by touch at all — which is every phone
+    // this client is built for.
+    const onClick = (ev: MouseEvent) => {
+      const canvas = node.querySelector("canvas");
+      canvas?.dispatchEvent(
+        new PointerEvent("pointermove", {
+          clientX: ev.clientX,
+          clientY: ev.clientY,
+          bubbles: true,
+        }),
+      );
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          if (under) select.current(under);
+        }),
+      );
     };
     node.addEventListener("click", onClick);
 
