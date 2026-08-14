@@ -51,7 +51,13 @@ export default function LoginScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <View style={[styles.bay, width >= 760 && styles.bayWide]}>
-          {width >= 760 && <View style={[styles.dockLabel, styles.dockLabelWide]}><Text style={styles.dockKicker}>LIVING OBSERVATORY</Text><Text style={styles.dockTitle}>A private field for noticing.</Text><Text style={styles.dockCopy}>Enter through the quiet side of the room. Your words stay yours.</Text></View>}
+          {/* The "Living Observatory" panel that stood here is gone. It was
+              this client's own vocabulary — a cyan kicker, "a private field for
+              noticing", "enter through the quiet side of the room" — and the
+              only place left still speaking it after its decorative rings came
+              off the other six screens. The design opens on the wordmark and a
+              sentence, and so does every other screen in this app: a kicker in
+              the muted ink, then what the screen is. */}
         <FieldFrame label="Account portal">
         <View style={[styles.form, width >= 760 && styles.formWide]}>
           <View style={styles.header}>
