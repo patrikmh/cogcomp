@@ -54,7 +54,10 @@ const LIVE_LABEL: Record<string, string> = {
 };
 
 const STAGE_LABEL: Record<BlobState, string> = {
-  idle: "Tap to see the transcript · drag to spin",
+  // No longer offers the spin. The avatar is the design's flat contour drawing
+  // now, and there is nothing to turn — a hint that names a gesture the screen
+  // does not answer is worse than no hint.
+  idle: "Tap to see the transcript",
   listening: "Listening",
   thinking: "Thinking",
   speaking: "Speaking",
