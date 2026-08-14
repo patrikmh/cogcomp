@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
 
 import { MotionSurface } from "@/components/MotionSurface";
 import { IdentityComposition } from "@/components/IdentityComposition";
@@ -38,6 +38,13 @@ export default function IdentityScreen() {
   const token = useSession((s) => s.token);
   const userId = useSession((s) => s.userId);
   const router = useRouter();
+  // The design sizes this `min(64vh, 440px)` and lets it fill the screen. This
+  // client pinned it at 280, which on a phone left the composition floating in
+  // the middle of its own stage — a picture of everything known about someone,
+  // drawn smaller than the counts underneath it. Width is capped too, which the
+  // design gets for free from the viewport.
+  const { width, height } = useWindowDimensions();
+  const compositionSize = Math.min(height * 0.64, 440, width * 0.92);
   const client = useQueryClient();
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -91,6 +98,7 @@ export default function IdentityScreen() {
       // thin and faded, you at the centre already there.
       stage={
         <IdentityComposition
+          size={compositionSize}
           rings={ringsForComposition(kept, offered, keptIds).map((node: IdentityNode) => ({
             id: node.id,
             label: node.label,
