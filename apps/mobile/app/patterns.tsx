@@ -7,6 +7,7 @@ import { radii, type as scale } from "@tlon/design";
 
 import { Kicker, Meter, Rule } from "@/components/Marks";
 import { deviceTimezone } from "@/lib/dates";
+import { SECTIONS, asideOf } from "@tlon/copy/sections";
 import { MotionSurface } from "@/components/MotionSurface";
 import { Observatory } from "@/components/Observatory";
 import { Rise } from "@/components/Rise";
@@ -118,7 +119,18 @@ export default function PatternsScreen() {
           ? EMPTY_COPY.patterns
           : `${found.length} ${found.length === 1 ? "finding" : "findings"}. Counts, not verdicts — each one opens to the entries it counted.`}
       </Text>
-      <Rule />
+
+      {/* Named and ruled, as Today and Week name their sections and as the
+          design names this one. The rule was here on its own, which drew the
+          line without saying what it divided or that the findings below it are
+          ordered. The copy for it was written and never wired up. */}
+      <View style={styles.sectionRow}>
+        <Kicker heading>{SECTIONS.returning.title}</Kicker>
+        <View style={styles.ruleFill}>
+          <Rule />
+        </View>
+        <Text style={styles.aside}>{asideOf("returning", true)}</Text>
+      </View>
 
       {found.map((pattern, i) => (
         <Rise key={pattern.id} index={i}>
