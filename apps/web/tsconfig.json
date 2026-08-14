@@ -26,7 +26,17 @@
       "@tlon/ontology": ["../../packages/ontology/index.ts"],
       "@tlon/design": ["../../packages/design/tokens.ts"],
       "@tlon/design/marks": ["../../packages/design/marks.ts"],
-      "@tlon/design/icons": ["../../packages/design/icons.ts"]
+      "@tlon/design/icons": ["../../packages/design/icons.ts"],
+      "@tlon/headspace": ["../../packages/headspace/headspace.ts"],
+      // packages/ sits outside this app and there is no workspace root to hoist
+      // to, so a bare `three` inside the shared module resolves from nowhere.
+      // Point it at this app's copy explicitly.
+      // Types only — Vite resolves the actual module (see its `three` alias).
+      // three ships no declarations of its own; they come from @types/three,
+      // which TS cannot find from packages/ because there is no node_modules
+      // above it to walk to.
+      "three": ["./node_modules/@types/three/index.d.ts"],
+      "three/*": ["./node_modules/@types/three/*"]
     }
   },
   "include": ["src", "vite.config.ts"]

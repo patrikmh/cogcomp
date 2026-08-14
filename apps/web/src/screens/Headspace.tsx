@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 
 import { readingBudget } from "@tlon/design/marks";
 
-import { mountHeadspace, type Stage, type Whorl } from "@/lib/headspace";
+import { mountHeadspace, type Stage, type Whorl } from "@tlon/headspace";
 import { api } from "@/lib/api";
 import { DETECTOR_LABEL, deviceTimezone, fmt, localDay } from "@/lib/format";
 import { usePreferences } from "@/state/preferences";

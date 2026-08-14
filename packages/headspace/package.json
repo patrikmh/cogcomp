@@ -1,0 +1,10 @@
+{
+  "name": "@tlon/headspace",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "headspace.ts",
+  "exports": {
+    ".": "./headspace.ts"
+  }
+}
