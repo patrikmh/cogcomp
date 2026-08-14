@@ -51,8 +51,21 @@ export function SpatialConstellation({ ids, labels, onSelect }: { ids: string[];
   return <View accessibilityLabel="Signal constellation" style={styles.constellation}>{ids.map((id, index) => { const point = constellationPoint(id, index); return <Pressable key={id} accessibilityRole="button" accessibilityLabel={`Focus ${labels[index]}`} onPress={() => onSelect?.(id)} style={[styles.constellationNode, { left: `${point.x * 100}%`, top: `${point.y * 100}%` }]}><View style={styles.constellationDot} /><Text numberOfLines={2} style={styles.constellationLabel}>{labels[index]}</Text></Pressable>; })}</View>;
 }
 
+/**
+ * The frame the Observatory routes sit in.
+ *
+ * It used to draw two tilted rings behind whatever it held — a cyan one and a
+ * pink one, on six screens. The design draws none: its stages are the contours
+ * and the ground they sit on, and nothing else. On the talk screen the outer
+ * ring read as part of the avatar, which made a shape that has nine rings look
+ * like it had ten and one of them was stuck.
+ *
+ * The frame stays, because it is what lays these screens out. Only the paint is
+ * gone — both rings were absolutely positioned and took no pointer events, so
+ * nothing moved when they went.
+ */
 export function FieldFrame({ children, label = "Living Observatory field" }: { children: ReactNode; label?: string }) {
-  return <View accessibilityLabel={label} style={styles.fieldFrame}><Orbit /><Orbit small />{children}</View>;
+  return <View accessibilityLabel={label} style={styles.fieldFrame}>{children}</View>;
 }
 
 export function LoadingLens({ label = "Reading the field…" }: { label?: string }) { return <View accessibilityRole="progressbar" style={styles.state}><View style={styles.loadingRing} /><Text style={styles.stateText}>{label}</Text></View>; }
