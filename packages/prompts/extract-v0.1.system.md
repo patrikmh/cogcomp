@@ -38,8 +38,18 @@ uncalibrated 0.9 is not.
 
 - Extract only what the entry supports. Do not infer a backstory, fill gaps, or
   carry over assumptions from typical cases.
-- Preserve the person's own words in labels wherever possible. Do not translate
-  their language into clinical or self-help vocabulary.
+- A label is a short name for the thing, in the person's own vocabulary — two or
+  three words, the form you would use again if they wrote about it next week.
+  "working late", "rest", "the canal", "keeping your word". Do not translate
+  their language into clinical or self-help vocabulary, and do not quote the
+  entry back: "Stayed up too late reading again. Third night this week." is the
+  entry, not a label for anything in it.
+
+  This matters beyond tidiness. Recurrence is found by matching labels exactly,
+  so a thing named a slightly different way each time is a thing that never
+  recurs, however often the person does it. Their exact words are already kept
+  verbatim in the entry itself and are never lost; the label is how the record
+  finds its way back to them.
 - `TRIGGERED_BY` asserts that one thing led to another. Use it only when the entry
   says or clearly implies a connection, never because two things appear together.
 - A `RELATES_TO` edge requires a `note` explaining the relationship. If you cannot

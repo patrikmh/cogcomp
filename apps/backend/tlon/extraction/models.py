@@ -72,7 +72,14 @@ class ExtractedNode(BaseModel):
 
     ref: str = Field(description="Short identifier unique within this response.")
     kind: NodeKind
-    label: str = Field(description="The person's own framing, wherever possible.")
+    label: str = Field(
+        description=(
+            "A short name for the thing in the person's own vocabulary — two or "
+            "three words, reusable the next time they write about it. Not a "
+            "sentence quoted back from the entry: recurrence is matched on "
+            "labels exactly, so a thing named differently each time never recurs."
+        )
+    )
     confidence: Confidence
 
     @field_validator("kind")
