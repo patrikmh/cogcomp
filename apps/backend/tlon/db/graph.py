@@ -174,9 +174,7 @@ async def subgraph(
         # How many entries each reading rests on. The graph's cards show it,
         # because "0.82" beside a meter that already draws 0.82 says the same
         # thing twice, and "three entries" says something else.
-        "nodes": [
-            {**_node_json(row), "cites_entries": row["cites_entries"]} for row in node_rows
-        ],
+        "nodes": [{**_node_json(row), "cites_entries": row["cites_entries"]} for row in node_rows],
         "edges": [_edge_json(row) for row in edge_rows],
         # So the client can say "showing 150 of 1,200" rather than implying the
         # graph is smaller than it is.
