@@ -62,15 +62,24 @@ export function HeadspaceStage({
   const host = useRef<View>(null);
   const stage = useRef<Stage | null>(null);
   // Read inside the effect rather than closed over, so a selection does not
-  // tear the scene down and rebuild it just to hand it a new callback.
+  // tear the scene down and rebuild it just to hand it a new callback. Assigned
+  // in an effect rather than during render, which is not a place to be writing
+  // to anything.
   const select = useRef(onSelect);
-  select.current = onSelect;
+  useEffect(() => {
+    select.current = onSelect;
+  }, [onSelect]);
 
   // What the stage is, not which array carried it — the screen rebuilds this
   // list on every render, and rebuilding the scene each time would restart the
   // arrival and drop the camera back to its opening position mid-look.
+  //
+  // Every field the stage is handed belongs here, `label` and `meta` included:
+  // they are the whorl's name and the datum etched beside it, and leaving them
+  // out meant a reading whose confidence had changed kept the old number under
+  // it until something else happened to move a weight.
   const signature = whorls
-    .map((w) => `${w.id}:${w.group}:${w.weight}:${w.bar}:${w.tentative}`)
+    .map((w) => `${w.id}:${w.group}:${w.weight}:${w.bar}:${w.tentative}:${w.label}:${w.meta ?? ""}`)
     .join("|");
 
   useEffect(() => {
