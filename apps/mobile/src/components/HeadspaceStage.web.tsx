@@ -92,7 +92,13 @@ export function HeadspaceStage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signature]);
 
-  // The stage sizes itself from the host, so the host has to have a size before
-  // it mounts — a flex child with no explicit height measures zero here.
-  return <View ref={host} style={{ flex: 1, minHeight: 320 }} />;
+  // The stage measures its host, so the host has to have a size of its own.
+  //
+  // `alignSelf` is the load-bearing part. Observatory centres its stage slot
+  // (`alignItems: "center"`), which sizes a child to its content across the
+  // axis — and this child has no content, only a canvas the stage appends
+  // later. Left to centre it measures zero wide, and the stage's ResizeObserver
+  // gives up on a zero width rather than retrying, so the orb would never
+  // appear at all. The survey escapes this by computing its own dimensions.
+  return <View ref={host} style={{ flex: 1, alignSelf: "stretch", minHeight: 320 }} />;
 }
