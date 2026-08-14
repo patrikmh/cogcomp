@@ -24,7 +24,12 @@
       ],
       "@tlon/design": [
         "../../packages/design/tokens.ts"
-      ]
+      ],
+      "@tlon/headspace": [
+        "../../packages/headspace/headspace.ts"
+      ],
+      "three": ["./node_modules/@types/three/index.d.ts"],
+      "three/*": ["./node_modules/@types/three/*"]
     },
     "module": "esnext",
     "moduleResolution": "bundler"

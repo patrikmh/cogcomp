@@ -19,6 +19,12 @@ config.resolver.extraNodeModules = {
   // needed this. `foldDrawnFrom` is a value, so now it does.
   "@tlon/ontology": path.resolve(workspace, "packages/ontology"),
   "@tlon/copy": path.resolve(workspace, "packages/copy"),
+  // The orb, shared with the web client. Only ever reached from a `.web`
+  // module, so three.js stays out of the native bundle entirely.
+  "@tlon/headspace": path.resolve(workspace, "packages/headspace"),
+  // packages/ has no node_modules above it to walk to, so the shared module's
+  // bare `three` import needs anchoring at this app's copy.
+  three: path.resolve(__dirname, "node_modules/three"),
 };
 config.resolver.nodeModulesPaths = [
   path.resolve(__dirname, "node_modules"),

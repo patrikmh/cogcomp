@@ -5,7 +5,8 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { readingBudget } from "@tlon/design/marks";
 
-import { HeadspaceMap, type Whorl } from "@/components/HeadspaceMap";
+import { type Whorl } from "@/components/HeadspaceMap";
+import { HeadspaceStage } from "@/components/HeadspaceStage";
 import { Guide } from "@/components/Guide";
 import { Kicker } from "@/components/Marks";
 import { MotionSurface } from "@/components/MotionSurface";
@@ -189,7 +190,7 @@ export default function HeadspaceScreen() {
         // Identity already uses for the same reason.
         stage={
           points.length > 0 && !loading ? (
-            <HeadspaceMap
+            <HeadspaceStage
               whorls={whorls}
               onSelect={(whorl: Whorl) =>
                 whorl.id === "you" ? router.push("/identity") : setSelected(whorl.id)
@@ -369,6 +370,7 @@ function whorlsFor(lens: Lens, points: Point[]): Whorl[] {
       weight: point.weight,
       bar: point.weight,
       tentative: point.tentative,
+      meta: point.meta,
     })),
   ];
 }

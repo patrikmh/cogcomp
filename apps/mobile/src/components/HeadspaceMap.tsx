@@ -42,6 +42,9 @@ export interface Whorl {
   weight: number;
   bar: number;
   tentative: boolean;
+  /** The datum etched along the contours on the web's stage ("9 / 14", "0.91").
+   *  The survey does not draw it; the orb does, so it is carried but optional. */
+  meta?: string;
 }
 
 export interface Placed extends Whorl {
