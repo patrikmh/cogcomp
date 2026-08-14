@@ -374,7 +374,12 @@ const styles = StyleSheet.create({
   chipRow: { gap: 6 },
   readoutBody: { flex: 1, gap: 5 },
   drawn: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  chips: { flexDirection: "row", gap: 10, alignItems: "center" },
+  // Wraps, as the design's `.j-meta` wraps and as Today and Find already do.
+  // Without it the readings drawn from an entry ran off the side of the phone:
+  // the first two showed, the third was clipped mid-word, and the rest were
+  // simply not on the screen. An entry that produced four readings looked like
+  // it had produced two and a half.
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, alignItems: "center" },
   chip: {
     color: colors.cyan,
     fontFamily: fonts.sans, fontSize: 10,
