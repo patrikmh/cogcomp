@@ -167,7 +167,7 @@ function Body({
           <Text style={styles.vsCount}>{acts} acts</Text>
         </View>
         <View style={styles.vsRow}>
-          <Text style={styles.vsName}>the week before</Text>
+          <Text style={styles.vsName}>last week</Text>
           <View style={styles.vsTrack}>
             <View style={[styles.vsFill, styles.vsFillOther, { width: `${Math.round((other / both) * 100)}%` }]} />
           </View>
@@ -345,7 +345,17 @@ const styles = StyleSheet.create({
   },
   vs: { gap: 9, marginTop: 18 },
   vsRow: { flexDirection: "row", alignItems: "center", gap: 14 },
-  vsName: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: scale.meta.size, width: 92 },
+  // Uppercase and letter-spaced, as the design sets `.w-vs-row > .mono`. Left
+  // in sentence case these two labels read as body text beside their bars
+  // rather than as the axis they are.
+  vsName: {
+    color: colors.inkMuted,
+    fontFamily: fonts.mono,
+    fontSize: scale.meta.size,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    width: 92,
+  },
   vsTrack: { flex: 1, height: 8, borderRadius: 4, backgroundColor: colors.surfaceBright, overflow: "hidden" },
   vsFill: { height: 8, borderRadius: 4, backgroundColor: colors.cyan },
   /** The other week is drawn quieter: it is context, not the subject. */
@@ -365,7 +375,16 @@ const styles = StyleSheet.create({
   },
   screen: { flex: 1, backgroundColor: colors.room },
   content: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 48, gap: 8 },
-  nav: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  nav: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    // Wraps, as the design's row wraps: the week and its zone are a long line
+    // on a phone, and without this the pagers were squeezed against them
+    // instead of dropping to their own line.
+    flexWrap: "wrap",
+    gap: 8,
+  },
   link: { color: colors.inkSoft, fontFamily: fonts.sans, fontSize: 14, fontWeight: "700" },
   disabled: { opacity: 0.3 },
   date: { color: colors.ink, fontFamily: fonts.sans, fontSize: 16, fontWeight: "700" },
