@@ -101,7 +101,15 @@ export function AtmosphericShell({
 }) {
   return (
     <View style={styles.shell}>
-      <AtmosphericBackdrop variant={variant} />
+      {/* The backdrop is gone. It drew violet and cyan orbits behind eight
+          screens — the last of the "Living Observatory" vocabulary, after its
+          rings came off FieldFrame and its panel off the login screen. The
+          design draws none: its grounds are the ink and the paper, and on Talk
+          an orbit sat concentric with the avatar and read as a tenth ring.
+
+          Nothing moved when it went. It was `absoluteFill` with
+          `pointerEvents="none"` and every child absolutely positioned, so it
+          occupied no space and caught no touches — only paint. */}
       {/* The dock moved to the root layout, so it is on every screen rather
           than on the eight that happened to use this shell. */}
       <View style={[styles.content, contentStyle]}>{children}</View>
