@@ -78,6 +78,8 @@ export default function TalkScreen() {
   const [draft, setDraft] = useState("");
   const [crisis, setCrisis] = useState<string[] | null>(null);
   const [recording, setRecording] = useState<RecordState>("idle");
+  // What the microphone last failed at, said on screen rather than swallowed.
+  const [recordError, setRecordError] = useState<string | null>(null);
   const reducedMotion = useReducedMotion();
   // Focus is the default. The sphere is the interface — the transcript is there
   // for when you want to check what you said, not the thing you sit and read
@@ -422,10 +424,13 @@ export default function TalkScreen() {
                   await speak.mutateAsync(uri);
                 }}
                 onStateChange={setRecording}
+                onError={setRecordError}
                 tone={focus ? "dark" : "light"}
               />
             )}
-            {live.error && <Text style={styles.error}>{live.error}</Text>}
+            {(live.error || recordError) && (
+              <Text style={styles.error}>{live.error ?? recordError}</Text>
+            )}
           </View>
         )}
 
@@ -447,7 +452,11 @@ const styles = StyleSheet.create({
     gap: 12,
     borderWidth: 1,
     borderColor: colors.lineStrong,
-    borderRadius: 999,
+    // 3px, as every other control in this design is, and as the button beneath
+    // it already was. A pill and a 3px button stacked on top of each other are
+    // two answers to what a button is, and the one beneath carries a comment
+    // arguing that only a switch should be round.
+    borderRadius: radii.surface,
     paddingVertical: 15,
     backgroundColor: colors.surface,
   },
@@ -461,7 +470,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.lineStrong,
   },
   liveDotOn: { backgroundColor: colors.cyan },
-  liveLabel: { color: colors.inkSoft, fontFamily: fonts.sans, fontSize: 15, fontWeight: "700" },
+  // The design's `.btn`: mono, uppercase, letter-spaced. Both of these were
+  // bold sans, which is the voice of a heading rather than of a control.
+  liveLabel: {
+    color: colors.inkSoft,
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
   liveLabelOn: { color: colors.ink },
   screen: { flex: 1, backgroundColor: colors.room },
   // Focus mode goes dark. Not for style: the blob is a light source, and on white

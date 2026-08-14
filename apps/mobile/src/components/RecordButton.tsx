@@ -1,6 +1,6 @@
 import { Audio } from "expo-av";
 import { useEffect, useRef, useState } from "react";
-import { Alert, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import Svg, { Path, Rect } from "react-native-svg";
 import { MotionSurface } from "@/components/MotionSurface";
 import { colors, fonts } from "@/theme";
@@ -21,6 +21,7 @@ export function RecordButton({
   onRecorded,
   disabled = false,
   onStateChange,
+  onError,
   tone = "light",
   compact = false,
 }: {
@@ -29,6 +30,11 @@ export function RecordButton({
   /** Reported so the screen can show what the microphone is doing — the blob
    *  quietens while someone is speaking rather than talking over them. */
   onStateChange?: (state: State) => void;
+  /** What went wrong, for the screen to show. Failures used to be reported with
+   *  `Alert.alert`, which on react-native-web is an empty function — so every
+   *  one of them, permission refusals included, vanished without a trace and the
+   *  button simply went back to idle. */
+  onError?: (message: string) => void;
   /** Dark surfaces need their own colours — the default label is near-black and
    *  vanishes against focus mode's background. */
   tone?: "light" | "dark";
@@ -68,6 +74,18 @@ export function RecordButton({
     };
   }, []);
 
+  /** Say what went wrong, where someone can see it.
+   *
+   *  These messages used to go to `Alert.alert`, which react-native-web defines
+   *  as an empty function — so on the web build every failure here, a refused
+   *  microphone included, was discarded and the button just returned to idle
+   *  with nothing said. The console line stays regardless of whether a screen
+   *  passes `onError`, because a silent failure is the worst of both. */
+  function report(message: string) {
+    console.error(`[record] ${message}`);
+    onError?.(message);
+  }
+
   async function resetAudioMode() {
     await Audio.setAudioModeAsync({
       allowsRecordingIOS: false,
@@ -86,10 +104,7 @@ export function RecordButton({
         return;
       }
       if (!permission.granted) {
-        Alert.alert(
-          "Microphone access needed",
-          "Tlön records voice entries only while you hold the button.",
-        );
+        report("Microphone access is needed to record.");
         holdActive.current = false;
         await resetAudioMode();
         return;
@@ -113,7 +128,7 @@ export function RecordButton({
       await resetAudioMode().catch(() => undefined);
       if (mounted.current && generation.current === currentGeneration) {
         setState("idle");
-        Alert.alert("Could not start recording", "Please try again.");
+        report("Could not start recording. Please try again.");
       }
     }
   }
@@ -140,7 +155,7 @@ export function RecordButton({
       if (!uri) throw new Error("no recording produced");
       await onRecorded(uri);
     } catch {
-      Alert.alert("Could not save that recording", "Please try again.");
+      report("Could not save that recording. Please try again.");
     } finally {
       if (mounted.current) setState("idle");
     }
@@ -259,7 +274,15 @@ const styles = StyleSheet.create({
   // with a light label at normal-text contrast.
   recording: { backgroundColor: colors.surfaceBright, borderColor: colors.danger },
   disabled: { opacity: 0.4 },
-  label: { fontFamily: fonts.sans, fontSize: 16, fontWeight: "600", color: colors.inkSoft },
+  // Matches the design's `.btn` and the control above it: mono, uppercase,
+  // letter-spaced, rather than bold sans.
+  label: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    color: colors.inkSoft,
+  },
   labelDark: { color: colors.ink },
   labelRecording: { color: colors.ink },
   note: { fontFamily: fonts.sans, fontSize: 11, color: colors.inkMuted, textAlign: "center" },
