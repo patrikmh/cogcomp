@@ -524,7 +524,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.sans, fontSize: 16,
     textAlignVertical: "top",
   },
-  actions: { flexDirection: "row", gap: 8 },
+  actions: { flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "space-between" },
   send: {
     flex: 1,
     backgroundColor: colors.violet,
@@ -533,17 +533,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   sendLabel: { color: colors.room, fontWeight: "600", fontFamily: fonts.sans, fontSize: 16 },
-  finish: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: colors.ink,
-    borderRadius: radii.surface,
-    paddingVertical: 12,
-    alignItems: "center",
+  // The design's other corner, and now it looks like one. Closing and asking
+  // for help are the same kind of thing — always reachable, never the thing you
+  // came here to do — and the design sets both as quiet mono in the margin.
+  // This was a bordered flex button in 16px bold beside `urgent`'s 11px mono,
+  // so two actions the design treats identically looked nothing alike, and the
+  // loud one crowded the composer it sat under.
+  finish: { justifyContent: "center", paddingVertical: 12, paddingHorizontal: 4 },
+  finishFocus: {},
+  finishLabel: {
+    color: colors.inkMuted,
+    fontFamily: fonts.monoMedium,
+    fontSize: scale.kicker.size,
+    letterSpacing: scale.kicker.tracking,
+    textTransform: "uppercase",
   },
-  finishFocus: { borderColor: colors.inkSoft },
-  finishLabel: { color: colors.ink, fontWeight: "600", fontFamily: fonts.sans, fontSize: 16 },
-  finishLabelFocus: { color: colors.ink },
+  finishLabelFocus: { color: colors.inkMuted },
   // Quiet, like the design's `.talk-corner`: reachable without shouting, and
   // never competing with the thing someone came here to do.
   urgent: { justifyContent: "center", paddingVertical: 12, paddingHorizontal: 4 },
