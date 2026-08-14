@@ -102,7 +102,17 @@ export default function SearchScreen() {
           >
             <Seal id={hit.id} size={28} />
             <View style={styles.hitBody}>
-              <Kicker>{new Date(hit.captured_at).toLocaleDateString()}</Kicker>
+              {/* Dated as everything else in the record is dated. A bare
+                  `toLocaleDateString` gave "8/15/2026" — a machine's date,
+                  sitting in a kicker beside a hand-drawn seal, and the only
+                  numeric date anywhere in the app. */}
+              <Kicker>
+                {new Date(hit.captured_at).toLocaleDateString([], {
+                  weekday: "short",
+                  day: "numeric",
+                  month: "short",
+                })}
+              </Kicker>
               <Text style={styles.hitText}>{highlight(hit.content, needle)}</Text>
               {drawn.length > 0 && (
                 <View style={styles.chips}>
