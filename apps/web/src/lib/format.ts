@@ -65,11 +65,17 @@ export function clockOf(iso: string) {
  */
 export function dayLabelOf(iso: string) {
   const day = localDay(new Date(iso));
-  const full = new Date(iso).toLocaleDateString([], {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
+  // Assembled from its parts rather than asked for whole. Requesting weekday,
+  // day and month together hands their order to the runtime's locale, and on a
+  // US default that returns "Saturday, August 15" — the month before the day,
+  // and a comma the design has nowhere. The words stay localised; only their
+  // order is ours, and it is the design's: "Wednesday 4 February".
+  const at = new Date(iso);
+  const full = [
+    at.toLocaleDateString([], { weekday: "long" }),
+    at.toLocaleDateString([], { day: "numeric" }),
+    at.toLocaleDateString([], { month: "long" }),
+  ].join(" ");
   if (day === localDay()) return `Today · ${full}`;
   if (day === shiftDay(localDay(), -1)) return `Yesterday · ${full}`;
   return full;
