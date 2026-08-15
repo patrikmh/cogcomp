@@ -1,4 +1,5 @@
 import { Audio } from "expo-av";
+import { Platform } from "react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ApiError, api } from "@/lib/api";
@@ -34,11 +35,16 @@ export interface SpokenReply {
   /** Synthesise and play. Resolves when playback starts, not when it ends. */
   say: (text: string) => Promise<void>;
   stop: () => void;
+  /** Tell this browser sound is wanted, from inside a user gesture. iOS will
+   *  not play anything that starts after a network round-trip otherwise. */
+  unlock: () => void;
 }
 
 export function useSpokenReply(token: string | null, enabled: boolean): SpokenReply {
   const [level, setLevel] = useState(0);
   const [speaking, setSpeaking] = useState(false);
+  /** Whether this browser has been told, inside a gesture, that sound is wanted. */
+  const unlocked = useRef(false);
   const sound = useRef<Audio.Sound | null>(null);
   const envelope = useRef<Envelope>({ levels: [], frameMs: 50 });
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -62,6 +68,35 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
   // Leaving the screen mid-sentence must stop the audio, not let it play on over
   // whatever the person opened next.
   useEffect(() => stop, [stop]);
+
+  /**
+   * Let this browser play sound at all.
+   *
+   * iOS only permits audio that starts inside a user gesture. A spoken reply
+   * arrives after a network round-trip — the tap that asked for it is long over
+   * by then — so WebKit refuses it, silently, and the conversation reads as
+   * mute while everything else works. Desktop browsers have no such rule, which
+   * is why this only ever failed on a phone.
+   *
+   * Playing a moment of silence inside the tap marks the element as user-started;
+   * every later `play()` on it is then allowed. Called from the press handler,
+   * where the gesture still counts.
+   */
+  const unlock = useCallback(() => {
+    if (unlocked.current || Platform.OS !== "web") return;
+    unlocked.current = true;
+    try {
+      // 0.05s of silent WAV — short enough to be inaudible, real enough to count.
+      const silence =
+        "data:audio/wav;base64,UklGRiwAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQgAAAAAAAAAAAAAAA==";
+      const primer = new window.Audio(silence);
+      primer.volume = 0;
+      void primer.play().catch(() => undefined);
+    } catch {
+      // If it cannot be primed there is nothing to fall back to; the reply is
+      // still on screen to read.
+    }
+  }, []);
 
   const say = useCallback(
     async (text: string) => {
@@ -113,5 +148,5 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
     [token, enabled, stop],
   );
 
-  return { level, speaking, say, stop };
+  return { level, speaking, say, stop, unlock };
 }

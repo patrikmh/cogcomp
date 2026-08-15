@@ -417,7 +417,14 @@ export default function TalkScreen() {
                 you mean is operating a machine, not talking. */}
             <MotionSurface
               style={[styles.live, live.state !== "off" && styles.liveOn]}
-              onPress={() => (live.state === "off" ? void live.start() : live.stop())}
+              onPress={() => {
+                // Inside the tap, while a gesture still counts: iOS will not
+                // play a reply that arrives after the network unless sound has
+                // been started once by hand.
+                voice.unlock();
+                if (live.state === "off") void live.start();
+                else live.stop();
+              }}
               accessibilityRole="button"
               accessibilityState={{ selected: live.state !== "off" }}
             >
@@ -445,6 +452,7 @@ export default function TalkScreen() {
             {live.state === "off" && (
               <RecordButton
                 compact
+                onPressStart={voice.unlock}
                 disabled={say.isPending || speak.isPending}
                 onRecorded={async (uri) => {
                   await speak.mutateAsync(uri);

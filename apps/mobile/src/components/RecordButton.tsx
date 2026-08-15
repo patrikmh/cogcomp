@@ -24,6 +24,7 @@ export function RecordButton({
   disabled = false,
   onStateChange,
   onError,
+  onPressStart,
   tone = "light",
   compact = false,
 }: {
@@ -37,6 +38,9 @@ export function RecordButton({
    *  one of them, permission refusals included, vanished without a trace and the
    *  button simply went back to idle. */
   onError?: (message: string) => void;
+  /** Run the moment the press begins, while a user gesture still counts —
+   *  where iOS wants anything that will later want to make a sound. */
+  onPressStart?: () => void;
   /** Dark surfaces need their own colours — the default label is near-black and
    *  vanishes against focus mode's background. */
   tone?: "light" | "dark";
@@ -109,6 +113,7 @@ export function RecordButton({
   }
 
   async function start() {
+    onPressStart?.();
     if (state !== "idle" || disabled || !mounted.current) return;
     holdActive.current = true;
     const currentGeneration = ++generation.current;
