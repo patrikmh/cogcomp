@@ -57,8 +57,6 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
   const [lastError, setLastError] = useState<string | null>(null);
   /** Whether this browser has been told, inside a gesture, that sound is wanted. */
   const unlocked = useRef(false);
-  /** The blob URL currently playing, revoked when it stops. */
-  const playing = useRef<string | null>(null);
   const sound = useRef<Audio.Sound | null>(null);
   /** The web's one player, primed by `unlock` and reused for every clip. Not an
    *  `Audio.Sound`: see `say`. */
@@ -85,12 +83,6 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
     if (el) {
       el.onended = null;
       el.pause();
-    }
-    // The blob outlives the sound unless it is let go of, and a conversation is
-    // many clips long.
-    if (playing.current) {
-      URL.revokeObjectURL(playing.current);
-      playing.current = null;
     }
     smoothed.current = 0;
     setLevel(0);
@@ -136,13 +128,24 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
     }
   }, []);
 
-  /** The clip as a blob URL, so the media element is handed a resource rather
-   *  than eighty kilobytes of base64 in an attribute. */
-  function blobUri(base64: string): string {
-    const binary = atob(base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    return URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
+  /**
+   * The clip as a source the element will accept.
+   *
+   * A blob URL is the tidier of the two — it hands the element a resource
+   * instead of a hundred kilobytes of base64 in an attribute, and it can be
+   * revoked the moment the clip ends. It is also the one mobile Safari will not
+   * play: `blob:` in an `<audio>` src is served through the same path as
+   * MediaSource there, which iOS does not implement for audio, so the element
+   * loads nothing and `play()` resolves against a clip that never sounds.
+   * Nothing is thrown and no error fires, which is exactly what a mute
+   * conversation with a healthy server looks like.
+   *
+   * The web client next door has always used a `data:` URI and has always
+   * worked on the same phone, from the same server, on the same clip. So this
+   * one does too, and the size is the price of it sounding.
+   */
+  function clipUri(base64: string): string {
+    return `data:audio/wav;base64,${base64}`;
   }
 
   const say = useCallback(
@@ -166,8 +169,7 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
         // same phone, from the same server, on the same clip. Two players, one
         // silent — so the wrapper is the difference, and the web does without it.
         if (Platform.OS === "web") {
-          const uri = blobUri(clip.audio);
-          playing.current = uri;
+          const uri = clipUri(clip.audio);
 
           // The primed element if there is one — a person who never tapped
           // (autoplay-permissive desktop) gets a fresh one, which is fine there.
