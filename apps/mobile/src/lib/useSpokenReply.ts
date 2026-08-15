@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ApiError, api } from "@/lib/api";
 import { type Envelope, levelAt, smooth } from "@/lib/envelope";
-import { speechChunks } from "@/lib/sentences";
+import { speechChunks } from "@tlon/speech";
 
 /**
  * Speaking a reply aloud, and reporting how loud it is right now.

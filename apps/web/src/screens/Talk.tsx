@@ -1,6 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 
+import { speechChunks } from "@tlon/speech";
+
 import { api } from "@/lib/api";
 import { usePreferences } from "@/state/preferences";
 
@@ -48,6 +50,11 @@ export function Talk() {
   const canvas = useRef<HTMLCanvasElement>(null);
   const envelope = useRef<Envelope | null>(null);
   const audio = useRef<HTMLAudioElement | null>(null);
+  /** Which reply is the one being spoken. A reply is several pieces with
+   *  several requests in flight at once, so stopping has to be able to disown
+   *  the ones that have not come back yet — pausing the element only silences
+   *  the piece already playing, and the next would start over the top of it. */
+  const utterance = useRef(0);
 
   useAvatar(canvas, mode, envelope);
 
@@ -80,20 +87,40 @@ export function Talk() {
         return;
       }
       setMode("speaking");
+      // A reply is spoken in pieces, cut at sentence ends, all of them asked
+      // for at once and played in the order they were written. Synthesising the
+      // whole reply takes as long as the whole reply is — all of it silence
+      // after the text has already arrived. The first sentence comes back in
+      // about half that, and its own audio outlasts the wait for the rest.
+      const chunks = speechChunks(reply.reply);
+      const mine = ++utterance.current;
+      const pending = chunks.map((chunk) => api.speak(chunk));
+      // Awaited in order below, so the later ones would otherwise sit as
+      // unhandled rejections for as long as the earlier ones take to play.
+      for (const request of pending) request.catch(() => undefined);
+
       try {
-        const clip = await api.speak(reply.reply);
-        const el = new Audio(`data:audio/wav;base64,${clip.audio}`);
-        audio.current = el;
-        envelope.current = {
-          values: clip.envelope,
-          frameMs: clip.frame_ms,
-          startedAt: performance.now(),
-        };
-        el.onended = () => {
-          envelope.current = null;
-          setMode("idle");
-        };
-        await el.play();
+        for (const request of pending) {
+          const clip = await request;
+          // Stopped, or a newer reply took over while this was in the air.
+          if (utterance.current !== mine) return;
+
+          const el = new Audio(`data:audio/wav;base64,${clip.audio}`);
+          audio.current = el;
+          envelope.current = {
+            values: clip.envelope,
+            frameMs: clip.frame_ms,
+            startedAt: performance.now(),
+          };
+          await el.play();
+          await new Promise<void>((resolve) => {
+            el.onended = () => resolve();
+            el.onerror = () => resolve();
+          });
+          if (utterance.current !== mine) return;
+        }
+        envelope.current = null;
+        setMode("idle");
       } catch {
         // Speech is optional: with no voice configured the server says so, and
         // the reply is still there to read.
@@ -208,7 +235,9 @@ export function Talk() {
           className="talk-corner"
           onClick={() => {
             // Elicitation stops on the person's say-so, not only on the
-            // model's judgement. Anything being spoken stops too.
+            // model's judgement. Anything being spoken stops too — including
+            // the pieces of it that have not arrived yet.
+            utterance.current += 1;
             audio.current?.pause();
             envelope.current = null;
             setMode("stopped");
@@ -221,6 +250,7 @@ export function Talk() {
           <button
             className="talk-corner"
             onClick={() => {
+              utterance.current += 1;
               audio.current?.pause();
               close.mutate();
             }}

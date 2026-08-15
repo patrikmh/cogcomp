@@ -57,6 +57,10 @@ export default defineConfig({
         find: /^@tlon\/headspace$/,
         replacement: fileURLToPath(new URL("../../packages/headspace/headspace.ts", import.meta.url)),
       },
+      {
+        find: /^@tlon\/speech$/,
+        replacement: fileURLToPath(new URL("../../packages/speech/chunks.ts", import.meta.url)),
+      },
       // Same reason as the tsconfig `three` path: the shared headspace module
       // lives outside this app, so its bare `three` import has no node_modules
       // to walk up to. Anchored here rather than left to resolution.

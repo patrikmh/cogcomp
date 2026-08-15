@@ -28,6 +28,9 @@
       "@tlon/headspace": [
         "../../packages/headspace/headspace.ts"
       ],
+      "@tlon/speech": [
+        "../../packages/speech/chunks.ts"
+      ],
       "three": ["./node_modules/@types/three/index.d.ts"],
       "three/*": ["./node_modules/@types/three/*"]
     },

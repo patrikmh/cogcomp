@@ -1,4 +1,4 @@
-import { speechChunks } from "./sentences";
+import { speechChunks } from "@tlon/speech";
 
 describe("cutting a reply for speech", () => {
   it("has nothing to say about nothing", () => {
