@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     maxWidth: "100%",
   },
-  chipTentative: { borderColor: colors.warning, borderStyle: "dashed" },
+  chipTentative: { borderStyle: "dashed" },
   chipText: { color: colors.inkSoft, fontFamily: fonts.mono, fontSize: scale.meta.size },
   chipTextTentative: { color: colors.warning },
   track: { width: 180, maxWidth: "100%", height: 3, borderRadius: 3, backgroundColor: colors.track },

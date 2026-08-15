@@ -26,7 +26,7 @@ const BAR_EASING = Easing.bezier(0.2, 0, 0, 1);
 const DIM_HEIGHT = 3;
 /** The strip's own height, so a bar can be pinned to its baseline while it
  *  grows — React Native scales about the centre, CSS about the origin. */
-const STRIP_HEIGHT = 26;
+const STRIP_HEIGHT = 52;
 /** The other half of a pair is drawn shorter as well as differently coloured —
  *  `.p-bar.r` is 55% tall — so a glance separates the two sides by shape and
  *  not by colour alone. */
@@ -103,7 +103,7 @@ export function Strip({ pattern }: {
 }
 
 const styles = StyleSheet.create({
-  strip: { flexDirection: "row", alignItems: "flex-end", gap: 2, height: STRIP_HEIGHT },
+  strip: { flexDirection: "row", alignItems: "flex-end", gap: 3, height: STRIP_HEIGHT },
   cell: { flex: 1, height: "100%", justifyContent: "flex-end" },
   // Grown from the bottom, as `transform-origin: bottom` does on the web.
   bar: { width: "100%", borderTopLeftRadius: 2, borderTopRightRadius: 2, backgroundColor: colors.ink },

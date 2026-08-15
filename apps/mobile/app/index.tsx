@@ -153,7 +153,9 @@ export default function JournalScreen() {
                     <Seal id={entry.id} size={gi === 0 && i === 0 ? 58 : 52} />
                     <View style={styles.actBody}>
                       {gi === 0 && i === 0 && <Kicker>Latest · saved</Kicker>}
-                      <Text style={styles.entryText}>{entry.content}</Text>
+                      <Text style={[styles.entryText, gi === 0 && i === 0 && styles.entryTextLatest]}>
+                        {entry.content}
+                      </Text>
                       {(drawnFrom.get(entry.id)?.length ?? 0) > 0 ? (
                         <View style={styles.chipRow}>
                           {/* On the newest entry only, and only while the words
@@ -380,6 +382,10 @@ const styles = StyleSheet.create({
   act: { flex: 1, flexDirection: "row", gap: 10, alignItems: "flex-start" },
   actBody: { flex: 1, gap: 6 },
   entryText: { color: colors.inkSoft, fontFamily: fonts.sans, fontSize: 15.5, lineHeight: 24 },
+  /** The design sets the newest act larger and in full ink — `.j-entry.latest
+   *  .j-act p` is 19/30. The seal already grew for it; the words did not,
+   *  so the promotion read as a bigger stamp on the same paragraph. */
+  entryTextLatest: { color: colors.ink, fontSize: 19, lineHeight: 30 },
   chipRow: { gap: 6 },
   readoutBody: { flex: 1, gap: 5 },
   drawn: { flexDirection: "row", flexWrap: "wrap", gap: 6 },

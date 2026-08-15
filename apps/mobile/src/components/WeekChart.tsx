@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
   day: {
     color: colors.inkMuted,
     fontFamily: fonts.mono,
-    fontSize: scale.kicker.size,
+    fontSize: 10,
     letterSpacing: 1.2,
     textTransform: "uppercase",
   },

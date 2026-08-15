@@ -349,9 +349,9 @@ const styles = StyleSheet.create({
   // in sentence case these two labels read as body text beside their bars
   // rather than as the axis they are.
   vsName: {
-    color: colors.inkMuted,
+    color: colors.inkSoft,
     fontFamily: fonts.mono,
-    fontSize: scale.meta.size,
+    fontSize: 10,
     letterSpacing: 1,
     textTransform: "uppercase",
     width: 92,
@@ -360,7 +360,7 @@ const styles = StyleSheet.create({
   vsFill: { height: 8, borderRadius: 4, backgroundColor: colors.ink },
   /** The other week is drawn quieter: it is context, not the subject. */
   vsFillOther: { backgroundColor: colors.lineStrong },
-  vsCount: { color: colors.inkSoft, fontFamily: fonts.mono, fontSize: scale.meta.size, width: 54, textAlign: "right" },
+  vsCount: { color: colors.ink, fontFamily: fonts.mono, fontSize: scale.meta.size, width: 54, textAlign: "right" },
   sectionRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 30 },
   ruleFill: { flex: 1 },
   aside: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: scale.meta.size },

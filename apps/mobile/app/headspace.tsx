@@ -512,7 +512,7 @@ const styles = StyleSheet.create({
   lensCount: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: 12, marginLeft: 7 },
   // The design's `.tabs`: a rule under the whole row, names sitting on it.
   lenses: { flexGrow: 0, borderBottomWidth: 1, borderBottomColor: colors.line, marginBottom: 20 },
-  lensesRow: { flexDirection: "row", gap: 22, paddingHorizontal: 20 },
+  lensesRow: { flexDirection: "row", gap: 12, paddingHorizontal: 20 },
   reviewed: { paddingHorizontal: 20, paddingTop: 14, gap: 6 },
   reviewedTrack: {
     height: 4,
