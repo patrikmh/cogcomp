@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import base64
+import json
 import logging
+from collections.abc import AsyncIterator
 from datetime import datetime
 from uuid import UUID
 
@@ -18,10 +20,11 @@ from fastapi import (
     UploadFile,
     status,
 )
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
 from tlon.auth import current_user
-from tlon.conversation import ConversationError
+from tlon.conversation import ConversationError, Delta, Done
 from tlon.db import conversations as conversations_db
 from tlon.db import inferences as inferences_db
 from tlon.db import observations as observations_db
@@ -159,6 +162,113 @@ async def add_turn(
         # Sent with the reply rather than looked up separately, so the client
         # cannot show the message without the services alongside it.
         crisis_resources=settings.crisis_resources_list if reply.crisis else [],
+    )
+
+
+def _event(payload: dict) -> str:
+    """One server-sent event. The blank line is what ends it."""
+    return f"data: {json.dumps(payload)}\n\n"
+
+
+@router.post("/{conversation_id}/turns/stream")
+async def add_turn_streaming(
+    request: Request,
+    conversation_id: UUID,
+    payload: TurnRequest,
+    user_id: UUID = Depends(current_user),
+) -> StreamingResponse:
+    """The same turn as `/turns`, sent as it is written.
+
+    Both exist. This one is what makes a conversation feel like one — the client
+    can send a sentence for synthesis while the model is still writing the next,
+    so the wait for the model and the wait for the voice overlap instead of
+    stacking. The plain endpoint stays because a stream is not always available
+    to the caller: a React Native client has no readable response body, and
+    anything that cannot read one needs an answer in a single piece.
+
+    The person's turn is stored before the model is called, exactly as it is
+    there, so a failure mid-stream never loses what they said.
+    """
+    pool = request.app.state.pool
+    settings = request.app.state.settings
+
+    conversation = await conversations_db.find(pool, user_id, conversation_id)
+    if conversation is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "not found")
+    if conversation["closed_at"] is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "conversation is already closed")
+
+    if not payload.content.strip():
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "turn cannot be blank")
+
+    await conversations_db.add_turn(
+        pool,
+        user_id,
+        conversation_id,
+        "user",
+        payload.content,
+        payload.source,
+        payload.timezone,
+    )
+
+    turns = conversation["turns"] + [{"speaker": "user", "content": payload.content}]
+
+    async def events() -> AsyncIterator[str]:
+        # What the agent has said so far, so a reader who walks away mid-sentence
+        # still leaves the exchange readable rather than half-recorded.
+        written = ""
+        crisis = False
+        finished = False
+        try:
+            async for event in request.app.state.conversation_agent.stream(turns):
+                if isinstance(event, Delta):
+                    written += event.text
+                    yield _event({"type": "delta", "text": event.text})
+                    continue
+                if isinstance(event, Done):
+                    written = event.content
+                    crisis = event.crisis
+                    finished = True
+                    yield _event(
+                        {
+                            "type": "done",
+                            "reply": event.content,
+                            "crisis": event.crisis,
+                            # Sent with the reply rather than looked up
+                            # separately, so the client cannot show the message
+                            # without the services alongside it.
+                            "crisis_resources": settings.crisis_resources_list
+                            if event.crisis
+                            else [],
+                        }
+                    )
+        except ConversationError as exc:
+            # The status line is long gone by the time this happens — a stream
+            # says 200 before it knows how it ends — so the failure has to be
+            # something the client reads rather than something it catches.
+            logger.warning("conversation stream failed: %s", exc)
+            yield _event({"type": "error", "message": f"agent unavailable: {exc}"})
+        finally:
+            # Runs on a client that hangs up mid-reply too, which is the case
+            # this is here for: the turn is stored either way.
+            if written:
+                await conversations_db.add_turn(
+                    pool, user_id, conversation_id, "assistant", written
+                )
+                if crisis and finished:
+                    await conversations_db.flag(pool, conversation_id)
+
+    return StreamingResponse(
+        events(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            # Without this a proxy is free to hold the whole response until the
+            # generator finishes, which is every byte of the latency this
+            # endpoint exists to remove. Render and nginx both read it.
+            "X-Accel-Buffering": "no",
+        },
     )
 
 

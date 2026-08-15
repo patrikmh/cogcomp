@@ -372,3 +372,86 @@ class TestSpokenTurns:
         )
         for row in rows:
             assert "DISTINCTIVE-CONVERSATION-AUDIO" not in row["content"]
+
+
+def parse_sse(body: str) -> list[dict]:
+    """The events out of a `text/event-stream` body, in order."""
+    import json
+
+    return [
+        json.loads(line[len("data: ") :])
+        for line in body.splitlines()
+        if line.startswith("data: ")
+    ]
+
+
+class TestStreamedTurn:
+    """The streaming turn has to agree with the plain one about everything that
+    is not its timing. Two ways to say the same thing is two ways to get the
+    safety rules wrong, so the agreement is what these check."""
+
+    async def stream(self, client: AsyncClient, account: Account, cid: str, text: str):
+        response = await client.post(
+            f"/v1/conversations/{cid}/turns/stream",
+            headers=account.auth,
+            json={"content": text, "source": "text", "timezone": None},
+        )
+        return response, parse_sse(response.text)
+
+    async def test_a_turn_streams_a_reply(self, client: AsyncClient, account: Account):
+        cid = await start(client, account)
+        response, events = await self.stream(client, account, cid, "hello")
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("text/event-stream")
+        assert events[-1]["type"] == "done"
+        assert events[-1]["reply"]
+
+    async def test_the_pieces_add_up_to_the_reply(self, client: AsyncClient, account: Account):
+        cid = await start(client, account)
+        _, events = await self.stream(client, account, cid, "hello")
+        deltas = "".join(e["text"] for e in events if e["type"] == "delta")
+        assert deltas == events[-1]["reply"]
+
+    async def test_both_speakers_are_recorded(self, client: AsyncClient, account: Account):
+        cid = await start(client, account)
+        _, events = await self.stream(client, account, cid, "hello")
+        body = (await client.get(f"/v1/conversations/{cid}", headers=account.auth)).json()
+        assert [t["speaker"] for t in body["turns"]] == ["user", "assistant"]
+        assert body["turns"][1]["content"] == events[-1]["reply"]
+
+    async def test_a_blank_turn_is_refused_before_anything_streams(
+        self, client: AsyncClient, account: Account
+    ):
+        cid = await start(client, account)
+        response, _ = await self.stream(client, account, cid, "   ")
+        assert response.status_code == 422
+
+    async def test_a_closed_conversation_refuses_a_streamed_turn(
+        self, client: AsyncClient, account: Account
+    ):
+        cid = await start(client, account)
+        await say(client, account, cid, "hello")
+        await client.post(f"/v1/conversations/{cid}/close", headers=account.auth)
+        response, _ = await self.stream(client, account, cid, "again")
+        assert response.status_code == 409
+
+    async def test_a_stranger_cannot_stream_into_someone_elses_conversation(
+        self, client: AsyncClient, account: Account
+    ):
+        response = await client.post(
+            f"/v1/conversations/{uuid4()}/turns/stream",
+            headers=account.auth,
+            json={"content": "hello", "source": "text", "timezone": None},
+        )
+        assert response.status_code == 404
+
+    async def test_the_crisis_marker_never_appears_in_the_stream(
+        self, client: AsyncClient, account: Account
+    ):
+        # Whatever the agent is, no delta may carry the marker: it is for the
+        # application, and showing it to the person it is about is the one
+        # outcome the whole mechanism exists to prevent.
+        cid = await start(client, account)
+        _, events = await self.stream(client, account, cid, "i want to hurt myself")
+        assert all("[CRISIS]" not in e.get("text", "") for e in events)
+        assert "[CRISIS]" not in events[-1]["reply"]

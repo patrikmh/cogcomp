@@ -14,6 +14,8 @@ exchange reads back sensibly, and are then never referenced again.
 from __future__ import annotations
 
 import logging
+from collections.abc import AsyncIterator
+from dataclasses import dataclass
 from pathlib import Path
 from typing import ClassVar
 
@@ -58,6 +60,100 @@ class Reply:
         self.crisis = crisis
 
 
+@dataclass(frozen=True)
+class Delta:
+    """A piece of the reply, safe to show. The marker is already gone."""
+
+    text: str
+
+
+@dataclass(frozen=True)
+class Done:
+    """The end of a reply, with the whole of it for storing."""
+
+    content: str
+    crisis: bool
+
+
+StreamEvent = Delta | Done
+
+
+class MarkerGate:
+    """Withholds the front of a reply until the crisis marker is ruled out.
+
+    Streaming a reply means showing it before it is finished, and the marker
+    arrives at the front of it. Emitting text the moment it arrives would put a
+    literal `[CRISIS]` on screen, one character at a time, in front of the one
+    person who must not be shown it — and then take it back.
+
+    So the opening is held. Not all of it: only until what has arrived can no
+    longer become the marker, which is at most eight characters and in practice
+    the first token. `[CRI` is still undecided and waits; `What` cannot become
+    `[CRISIS]` and goes out immediately.
+    """
+
+    def __init__(self) -> None:
+        self._held = ""
+        self._decided = False
+        self._started = False
+        self.crisis = False
+
+    def _emit(self, text: str) -> str:
+        """Text on its way out, without the newline the marker was sitting on.
+
+        The model writes the marker on its own line, and the tokeniser is free
+        to end a chunk between the two — leaving the whitespace to arrive after
+        the gate has already decided. Nothing has been shown until the first
+        visible character, so leading whitespace is stripped up to that point
+        rather than at the boundary of any one chunk.
+        """
+        if self._started:
+            return text
+        opening = text.lstrip()
+        if opening:
+            self._started = True
+        return opening
+
+    def push(self, chunk: str) -> str:
+        """What is safe to show now, which may be nothing."""
+        if self._decided:
+            return self._emit(chunk)
+
+        self._held += chunk
+        stripped = self._held.lstrip()
+        if not stripped:
+            # Nothing but whitespace so far, and the marker tolerates leading
+            # whitespace in front of it. Still undecided.
+            return ""
+
+        if stripped.startswith(CRISIS_MARKER):
+            self._decided = True
+            self.crisis = True
+            self._held = ""
+            return self._emit(stripped[len(CRISIS_MARKER) :])
+
+        if len(stripped) < len(CRISIS_MARKER) and CRISIS_MARKER.startswith(stripped):
+            # Could still turn into the marker with the next token.
+            return ""
+
+        self._decided = True
+        self._held = ""
+        return self._emit(stripped)
+
+    def flush(self) -> str:
+        """Whatever is still held when the stream ends.
+
+        A reply shorter than the marker — the model saying "Ok." and stopping —
+        would otherwise be held forever.
+        """
+        if self._decided:
+            return ""
+        self._decided = True
+        held = self._held.strip()
+        self._held = ""
+        return held
+
+
 def _strip_marker(text: str) -> tuple[str, bool]:
     """Pull the crisis marker off the front of a reply.
 
@@ -87,6 +183,17 @@ class StubAgent:
         user_turns = [t for t in turns if t["speaker"] == "user"]
         return Reply(self.OPENERS[len(user_turns) % len(self.OPENERS)], crisis=False)
 
+    async def stream(self, turns: list[dict]) -> AsyncIterator[StreamEvent]:
+        """Arrives whole, because there is nothing here to write gradually.
+
+        The shape still matches the real agent's, so a deployment without a key
+        exercises the same client path rather than a quieter one that would hide
+        whatever breaks on the path that matters.
+        """
+        answer = await self.reply(turns)
+        yield Delta(answer.content)
+        yield Done(answer.content, answer.crisis)
+
 
 class ConversationAgent:
     """Holds up the other side of a journalling conversation."""
@@ -114,13 +221,53 @@ class ConversationAgent:
     def version(self) -> str:
         return f"{PROMPT_VERSION}/{self._model_name}"
 
-    async def reply(self, turns: list[dict]) -> Reply:
+    def _messages(self, turns: list[dict]) -> list:
         messages: list = [SystemMessage(content=self._system)]
         for turn in turns[-CONTEXT_TURNS:]:
             if turn["speaker"] == "user":
                 messages.append(HumanMessage(content=turn["content"]))
             else:
                 messages.append(AIMessage(content=turn["content"]))
+        return messages
+
+    async def stream(self, turns: list[dict]) -> AsyncIterator[StreamEvent]:
+        """The same reply, as it is written rather than once it is finished.
+
+        Worth the second code path for what it does to the silence. A reply is
+        spoken a sentence at a time, and a sentence is finished long before the
+        reply is — so the first sentence can be sent for synthesis while the
+        model is still writing the second. The wait for the model and the wait
+        for the voice stop being consecutive.
+        """
+        messages = self._messages(turns)
+        gate = MarkerGate()
+        parts: list[str] = []
+
+        try:
+            async for chunk in self._client.astream(messages):
+                text = chunk.content if isinstance(chunk.content, str) else str(chunk.content)
+                if not text:
+                    continue
+                visible = gate.push(text)
+                if visible:
+                    parts.append(visible)
+                    yield Delta(visible)
+        except Exception as exc:
+            logger.warning("conversation stream failed: %s", exc)
+            raise ConversationError(str(exc)) from exc
+
+        tail = gate.flush()
+        if tail:
+            parts.append(tail)
+            yield Delta(tail)
+
+        content = "".join(parts).strip()
+        if not content:
+            raise ConversationError("the agent returned an empty reply")
+        yield Done(content, gate.crisis)
+
+    async def reply(self, turns: list[dict]) -> Reply:
+        messages = self._messages(turns)
 
         try:
             response = await self._client.ainvoke(messages)
