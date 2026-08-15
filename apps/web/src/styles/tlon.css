@@ -359,6 +359,12 @@
   #avatar{width:min(58vh,520px);height:min(58vh,520px)}
   .talk-caption{margin-top:18px;max-width:52ch;text-align:center;color:var(--muted);font-size:14px;letter-spacing:.04em;min-height:1.6em;transition:opacity .6s}
   .talk-caption.you{color:var(--ink)}
+  /* The avatar as a control: a button that is only its own contents, so the
+     shape is what you press and nothing is drawn around it. */
+  .talk-avatar-start{background:none;border:0;padding:0;cursor:pointer;display:block;
+    border-radius:50%}
+  .talk-avatar-start:focus-visible{outline:2px solid var(--live);outline-offset:8px}
+  .talk-avatar-start[disabled]{cursor:default;opacity:.7}
   .talk-begin{display:flex;flex-direction:column;align-items:center;margin-top:26px;text-align:center}
   /* find — searching the record */
   .f-wrap{max-width:640px}

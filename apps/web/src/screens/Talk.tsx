@@ -126,13 +126,30 @@ export function Talk() {
 
   return (
     <div className="talk-stage">
-      <canvas id="avatar" ref={canvas} width={720} height={720} aria-hidden />
+      {/* The shape is the control, as it is on the phone. A conversation began
+          with a button underneath a picture of itself; the picture is the thing
+          you are talking to, so it is the thing you touch to start. */}
+      {conversation ? (
+        <canvas id="avatar" ref={canvas} width={720} height={720} aria-hidden />
+      ) : (
+        <button
+          id="avatarStart"
+          className="talk-avatar-start"
+          onClick={() => begin.mutate()}
+          disabled={begin.isPending}
+          aria-label="Start talking"
+        >
+          <canvas id="avatar" ref={canvas} width={720} height={720} aria-hidden />
+        </button>
+      )}
 
       <p className="talk-caption mono" aria-live="polite">
         {kept
           ? kept
           : !conversation
-          ? ""
+          ? begin.isPending
+            ? "Starting…"
+            : "Tap to start talking"
           : mode === "thinking"
             ? "Thinking."
             : mode === "speaking"
@@ -144,11 +161,9 @@ export function Talk() {
 
       {!conversation ? (
         <div className="talk-begin">
-          <button className="btn" disabled={begin.isPending} onClick={() => begin.mutate()}>
-            {begin.isPending ? "…" : "BEGIN THE CONVERSATION"}
-          </button>
-          <span className="mono" style={{ color: "var(--faint)", marginTop: 14 }}>
-            Only your turns become entries. Nothing is interpreted here.
+          <span className="mono" style={{ color: "var(--faint)" }}>
+            Say whatever is on your mind. Only your turns become entries, and
+            nothing here is interpreted.
           </span>
         </div>
       ) : (
