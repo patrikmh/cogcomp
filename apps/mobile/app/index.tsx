@@ -156,7 +156,15 @@ export default function JournalScreen() {
                       <Text style={styles.entryText}>{entry.content}</Text>
                       {(drawnFrom.get(entry.id)?.length ?? 0) > 0 ? (
                         <View style={styles.chipRow}>
-                          <Kicker>Drawn from this</Kicker>
+                          {/* On the newest entry only, and only while the words
+                              are still the ones in front of you: the kicker asks
+                              rather than announces. Everywhere else it states.
+                              A product that never nags cannot open a queue, but
+                              it can ask once, about the thing you just wrote,
+                              where saying no costs a tap. */}
+                          <Kicker>
+                            {gi === 0 && i === 0 ? "Drawn from this · does it fit?" : "Drawn from this"}
+                          </Kicker>
                           <View style={styles.chips}>
                             {drawnFrom.get(entry.id)!.slice(0, 4).map((r) => (
                               <Chip
@@ -437,9 +445,19 @@ const styles = StyleSheet.create({
 /** Today, Yesterday, or the date — the web's `dayLabelOf`, in this client's
  *  words. Grouping by a raw ISO day would be accurate and unreadable. */
 function dayLabel(iso: string): string {
-  const day = iso.slice(0, 10);
-  const today = new Date().toISOString().slice(0, 10);
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  // Local days throughout, not UTC ones.
+  //
+  // The grouping compared `toISOString` dates — which are UTC — and then
+  // formatted them with `toLocaleDateString`, which is not. An entry written at
+  // one in the morning is the previous day in UTC and this day where the person
+  // was, so it was filed under "Yesterday" and then dated with today: the
+  // journal showed "TODAY · SATURDAY 15 AUGUST" and "YESTERDAY · SATURDAY 15
+  // AUGUST", one above the other.
+  const localDayOf = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const day = localDayOf(new Date(iso));
+  const today = localDayOf(new Date());
+  const yesterday = localDayOf(new Date(Date.now() - 86400000));
   // The design names the day *and* dates it — "Today · Wednesday 4 February".
   // "Today" alone is unambiguous only while you are reading it today; scrolled
   // back a week it is the one heading that cannot be checked against anything.
