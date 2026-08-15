@@ -45,6 +45,8 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
   const [speaking, setSpeaking] = useState(false);
   /** Whether this browser has been told, inside a gesture, that sound is wanted. */
   const unlocked = useRef(false);
+  /** The blob URL currently playing, revoked when it stops. */
+  const playing = useRef<string | null>(null);
   const sound = useRef<Audio.Sound | null>(null);
   const envelope = useRef<Envelope>({ levels: [], frameMs: 50 });
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -60,6 +62,12 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
     const active = sound.current;
     sound.current = null;
     active?.unloadAsync().catch(() => undefined);
+    // The blob outlives the sound unless it is let go of, and a conversation is
+    // many clips long.
+    if (playing.current) {
+      URL.revokeObjectURL(playing.current);
+      playing.current = null;
+    }
     smoothed.current = 0;
     setLevel(0);
     setSpeaking(false);
@@ -98,6 +106,15 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
     }
   }, []);
 
+  /** The clip as a blob URL, so the media element is handed a resource rather
+   *  than eighty kilobytes of base64 in an attribute. */
+  function blobUri(base64: string): string {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
+  }
+
   const say = useCallback(
     async (text: string) => {
       if (!token || !enabled || !text.trim() || unavailable.current) return;
@@ -107,8 +124,21 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
         const clip = await api.speak(token, text);
         envelope.current = { levels: clip.envelope, frameMs: clip.frame_ms };
 
+        // A blob on the web, a data URI everywhere else.
+        //
+        // iOS is unreliable playing audio from a `data:` URI — a clip of this
+        // size often loads and then never plays, silently, which is what the
+        // reply was doing on a phone while working in every desktop browser.
+        // A blob URL is an ordinary resource to the media element and has none
+        // of that history.
+        const uri =
+          Platform.OS === "web"
+            ? blobUri(clip.audio)
+            : `data:audio/wav;base64,${clip.audio}`;
+        if (Platform.OS === "web") playing.current = uri;
+
         const { sound: created } = await Audio.Sound.createAsync(
-          { uri: `data:audio/wav;base64,${clip.audio}` },
+          { uri },
           { shouldPlay: true },
         );
         sound.current = created;
