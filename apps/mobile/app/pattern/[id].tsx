@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   },
   side: { gap: 6 },
   sideLabel: {
-    fontFamily: fonts.monoMedium, fontSize: scale.kicker.size,
+    fontFamily: fonts.mono, fontSize: scale.kicker.size,
     textTransform: "uppercase",
     letterSpacing: scale.kicker.tracking,
     color: colors.inkMuted,

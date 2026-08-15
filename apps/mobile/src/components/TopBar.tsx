@@ -20,11 +20,20 @@ import { colors, fonts } from "@/theme";
 export function TopBar() {
   return (
     <View style={styles.bar}>
+      {/* The design sets the mark and the word side by side, 24px then 72px.
+          Only the word was drawn here, so the bar had no fixed glyph at its
+          left edge the way every screen of the prototype does. */}
+      <Image
+        source={require("../../assets/tlon-mark.png")}
+        style={styles.mark}
+        resizeMode="contain"
+        accessibilityLabel="Tlön"
+      />
       <Image
         source={require("../../assets/tlon-logo.png")}
         style={styles.wordmark}
         resizeMode="contain"
-        accessibilityLabel="Tlön"
+        accessibilityLabel=""
       />
       <Text style={styles.note}>private · never shared</Text>
     </View>
@@ -32,12 +41,23 @@ export function TopBar() {
 }
 
 const styles = StyleSheet.create({
-  bar: { flexDirection: "row", alignItems: "center", gap: 12 },
-  wordmark: { width: 86, height: 26, opacity: 0.9 },
+  bar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+    backgroundColor: colors.room,
+  },
+  mark: { width: 24, height: 24 },
+  wordmark: { width: 72, height: 22, opacity: 0.92 },
   note: {
+    marginLeft: "auto",
     color: colors.inkMuted,
     fontFamily: fonts.mono,
-    fontSize: scale.kicker.size,
-    letterSpacing: 0.8,
+    fontSize: 9,
+    letterSpacing: 0.36,
   },
 });

@@ -337,7 +337,7 @@ const styles = StyleSheet.create({
   screen: { backgroundColor: colors.room, padding: 20, gap: 14, paddingBottom: 48 },
   actHead: { flexDirection: "row", alignItems: "center", gap: 10 },
   kind: {
-    fontFamily: fonts.monoMedium, fontSize: scale.kicker.size,
+    fontFamily: fonts.mono, fontSize: scale.kicker.size,
     textTransform: "uppercase",
     letterSpacing: scale.kicker.tracking,
     color: colors.inkMuted,
@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   provenanceTitle: {
-    fontFamily: fonts.monoMedium, fontSize: scale.kicker.size,
+    fontFamily: fonts.mono, fontSize: scale.kicker.size,
     textTransform: "uppercase",
     letterSpacing: scale.kicker.tracking,
     color: colors.inkMuted,

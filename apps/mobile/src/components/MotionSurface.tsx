@@ -9,15 +9,24 @@ type MotionSurfaceProps = Omit<PressableProps, "style"> & {
   motion?: "press" | "none";
 };
 
-/** Shared, restrained depth cue for interactive surfaces. */
+/**
+ * Shared press feedback for interactive surfaces.
+ *
+ * The design has no shadows on anything but the desktop frame, and no scaling
+ * on press. What it does have is `#rail a:active .key{transform:translateY(1px)}`
+ * — the surface takes a step down under the finger. Hover is a border colour,
+ * never a glow. Both of those were inventions here, and a lit card is a much
+ * louder thing on a near-black page than it is on the grey this idiom comes
+ * from.
+ */
 export function MotionSurface({ style, motion = "press", onPressIn, onPressOut, onFocus, onBlur, ...props }: MotionSurfaceProps) {
   const reduced = useReducedMotion();
   const [focused, setFocused] = useState(false);
-  const scale = useRef(new Animated.Value(1)).current;
+  const sink = useRef(new Animated.Value(0)).current;
   const policy = motionPolicy(reduced);
   const animate = (toValue: number) => {
     if (motion === "none") return;
-    Animated.timing(scale, { toValue, duration: policy.duration, useNativeDriver: true }).start();
+    Animated.timing(sink, { toValue, duration: policy.duration, useNativeDriver: true }).start();
   };
   const styled = (state: PressableStateCallbackType) => {
     const webState = state as PressableStateCallbackType & { hovered?: boolean; focused?: boolean };
@@ -28,11 +37,11 @@ export function MotionSurface({ style, motion = "press", onPressIn, onPressOut, 
     ];
   };
   const handlePressIn: NonNullable<PressableProps["onPressIn"]> = (event) => {
-    animate(0.97);
+    animate(1);
     onPressIn?.(event);
   };
   const handlePressOut: NonNullable<PressableProps["onPressOut"]> = (event) => {
-    animate(1);
+    animate(0);
     onPressOut?.(event);
   };
   const handleFocus: NonNullable<PressableProps["onFocus"]> = (event) => {
@@ -67,7 +76,7 @@ export function MotionSurface({ style, motion = "press", onPressIn, onPressOut, 
 
   if (motion === "none") return pressable;
   return (
-    <Animated.View style={[styles.wrapper, layoutStyle, { transform: [{ scale }] }]}>
+    <Animated.View style={[styles.wrapper, layoutStyle, { transform: [{ translateY: sink }] }]}>
       {pressable}
     </Animated.View>
   );
@@ -101,6 +110,8 @@ function extractLayoutStyle(style: StyleProp<ViewStyle>): ViewStyle {
 
 const styles = StyleSheet.create({
   wrapper: { alignSelf: "stretch" },
-  hovered: { shadowColor: colors.ink, shadowOpacity: 0.12, shadowRadius: 5, elevation: 2 },
-  focused: { shadowColor: colors.cyan, shadowOpacity: 0.28, shadowRadius: 7, elevation: 3 },
+  /** Hover and focus are border colours in the design, as `.btn:hover` and
+   *  `button.cell:hover` set them — not light cast on the page. */
+  hovered: { borderColor: colors.violet },
+  focused: { borderColor: colors.cyan },
 });

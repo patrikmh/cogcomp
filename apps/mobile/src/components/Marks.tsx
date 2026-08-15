@@ -177,7 +177,7 @@ export function Spine({ time, lit = false }: { time: string; lit?: boolean }) {
 
 const styles = StyleSheet.create({
   kicker: {
-    fontFamily: fonts.monoMedium,
+    fontFamily: fonts.mono,
     fontSize: scale.kicker.size,
     lineHeight: scale.kicker.line,
     letterSpacing: scale.kicker.tracking,
@@ -204,19 +204,24 @@ const styles = StyleSheet.create({
   spineTime: {
     color: colors.inkMuted,
     fontFamily: fonts.mono,
-    fontSize: scale.meta.size,
+    fontSize: 10,
     lineHeight: scale.meta.line,
+    letterSpacing: 0.6,
     minWidth: 40,
     textAlign: "right",
   },
   spineRail: { width: 1, alignSelf: "stretch", backgroundColor: colors.line, alignItems: "center" },
+  /** The design's j-dot: a ring on the rail, not a blob. The journal drew it
+   *  correctly and this one did not, so the same mark differed by screen. */
   spineDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: colors.line,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: colors.lineStrong,
+    backgroundColor: colors.room,
     marginTop: 6,
-    marginLeft: -2,
+    marginLeft: -3,
   },
-  spineDotLit: { backgroundColor: colors.ink },
+  spineDotLit: { backgroundColor: colors.ink, borderColor: colors.ink },
 });

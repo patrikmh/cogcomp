@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
   badgeText: { fontFamily: fonts.sans, fontSize: 13, color: colors.inkSoft },
   lead: { fontFamily: fonts.sans, fontSize: 15, lineHeight: 22, color: colors.inkSoft, marginTop: 4 },
   sectionTitle: {
-    fontFamily: fonts.monoMedium, fontSize: scale.kicker.size,
+    fontFamily: fonts.mono, fontSize: scale.kicker.size,
     textTransform: "uppercase",
     letterSpacing: scale.kicker.tracking,
     color: colors.inkMuted,
@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   provenanceTitle: {
-    fontFamily: fonts.monoMedium, fontSize: scale.kicker.size,
+    fontFamily: fonts.mono, fontSize: scale.kicker.size,
     textTransform: "uppercase",
     letterSpacing: scale.kicker.tracking,
     color: colors.inkMuted,

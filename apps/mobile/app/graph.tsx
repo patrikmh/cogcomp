@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
   chipActive: { borderColor: colors.ink },
   sectionTitle: {
     marginTop: 12,
-    fontFamily: fonts.monoMedium, fontSize: scale.kicker.size,
+    fontFamily: fonts.mono, fontSize: scale.kicker.size,
     textTransform: "uppercase",
     letterSpacing: scale.kicker.tracking,
     color: colors.inkMuted,

@@ -59,6 +59,8 @@ export const fonts = {
   sansSemi: "IBMPlexSans_600SemiBold",
   sansBold: "IBMPlexSans_700Bold",
   mono: "IBMPlexMono_400Regular",
+  /** The design uses 500-weight mono exactly once: the guide's "?" trigger.
+   *  Everything else in mono is 400, kickers included. */
   monoMedium: "IBMPlexMono_500Medium",
 } as const;
 
@@ -81,7 +83,7 @@ export const theme = StyleSheet.create({
   /** The design's kicker: mono, uppercase, and spaced so it reads as an
    *  instrument marking rather than as shouting. */
   sectionTitle: {
-    color: colors.inkMuted, fontFamily: fonts.monoMedium, fontSize: scale.kicker.size,
+    color: colors.inkMuted, fontFamily: fonts.mono, fontSize: scale.kicker.size,
     lineHeight: scale.kicker.line, letterSpacing: scale.kicker.tracking,
     textTransform: "uppercase",
   },

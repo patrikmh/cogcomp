@@ -411,7 +411,7 @@ const styles = StyleSheet.create({
   readout: { gap: 3 },
   readoutMeta: {
     color: colors.cyan,
-    fontFamily: fonts.monoMedium, fontSize: scale.kicker.size,
+    fontFamily: fonts.mono, fontSize: scale.kicker.size,
     letterSpacing: scale.kicker.tracking,
     textTransform: "uppercase",
   },
@@ -421,7 +421,7 @@ const styles = StyleSheet.create({
   section: { gap: 6, paddingTop: 14 },
   heading: {
     color: colors.cyan,
-    fontFamily: fonts.monoMedium, fontSize: scale.kicker.size,
+    fontFamily: fonts.mono, fontSize: scale.kicker.size,
     letterSpacing: scale.kicker.tracking,
     textTransform: "uppercase",
   },

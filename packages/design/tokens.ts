@@ -66,7 +66,10 @@ export const type = {
    *  instrument markings rather than as shouting. */
   //  .14em on 11px is 1.54. This said 1.8, which is a sixth wider than the
   //  design sets and adds up across a word of uppercase mono.
-  kicker: { size: 11, line: 14, weight: "500", tracking: 1.54 },
+  //  ...and the design draws it at 400 on a line-height of 1, not 500 on 14.
+  //  Mono is 400 everywhere in the design bar the guide's "?" trigger, so a
+  //  medium kicker made every instrument marking in the app a weight heavy.
+  kicker: { size: 11, line: 11, weight: "400", tracking: 1.54 },
 } as const;
 
 export type ColorToken = keyof typeof colors;

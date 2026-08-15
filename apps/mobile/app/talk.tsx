@@ -619,7 +619,7 @@ const styles = StyleSheet.create({
     color: colors.inkMuted,
   },
   peekUrgent: {
-    fontFamily: fonts.monoMedium,
+    fontFamily: fonts.mono,
     fontSize: scale.kicker.size,
     letterSpacing: scale.kicker.tracking,
     textTransform: "uppercase",
@@ -658,7 +658,7 @@ const styles = StyleSheet.create({
   },
   finishLabel: {
     color: colors.inkSoft,
-    fontFamily: fonts.monoMedium,
+    fontFamily: fonts.mono,
     fontSize: scale.kicker.size,
     letterSpacing: scale.kicker.tracking,
     textTransform: "uppercase",
@@ -686,7 +686,7 @@ const styles = StyleSheet.create({
   },
   transcriptTitle: {
     textAlign: "center",
-    fontFamily: fonts.monoMedium,
+    fontFamily: fonts.mono,
     fontSize: scale.kicker.size,
     letterSpacing: scale.kicker.tracking,
     textTransform: "uppercase",

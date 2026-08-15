@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     color: colors.inkMuted,
-    fontFamily: fonts.monoMedium,
+    fontFamily: fonts.mono,
     fontSize: scale.kicker.size,
     lineHeight: scale.kicker.line,
     letterSpacing: scale.kicker.tracking,

@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   },
   buttonLabel: {
     color: colors.ink,
-    fontFamily: fonts.monoMedium,
+    fontFamily: fonts.mono,
     fontSize: scale.kicker.size,
     letterSpacing: scale.kicker.tracking,
   },

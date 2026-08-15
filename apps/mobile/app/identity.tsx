@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
   detail: { gap: 5 },
   kind: {
     color: colors.inkMuted,
-    fontFamily: fonts.monoMedium, fontSize: scale.kicker.size,
+    fontFamily: fonts.mono, fontSize: scale.kicker.size,
     letterSpacing: scale.kicker.tracking,
     textTransform: "uppercase",
   },
