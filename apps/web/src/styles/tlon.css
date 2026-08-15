@@ -8,7 +8,7 @@
      near-black palette. `:focus-visible` shows only when someone is actually
      tabbing, so this is invisible to anyone using a mouse and the design looks
      exactly as drawn. */
-  :focus-visible{outline:2px solid var(--live);outline-offset:2px;border-radius:2px}
+  #app :where(a,button,input,textarea):focus-visible{outline:2px solid var(--live);outline-offset:2px}
   .skip{position:absolute;left:-9999px;top:0;z-index:50}
   .skip:focus{left:76px;top:10px;padding:9px 13px;background:var(--surface);
     border:1px solid var(--line2);border-radius:3px;color:var(--ink);
@@ -101,9 +101,10 @@
   .grid7{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;max-width:520px}
   .cell{aspect-ratio:1;border:1px solid var(--line);border-radius:3px;display:grid;align-content:end;
     padding:8px;font:400 11px/1 "IBM Plex Mono",monospace;color:var(--faint)}
-  .tabs{display:flex;gap:22px;border-bottom:1px solid var(--line);margin:0 0 20px}
-  .tabs button{border:0;background:none;padding:0 0 9px;cursor:pointer;position:relative;
-    font:500 14px/1 "IBM Plex Sans",sans-serif;color:var(--faint)}
+  .tabs{display:flex;gap:22px;overflow-x:auto;overflow-y:hidden;white-space:nowrap;
+    border-bottom:1px solid var(--line);margin:0 0 20px;-webkit-overflow-scrolling:touch}
+  .tabs button{flex:0 0 auto;min-height:44px;border:0;background:none;padding:10px 0 9px;
+    cursor:pointer;position:relative;font:500 14px/1 "IBM Plex Sans",sans-serif;color:var(--faint)}
   .tabs button:hover{color:var(--dim)}
   .tabs button[data-on]{color:var(--ink)}
   .tabs button[data-on]::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;background:var(--pattern)}
@@ -183,7 +184,6 @@
   .j-entry.latest .j-act p{font-size:19px;line-height:30px}
   .j-seal{transition:transform .3s cubic-bezier(.2,.8,.2,1),opacity .2s}
   .j-act:hover .j-seal{transform:scale(1.07) rotate(4deg);opacity:1}
-  #cap:focus-within{border-bottom-color:var(--ink)}
   /* The composer is focused on arrival, and a ring drawn around it on every
      visit is a shout where the design wanted a caret. The bar's own border
      lighting is the affordance here, and a text field shows a caret besides. */
@@ -351,7 +351,7 @@
   #mic .dot{display:block;width:5px;height:5px;border-radius:50%;background:var(--line2);position:absolute;top:8px;right:8px}
   #mic[data-rec] .dot{background:var(--rust)}
   /* The state label stays collapsed until the microphone is actually open. */
-  .cap-label{font:400 9px/1 "IBM Plex Mono",monospace;letter-spacing:.04em;white-space:nowrap;overflow:hidden;max-width:0;opacity:0;transition:max-width .18s,opacity .18s}
+  #mic .cap-label{font:400 9px/1 "IBM Plex Mono",monospace;letter-spacing:.04em;white-space:nowrap;overflow:hidden;max-width:0;opacity:0}
   #mic[data-rec] .cap-label{max-width:none;opacity:1}
   .sr-only,#capGuidance{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
   #capState{display:block;margin-top:7px;color:var(--faint);font:400 10px/1.4 "IBM Plex Mono",monospace;letter-spacing:.04em}
@@ -451,7 +451,7 @@
   #orbwrap::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:1;
     background:radial-gradient(120% 95% at 50% 42%,transparent 58%,rgba(5,8,7,.55) 100%)}
   #readout{position:absolute;left:0;bottom:14px;z-index:3;width:100%;
-    padding:0 18px;font:400 12px/1.4 "IBM Plex Mono",monospace;color:var(--faint);
+    padding:0 12px;font:400 12px/1.4 "IBM Plex Mono",monospace;color:var(--faint);
     pointer-events:none;letter-spacing:.02em}
   #readout .rk{display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase}
   #readout.hover .rk{color:var(--dim)}
@@ -497,3 +497,26 @@ body.guide-open #guide-backdrop{opacity:1;visibility:visible;pointer-events:auto
 #guide-dialog p{color:var(--dim);margin:0}
 #guide-close{position:absolute;right:10px;top:10px;width:44px;height:44px;font-size:16px}
 @media (prefers-reduced-motion: reduce){#guide-backdrop{transition:none}}
+
+  /* ---------- headspace ---------- */
+  /* The screen is a column that owns its own height, so the orb takes the space
+     the heading and lens row leave rather than pushing the page taller. The lens
+     note is drawn in the design and then suppressed here: it is written for the
+     record, not for the screen. */
+  .headspace{min-width:0;display:flex;flex-direction:column;height:100%;overflow:hidden}
+  .headspace h1{margin:4px 0 3px}
+  .headspace .sub{display:none}
+  .headspace .tabs{gap:12px;margin-bottom:8px;max-width:100%}
+  .headspace .tabs button{padding:8px 0 7px}
+  #lensAction{margin-top:0}
+
+  /* ---------- phone adjustments ---------- */
+  h1{font-size:22px;line-height:26px}
+  input[type=text],input[type=email],input[type=password],textarea{font-size:16px;line-height:22px}
+  .grid7{max-width:none}
+  .talk-stage{min-height:calc(100dvh - 300px)}
+  #avatar{width:min(64vw,420px);height:min(64vw,420px)}
+  .talk-input{width:min(52ch,92%)}
+  .talk-crisis{max-width:min(420px,92vw)}
+  #explore svg{height:300px}
+  @media(max-width:559px){#topbar .mono{display:none}}

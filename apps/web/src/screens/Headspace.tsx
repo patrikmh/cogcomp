@@ -171,7 +171,11 @@ export function Headspace() {
   const active = lenses.some((l) => l.id === lens) ? lens : "today";
 
   return (
-    <>
+    // The design wraps this screen in its own class: it is a column that owns
+    // its height, so the orb takes what the heading and lens row leave rather
+    // than growing the page. Without it the lens note shows and the orb is
+    // pushed down by a paragraph the design suppresses.
+    <div className="headspace">
       <span className="kicker">{HEADINGS.headspace.kicker}</span>
       <div className="row">
         <h1 id="lensTitle">{LENS_LABEL[active]}</h1>
@@ -237,7 +241,7 @@ export function Headspace() {
       </div>
 
       {/* The contextual way onward, exactly where the design puts it. */}
-      <div id="lensAction" style={{ marginTop: 18 }}>
+      <div id="lensAction">
         {active === "recurring" && counts.recurring > 0 && (
           <Link className="btn ghost" to="/patterns">
             OPEN PATTERNS
@@ -254,7 +258,7 @@ export function Headspace() {
           </Link>
         )}
       </div>
-    </>
+    </div>
   );
 }
 
