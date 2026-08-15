@@ -438,9 +438,13 @@ export default function TalkScreen() {
             </MotionSurface>
 
             {/* Push-to-talk stays for anyone who would rather not leave a
-                microphone open, and for rooms where that is not appropriate. */}
+                microphone open, and for rooms where that is not appropriate —
+                as a mic beside the main action rather than a second slab under
+                it. Two full-width buttons stacked asked which way to talk before
+                anyone had said anything, and the design has one action. */}
             {live.state === "off" && (
               <RecordButton
+                compact
                 disabled={say.isPending || speak.isPending}
                 onRecorded={async (uri) => {
                   await speak.mutateAsync(uri);
@@ -472,8 +476,10 @@ export default function TalkScreen() {
 }
 
 const styles = StyleSheet.create({
-  voiceRow: { gap: 10 },
+  voiceRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   live: {
+    // Takes the row; the mic sits beside it.
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
