@@ -99,3 +99,23 @@ class TestUsesRealSpeech:
             SPEECH_VOICE_ID="voice-1",
         )
         assert s.uses_real_speech is False
+
+
+class TestConversationModel:
+    """The talk turn and the extractor want opposite things from a model, so
+    they are allowed to disagree — but only when someone says so."""
+
+    def test_the_conversation_falls_back_to_the_extractor_s_model(self):
+        settings = Settings(database_url="postgres://x", openrouter_model="a/b")
+        assert settings.conversation_model == ""
+        assert (settings.conversation_model or settings.openrouter_model) == "a/b"
+
+    def test_it_can_be_pointed_at_a_faster_model_on_its_own(self):
+        settings = Settings(
+            database_url="postgres://x",
+            openrouter_model="a/slow",
+            conversation_model="a/fast",
+        )
+        assert (settings.conversation_model or settings.openrouter_model) == "a/fast"
+        # The extractor is untouched: being right matters more there than being quick.
+        assert settings.openrouter_model == "a/slow"

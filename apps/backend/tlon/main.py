@@ -66,7 +66,8 @@ async def lifespan(app: FastAPI):
     # test overriding configuration overrides it everywhere.
     app.state.settings = settings
     app.state.conversation_agent = build_agent(
-        settings.openrouter_api_key, settings.openrouter_model
+        settings.openrouter_api_key,
+        settings.conversation_model or settings.openrouter_model,
     )
     app.state.transcriber = build_transcriber(
         settings.transcription_api_key,

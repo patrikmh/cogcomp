@@ -15,6 +15,19 @@ class Settings(BaseSettings):
     #: pipeline is exercisable without a key or a network call.
     openrouter_api_key: str = ""
     openrouter_model: str = "anthropic/claude-opus-5"
+    #: The model that holds up the other side of a conversation, when it should
+    #: not be the one that does the extracting.
+    #:
+    #: They want opposite things. Extraction runs in the background against a
+    #: schema, and being right matters more than being quick. A conversational
+    #: turn is one short question in front of someone who is waiting, and the
+    #: wait is most of what it feels like — measured against the deployment,
+    #: time-to-first-token is two to four and a half seconds, which is nearly
+    #: the whole gap before the reply is spoken.
+    #:
+    #: Blank means "whatever the extractor uses", so nothing changes for a
+    #: deployment that never sets it.
+    conversation_model: str = ""
 
     #: Hosted Whisper, for voice entries. Absent in development, in which case the
     #: stub transcriber keeps the voice path exercisable without a key.

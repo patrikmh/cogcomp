@@ -91,6 +91,15 @@ services:
         sync: false
       - key: OPENROUTER_MODEL
         sync: false
+      # Optional, and the single largest lever on how a conversation feels.
+      # Extraction and conversation share this key's model unless this is set,
+      # and they want opposite things: extraction runs in the background against
+      # a schema, while a conversational turn is one short question in front of
+      # someone waiting. Measured against this deployment, time-to-first-token
+      # is 2–4.5s and is nearly the whole gap before a reply is spoken.
+      # Unset means both use OPENROUTER_MODEL, which is what it did before.
+      - key: CONVERSATION_MODEL
+        sync: false
       - key: TRANSCRIPTION_API_KEY
         sync: false
       # Optional — falls back to ELEVENLABS_API_KEY if this blueprint's
