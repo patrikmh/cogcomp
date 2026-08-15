@@ -1,4 +1,5 @@
 import { Audio } from "expo-av";
+import { Platform } from "react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { type VadState, initial, levelFromMetering, step } from "@/lib/vad";
@@ -56,6 +57,13 @@ export function useContinuousVoice({
 }): ContinuousVoice {
   const [state, setState] = useState<ListenState>("off");
   const [level, setLevel] = useState(0);
+  /** The web's own level source; null on native, which uses metering. */
+  const meter = useRef<{
+    stream: MediaStream;
+    context: AudioContext;
+    analyser: AnalyserNode;
+    data: Uint8Array;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const recording = useRef<Audio.Recording | null>(null);
@@ -68,7 +76,56 @@ export function useContinuousVoice({
   const muted = useRef(speaking);
   muted.current = speaking;
 
+  /**
+   * A microphone level, on the web.
+   *
+   * `expo-av`'s web recorder answers `getAudioRecordingStatus` with five fields
+   * — canRecord, isRecording, isDoneRecording, durationMillis, uri — and no
+   * `metering` among them. `isMeteringEnabled` is honoured on iOS and Android
+   * and ignored here, so `status.metering` was always undefined, the level was
+   * always 0, and the detector never heard anything: the microphone opened, the
+   * screen said it was listening, and nothing was ever sent however long anyone
+   * talked.
+   *
+   * So the web reads the level itself, off an analyser on its own stream, and
+   * native carries on using metering.
+   */
+  const openWebMeter = useCallback(async () => {
+    if (Platform.OS !== "web" || meter.current) return;
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const context = new (window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    const analyser = context.createAnalyser();
+    // Small window: this is asked for a level every 60ms and only needs loudness.
+    analyser.fftSize = 512;
+    context.createMediaStreamSource(stream).connect(analyser);
+    meter.current = { stream, context, analyser, data: new Uint8Array(analyser.fftSize) };
+  }, []);
+
+  const closeWebMeter = useCallback(() => {
+    const open = meter.current;
+    meter.current = null;
+    if (!open) return;
+    open.stream.getTracks().forEach((t) => t.stop());
+    void open.context.close().catch(() => undefined);
+  }, []);
+
+  /** Loudness now, 0–1, as root-mean-square about the centre of the waveform. */
+  const webLevel = useCallback((): number => {
+    const open = meter.current;
+    if (!open) return 0;
+    open.analyser.getByteTimeDomainData(open.data);
+    let sum = 0;
+    for (let i = 0; i < open.data.length; i++) {
+      const deviation = (open.data[i]! - 128) / 128;
+      sum += deviation * deviation;
+    }
+    // The same shape `levelFromMetering` gives: quiet is 0, speech approaches 1.
+    return Math.min(1, Math.sqrt(sum / open.data.length) * 4);
+  }, []);
+
   const teardown = useCallback(async () => {
+    closeWebMeter();
     if (timer.current) clearInterval(timer.current);
     timer.current = null;
     const active = recording.current;
@@ -128,6 +185,9 @@ export function useContinuousVoice({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
       });
+      // The web's own level source. Opened once for the session rather than per
+      // segment, so the analyser is warm when the first word arrives.
+      await openWebMeter();
 
       running.current = true;
       vad.current = initial();
@@ -154,7 +214,8 @@ export function useContinuousVoice({
         const elapsed = now - lastFrame.current;
         lastFrame.current = now;
 
-        const current = levelFromMetering(status.metering ?? Number.NaN);
+        const current =
+          Platform.OS === "web" ? webLevel() : levelFromMetering(status.metering ?? Number.NaN);
         setLevel(current);
 
         const { state: next, action } = step(vad.current, current, elapsed);
