@@ -189,6 +189,7 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
                           label={r.label}
                           confidence={r.confidence}
                           tentative={r.tentative}
+                          onPress={() => router.push(`/node/${r.id}`)}
                         />
                       ))}
                     </View>

@@ -122,6 +122,7 @@ export default function SearchScreen() {
                       label={r.label}
                       confidence={r.confidence}
                       tentative={r.tentative}
+                      onPress={() => router.push(`/node/${r.id}`)}
                     />
                   ))}
                 </View>
