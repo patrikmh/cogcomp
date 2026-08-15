@@ -101,10 +101,33 @@ export default function TalkScreen() {
     onSuccess: (c) => setConversationId(c.id),
   });
 
-  // Start one on arrival; leaving without saying anything creates nothing that
-  // shows up anywhere.
+  // Pick up where you left off, and only start a new one when there is nothing
+  // open to return to.
+  //
+  // Every arrival used to begin a fresh conversation, so stepping to the journal
+  // and back lost the thread — it was still on the server, unclosed, and the
+  // screen had no way to show it. It also left an abandoned conversation behind
+  // each time, which is why an account used for an afternoon had twenty of them.
   useEffect(() => {
-    if (token && !conversationId && !start.isPending) start.mutate();
+    if (!token || conversationId || start.isPending) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { conversations } = await api.listConversations(token);
+        const open = conversations.find((c) => c.closed_at === null);
+        if (cancelled) return;
+        if (open) {
+          setConversationId(open.id);
+          return;
+        }
+      } catch {
+        // The list is an optimisation, not the feature. If it fails, start one.
+      }
+      if (!cancelled) start.mutate();
+    })();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 

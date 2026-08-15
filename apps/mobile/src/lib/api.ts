@@ -656,6 +656,19 @@ export const api = {
     );
   },
 
+  /** Conversations newest first, with enough to tell an abandoned one from a
+   *  finished one. */
+  listConversations(token: string) {
+    return request<{
+      conversations: {
+        id: string;
+        started_at: string;
+        closed_at: string | null;
+        user_turns: number;
+      }[];
+    }>("/v1/conversations?limit=1", token);
+  },
+
   startConversation(token: string) {
     return request<{ id: string; started_at: string; agent: string }>(
       "/v1/conversations",
