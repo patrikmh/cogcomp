@@ -38,7 +38,15 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1/conversations", tags=["conversations"])
 
-ELEVENLABS_TOKEN_URL = "https://api.elevenlabs.io/v1/token"
+#: Mints the single-use token a browser opens the realtime transcription socket
+#: with. The token type is part of the path, not the body, and the token it
+#: returns expires in fifteen minutes and is consumed on use.
+#:
+#: This was `/v1/token` for as long as the endpoint has existed here, which is
+#: not an address ElevenLabs has ever served — it 404s, the route turned that
+#: into its own 502, and the feature has never worked. Nothing called it, so
+#: nothing reported it.
+ELEVENLABS_TOKEN_URL = "https://api.elevenlabs.io/v1/single-use-token/realtime_scribe"
 
 DEFAULT_LIMIT = 50
 MAX_LIMIT = 200
@@ -404,6 +412,16 @@ async def realtime_token(request: Request, user_id: UUID = Depends(current_user)
         )
 
     if response.status_code >= 400:
+        # Logged with the upstream status, because without it every cause looks
+        # the same from outside: a wrong path, an expired key, and a key with no
+        # permission for this all arrive as one unexplained 502. The last time
+        # this failed it was a 404 on an address that has never existed, and
+        # nothing said so anywhere.
+        logger.warning(
+            "realtime token mint failed: %s returned %s",
+            ELEVENLABS_TOKEN_URL,
+            response.status_code,
+        )
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, "could not mint a realtime token")
 
     token = response.json().get("token")
