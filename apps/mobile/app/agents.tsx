@@ -25,6 +25,37 @@ import { EMPTY as EMPTY_COPY } from "@tlon/copy/empty";
  * head said nothing about any of them, and it cost the one thing a log is for,
  * which is reading them in order. Counts only, never what anyone wrote.
  */
+/**
+ * The last day's runs, accounted for in a sentence.
+ *
+ * Only what a run actually reports. There is no field meaning "readings
+ * extracted", so no such number is quoted — a count invented to round out a
+ * sentence is the one thing this screen must never do, since its whole claim is
+ * that it says what happened and nothing more.
+ */
+function sinceYesterday(runs: AgentRun[]): string {
+  const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
+  const recent = runs.filter((run) => new Date(run.started_at).getTime() >= dayAgo);
+  if (recent.length === 0) return "Nothing has run since yesterday.";
+
+  const patterns = recent.reduce((n, run) => n + (run.summary?.patterns ?? 0), 0);
+  const merged = recent.reduce((n, run) => n + (run.summary?.nodes_merged ?? 0), 0);
+  const empty = recent.filter(
+    (run) => run.status === "succeeded" && !run.summary?.patterns && !run.summary?.nodes_merged,
+  ).length;
+  const idle = recent.filter((run) => run.status === "skipped").length;
+  const broke = recent.filter((run) => run.status === "failed").length;
+
+  const parts: string[] = [];
+  if (patterns) parts.push(`${patterns} ${patterns === 1 ? "pattern" : "patterns"} written`);
+  if (merged) parts.push(`${merged} ${merged === 1 ? "reading" : "readings"} merged`);
+  if (empty) parts.push(`${empty} ${empty === 1 ? "run" : "runs"} found nothing`);
+  if (idle) parts.push(`${idle} had nothing to work on`);
+  if (broke) parts.push(`${broke} failed and will retry`);
+  if (parts.length === 0) return "Nothing has run since yesterday.";
+  return `Since yesterday: ${parts.join(", ")}.`;
+}
+
 export default function AgentsScreen() {
   const token = useSession((s) => s.token);
   const queryClient = useQueryClient();
@@ -59,6 +90,12 @@ export default function AgentsScreen() {
           <Text style={styles.title}>{HEADINGS.agents.title}</Text>
           <Guide id="agents" />
         </View>
+        {/* What the agents actually did, which is what this screen is for. It
+            described its own format instead — true, and not the thing someone
+            came to find out. The design opens with the account: what was
+            written, what found nothing, what had nothing to work on, what
+            failed. */}
+        <Text style={styles.sub}>{sinceYesterday(all)}</Text>
         <Text style={styles.sub}>One line per attempt. Counts only — never what you wrote.</Text>
 
         <View style={styles.summary}>
