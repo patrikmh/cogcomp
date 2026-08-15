@@ -82,12 +82,14 @@ class TestOnlyUserTurnsBecomeObservations:
         assert closed.status_code == 200
         assert closed.json()["turns_converted"] == 2
 
+        # One entry for the conversation, holding both turns verbatim. Kept as
+        # two the record filled with fragments that only made sense in order.
         listed = await client.get("/v1/observations", headers=account.auth)
-        contents = {o["content"] for o in listed.json()["observations"]}
-        assert contents == {
-            "I told Sara I would finish the report.",
-            "I still have not started it.",
-        }
+        observations = listed.json()["observations"]
+        assert len(observations) == 1
+        assert observations[0]["content"] == (
+            "I told Sara I would finish the report.\n\nI still have not started it."
+        )
 
     async def test_no_assistant_text_ever_reaches_the_observations_table(
         self, client: AsyncClient, account: Account

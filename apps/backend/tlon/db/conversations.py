@@ -144,29 +144,41 @@ async def close(pool: asyncpg.Pool, user_id: UUID, conversation_id: UUID) -> dic
     if conversation["closed_at"] is not None:
         raise ValueError("conversation is already closed")
 
-    created: list[str] = []
-    for turn in conversation["turns"]:
-        if turn["speaker"] != "user":
-            continue
+    # One entry for the conversation, not one per turn.
+    #
+    # A conversation is a person working out what they mean — a few sentences,
+    # a correction, an afterthought. Kept as separate entries the record filled
+    # with fragments that only made sense in order, and the journal read as a
+    # transcript rather than as the day. What was said is kept verbatim, every
+    # word of it; the turns are joined, not summarised.
+    spoken = [turn for turn in conversation["turns"] if turn["speaker"] == "user"]
 
+    created: list[str] = []
+    if spoken:
+        first = spoken[0]
         observation_id = uuid4()
-        new = NewObservation(
+        new_entry = NewObservation(
             id=observation_id,
-            content=turn["content"],
-            source=Source(turn["source"]),
-            # The moment it was said, not the moment the conversation ended, so
-            # it lands on the right day in the summary.
-            captured_at=turn["spoken_at"],
+            # A blank line between turns, so the pauses someone took are still
+            # legible in what they wrote.
+            content="\n\n".join(turn["content"] for turn in spoken),
+            source=Source(first["source"]),
+            # When they started talking, not when they stopped, so a
+            # conversation begun before midnight lands on the day they had.
+            captured_at=first["spoken_at"],
             # The zone it was said in, so a late-night turn lands on the day the
             # person had, not the day the server was having.
-            timezone=turn["timezone"],
+            timezone=first["timezone"],
         )
-        await observations_db.insert(pool, user_id, new)
-        await pool.execute(
-            "UPDATE conversation_turns SET observation_id = $1 WHERE id = $2",
-            observation_id,
-            UUID(turn["id"]),
-        )
+        await observations_db.insert(pool, user_id, new_entry)
+        # Every turn points at the one entry it became part of, so the chain
+        # from an entry back to what was actually said stays intact.
+        for turn in spoken:
+            await pool.execute(
+                "UPDATE conversation_turns SET observation_id = $1 WHERE id = $2",
+                observation_id,
+                UUID(turn["id"]),
+            )
         created.append(str(observation_id))
 
     await pool.execute("UPDATE conversations SET closed_at = now() WHERE id = $1", conversation_id)
@@ -174,7 +186,7 @@ async def close(pool: asyncpg.Pool, user_id: UUID, conversation_id: UUID) -> dic
     return {
         "conversation_id": str(conversation_id),
         "observations": created,
-        "turns_converted": len(created),
+        "turns_converted": len(spoken),
     }
 
 
