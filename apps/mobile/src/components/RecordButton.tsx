@@ -263,9 +263,6 @@ export function RecordButton({
           {label}
         </Text>
       </MotionSurface>
-      <Text style={[styles.note, tone === "dark" && styles.noteDark]}>
-        The recording is transcribed and then discarded. Only the text is kept.
-      </Text>
     </View>
   );
 }

@@ -433,8 +433,14 @@ export default function TalkScreen() {
           </View>
         )}
 
+        {/* One line, as the design carries one. There were two, opening with
+            the same three words — the button said the audio is discarded and
+            the text kept, the screen said only your turns become entries. Both
+            true, and together they read as the screen repeating itself while
+            saying two different things. */}
         <Text style={[styles.footnote, focus && styles.footnoteFocus]}>
-          Only what you say is kept. My side of this isn't saved as an entry.
+          Only your turns become entries. The recording is transcribed and then
+          discarded, and nothing here is interpreted.
         </Text>
       </View>
       </KeyboardAvoidingView>
