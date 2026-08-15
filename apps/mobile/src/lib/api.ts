@@ -443,11 +443,27 @@ async function request<T>(
  * React Native's FormData takes a {uri, name, type} descriptor; on web the
  * recording is a real Blob behind a blob: URL and has to be fetched first.
  */
+/** The extension for a recorded blob's own MIME type. Falls back to webm, which
+ *  is what every browser but Safari produces. */
+function extensionFor(mime: string): string {
+  const type = mime.split(";")[0]?.trim().toLowerCase() ?? "";
+  if (type === "audio/mp4" || type === "audio/x-m4a" || type === "audio/aac") return ".m4a";
+  if (type === "audio/mpeg") return ".mp3";
+  if (type === "audio/wav" || type === "audio/x-wav") return ".wav";
+  if (type === "audio/ogg") return ".ogg";
+  return ".webm";
+}
+
 async function audioForm(uri: string): Promise<FormData> {
   const form = new FormData();
   if (uri.startsWith("blob:") || uri.startsWith("data:")) {
     const blob = await fetch(uri).then((r) => r.blob());
-    form.append("audio", blob, "recording.webm");
+    // Named after what the browser actually recorded, not after what Chrome
+    // records. Safari's MediaRecorder produces audio/mp4; this said
+    // "recording.webm" for every browser, so an iPhone uploaded an MP4 under a
+    // WebM name and the transcriber was handed a file that disagreed with
+    // itself. Chrome never showed it, because there the name happened to be true.
+    form.append("audio", blob, `recording${extensionFor(blob.type)}`);
   } else {
     form.append("audio", {
       uri,
