@@ -120,7 +120,12 @@ export default function TalkScreen() {
       setJustReplied(true);
       voice.say(reply.reply);
       if (reply.crisis) setCrisis(reply.crisis_resources);
-      queryClient.invalidateQueries({ queryKey: ["conversation", conversationId] });
+      // Refetched directly rather than invalidated by key. Invalidation was
+      // firing and no GET followed it — the thread stayed empty after a spoken
+      // turn however long you waited, which is what "the transcript works in
+      // some cases" was: it filled only when something else happened to refetch.
+      // Asking the query itself leaves no key to mismatch.
+      void conversation.refetch();
     },
   });
 
