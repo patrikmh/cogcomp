@@ -8,7 +8,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 
@@ -75,7 +74,6 @@ export default function TalkScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [conversationId, setConversationId] = useState<string | null>(null);
-  const [draft, setDraft] = useState("");
   const [crisis, setCrisis] = useState<string[] | null>(null);
   const [recording, setRecording] = useState<RecordState>("idle");
   // What the microphone last failed at, said on screen rather than swallowed.
@@ -130,7 +128,6 @@ export default function TalkScreen() {
     mutationFn: ({ text, source }: { text: string; source: "text" | "voice" }) =>
       api.say(token!, conversationId!, text, source),
     onSuccess: (reply) => {
-      setDraft("");
       setJustReplied(true);
       voice.say(reply.reply);
       if (reply.crisis) setCrisis(reply.crisis_resources);
@@ -330,29 +327,14 @@ export default function TalkScreen() {
       </ScrollView>
       )}
 
+      {/* No text field, and no send. This screen is for talking; writing is what
+          the journal is for, and offering both here asked someone to choose
+          between two ways of saying the same thing before they had said
+          anything. A field also draws the eye first — a keyboard is a more
+          familiar affordance than a microphone — so the screen quietly argued
+          against its own purpose. */}
       <View style={[styles.composer, focus && styles.composerFocus]}>
-        {!focus && (
-          <TextInput
-            style={styles.input}
-            value={draft}
-            onChangeText={setDraft}
-            // The design's words. "Say something" asks for speech; "say what
-            // happened" asks for the thing this app is for.
-            placeholder="Say what happened"
-            multiline
-            editable={Boolean(conversationId) && !say.isPending}
-          />
-        )}
         <View style={styles.actions}>
-          {!focus && (
-          <MotionSurface
-            style={[styles.send, (!draft.trim() || say.isPending) && styles.disabled]}
-            disabled={!draft.trim() || say.isPending}
-            onPress={() => say.mutate({ text: draft, source: "text" })}
-          >
-            <Text style={styles.sendLabel}>Send</Text>
-          </MotionSurface>
-          )}
           <MotionSurface
             style={[
               styles.finish,
