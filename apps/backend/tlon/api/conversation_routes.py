@@ -235,12 +235,24 @@ async def close_conversation(
             if observation is None:
                 continue
             extraction = await extractor.extract(observation.content)
-            await inferences_db.persist(
+            counts = await inferences_db.persist(
                 request.app.state.pool,
                 user_id=user_id,
                 observation_id=UUID(observation_id),
                 extraction=extraction,
                 extractor=extractor.version,
+            )
+            # Said out loud, because this is the one extraction nobody asked for
+            # and so the one whose result nobody sees. The same text posted as an
+            # ordinary entry draws five readings; closing a conversation drew
+            # none, and with nothing logged there was no way to tell whether the
+            # model returned nothing or the entry never reached it.
+            logger.info(
+                "extraction after close: conversation=%s observation=%s chars=%d nodes=%s",
+                conversation_id,
+                observation_id,
+                len(observation.content or ""),
+                counts.get("nodes"),
             )
         except Exception:
             logger.exception("extraction after closing conversation %s failed", conversation_id)
