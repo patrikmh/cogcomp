@@ -56,7 +56,11 @@ export default function ExperimentsScreen() {
     <Text style={styles.kicker}>{HEADINGS.experiments.kicker}</Text>
     <Text style={styles.title}>{HEADINGS.experiments.title}</Text>
     <Text style={styles.tally}>
-      {`${all.length} ${all.length === 1 ? "experiment" : "experiments"} · ${running} running · ${completed} completed — you judge them, the app doesn't.`}
+      {/* The second sentence is the design's and the desktop client already carries
+          it. On a screen about things someone chose to try, saying that nothing
+          here was proposed or scored for them is the whole promise — and this
+          client had dropped exactly that half. */}
+      {`${all.length} ${all.length === 1 ? "experiment" : "experiments"} · ${running} running · ${completed} completed — you judge them, the app doesn't. Nothing here is proposed, scored, or judged for you.`}
     </Text>
     <Text style={styles.intro}>Optional self-observation, not diagnosis or medical treatment. You choose what to record.</Text>
 
