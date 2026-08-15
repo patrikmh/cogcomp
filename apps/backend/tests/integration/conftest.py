@@ -65,6 +65,7 @@ async def app(test_database: str):
         "TRANSCRIPTION_API_KEY",
         "ELEVENLABS_API_KEY",
         "GROQ_API_KEY",
+        "SPEECH_API_KEY",
     ):
         os.environ[credential] = ""
 

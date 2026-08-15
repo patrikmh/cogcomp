@@ -75,7 +75,7 @@ async def lifespan(app: FastAPI):
         settings.transcription_model,
     )
     app.state.voice = build_voice(
-        settings.transcription_api_key,
+        settings.speech_api_key,
         settings.speech_voice_id,
         settings.speech_model,
     )

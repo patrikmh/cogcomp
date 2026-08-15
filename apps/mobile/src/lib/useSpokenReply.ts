@@ -38,11 +38,23 @@ export interface SpokenReply {
   /** Tell this browser sound is wanted, from inside a user gesture. iOS will
    *  not play anything that starts after a network round-trip otherwise. */
   unlock: () => void;
+  /** This server has no voice configured at all (a 503 from `/v1/voice/speak`).
+   *  Distinct from a transient synthesis failure: this one will not clear on
+   *  its own, so the screen can say so once rather than trying and failing
+   *  silently on every reply. */
+  unavailable: boolean;
+  /** What the last synthesis attempt failed with, if it did. Cleared on the
+   *  next successful clip. Reported so a misconfigured voice — a bad id, an
+   *  exhausted ElevenLabs quota — is something a person can see and act on
+   *  rather than a reply that stays mute with no explanation anywhere. */
+  lastError: string | null;
 }
 
 export function useSpokenReply(token: string | null, enabled: boolean): SpokenReply {
   const [level, setLevel] = useState(0);
   const [speaking, setSpeaking] = useState(false);
+  const [unavailable, setUnavailable] = useState(false);
+  const [lastError, setLastError] = useState<string | null>(null);
   /** Whether this browser has been told, inside a gesture, that sound is wanted. */
   const unlocked = useRef(false);
   /** The blob URL currently playing, revoked when it stops. */
@@ -51,9 +63,10 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
   const envelope = useRef<Envelope>({ levels: [], frameMs: 50 });
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const smoothed = useRef(0);
-  // Set once the server says it has no voice. A ref rather than state: nothing
-  // renders differently, and a re-render here would restart the level timer.
-  const unavailable = useRef(false);
+  // Mirrors the `unavailable` state into a ref so `say` can check it inside its
+  // own closure without depending on the state value — depending on it would
+  // restart the level timer's effect wiring on every flip.
+  const unavailableRef = useRef(false);
 
   const stop = useCallback(() => {
     if (timer.current) clearInterval(timer.current);
@@ -117,11 +130,13 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
 
   const say = useCallback(
     async (text: string) => {
-      if (!token || !enabled || !text.trim() || unavailable.current) return;
+      if (!token || !enabled || !text.trim() || unavailableRef.current) return;
       stop();
 
       try {
         const clip = await api.speak(token, text);
+        // A clip played is proof the voice works now, whatever failed before.
+        setLastError(null);
         envelope.current = { levels: clip.envelope, frameMs: clip.frame_ms };
 
         // A blob on the web, a data URI everywhere else.
@@ -168,15 +183,22 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
         // again. Any other failure might be transient — a dropped connection, a
         // rate limit — and those are worth retrying on the next reply.
         if (error instanceof ApiError && error.status === 503) {
-          unavailable.current = true;
+          unavailableRef.current = true;
+          setUnavailable(true);
+          setLastError("Speech is not configured on this server.");
+        } else if (error instanceof ApiError) {
+          setLastError(error.message);
+        } else {
+          setLastError("Could not reach the voice service.");
         }
         // The reply is already on screen to read. A failure to speak it is not
-        // something to interrupt someone mid-thought about.
+        // something to interrupt someone mid-thought about — this state is
+        // exposed for a quiet status line, never a toast.
         stop();
       }
     },
     [token, enabled, stop],
   );
 
-  return { level, speaking, say, stop, unlock };
+  return { level, speaking, say, stop, unlock, unavailable, lastError };
 }

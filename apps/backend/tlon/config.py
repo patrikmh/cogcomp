@@ -34,10 +34,25 @@ class Settings(BaseSettings):
     #: Blank means the provider's own default model.
     transcription_model: str = ""
 
-    #: Text to speech, so the agent can be listened to rather than read. Shares
-    #: the ElevenLabs key with transcription; the voice must be chosen explicitly
-    #: because there is no sensible default for what someone's companion sounds
-    #: like, and picking one silently is a strange thing to do to a person.
+    #: Text to speech, so the agent can be listened to rather than read. Synthesis
+    #: only ever goes through ElevenLabs — there is no second TTS provider the way
+    #: transcription has one — so this needs an ElevenLabs key specifically.
+    #:
+    #: Separate from `transcription_api_key` on purpose. Transcription can be
+    #: pointed at Groq or another OpenAI-compatible endpoint via
+    #: `TRANSCRIPTION_PROVIDER`, in which case `transcription_api_key` holds a
+    #: key that ElevenLabs will not accept. Reusing it here used to mean
+    #: transcription worked while every spoken reply failed its auth silently —
+    #: two features sharing a field that only one of them could actually use.
+    #: `ELEVENLABS_API_KEY` still satisfies both when transcription is left on
+    #: its ElevenLabs default, since one key covers both of their services then.
+    speech_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("SPEECH_API_KEY", "ELEVENLABS_API_KEY"),
+    )
+    #: The voice must be chosen explicitly because there is no sensible default
+    #: for what someone's companion sounds like, and picking one silently is a
+    #: strange thing to do to a person.
     speech_voice_id: str = ""
     speech_model: str = "eleven_multilingual_v2"
 
@@ -91,7 +106,7 @@ class Settings(BaseSettings):
 
     @property
     def uses_real_speech(self) -> bool:
-        return bool(self.transcription_api_key.strip() and self.speech_voice_id.strip())
+        return bool(self.speech_api_key.strip() and self.speech_voice_id.strip())
 
     @property
     def allowed_origins(self) -> list[str]:

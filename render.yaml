@@ -93,6 +93,13 @@ services:
         sync: false
       - key: TRANSCRIPTION_API_KEY
         sync: false
+      # Optional — falls back to ELEVENLABS_API_KEY if this blueprint's
+      # transcription key is already an ElevenLabs one. Set it explicitly only
+      # if TRANSCRIPTION_PROVIDER is pointed at Groq/OpenAI instead, since that
+      # key won't authenticate against ElevenLabs' TTS endpoint. See
+      # tlon/config.py's speech_api_key.
+      - key: SPEECH_API_KEY
+        sync: false
       - key: SPEECH_VOICE_ID
         sync: false
       # Must be set for wherever this is actually used. A hotline for the wrong

@@ -13,7 +13,8 @@ before it costs you an afternoon.
 |---|---|---|
 | `OPENROUTER_API_KEY` | `tlon-api` | Without it the API refuses to boot. See below. |
 | `OPENROUTER_MODEL` | `tlon-api` | Defaults to `anthropic/claude-opus-5`. |
-| `TRANSCRIPTION_API_KEY` | `tlon-api` | ElevenLabs. Real keys begin `sk_`. |
+| `TRANSCRIPTION_API_KEY` | `tlon-api` | ElevenLabs by default (`TRANSCRIPTION_PROVIDER=elevenlabs`). Real keys begin `sk_`. |
+| `SPEECH_API_KEY` | `tlon-api` | Optional. TTS is ElevenLabs-only, so this falls back to `ELEVENLABS_API_KEY`. Set it explicitly if `TRANSCRIPTION_PROVIDER=openai` — then `TRANSCRIPTION_API_KEY` is a Groq/OpenAI key, and ElevenLabs will reject it for speech. |
 | `SPEECH_VOICE_ID` | `tlon-api` | No default on purpose — nobody should be assigned a voice silently. |
 | `CRISIS_RESOURCES` | `tlon-api` | Pipe-separated. Set it. |
 | `WEB_ORIGIN` | `tlon-api` | **Comma-separated**, both client origins, `https://…`. |
@@ -27,7 +28,7 @@ The FalkorDB password is set twice because it has to exist in two shapes — ins
 a redis-server argument string on one service and as a bare value on the other —
 and a blueprint cannot interpolate one into the other.
 
-## Four things that will bite
+## Five things that will bite
 
 **The API refuses to start without a model key, and that is the feature.**
 `REQUIRE_REAL_MODEL=true` is set in the blueprint. Without `OPENROUTER_API_KEY`
@@ -49,6 +50,13 @@ directory somewhere else entirely, and fails all twelve migrations on first boot
 **One API instance.** The agent scheduler runs inside the web process
 (`main.py`), so a second instance is a second scheduler rewriting one person's
 graph underneath the first.
+
+**Speech is ElevenLabs-only, regardless of `TRANSCRIPTION_PROVIDER`.** If
+transcription is pointed at Groq, `TRANSCRIPTION_API_KEY` is a Groq key and TTS
+cannot authenticate with it — set `SPEECH_API_KEY` to an ElevenLabs key
+separately, or spoken replies fail their auth on every turn while transcription
+keeps working fine, which reads as "half the voice feature is just broken"
+rather than as the config gap it is.
 
 ## Two clients, and how a phone gets the right one
 
