@@ -94,7 +94,7 @@ export function TabBar() {
               onPress={() => router.push(tab.href)}
               style={({ pressed }) => [styles.tab, pressed && styles.pressed]}
             >
-              <Glyph name={tab.glyph} size={22} tone={here ? colors.cyan : colors.inkMuted} />
+              <Glyph name={tab.glyph} size={19} tone={here ? colors.cyan : colors.inkMuted} />
               <Text style={[styles.label, here && styles.labelHere]}>{tab.label}</Text>
             </Pressable>
           );
@@ -139,19 +139,19 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.line,
     backgroundColor: colors.room,
-    paddingTop: 8,
-    paddingBottom: 10,
+    paddingTop: 5,
+    paddingBottom: 4,
   },
   // flexGrow with an explicit zero basis: React Native's `flex: 1` shorthand
   // does not set one on web, so the five tabs sized themselves to their labels
   // and crowded into the left of the bar.
-  tab: { flexGrow: 1, flexBasis: 0, minWidth: 0, alignItems: "center", gap: 5 },
+  tab: { flexGrow: 1, flexBasis: 0, minWidth: 0, alignItems: "center", gap: 3 },
   pressed: { opacity: 0.6 },
   label: {
     color: colors.inkMuted,
     fontFamily: fonts.mono,
-    fontSize: scale.kicker.size,
-    letterSpacing: 1,
+    fontSize: 8.5,
+    letterSpacing: 0.68,
     textTransform: "uppercase",
   },
   labelHere: { color: colors.cyan },

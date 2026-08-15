@@ -537,7 +537,7 @@ const styles = StyleSheet.create({
   lensOn: { borderBottomColor: colors.pink },
   lensLabel: {
     color: colors.inkMuted,
-    fontFamily: fonts.sansSemi,
+    fontFamily: fonts.sansMedium,
     fontSize: 14,
     lineHeight: 14,
   },

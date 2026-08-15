@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 2,
   },
-  circleLabel: { color: colors.ink, fontFamily: fonts.sansSemi, fontSize: scale.body.size },
+  circleLabel: { color: colors.ink, fontFamily: fonts.sansMedium, fontSize: 15 },
   circleMeta: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: scale.meta.size },
   circleGo: { marginLeft: "auto", color: colors.cyan, fontFamily: fonts.mono, fontSize: scale.meta.size },
   reading: {
@@ -375,7 +375,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.line,
   },
   readingMain: { flex: 1, minWidth: 0, gap: 5 },
-  readingLabel: { color: colors.ink, fontFamily: fonts.sansSemi, fontSize: scale.body.size },
+  readingLabel: { color: colors.ink, fontFamily: fonts.sansMedium, fontSize: 15 },
   readingLabelFaint: { color: colors.inkSoft },
   readingMeta: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: scale.meta.size },
   readingSide: { flexDirection: "row", alignItems: "center", gap: 12, flexShrink: 0, width: 96 },

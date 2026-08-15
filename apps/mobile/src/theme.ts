@@ -23,6 +23,9 @@ export const colors = {
   roomRaised: shared.surface,
   surface: shared.surface,
   surfaceBright: shared.surface2,
+  /** The bar behind a filled meter. Darker than a surface: a meter's ground is
+   *  a groove in the page, not a card sitting on it. */
+  track: shared.track,
   line: shared.line,
   lineStrong: shared.line2,
   ink: shared.ink,
@@ -49,6 +52,10 @@ export const colors = {
  */
 export const fonts = {
   sans: "IBMPlexSans_400Regular",
+  /** The design's workhorse emphasis: tabs, row headings, rail labels. Between
+   *  regular and semibold, and not interchangeable with either — 600 reads as
+   *  a heading where the design wanted a label. */
+  sansMedium: "IBMPlexSans_500Medium",
   sansSemi: "IBMPlexSans_600SemiBold",
   sansBold: "IBMPlexSans_700Bold",
   mono: "IBMPlexMono_400Regular",

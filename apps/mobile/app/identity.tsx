@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
     letterSpacing: scale.kicker.tracking,
     textTransform: "uppercase",
   },
-  label: { color: colors.ink, fontFamily: fonts.sans, fontSize: 19, lineHeight: 26 },
+  label: { color: colors.ink, fontFamily: fonts.sansMedium, fontSize: 14, lineHeight: 20 },
   actions: { flexDirection: "row", gap: 22, paddingTop: 2 },
   act: { color: colors.cyan, fontFamily: fonts.sans, fontSize: 13, fontWeight: "700" },
 });

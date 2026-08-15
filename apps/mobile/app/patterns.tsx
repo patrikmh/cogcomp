@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
    *  to three wrapped lines; constrained here it shrinks to fit instead. */
   met: { width: 96, alignItems: "flex-end", gap: 7 },
   metCount: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: scale.meta.size },
-  label: { color: colors.ink, fontFamily: fonts.sans, fontSize: 16, lineHeight: 23 },
+  label: { color: colors.ink, fontFamily: fonts.sansMedium, fontSize: 17, lineHeight: 23, letterSpacing: -0.085 },
   actions: { flexDirection: "row", gap: 8, flexWrap: "wrap", marginTop: 10 },
   action: { borderWidth: 1, borderColor: colors.line, borderRadius: radii.surface, paddingVertical: 12, paddingHorizontal: 16 },
   actionLabel: { color: colors.inkSoft, fontFamily: fonts.sans, fontSize: 15 },

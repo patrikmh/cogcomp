@@ -356,8 +356,8 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     width: 92,
   },
-  vsTrack: { flex: 1, height: 8, borderRadius: 4, backgroundColor: colors.surfaceBright, overflow: "hidden" },
-  vsFill: { height: 8, borderRadius: 4, backgroundColor: colors.cyan },
+  vsTrack: { flex: 1, height: 8, borderRadius: 4, backgroundColor: colors.track, overflow: "hidden" },
+  vsFill: { height: 8, borderRadius: 4, backgroundColor: colors.ink },
   /** The other week is drawn quieter: it is context, not the subject. */
   vsFillOther: { backgroundColor: colors.lineStrong },
   vsCount: { color: colors.inkSoft, fontFamily: fonts.mono, fontSize: scale.meta.size, width: 54, textAlign: "right" },

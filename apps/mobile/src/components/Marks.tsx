@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
   chipTentative: { borderColor: colors.warning, borderStyle: "dashed" },
   chipText: { color: colors.inkSoft, fontFamily: fonts.mono, fontSize: scale.meta.size },
   chipTextTentative: { color: colors.warning },
-  track: { width: 180, maxWidth: "100%", height: 3, borderRadius: 3, backgroundColor: colors.surfaceBright },
+  track: { width: 180, maxWidth: "100%", height: 3, borderRadius: 3, backgroundColor: colors.track },
   fill: { height: 3, borderRadius: 3, backgroundColor: colors.cyan },
   fillTentative: { backgroundColor: colors.warning },
   threshold: { position: "absolute", left: "50%", top: -4, bottom: -4, width: 1, backgroundColor: colors.inkMuted },

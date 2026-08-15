@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.ink,
-    fontFamily: fonts.sansBold,
+    fontFamily: fonts.sansSemi,
     fontSize: scale.heading.size,
     lineHeight: scale.heading.line,
     marginBottom: 8,

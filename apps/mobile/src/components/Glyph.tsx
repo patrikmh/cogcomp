@@ -29,7 +29,7 @@ export function Glyph({
           d={d}
           fill="none"
           stroke={tone}
-          strokeWidth={1.4}
+          strokeWidth={1.5}
           strokeLinecap="round"
           strokeLinejoin="round"
         />
@@ -42,7 +42,7 @@ export function Glyph({
           r={c.r}
           fill={c.solid ? tone : "none"}
           stroke={c.solid ? "none" : tone}
-          strokeWidth={1.4}
+          strokeWidth={1.5}
         />
       ))}
     </Svg>

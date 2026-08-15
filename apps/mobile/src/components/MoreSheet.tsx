@@ -1,6 +1,6 @@
 import { type as scale } from "@tlon/design";
 import { useRouter } from "expo-router";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Glyph } from "@/components/Glyph";
@@ -39,6 +39,8 @@ export function MoreSheet({
 }) {
   const router = useRouter();
   const reduced = useReducedMotion();
+  // The sheet's own height, so it can start exactly off-screen at any size.
+  const [height, setHeight] = useState(400);
   const rise = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -62,13 +64,22 @@ export function MoreSheet({
           looking away is a screen pretending to be a drawer. */}
       <Pressable style={styles.scrim} onPress={onClose} accessibilityLabel="Close" />
       <Animated.View
+        onLayout={(e) => setHeight(e.nativeEvent.layout.height)}
         style={[
           styles.sheet,
           {
+            // The design slides the sheet in from wholly off-screen
+            // (translateY:105%) and never fades it — the scrim behind it is
+            // what dims. Fading the sheet as well made it arrive as a ghost
+            // that solidified, rather than as a panel that moved.
             transform: [
-              { translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [40, 0] }) },
+              {
+                translateY: rise.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [height * 1.05, 0],
+                }),
+              },
             ],
-            opacity: rise,
           },
         ]}
       >
@@ -111,21 +122,23 @@ export function MoreSheet({
 }
 
 const styles = StyleSheet.create({
-  scrim: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)" },
+  scrim: { flex: 1, backgroundColor: "rgba(5,8,7,0.62)" },
   sheet: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
-    maxHeight: "82%",
+    maxHeight: "72%",
     backgroundColor: colors.roomRaised,
     borderTopWidth: 1,
-    borderTopColor: colors.line,
+    borderTopColor: colors.lineStrong,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
   },
   handle: {
     alignSelf: "center",
-    width: 40,
-    height: 3,
+    width: 38,
+    height: 4,
     borderRadius: 2,
     backgroundColor: colors.lineStrong,
     marginTop: 10,
@@ -134,7 +147,7 @@ const styles = StyleSheet.create({
   group: { marginBottom: 14, gap: 2 },
   row: { flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 11 },
   pressed: { opacity: 0.6 },
-  label: { flex: 1, color: colors.ink, fontFamily: fonts.sans, fontSize: scale.body.size },
+  label: { flex: 1, color: colors.ink, fontFamily: fonts.sansMedium, fontSize: 15 },
   labelHere: { color: colors.cyan },
-  count: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: scale.meta.size },
+  count: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: 11 },
 });

@@ -54,7 +54,7 @@ function Cell({ n, label, faint = false }: { n: number; label: string; faint?: b
 const styles = StyleSheet.create({
   row: { flexDirection: "row", justifyContent: "center", marginTop: 14, paddingHorizontal: 20 },
   cell: { flex: 1, alignItems: "center", paddingHorizontal: 4, paddingVertical: 2 },
-  figure: { color: colors.ink, fontFamily: fonts.sansSemi, fontSize: 18, lineHeight: 18 },
+  figure: { color: colors.ink, fontFamily: fonts.sansMedium, fontSize: 18, lineHeight: 18 },
   figureFaint: { color: colors.inkMuted },
   label: {
     color: colors.inkMuted,
