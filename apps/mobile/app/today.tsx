@@ -337,11 +337,16 @@ function weekdayOf(day: string): string {
 /** "Sat 15 Aug" — the design dates the day as well as naming it, so a screen
  *  reached from a week away says which day it is without arithmetic. */
 function longDayOf(day: string): string {
-  return new Date(`${day}T12:00:00`).toLocaleDateString([], {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
+  // Assembled part by part, for the reason the journal's day headings are:
+  // asking for weekday, day and month together hands their order to the
+  // runtime's locale, which on a US default returns "Sat, Aug 15" — the month
+  // before the day, and a comma the design has nowhere.
+  const at = new Date(`${day}T12:00:00`);
+  return [
+    at.toLocaleDateString([], { weekday: "short" }),
+    at.toLocaleDateString([], { day: "numeric" }),
+    at.toLocaleDateString([], { month: "short" }),
+  ].join(" ");
 }
 
 function shortTime(iso: string): string {
