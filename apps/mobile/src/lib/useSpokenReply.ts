@@ -60,6 +60,9 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
   /** The blob URL currently playing, revoked when it stops. */
   const playing = useRef<string | null>(null);
   const sound = useRef<Audio.Sound | null>(null);
+  /** The web's one player, primed by `unlock` and reused for every clip. Not an
+   *  `Audio.Sound`: see `say`. */
+  const voice = useRef<HTMLAudioElement | null>(null);
   const envelope = useRef<Envelope>({ levels: [], frameMs: 50 });
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const smoothed = useRef(0);
@@ -75,6 +78,14 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
     const active = sound.current;
     sound.current = null;
     active?.unloadAsync().catch(() => undefined);
+
+    // Paused, not discarded: this element carries iOS's permission to make
+    // sound at all, and the next reply needs it.
+    const el = voice.current;
+    if (el) {
+      el.onended = null;
+      el.pause();
+    }
     // The blob outlives the sound unless it is let go of, and a conversation is
     // many clips long.
     if (playing.current) {
@@ -102,6 +113,11 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
    * Playing a moment of silence inside the tap marks the element as user-started;
    * every later `play()` on it is then allowed. Called from the press handler,
    * where the gesture still counts.
+   *
+   * The permission attaches to *that element*, not to the page, so the element
+   * primed here is the element every reply is played through — swapping its
+   * `src` keeps the grant, while building a fresh one per clip would throw the
+   * grant away each time and leave the conversation mute after the first turn.
    */
   const unlock = useCallback(() => {
     if (unlocked.current || Platform.OS !== "web") return;
@@ -112,6 +128,7 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
         "data:audio/wav;base64,UklGRiwAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQgAAAAAAAAAAAAAAA==";
       const primer = new window.Audio(silence);
       primer.volume = 0;
+      voice.current = primer;
       void primer.play().catch(() => undefined);
     } catch {
       // If it cannot be primed there is nothing to fall back to; the reply is
@@ -139,21 +156,49 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
         setLastError(null);
         envelope.current = { levels: clip.envelope, frameMs: clip.frame_ms };
 
-        // A blob on the web, a data URI everywhere else.
+        // The browser plays this itself; expo-av only carries it on native.
         //
-        // iOS is unreliable playing audio from a `data:` URI — a clip of this
-        // size often loads and then never plays, silently, which is what the
-        // reply was doing on a phone while working in every desktop browser.
-        // A blob URL is an ordinary resource to the media element and has none
-        // of that history.
-        const uri =
-          Platform.OS === "web"
-            ? blobUri(clip.audio)
-            : `data:audio/wav;base64,${clip.audio}`;
-        if (Platform.OS === "web") playing.current = uri;
+        // `Audio.Sound` is a wrapper over the same `<audio>` element on the web,
+        // and on iOS it loses the one thing that matters: the element it creates
+        // is not the element the opening tap unlocked, so WebKit refuses to play
+        // it and reports no error. The web client next door has always used a
+        // plain element for exactly this reason, and has always worked on the
+        // same phone, from the same server, on the same clip. Two players, one
+        // silent — so the wrapper is the difference, and the web does without it.
+        if (Platform.OS === "web") {
+          const uri = blobUri(clip.audio);
+          playing.current = uri;
+
+          // The primed element if there is one — a person who never tapped
+          // (autoplay-permissive desktop) gets a fresh one, which is fine there.
+          const el = voice.current ?? new window.Audio();
+          voice.current = el;
+          el.volume = 1;
+          el.src = uri;
+          el.onended = () => stop();
+          // Any refusal lands in the catch below and is named in `lastError`,
+          // rather than leaving the reply mute with nothing said about why.
+          await el.play();
+          setSpeaking(true);
+
+          let last = Date.now();
+          timer.current = setInterval(() => {
+            const active = voice.current;
+            if (!active) return;
+
+            const now = Date.now();
+            const elapsed = (now - last) / 1000;
+            last = now;
+
+            const target = levelAt(envelope.current, active.currentTime * 1000);
+            smoothed.current = smooth(smoothed.current, target, elapsed);
+            setLevel(smoothed.current);
+          }, SAMPLE_MS);
+          return;
+        }
 
         const { sound: created } = await Audio.Sound.createAsync(
-          { uri },
+          { uri: `data:audio/wav;base64,${clip.audio}` },
           { shouldPlay: true },
         );
         sound.current = created;
@@ -188,6 +233,11 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
           setLastError("Speech is not configured on this server.");
         } else if (error instanceof ApiError) {
           setLastError(error.message);
+        } else if (error instanceof Error && error.name === "NotAllowedError") {
+          // The browser has the clip and refused to play it. Naming this
+          // separately matters: it is the one failure the person can clear
+          // themselves, and it is not a fault of the server or the network.
+          setLastError("This browser blocked the sound. Tap the shape to allow it.");
         } else {
           setLastError("Could not reach the voice service.");
         }
