@@ -181,6 +181,11 @@ export default function TalkScreen() {
   const turns: Conversation["turns"] = conversation.data?.turns ?? [];
   const saidSomething = turns.some((t) => t.speaker === "user");
   const lastReply = [...turns].reverse().find((t) => t.speaker !== "user");
+  /** The last thing the person said, as it was heard. Focus mode showed only
+   *  the agent's side, so someone could talk, get an answer, and have no way to
+   *  tell whether a word of it had been understood — which on a screen whose
+   *  entire input is a microphone is the one thing it has to show. */
+  const lastHeard = [...turns].reverse().find((t) => t.speaker === "user");
 
   // Order matters: what the microphone is doing beats what the network is doing,
   // so the blob never looks busy while someone is mid-sentence.
@@ -249,6 +254,13 @@ export default function TalkScreen() {
         // thing it said, and the microphone — for people who want to talk rather
         // than read, and for whom a wall of transcript is the distraction.
         <View style={styles.focusBody}>
+          {/* What was heard, then what was said back. Quieter than the reply and
+              above it, in the order the exchange happened. */}
+          {lastHeard && (
+            <Text style={styles.focusHeard} numberOfLines={3}>
+              {lastHeard.content}
+            </Text>
+          )}
           {lastReply && (
             <Text style={styles.focusReply} numberOfLines={6}>
               {lastReply.content}
@@ -480,6 +492,16 @@ const styles = StyleSheet.create({
   voiceToggleFocus: { color: colors.inkMuted },
   stageHintFocus: { fontFamily: fonts.sans, fontSize: 14, color: colors.inkMuted },
   focusBody: { paddingHorizontal: 28, paddingBottom: 12, minHeight: 90 },
+  /** Your own words, set quieter than the answer to them — it is there to be
+   *  checked, not read. */
+  focusHeard: {
+    color: colors.inkMuted,
+    fontFamily: fonts.sans,
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: "center",
+    marginBottom: 14,
+  },
   focusReply: {
     color: colors.ink,
     fontFamily: fonts.sans, fontSize: 18,
