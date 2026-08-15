@@ -1,6 +1,8 @@
 import { Audio } from "expo-av";
 import { useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
+
+import { ApiError } from "@/lib/api";
 import Svg, { Path, Rect } from "react-native-svg";
 import { MotionSurface } from "@/components/MotionSurface";
 import { colors, fonts } from "@/theme";
@@ -81,6 +83,19 @@ export function RecordButton({
    *  microphone included, was discarded and the button just returned to idle
    *  with nothing said. The console line stays regardless of whether a screen
    *  passes `onError`, because a silent failure is the worst of both. */
+  /** What actually went wrong, in as few words as carry it. The bare `catch`
+   *  that used to be here threw the cause away, so every failure read the same
+   *  and none of them said anything you could act on. */
+  function describe(cause: unknown): string {
+    // `ApiError` carries the server's own `detail` as its message — "no speech
+    // was detected in the recording" and the like — which is the sentence worth
+    // showing. The status goes with it, because a 413 and a 401 need different
+    // things from the person reading it.
+    if (cause instanceof ApiError) return `${cause.message} (${cause.status})`;
+    if (cause instanceof Error && cause.message) return cause.message;
+    return String(cause);
+  }
+
   function report(message: string) {
     console.error(`[record] ${message}`);
     onError?.(message);
@@ -148,14 +163,26 @@ export function RecordButton({
     }
     setState("uploading");
 
+    // Saving and sending are separate failures and were reported as one. A
+    // recording that stopped cleanly and then failed to upload said "could not
+    // save that recording", which sends someone to look at their microphone
+    // when the problem is the network or the server.
+    let uri: string | null = null;
     try {
       await active?.stopAndUnloadAsync();
       await resetAudioMode();
-      const uri = active?.getURI();
-      if (!uri) throw new Error("no recording produced");
+      uri = active?.getURI() ?? null;
+      if (!uri) throw new Error("the recorder produced no file");
+    } catch (cause) {
+      report(`Could not save that recording. ${describe(cause)}`);
+      if (mounted.current) setState("idle");
+      return;
+    }
+
+    try {
       await onRecorded(uri);
-    } catch {
-      report("Could not save that recording. Please try again.");
+    } catch (cause) {
+      report(`Could not send that recording. ${describe(cause)}`);
     } finally {
       if (mounted.current) setState("idle");
     }
