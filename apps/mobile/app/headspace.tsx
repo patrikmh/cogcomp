@@ -111,7 +111,17 @@ export default function HeadspaceScreen() {
           should say so rather than presenting them with the same face as the
           things you agreed with. */}
       {model.data && model.data.unreviewed + model.data.confirmed + model.data.rejected > 0 && (
-        <View style={styles.reviewed}>
+        // Tappable, and it goes where the judging happens. The bar stated that
+        // forty-five readings had never been agreed with and then offered
+        // nothing to do about it — the one number on the screen that is a
+        // reproach, with no way to answer it. Identity draws the readings as
+        // rings and opens each one to a confirm or a reject.
+        <MotionSurface
+          onPress={() => router.push("/identity")}
+          accessibilityRole="button"
+          accessibilityLabel="Review the readings drawn about you"
+          style={styles.reviewed}
+        >
           <View style={styles.reviewedTrack}>
             <View
               style={[
@@ -123,9 +133,9 @@ export default function HeadspaceScreen() {
           <Text style={styles.reviewedLabel}>
             {model.data.confirmed + model.data.rejected} of{" "}
             {model.data.confirmed + model.data.rejected + model.data.unreviewed} readings
-            reviewed
+            reviewed{model.data.unreviewed > 0 ? " — open to answer them" : ""}
           </Text>
-        </View>
+        </MotionSurface>
       )}
 
       {!showFindings && (
