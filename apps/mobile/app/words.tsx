@@ -24,7 +24,12 @@ export default function WordsScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Kicker>Before your first entry</Kicker>
+      {/* "· new" as the design marks it, and as `/first` in this same client
+          already marks its own. Both screens are things you are shown once,
+          before you have written anything; the suffix is what says so. The
+          desktop client carries it here too — this was the only one of the
+          three missing it. */}
+      <Kicker>Before your first entry · new</Kicker>
       <Text style={styles.title}>{DISCLOSURE_HEADING}</Text>
       <Rule />
 
