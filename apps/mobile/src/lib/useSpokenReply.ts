@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ApiError, api } from "@/lib/api";
 import { type Envelope, levelAt, smooth } from "@/lib/envelope";
+import { speechChunks } from "@/lib/sentences";
 
 /**
  * Speaking a reply aloud, and reporting how loud it is right now.
@@ -68,8 +69,17 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
   // own closure without depending on the state value — depending on it would
   // restart the level timer's effect wiring on every flip.
   const unavailableRef = useRef(false);
+  /** Which utterance is the current one. A reply is spoken in several pieces
+   *  with several requests in flight at once, and stopping has to be able to
+   *  disown all of them — including the ones that have not come back yet. */
+  const generation = useRef(0);
+  /** Resolver for the piece playing right now, so stopping can end the wait. */
+  const finished = useRef<(() => void) | null>(null);
 
   const stop = useCallback(() => {
+    // Anything still in flight for the utterance being stopped belongs to a
+    // generation that is now over, and will drop what it was about to play.
+    generation.current += 1;
     if (timer.current) clearInterval(timer.current);
     timer.current = null;
     // Detached first so the async unload cannot race a new clip into the ref.
@@ -82,8 +92,16 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
     const el = voice.current;
     if (el) {
       el.onended = null;
+      el.onerror = null;
       el.pause();
     }
+    // A piece that was waiting to finish never will now. Released rather than
+    // left hanging, so the loop walking the pieces unwinds instead of parking
+    // on a promise nothing will ever settle.
+    const waiting = finished.current;
+    finished.current = null;
+    waiting?.();
+
     smoothed.current = 0;
     setLevel(0);
     setSpeaking(false);
@@ -148,83 +166,125 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
     return `data:audio/wav;base64,${base64}`;
   }
 
+  /** Sample the level off whatever is playing, for as long as anything is.
+   *
+   *  Started once for the whole reply rather than once per piece: the envelope
+   *  is swapped underneath it as each piece begins, and a timer that survived
+   *  the seams is one less thing to get wrong at them. */
+  const startLevel = useCallback(() => {
+    if (timer.current) return;
+    let last = Date.now();
+
+    const sample = (positionMs: number) => {
+      const now = Date.now();
+      const elapsed = (now - last) / 1000;
+      last = now;
+      const target = levelAt(envelope.current, positionMs);
+      smoothed.current = smooth(smoothed.current, target, elapsed);
+      setLevel(smoothed.current);
+    };
+
+    if (Platform.OS === "web") {
+      timer.current = setInterval(() => {
+        const active = voice.current;
+        if (active) sample(active.currentTime * 1000);
+      }, SAMPLE_MS);
+      return;
+    }
+
+    timer.current = setInterval(async () => {
+      const active = sound.current;
+      if (!active) return;
+      const status = await active.getStatusAsync();
+      if (status.isLoaded) sample(status.positionMillis);
+    }, SAMPLE_MS);
+  }, []);
+
+  /**
+   * Play one piece, and resolve when it has finished sounding.
+   *
+   * The browser plays this itself; expo-av only carries it on native.
+   *
+   * `Audio.Sound` is a wrapper over the same `<audio>` element on the web, and
+   * on iOS it loses the one thing that matters: the element it creates is not
+   * the element the opening tap unlocked, so WebKit refuses to play it and
+   * reports no error. The web client next door has always used a plain element
+   * for exactly this reason, and has always worked on the same phone, from the
+   * same server, on the same clip. Two players, one silent — so the wrapper is
+   * the difference, and the web does without it.
+   */
+  const play = useCallback(
+    async (clip: { audio: string; envelope: number[]; frame_ms: number }) => {
+      envelope.current = { levels: clip.envelope, frameMs: clip.frame_ms };
+
+      if (Platform.OS === "web") {
+        // The primed element if there is one — a person who never tapped
+        // (autoplay-permissive desktop) gets a fresh one, which is fine there.
+        const el = voice.current ?? new window.Audio();
+        voice.current = el;
+        el.volume = 1;
+        el.src = clipUri(clip.audio);
+        // Any refusal lands in the caller's catch and is named in `lastError`,
+        // rather than leaving the reply mute with nothing said about why.
+        await el.play();
+        setSpeaking(true);
+        startLevel();
+        await new Promise<void>((resolve) => {
+          finished.current = resolve;
+          el.onended = () => resolve();
+          el.onerror = () => resolve();
+        });
+        return;
+      }
+
+      const { sound: created } = await Audio.Sound.createAsync(
+        { uri: clipUri(clip.audio) },
+        { shouldPlay: true },
+      );
+      sound.current = created;
+      setSpeaking(true);
+      startLevel();
+      await new Promise<void>((resolve) => {
+        finished.current = resolve;
+        created.setOnPlaybackStatusUpdate((status) => {
+          if (status.isLoaded && status.didJustFinish) resolve();
+        });
+      });
+      sound.current = null;
+      await created.unloadAsync().catch(() => undefined);
+    },
+    [startLevel],
+  );
+
   const say = useCallback(
     async (text: string) => {
       if (!token || !enabled || !text.trim() || unavailableRef.current) return;
       stop();
 
+      const chunks = speechChunks(text);
+      if (chunks.length === 0) return;
+      const mine = generation.current;
+
+      // Every piece is asked for at once, and they are played in the order they
+      // were written. Waiting for one to finish before asking for the next
+      // would put a synthesis round-trip in every seam — the silence this is
+      // here to remove, moved rather than removed.
+      const pending = chunks.map((chunk) => api.speak(token, chunk));
+      // Awaited in order below, so the later ones would otherwise be unhandled
+      // rejections for as long as the earlier ones take to play.
+      for (const request of pending) request.catch(() => undefined);
+
       try {
-        const clip = await api.speak(token, text);
-        // A clip played is proof the voice works now, whatever failed before.
-        setLastError(null);
-        envelope.current = { levels: clip.envelope, frameMs: clip.frame_ms };
-
-        // The browser plays this itself; expo-av only carries it on native.
-        //
-        // `Audio.Sound` is a wrapper over the same `<audio>` element on the web,
-        // and on iOS it loses the one thing that matters: the element it creates
-        // is not the element the opening tap unlocked, so WebKit refuses to play
-        // it and reports no error. The web client next door has always used a
-        // plain element for exactly this reason, and has always worked on the
-        // same phone, from the same server, on the same clip. Two players, one
-        // silent — so the wrapper is the difference, and the web does without it.
-        if (Platform.OS === "web") {
-          const uri = clipUri(clip.audio);
-
-          // The primed element if there is one — a person who never tapped
-          // (autoplay-permissive desktop) gets a fresh one, which is fine there.
-          const el = voice.current ?? new window.Audio();
-          voice.current = el;
-          el.volume = 1;
-          el.src = uri;
-          el.onended = () => stop();
-          // Any refusal lands in the catch below and is named in `lastError`,
-          // rather than leaving the reply mute with nothing said about why.
-          await el.play();
-          setSpeaking(true);
-
-          let last = Date.now();
-          timer.current = setInterval(() => {
-            const active = voice.current;
-            if (!active) return;
-
-            const now = Date.now();
-            const elapsed = (now - last) / 1000;
-            last = now;
-
-            const target = levelAt(envelope.current, active.currentTime * 1000);
-            smoothed.current = smooth(smoothed.current, target, elapsed);
-            setLevel(smoothed.current);
-          }, SAMPLE_MS);
-          return;
+        for (const request of pending) {
+          const clip = await request;
+          // Stopped, or a newer reply took over while this was in the air.
+          if (generation.current !== mine) return;
+          // A clip played is proof the voice works now, whatever failed before.
+          setLastError(null);
+          await play(clip);
+          if (generation.current !== mine) return;
         }
-
-        const { sound: created } = await Audio.Sound.createAsync(
-          { uri: `data:audio/wav;base64,${clip.audio}` },
-          { shouldPlay: true },
-        );
-        sound.current = created;
-        setSpeaking(true);
-
-        created.setOnPlaybackStatusUpdate((status) => {
-          if (status.isLoaded && status.didJustFinish) stop();
-        });
-
-        let last = Date.now();
-        timer.current = setInterval(async () => {
-          const active = sound.current;
-          if (!active) return;
-          const status = await active.getStatusAsync();
-          if (!status.isLoaded) return;
-
-          const now = Date.now();
-          const elapsed = (now - last) / 1000;
-          last = now;
-
-          const target = levelAt(envelope.current, status.positionMillis);
-          smoothed.current = smooth(smoothed.current, target, elapsed);
-          setLevel(smoothed.current);
-        }, SAMPLE_MS);
+        stop();
       } catch (error) {
         // 503 means this server has no voice at all, so there is no point asking
         // again. Any other failure might be transient — a dropped connection, a
@@ -249,7 +309,7 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
         stop();
       }
     },
-    [token, enabled, stop],
+    [token, enabled, stop, play],
   );
 
   return { level, speaking, say, stop, unlock, unavailable, lastError };
