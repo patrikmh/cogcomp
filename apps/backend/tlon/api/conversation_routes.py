@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import logging
 from datetime import datetime
 from uuid import UUID
 
@@ -22,11 +23,15 @@ from pydantic import BaseModel, Field, field_validator
 from tlon.auth import current_user
 from tlon.conversation import ConversationError
 from tlon.db import conversations as conversations_db
+from tlon.db import inferences as inferences_db
+from tlon.db import observations as observations_db
 from tlon.domain.observation import MAX_CONTENT_CHARS
 from tlon.domain.weekly import timezone_for
 from tlon.speech import MAX_CHARS as MAX_SPOKEN_CHARS
 from tlon.speech import SpeechError
 from tlon.transcription import AudioTooLarge, TranscriptionError
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1/conversations", tags=["conversations"])
 
@@ -203,9 +208,13 @@ async def close_conversation(
 ) -> CloseResponse:
     """End the conversation and keep what the person said.
 
-    Only their turns become observations. Each becomes its own entry rather than
-    one merged blob — they were said at different moments, often about different
-    things, and joining them would produce an entry they never wrote.
+    Only their turns become an observation, and the conversation becomes one:
+    someone works out what they mean over a few sentences, and kept apart those
+    sentences are fragments that only read in order.
+
+    The entry is extracted here rather than left for later. A conversation that
+    ended and produced nothing visible is a conversation the person cannot tell
+    worked, and the readings are the only evidence it did.
     """
     try:
         result = await conversations_db.close(request.app.state.pool, user_id, conversation_id)
@@ -213,6 +222,28 @@ async def close_conversation(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "not found") from exc
     except ValueError as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
+
+    # Extraction is best-effort: the entry is already saved and is the thing
+    # that must not be lost. A model that is down or slow costs the person their
+    # readings, not their words, and the entry can be extracted again later.
+    extractor = request.app.state.extractor
+    for observation_id in result["observations"]:
+        try:
+            observation = await observations_db.find(
+                request.app.state.pool, user_id, UUID(observation_id)
+            )
+            if observation is None:
+                continue
+            extraction = await extractor.extract(observation.content)
+            await inferences_db.persist(
+                request.app.state.pool,
+                user_id=user_id,
+                observation_id=UUID(observation_id),
+                extraction=extraction,
+                extractor=extractor.version,
+            )
+        except Exception:
+            logger.exception("extraction after closing conversation %s failed", conversation_id)
 
     return CloseResponse(
         conversation_id=UUID(result["conversation_id"]),
