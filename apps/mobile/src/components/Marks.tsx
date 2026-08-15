@@ -1,6 +1,7 @@
 import { radii, type as scale } from "@tlon/design";
 import { useEffect, useRef } from "react";
 import { Animated, Easing, StyleSheet, Text, View } from "react-native";
+import { MotionSurface } from "@/components/MotionSurface";
 
 import { useReducedMotion } from "@/lib/motion";
 
@@ -54,17 +55,34 @@ export function Rule() {
  * between "the water · 0.65" and a claim presented as fact. Tentative readings
  * are drawn hollow with a dashed edge, the same signal the web uses.
  */
-export function Chip({ label, confidence, tentative = false }: {
+export function Chip({ label, confidence, tentative = false, onPress }: {
   label: string;
   confidence: number;
   tentative?: boolean;
+  /** Opens the reading, where it can be agreed with or refused. A reading shown
+   *  beside the words it was drawn from is the one moment someone can judge it
+   *  cheaply — they are already looking at the evidence. Asked for anywhere else
+   *  it is a backlog, and a hundred of them is a backlog nobody will ever work
+   *  through. */
+  onPress?: () => void;
 }) {
+  const body = (
+    <Text style={[styles.chipText, tentative && styles.chipTextTentative]} numberOfLines={1}>
+      {label} · {confidence.toFixed(2)}
+    </Text>
+  );
+  if (!onPress) {
+    return <View style={[styles.chip, tentative && styles.chipTentative]}>{body}</View>;
+  }
   return (
-    <View style={[styles.chip, tentative && styles.chipTentative]}>
-      <Text style={[styles.chipText, tentative && styles.chipTextTentative]} numberOfLines={1}>
-        {label} · {confidence.toFixed(2)}
-      </Text>
-    </View>
+    <MotionSurface
+      style={[styles.chip, tentative && styles.chipTentative]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}, drawn with ${Math.round(confidence * 100)} per cent confidence. Open to agree or disagree.`}
+    >
+      {body}
+    </MotionSurface>
   );
 }
 

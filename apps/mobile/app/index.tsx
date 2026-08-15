@@ -164,6 +164,7 @@ export default function JournalScreen() {
                                 label={r.label}
                                 confidence={r.confidence}
                                 tentative={r.tentative}
+                                onPress={() => router.push(`/node/${r.id}`)}
                               />
                             ))}
                           </View>
