@@ -269,11 +269,22 @@ export function useContinuousVoice({
   }, [enabled, beginSegment, onUtterance, teardown, stop]);
 
   // Reflect the agent's turn in the reported state without touching the loop.
+  //
+  // The meter is closed for the duration, and its stream with it. A microphone
+  // held open while the agent talks puts iOS into its recording route, where a
+  // reply is played quietly through the earpiece or not audibly at all — the
+  // loop already mutes the recorder for the same reason, and this was the one
+  // stream that stayed open through it.
   useEffect(() => {
     if (!running.current) return;
-    if (speaking) setState("replying");
-    else if (!busy.current) setState("listening");
-  }, [speaking]);
+    if (speaking) {
+      closeWebMeter();
+      setState("replying");
+    } else {
+      void openWebMeter();
+      if (!busy.current) setState("listening");
+    }
+  }, [speaking, closeWebMeter, openWebMeter]);
 
   return { state, level, error, start, stop };
 }
