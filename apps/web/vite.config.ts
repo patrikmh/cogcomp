@@ -58,6 +58,10 @@ export default defineConfig({
         replacement: fileURLToPath(new URL("../../packages/headspace/headspace.ts", import.meta.url)),
       },
       {
+        find: "@tlon/speech/stream",
+        replacement: fileURLToPath(new URL("../../packages/speech/stream.ts", import.meta.url)),
+      },
+      {
         find: /^@tlon\/speech$/,
         replacement: fileURLToPath(new URL("../../packages/speech/chunks.ts", import.meta.url)),
       },

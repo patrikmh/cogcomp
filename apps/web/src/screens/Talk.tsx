@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-import { speechChunks } from "@tlon/speech";
+import { SpokenStream } from "@tlon/speech/stream";
 
 import { api } from "@/lib/api";
 import { usePreferences } from "@/state/preferences";
@@ -55,6 +55,15 @@ export function Talk() {
    *  the ones that have not come back yet — pausing the element only silences
    *  the piece already playing, and the next would start over the top of it. */
   const utterance = useRef(0);
+  /** Pieces asked for and not yet played, in the order they were written. */
+  const queue = useRef<Promise<{ audio: string; envelope: number[]; frame_ms: number }>[]>([]);
+  /** Whether the loop that empties the queue is already running. */
+  const draining = useRef(false);
+  /** Whether everything this reply will contain has been queued. Until it is,
+   *  an empty queue means "still writing", not "finished". */
+  const complete = useRef(true);
+  /** The reply as it arrives, shown before the finished one replaces it. */
+  const [streamed, setStreamed] = useState("");
 
   useAvatar(canvas, mode, envelope);
 
@@ -67,16 +76,105 @@ export function Talk() {
     },
   });
 
+  /** Play the queued pieces in order until there are none left and none coming.
+   *  Only one of these runs at a time; a piece queued while it is running is
+   *  picked up by the loop already going. */
+  const drain = useCallback(async (mine: number) => {
+    if (draining.current) return;
+    draining.current = true;
+    try {
+      for (;;) {
+        const next = queue.current.shift();
+        if (!next) break;
+        const clip = await next;
+        // Stopped, or a newer reply took over while this was in the air.
+        if (utterance.current !== mine) return;
+
+        const el = new Audio(`data:audio/wav;base64,${clip.audio}`);
+        audio.current = el;
+        envelope.current = {
+          values: clip.envelope,
+          frameMs: clip.frame_ms,
+          startedAt: performance.now(),
+        };
+        await el.play();
+        await new Promise<void>((resolve) => {
+          el.onended = () => resolve();
+          el.onerror = () => resolve();
+        });
+        if (utterance.current !== mine) return;
+      }
+      if (complete.current && utterance.current === mine) {
+        envelope.current = null;
+        setMode((m) => (m === "speaking" ? "idle" : m));
+      }
+    } catch {
+      // Speech is optional: with no voice configured the server says so, and
+      // the reply is still there to read.
+      envelope.current = null;
+      setTimeout(() => setMode((m) => (m === "speaking" ? "idle" : m)), 900);
+    } finally {
+      draining.current = false;
+    }
+  }, []);
+
   const say = useMutation({
     mutationFn: async (content: string) => {
       setTurns((t) => [...t, { speaker: "user", content }]);
       setMode("thinking");
-      return api.say(conversation!, content);
+
+      // The reply is read as it is written and spoken a sentence at a time, so
+      // the model is still writing the second sentence while the first is
+      // already sounding. The two waits stop being consecutive.
+      const mine = ++utterance.current;
+      const cutter = new SpokenStream();
+      queue.current = [];
+      complete.current = false;
+      setStreamed("");
+
+      const enqueue = (piece: string) => {
+        if (!speakAloud || !piece.trim()) return;
+        const request = api.speak(piece);
+        // Awaited in turn by the drain loop, so it would otherwise sit as an
+        // unhandled rejection for as long as the pieces ahead of it play.
+        request.catch(() => undefined);
+        queue.current.push(request);
+        void drain(mine);
+      };
+
+      // The caption stops saying "Thinking." the moment there is something to
+      // read, which is well before there is something to hear.
+      let arrived = false;
+
+      try {
+        return await api.sayStreaming(conversation!, content, (delta) => {
+          if (utterance.current !== mine) return;
+          setStreamed((sofar) => sofar + delta);
+          if (!arrived) {
+            arrived = true;
+            setMode("speaking");
+          }
+          for (const piece of cutter.push(delta)) enqueue(piece);
+        });
+      } finally {
+        if (utterance.current === mine) {
+          for (const piece of cutter.end()) enqueue(piece);
+          complete.current = true;
+          // The queue may have run dry while the model was still writing, so
+          // the loop that would have noticed the end has already ended.
+          void drain(mine);
+        }
+      }
     },
-    onSuccess: async (reply) => {
+    onSuccess: (reply) => {
+      setStreamed("");
       setTurns((t) => [...t, { speaker: "assistant", content: reply.reply }]);
       if (reply.crisis) {
-        // Elicitation stops entirely. Nothing is spoken over the top of it.
+        // Elicitation stops entirely, and so does anything still queued to be
+        // said over the top of it.
+        utterance.current += 1;
+        audio.current?.pause();
+        envelope.current = null;
         setCrisis(reply.crisis_resources);
         setMode("stopped");
         return;
@@ -84,51 +182,12 @@ export function Talk() {
       if (!speakAloud) {
         // Spoken replies are switched off. The reply is still there to read.
         setMode("idle");
-        return;
-      }
-      setMode("speaking");
-      // A reply is spoken in pieces, cut at sentence ends, all of them asked
-      // for at once and played in the order they were written. Synthesising the
-      // whole reply takes as long as the whole reply is — all of it silence
-      // after the text has already arrived. The first sentence comes back in
-      // about half that, and its own audio outlasts the wait for the rest.
-      const chunks = speechChunks(reply.reply);
-      const mine = ++utterance.current;
-      const pending = chunks.map((chunk) => api.speak(chunk));
-      // Awaited in order below, so the later ones would otherwise sit as
-      // unhandled rejections for as long as the earlier ones take to play.
-      for (const request of pending) request.catch(() => undefined);
-
-      try {
-        for (const request of pending) {
-          const clip = await request;
-          // Stopped, or a newer reply took over while this was in the air.
-          if (utterance.current !== mine) return;
-
-          const el = new Audio(`data:audio/wav;base64,${clip.audio}`);
-          audio.current = el;
-          envelope.current = {
-            values: clip.envelope,
-            frameMs: clip.frame_ms,
-            startedAt: performance.now(),
-          };
-          await el.play();
-          await new Promise<void>((resolve) => {
-            el.onended = () => resolve();
-            el.onerror = () => resolve();
-          });
-          if (utterance.current !== mine) return;
-        }
-        envelope.current = null;
-        setMode("idle");
-      } catch {
-        // Speech is optional: with no voice configured the server says so, and
-        // the reply is still there to read.
-        envelope.current = null;
-        setTimeout(() => setMode((m) => (m === "speaking" ? "idle" : m)), 900);
       }
     },
-    onError: () => setMode("idle"),
+    onError: () => {
+      setStreamed("");
+      setMode("idle");
+    },
   });
 
   const close = useMutation({
@@ -206,6 +265,14 @@ export function Talk() {
                 )}
               </div>
             ))}
+            {streamed.length > 0 && (
+              <div className="card">
+                <p>{streamed}</p>
+                <span className="mono" style={{ color: "var(--faint)" }}>
+                  the agent · never becomes an entry
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="talk-input">

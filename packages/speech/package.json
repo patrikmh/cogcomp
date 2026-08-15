@@ -5,6 +5,7 @@
   "type": "module",
   "main": "chunks.ts",
   "exports": {
-    ".": "./chunks.ts"
+    ".": "./chunks.ts",
+    "./stream": "./stream.ts"
   }
 }

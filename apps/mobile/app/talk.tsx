@@ -84,6 +84,9 @@ export default function TalkScreen() {
   // Cleared on a timer rather than tracked from the thread: "has just replied" is
   // a moment, and the last turn stays the agent's long after that moment passes.
   const [justReplied, setJustReplied] = useState(false);
+  /** The reply as it is arriving, before the server's copy of it is fetched.
+   *  Empty whenever there is nothing in flight. */
+  const [streamed, setStreamed] = useState("");
 
   const sheetAnim = useRef(new Animated.Value(0)).current;
 
@@ -150,14 +153,32 @@ export default function TalkScreen() {
   });
 
   const say = useMutation({
-    mutationFn: ({ text, source }: { text: string; source: "text" | "voice" }) =>
-      api.say(token!, conversationId!, text, source),
-    onSuccess: (reply) => {
-      setJustReplied(true);
-      voice.say(reply.reply);
-      if (reply.crisis) setCrisis(reply.crisis_resources);
-      queryClient.invalidateQueries({ queryKey: ["conversation", conversationId] });
+    mutationFn: async ({ text, source }: { text: string; source: "text" | "voice" }) => {
+      // The reply is read as it is written and spoken a sentence at a time, so
+      // the model is still writing the second sentence while the first is
+      // already sounding. Ending the feed is in a finally because a reply that
+      // fails halfway still has to release whatever was held back.
+      const spoken = voice.speakAsItArrives();
+      setStreamed("");
+      try {
+        return await api.sayStreaming(token!, conversationId!, text, source, (delta) => {
+          setStreamed((sofar) => sofar + delta);
+          spoken.feed(delta);
+        });
+      } finally {
+        spoken.end();
+      }
     },
+    onSuccess: async (reply) => {
+      setJustReplied(true);
+      if (reply.crisis) setCrisis(reply.crisis_resources);
+      // Cleared only once the stored turn is actually in hand. Dropping it any
+      // earlier leaves the thread a line short for the length of a refetch —
+      // the reply visibly disappearing just as it finished arriving.
+      await queryClient.invalidateQueries({ queryKey: ["conversation", conversationId] });
+      setStreamed("");
+    },
+    onError: () => setStreamed(""),
   });
 
   const finish = useMutation({
@@ -508,6 +529,11 @@ export default function TalkScreen() {
                 </Text>
               </View>
             ))}
+            {streamed.length > 0 && (
+              <View style={[styles.bubble, styles.theirs]}>
+                <Text style={styles.theirsText}>{streamed}</Text>
+              </View>
+            )}
           </ScrollView>
         </View>
       </Modal>

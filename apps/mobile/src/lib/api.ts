@@ -688,6 +688,80 @@ export const api = {
     });
   },
 
+  /**
+   * The same turn, read as it is written.
+   *
+   * `onDelta` is called with each piece as it lands, and the whole reply comes
+   * back at the end for storing and for anything that needs it entire.
+   *
+   * Falls back to the plain endpoint wherever a response body cannot be read
+   * incrementally — React Native's fetch has no `body` stream — so a caller
+   * gets the same answer everywhere and only the timing differs. That is worth
+   * more than the streaming: a screen written against this works on a phone
+   * app that cannot stream at all.
+   */
+  async sayStreaming(
+    token: string,
+    id: string,
+    content: string,
+    source: "text" | "voice",
+    onDelta: (text: string) => void,
+  ): Promise<TurnReply> {
+    const response = await fetch(`${BASE_URL}/v1/conversations/${id}/turns/stream`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ content, source, timezone: deviceTimezone() }),
+    });
+
+    if (!response.ok) {
+      const body = (await response.json().catch(() => ({}))) as { detail?: string };
+      throw new ApiError(response.status, body.detail ?? response.statusText);
+    }
+
+    if (!response.body) {
+      return api.say(token, id, content, source);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    // Events are separated by a blank line and can be split across reads, so
+    // what is left after the last complete one is kept for the next.
+    let pending = "";
+    let reply: TurnReply | null = null;
+
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      pending += decoder.decode(value, { stream: true });
+
+      const events = pending.split("\n\n");
+      pending = events.pop() ?? "";
+
+      for (const event of events) {
+        const line = event.split("\n").find((l) => l.startsWith("data: "));
+        if (!line) continue;
+        const payload = JSON.parse(line.slice("data: ".length));
+
+        if (payload.type === "delta") {
+          onDelta(payload.text);
+        } else if (payload.type === "done") {
+          reply = {
+            reply: payload.reply,
+            crisis: payload.crisis,
+            crisis_resources: payload.crisis_resources,
+          };
+        } else if (payload.type === "error") {
+          // The status line said 200 before the agent failed, so the failure
+          // arrives in the body and has to be raised from here.
+          throw new ApiError(502, payload.message);
+        }
+      }
+    }
+
+    if (!reply) throw new ApiError(502, "the reply ended before it was finished");
+    return reply;
+  },
+
   /** Ends the conversation and keeps only what the person said. */
   closeConversation(token: string, id: string) {
     return request<{ turns_converted: number; observations: string[] }>(

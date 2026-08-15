@@ -29,6 +29,7 @@
       "@tlon/design/icons": ["../../packages/design/icons.ts"],
       "@tlon/headspace": ["../../packages/headspace/headspace.ts"],
       "@tlon/speech": ["../../packages/speech/chunks.ts"],
+      "@tlon/speech/stream": ["../../packages/speech/stream.ts"],
       // packages/ sits outside this app and there is no workspace root to hoist
       // to, so a bare `three` inside the shared module resolves from nowhere.
       // Point it at this app's copy explicitly.

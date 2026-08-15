@@ -31,6 +31,9 @@
       "@tlon/speech": [
         "../../packages/speech/chunks.ts"
       ],
+      "@tlon/speech/stream": [
+        "../../packages/speech/stream.ts"
+      ],
       "three": ["./node_modules/@types/three/index.d.ts"],
       "three/*": ["./node_modules/@types/three/*"]
     },

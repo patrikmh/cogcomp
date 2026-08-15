@@ -18,12 +18,12 @@
 /** Below this a sentence is too short to be worth a seam of its own — "Mm." at
  *  the head of a reply would buy nothing and cost a hitch — so it joins the one
  *  after it. */
-const MIN_HEAD = 24;
+export const MIN_HEAD = 24;
 
 /** Roughly how much goes in each piece after the first. Long enough that a reply
  *  is two or three requests rather than eight, short enough that the second
  *  piece is ready before the first has finished playing. */
-const CHUNK = 240;
+export const CHUNK = 240;
 
 /** More pieces than this is more seams than the latency they save is worth, and
  *  more parallel synthesis than a reply should ever ask of the account. */
@@ -31,7 +31,7 @@ const MAX_CHUNKS = 4;
 
 /** End of sentence, keeping the punctuation with the sentence it ends. Includes
  *  the ellipsis because this agent uses it and it is a full stop when it does. */
-const SENTENCE_END = /(?<=[.!?…])\s+/;
+export const SENTENCE_END = /(?<=[.!?…])\s+/;
 
 /**
  * The reply, in the order it should be spoken.

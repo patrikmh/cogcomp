@@ -431,6 +431,78 @@ export const api = {
         }),
       },
     ),
+  /**
+   * The same turn, read as it is written.
+   *
+   * `onDelta` is called with each piece as it lands, and the whole reply comes
+   * back at the end. Falls back to the plain endpoint if this browser hands
+   * back no readable body, so the answer is the same either way and only the
+   * timing differs.
+   */
+  sayStreaming: async (
+    conversationId: string,
+    content: string,
+    onDelta: (text: string) => void,
+  ): Promise<{ reply: string; crisis: boolean; crisis_resources: string[] }> => {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) headers.Authorization = `Bearer ${token}`;
+
+    const response = await fetch(`${BASE}/v1/conversations/${conversationId}/turns/stream`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        content,
+        source: "text",
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+      }),
+    });
+
+    if (!response.ok) {
+      const body = (await response.json().catch(() => ({}))) as { detail?: string };
+      throw new ApiError(response.status, body.detail ?? response.statusText);
+    }
+    if (!response.body) return api.say(conversationId, content);
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    // Events are separated by a blank line and can be split across reads, so
+    // what is left after the last complete one is kept for the next.
+    let pending = "";
+    let reply: { reply: string; crisis: boolean; crisis_resources: string[] } | null = null;
+
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      pending += decoder.decode(value, { stream: true });
+
+      const events = pending.split("\n\n");
+      pending = events.pop() ?? "";
+
+      for (const event of events) {
+        const line = event.split("\n").find((l) => l.startsWith("data: "));
+        if (!line) continue;
+        const payload = JSON.parse(line.slice("data: ".length));
+
+        if (payload.type === "delta") {
+          onDelta(payload.text);
+        } else if (payload.type === "done") {
+          reply = {
+            reply: payload.reply,
+            crisis: payload.crisis,
+            crisis_resources: payload.crisis_resources,
+          };
+        } else if (payload.type === "error") {
+          // The status line said 200 before the agent failed, so the failure
+          // arrives in the body and has to be raised from here.
+          throw new ApiError(502, payload.message);
+        }
+      }
+    }
+
+    if (!reply) throw new ApiError(502, "the reply ended before it was finished");
+    return reply;
+  },
+
   closeConversation: (conversationId: string) =>
     request<{ conversation_id: string; observations: string[]; turns_converted: number }>(
       `/v1/conversations/${conversationId}/close`,

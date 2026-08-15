@@ -2,9 +2,10 @@ import { Audio } from "expo-av";
 import { Platform } from "react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, type SpokenClip } from "@/lib/api";
 import { type Envelope, levelAt, smooth } from "@/lib/envelope";
 import { speechChunks } from "@tlon/speech";
+import { SpokenStream } from "@tlon/speech/stream";
 
 /**
  * Speaking a reply aloud, and reporting how loud it is right now.
@@ -29,12 +30,30 @@ import { speechChunks } from "@tlon/speech";
  *  faster would produce values nothing renders. */
 const SAMPLE_MS = 33;
 
+/** Somewhere to put a reply that is still being written. */
+export interface SpokenFeed {
+  /** Another piece of the reply, exactly as it arrived. Whole sentences are
+   *  sent for synthesis as they complete; the rest is held. */
+  feed: (delta: string) => void;
+  /** Nothing more is coming. Speaks whatever is left, however it ends. */
+  end: () => void;
+}
+
 export interface SpokenReply {
   /** 0–1 loudness at this instant, smoothed on the way down. */
   level: number;
   speaking: boolean;
   /** Synthesise and play. Resolves when playback starts, not when it ends. */
   say: (text: string) => Promise<void>;
+  /**
+   * Speak a reply that has not finished arriving.
+   *
+   * The point of the whole arrangement: a sentence is finished long before a
+   * reply is, so the first one is sent for synthesis while the model is still
+   * writing the second. The wait for the model and the wait for the voice stop
+   * being consecutive and become the same wait.
+   */
+  speakAsItArrives: () => SpokenFeed;
   stop: () => void;
   /** Tell this browser sound is wanted, from inside a user gesture. iOS will
    *  not play anything that starts after a network round-trip otherwise. */
@@ -75,11 +94,23 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
   const generation = useRef(0);
   /** Resolver for the piece playing right now, so stopping can end the wait. */
   const finished = useRef<(() => void) | null>(null);
+  /** Pieces asked for and not yet played, in the order they were written. */
+  const queue = useRef<Promise<SpokenClip>[]>([]);
+  /** Whether the loop that empties the queue is already running. */
+  const draining = useRef(false);
+  /** Whether everything this reply will ever contain has been queued. Until it
+   *  is, an empty queue means "waiting for the model", not "finished". */
+  const complete = useRef(true);
 
   const stop = useCallback(() => {
     // Anything still in flight for the utterance being stopped belongs to a
     // generation that is now over, and will drop what it was about to play.
     generation.current += 1;
+    // Pieces already asked for are let go of rather than played into whatever
+    // comes next. The requests themselves cannot be recalled, and are not worth
+    // trying to: they are already paid for and their answers are simply dropped.
+    queue.current = [];
+    complete.current = true;
     if (timer.current) clearInterval(timer.current);
     timer.current = null;
     // Detached first so the async unload cannot race a new clip into the ref.
@@ -256,27 +287,38 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
     [startLevel],
   );
 
-  const say = useCallback(
-    async (text: string) => {
-      if (!token || !enabled || !text.trim() || unavailableRef.current) return;
-      stop();
+  const report = useCallback((error: unknown) => {
+    // 503 means this server has no voice at all, so there is no point asking
+    // again. Any other failure might be transient — a dropped connection, a
+    // rate limit — and those are worth retrying on the next reply.
+    if (error instanceof ApiError && error.status === 503) {
+      unavailableRef.current = true;
+      setUnavailable(true);
+      setLastError("Speech is not configured on this server.");
+    } else if (error instanceof ApiError) {
+      setLastError(error.message);
+    } else if (error instanceof Error && error.name === "NotAllowedError") {
+      // The browser has the clip and refused to play it. Naming this separately
+      // matters: it is the one failure the person can clear themselves, and it
+      // is not a fault of the server or the network.
+      setLastError("This browser blocked the sound. Tap the shape to allow it.");
+    } else {
+      setLastError("Could not reach the voice service.");
+    }
+  }, []);
 
-      const chunks = speechChunks(text);
-      if (chunks.length === 0) return;
-      const mine = generation.current;
-
-      // Every piece is asked for at once, and they are played in the order they
-      // were written. Waiting for one to finish before asking for the next
-      // would put a synthesis round-trip in every seam — the silence this is
-      // here to remove, moved rather than removed.
-      const pending = chunks.map((chunk) => api.speak(token, chunk));
-      // Awaited in order below, so the later ones would otherwise be unhandled
-      // rejections for as long as the earlier ones take to play.
-      for (const request of pending) request.catch(() => undefined);
-
+  /** Play everything queued, in order, until there is nothing left and nothing
+   *  more coming. Only ever one of these runs at a time; a piece queued while
+   *  it is running is picked up by the loop it is already in. */
+  const drain = useCallback(
+    async (mine: number) => {
+      if (draining.current) return;
+      draining.current = true;
       try {
-        for (const request of pending) {
-          const clip = await request;
+        for (;;) {
+          const next = queue.current.shift();
+          if (!next) break;
+          const clip = await next;
           // Stopped, or a newer reply took over while this was in the air.
           if (generation.current !== mine) return;
           // A clip played is proof the voice works now, whatever failed before.
@@ -284,33 +326,84 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
           await play(clip);
           if (generation.current !== mine) return;
         }
-        stop();
+        // Nothing queued. If nothing more is coming either, the reply is spoken.
+        if (complete.current && generation.current === mine) stop();
       } catch (error) {
-        // 503 means this server has no voice at all, so there is no point asking
-        // again. Any other failure might be transient — a dropped connection, a
-        // rate limit — and those are worth retrying on the next reply.
-        if (error instanceof ApiError && error.status === 503) {
-          unavailableRef.current = true;
-          setUnavailable(true);
-          setLastError("Speech is not configured on this server.");
-        } else if (error instanceof ApiError) {
-          setLastError(error.message);
-        } else if (error instanceof Error && error.name === "NotAllowedError") {
-          // The browser has the clip and refused to play it. Naming this
-          // separately matters: it is the one failure the person can clear
-          // themselves, and it is not a fault of the server or the network.
-          setLastError("This browser blocked the sound. Tap the shape to allow it.");
-        } else {
-          setLastError("Could not reach the voice service.");
-        }
+        report(error);
         // The reply is already on screen to read. A failure to speak it is not
         // something to interrupt someone mid-thought about — this state is
         // exposed for a quiet status line, never a toast.
         stop();
+      } finally {
+        draining.current = false;
       }
     },
-    [token, enabled, stop, play],
+    [play, report, stop],
   );
 
-  return { level, speaking, say, stop, unlock, unavailable, lastError };
+  /** Ask for a piece and put it in line. Synthesis starts now; playing waits
+   *  for its turn, so the pieces overlap in the air and not in the ear. */
+  const enqueue = useCallback(
+    (text: string, mine: number) => {
+      if (!token || !text.trim()) return;
+      const request = api.speak(token, text);
+      // Awaited in turn by the drain loop, so it would otherwise sit as an
+      // unhandled rejection for as long as the pieces ahead of it take to play.
+      request.catch(() => undefined);
+      queue.current.push(request);
+      void drain(mine);
+    },
+    [token, drain],
+  );
+
+  const say = useCallback(
+    async (text: string) => {
+      if (!token || !enabled || !text.trim() || unavailableRef.current) return;
+      stop();
+
+      const mine = generation.current;
+      complete.current = true;
+      for (const chunk of speechChunks(text)) enqueue(chunk, mine);
+    },
+    [token, enabled, stop, enqueue],
+  );
+
+  const speakAsItArrives = useCallback((): SpokenFeed => {
+    if (!token || !enabled || unavailableRef.current) {
+      // Speech is off or unavailable. The caller still streams text to the
+      // screen; it simply is not spoken, which is the same silence as before.
+      return { feed: () => undefined, end: () => undefined };
+    }
+    stop();
+
+    const mine = generation.current;
+    complete.current = false;
+    const cutter = new SpokenStream();
+
+    return {
+      feed: (delta: string) => {
+        if (generation.current !== mine) return;
+        for (const piece of cutter.push(delta)) enqueue(piece, mine);
+      },
+      end: () => {
+        if (generation.current !== mine) return;
+        for (const piece of cutter.end()) enqueue(piece, mine);
+        complete.current = true;
+        // The queue may already have run dry while the model was still writing,
+        // so the loop that would have noticed the end has ended. Nudge it.
+        void drain(mine);
+      },
+    };
+  }, [token, enabled, stop, enqueue, drain]);
+
+  return {
+    level,
+    speaking,
+    say,
+    speakAsItArrives,
+    stop,
+    unlock,
+    unavailable,
+    lastError,
+  };
 }
