@@ -469,9 +469,8 @@ export const api = {
    * The same turn, read as it is written.
    *
    * `onDelta` is called with each piece as it lands, and the whole reply comes
-   * back at the end. Falls back to the plain endpoint if this browser hands
-   * back no readable body, so the answer is the same either way and only the
-   * timing differs.
+   * back at the end. Buffered response bodies are parsed from text; the stream
+   * request is never retried through the plain endpoint.
    */
   sayAloudStreaming: async (
     conversationId: string,
@@ -550,7 +549,27 @@ export const api = {
       const body = (await response.json().catch(() => ({}))) as { detail?: string };
       throw new ApiError(response.status, body.detail ?? response.statusText);
     }
-    if (!response.body) return api.say(conversationId, content);
+    if (!response.body) {
+      const raw = await response.text();
+      let reply: { reply: string; crisis: boolean; crisis_resources: string[] } | null = null;
+      for (const event of raw.split("\n\n")) {
+        const line = event.split("\n").find((l) => l.startsWith("data: "));
+        if (!line) continue;
+        const payload = JSON.parse(line.slice("data: ".length));
+        if (payload.type === "delta") onDelta(payload.text);
+        else if (payload.type === "done") {
+          reply = {
+            reply: payload.reply,
+            crisis: payload.crisis,
+            crisis_resources: payload.crisis_resources,
+          };
+        } else if (payload.type === "error") {
+          throw new ApiError(502, payload.message);
+        }
+      }
+      if (!reply) throw new ApiError(502, "the reply ended before it was finished");
+      return reply;
+    }
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();

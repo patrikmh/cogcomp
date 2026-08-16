@@ -183,9 +183,11 @@ export default function TalkScreen() {
         setVoiceTranscript(null);
       }
     },
-    onError: () => {
+    onError: async (_error, variables) => {
       setStreamed("");
       setVoiceTranscript(null);
+      if (variables.generation !== stoppedGeneration.current) return;
+      await conversation.refetch();
     },
   });
 
@@ -222,7 +224,11 @@ export default function TalkScreen() {
       await queryClient.invalidateQueries({ queryKey: ["conversation", conversationId] });
       setStreamed("");
     },
-    onError: () => setStreamed(""),
+    onError: async () => {
+      setStreamed("");
+      setVoiceTranscript(null);
+      await conversation.refetch();
+    },
   });
 
   const finish = useMutation({
@@ -340,6 +346,8 @@ export default function TalkScreen() {
       stoppedGeneration.current += 1;
       recordingGenerations.current = [];
       setRecordCancel((n) => n + 1);
+      setStreamed("");
+      setVoiceTranscript(null);
       live.stop();
       voice.stop();
     }
@@ -478,6 +486,8 @@ export default function TalkScreen() {
                   stoppedGeneration.current += 1;
                   recordingGenerations.current = [];
                   setRecordCancel((n) => n + 1);
+                  setStreamed("");
+                  setVoiceTranscript(null);
                   live.stop();
                   voice.stop();
                   setCrisis(crisis ?? []);

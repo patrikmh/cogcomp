@@ -140,7 +140,9 @@ export function Talk() {
       envelope.current = null;
       setTimeout(() => {
         if (drainGeneration.current !== owner) return;
+        modeRef.current = "idle";
         setMode((m) => (m === "speaking" ? "idle" : m));
+        if (wantListen.current) startListeningRef.current();
       }, 900);
     } finally {
       if (drainGeneration.current === owner) draining.current = false;
@@ -165,28 +167,43 @@ export function Talk() {
     takeOverDrain();
     const cutter = new SpokenStream();
     setStreamed("");
-    const reply = await api.sayAloudStreaming(
-      conversation!,
-      blob,
-      (text) => {
-        if (utterance.current === mine) {
-          transcript = text;
-          setVoiceTranscript(text);
-        }
-      },
-      (delta) => {
-        if (utterance.current !== mine) return;
-        setStreamed((sofar) => sofar + delta);
-        setMode("speaking");
-        for (const piece of cutter.push(delta)) {
-          if (!speakAloud || !piece.trim()) continue;
-          const request = api.speak(piece);
-          request.catch(() => undefined);
-          queue.current.push(request);
-          void drain(mine);
-        }
-      },
-    );
+    let reply: Awaited<ReturnType<typeof api.sayAloudStreaming>>;
+    try {
+      reply = await api.sayAloudStreaming(
+        conversation!,
+        blob,
+        (text) => {
+          if (utterance.current === mine) {
+            transcript = text;
+            setVoiceTranscript(text);
+          }
+        },
+        (delta) => {
+          if (utterance.current !== mine) return;
+          setStreamed((sofar) => sofar + delta);
+          setMode("speaking");
+          for (const piece of cutter.push(delta)) {
+            if (!speakAloud || !piece.trim()) continue;
+            const request = api.speak(piece);
+            request.catch(() => undefined);
+            queue.current.push(request);
+            void drain(mine);
+          }
+        },
+      );
+    } catch {
+      if (utterance.current !== mine) return;
+      setStreamed("");
+      setVoiceTranscript(null);
+      if (transcript.trim()) setTurns((t) => [...t, { speaker: "user", content: transcript }]);
+      modeRef.current = "idle";
+      setMode("idle");
+      // The drain only restarts listening when the reply is marked complete.
+      // An error mid-clip would otherwise leave the microphone shut forever.
+      complete.current = true;
+      if (!draining.current && wantListen.current) startListeningRef.current();
+      return;
+    }
     if (utterance.current !== mine) return;
     for (const piece of cutter.end()) {
       if (!speakAloud || !piece.trim()) continue;
@@ -208,7 +225,9 @@ export function Talk() {
       setCrisis(reply.crisis_resources);
       setMode("stopped");
     } else if (!speakAloud) {
+      modeRef.current = "idle";
       setMode("idle");
+      if (wantListen.current) startListeningRef.current();
     }
   }, [conversation, drain, speakAloud, takeOverDrain]);
 
@@ -311,15 +330,20 @@ export function Talk() {
       };
       poll();
     } catch {
-      listening.current = false;
-      setHearing(false);
-      setMode("idle");
+      stream?.getTracks().forEach((track) => track.stop());
+      if (generation === captureGeneration.current) {
+        listening.current = false;
+        setHearing(false);
+        setMode("idle");
+      }
     } finally {
       if (!setupComplete) {
-        recorder.current = null;
-        captureTracks.current = [];
         stream?.getTracks().forEach((track) => track.stop());
         void context?.close();
+        if (generation === captureGeneration.current) {
+          recorder.current = null;
+          captureTracks.current = [];
+        }
       }
     }
   }, [conversation, crisis, handleVoice, primeAudio, stopListening]);
@@ -505,10 +529,10 @@ export function Talk() {
               value={draft}
               placeholder="Say what happened"
               autoComplete="off"
-              disabled={mode === "stopped"}
+              disabled={mode === "thinking" || mode === "speaking" || mode === "stopped"}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && draft.trim()) {
+                if (e.key === "Enter" && draft.trim() && !say.isPending) {
                   primeAudio();
                   say.mutate(draft.trim());
                   setDraft("");
