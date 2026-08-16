@@ -325,7 +325,7 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
       await new Promise<void>((resolve) => {
         finished.current = resolve;
         created.setOnPlaybackStatusUpdate((status) => {
-          if (status.isLoaded && status.didJustFinish) resolve();
+          if (!status.isLoaded || status.didJustFinish) resolve();
         });
       });
       sound.current = null;

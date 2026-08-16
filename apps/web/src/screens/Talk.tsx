@@ -321,6 +321,8 @@ export function Talk() {
         last = now;
         if (result.action.type === "start") setHearing(true);
         if (result.action.type === "finish") {
+          modeRef.current = "thinking";
+          setMode("thinking");
           stopListening(true);
         } else if (result.action.type === "discard") {
           const wanted = listening.current;

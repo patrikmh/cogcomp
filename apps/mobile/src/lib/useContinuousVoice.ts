@@ -227,8 +227,29 @@ export function useContinuousVoice({
       busy.current = true;
       await teardown();
       if (running.current && !muted.current && generation === lifecycle.current) {
-        await beginSegment(generation).catch(() => undefined);
-        startPollingRef.current();
+        try {
+          await beginSegment(generation);
+        } catch {
+          // A failed restart must not leave the screen claiming to listen.
+          if (generation === lifecycle.current && running.current && !muted.current) {
+            running.current = false;
+            if (timer.current) clearInterval(timer.current);
+            timer.current = null;
+            setState("off");
+            setError("Could not start listening.");
+          }
+          busy.current = false;
+          return;
+        }
+        if (generation === lifecycle.current && recording.current) {
+          startPollingRef.current();
+        } else if (generation === lifecycle.current && running.current && !muted.current) {
+          running.current = false;
+          if (timer.current) clearInterval(timer.current);
+          timer.current = null;
+          setState("off");
+          setError("Could not start listening.");
+        }
       }
       busy.current = false;
       return;
