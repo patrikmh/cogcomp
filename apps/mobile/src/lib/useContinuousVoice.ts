@@ -200,6 +200,30 @@ export function useContinuousVoice({
     recording.current = created;
   }, []);
 
+  const resumeSegment = useCallback(async (generation: number): Promise<boolean> => {
+    try {
+      await beginSegment(generation);
+    } catch {
+      if (generation === lifecycle.current && running.current && !muted.current) {
+        running.current = false;
+        if (timer.current) clearInterval(timer.current);
+        timer.current = null;
+        setState("off");
+        setError("Could not start listening.");
+      }
+      return false;
+    }
+    if (generation !== lifecycle.current) return false;
+    if (recording.current) return true;
+    if (!running.current || muted.current) return false;
+    running.current = false;
+    if (timer.current) clearInterval(timer.current);
+    timer.current = null;
+    setState("off");
+    setError("Could not start listening.");
+    return false;
+  }, [beginSegment]);
+
   const poll = useCallback(async () => {
     const active = recording.current;
     if (!active || busy.current) return;
@@ -227,28 +251,10 @@ export function useContinuousVoice({
       busy.current = true;
       await teardown();
       if (running.current && !muted.current && generation === lifecycle.current) {
-        try {
-          await beginSegment(generation);
-        } catch {
-          // A failed restart must not leave the screen claiming to listen.
-          if (generation === lifecycle.current && running.current && !muted.current) {
-            running.current = false;
-            if (timer.current) clearInterval(timer.current);
-            timer.current = null;
-            setState("off");
-            setError("Could not start listening.");
+        if (await resumeSegment(generation)) {
+          if (generation === lifecycle.current && recording.current) {
+            startPollingRef.current();
           }
-          busy.current = false;
-          return;
-        }
-        if (generation === lifecycle.current && recording.current) {
-          startPollingRef.current();
-        } else if (generation === lifecycle.current && running.current && !muted.current) {
-          running.current = false;
-          if (timer.current) clearInterval(timer.current);
-          timer.current = null;
-          setState("off");
-          setError("Could not start listening.");
         }
       }
       busy.current = false;
@@ -276,12 +282,13 @@ export function useContinuousVoice({
             allowsRecordingIOS: true,
             playsInSilentModeIOS: true,
           }).catch(() => undefined);
-          await beginSegment(generation).catch(() => undefined);
-          if (generation === lifecycle.current && recording.current) {
-            vad.current = initial();
-            lastFrame.current = Date.now();
-            setState("listening");
-            startPollingRef.current();
+          if (await resumeSegment(generation)) {
+            if (generation === lifecycle.current && recording.current) {
+              vad.current = initial();
+              lastFrame.current = Date.now();
+              setState("listening");
+              startPollingRef.current();
+            }
           }
         }
       } catch {
@@ -291,12 +298,13 @@ export function useContinuousVoice({
             allowsRecordingIOS: true,
             playsInSilentModeIOS: true,
           }).catch(() => undefined);
-          await beginSegment(generation).catch(() => undefined);
-          if (generation === lifecycle.current && recording.current) {
-            vad.current = initial();
-            lastFrame.current = Date.now();
-            setState("listening");
-            startPollingRef.current();
+          if (await resumeSegment(generation)) {
+            if (generation === lifecycle.current && recording.current) {
+              vad.current = initial();
+              lastFrame.current = Date.now();
+              setState("listening");
+              startPollingRef.current();
+            }
           }
         } else if (generation === lifecycle.current) {
           setError("Could not send that. Still listening.");
@@ -305,7 +313,7 @@ export function useContinuousVoice({
         busy.current = false;
       }
     }
-  }, [beginSegment, onUtterance, releaseForReply, teardown, webLevel]);
+  }, [onUtterance, releaseForReply, resumeSegment, teardown, webLevel]);
 
   const startPolling = useCallback(() => {
     if (timer.current) return;
@@ -385,7 +393,7 @@ export function useContinuousVoice({
         if (generation !== lifecycle.current || !running.current || busy.current || muted.current) {
           return;
         }
-        await beginSegment(generation).catch(() => undefined);
+        if (!(await resumeSegment(generation))) return;
         if (generation !== lifecycle.current || !running.current || !recording.current) return;
         vad.current = initial();
         lastFrame.current = Date.now();
@@ -404,7 +412,7 @@ export function useContinuousVoice({
         }).catch(() => undefined);
         await openWebMeter(generation).catch(() => undefined);
         if (generation !== lifecycle.current || !running.current || muted.current) return;
-        await beginSegment(generation).catch(() => undefined);
+        if (!(await resumeSegment(generation))) return;
         if (generation !== lifecycle.current || !running.current || !recording.current) return;
         vad.current = initial();
         lastFrame.current = Date.now();
@@ -413,7 +421,7 @@ export function useContinuousVoice({
       })();
     }
     previousSpeaking.current = speaking;
-  }, [beginSegment, openWebMeter, releaseForReply, speaking]);
+  }, [openWebMeter, releaseForReply, resumeSegment, speaking]);
 
   return { state, level, error, start, stop };
 }
