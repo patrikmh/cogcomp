@@ -165,8 +165,8 @@ export default function TalkScreen() {
       }
     },
     onSuccess: async (reply, variables) => {
-      if (variables.generation !== stoppedGeneration.current) return;
-      setJustReplied(true);
+      const current = variables.generation === stoppedGeneration.current;
+      if (current) setJustReplied(true);
       if (reply.crisis) {
         stoppedGeneration.current += 1;
         recordingGenerations.current = [];
@@ -178,15 +178,14 @@ export default function TalkScreen() {
         setVoiceTranscript(null);
       }
       await conversation.refetch();
-      if (variables.generation === stoppedGeneration.current) {
+      if (current) {
         setStreamed("");
         setVoiceTranscript(null);
       }
     },
-    onError: async (_error, variables) => {
+    onError: async () => {
       setStreamed("");
       setVoiceTranscript(null);
-      if (variables.generation !== stoppedGeneration.current) return;
       await conversation.refetch();
     },
   });

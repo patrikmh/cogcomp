@@ -83,21 +83,24 @@ export function useContinuousVoice({
     if (Platform.OS !== "web" || meter.current) return;
     if (generation !== lifecycle.current || !running.current || muted.current) return;
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    if (generation !== lifecycle.current || !running.current || muted.current) {
-      stream.getTracks().forEach((track) => track.stop());
-      return;
+    let context: AudioContext | null = null;
+    try {
+      if (generation !== lifecycle.current || !running.current || muted.current) return;
+      context = new (window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+      if (context.state === "suspended") await context.resume();
+      if (generation !== lifecycle.current || !running.current || muted.current) return;
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 512;
+      context.createMediaStreamSource(stream).connect(analyser);
+      if (generation !== lifecycle.current || !running.current || muted.current) return;
+      meter.current = { stream, context, analyser, data: new Uint8Array(analyser.fftSize) };
+    } finally {
+      if (!meter.current || meter.current.stream !== stream) {
+        stream.getTracks().forEach((track) => track.stop());
+        await context?.close().catch(() => undefined);
+      }
     }
-    const context = new (window.AudioContext ||
-      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-    const analyser = context.createAnalyser();
-    analyser.fftSize = 512;
-    context.createMediaStreamSource(stream).connect(analyser);
-    if (generation !== lifecycle.current || !running.current || muted.current) {
-      stream.getTracks().forEach((track) => track.stop());
-      await context.close().catch(() => undefined);
-      return;
-    }
-    meter.current = { stream, context, analyser, data: new Uint8Array(analyser.fftSize) };
   }, []);
 
   const closeWebMeter = useCallback(() => {
@@ -187,23 +190,31 @@ export function useContinuousVoice({
       web: preset.web!,
       isMeteringEnabled: true,
     };
-    await created.prepareToRecordAsync(options);
-    if (generation !== lifecycle.current || !running.current || muted.current) {
+    try {
+      await created.prepareToRecordAsync(options);
+      if (generation !== lifecycle.current || !running.current || muted.current) {
+        await created.stopAndUnloadAsync().catch(() => undefined);
+        return;
+      }
+      await created.startAsync();
+      if (generation !== lifecycle.current || !running.current || muted.current) {
+        await created.stopAndUnloadAsync().catch(() => undefined);
+        return;
+      }
+      recording.current = created;
+    } catch (error) {
       await created.stopAndUnloadAsync().catch(() => undefined);
-      return;
+      throw error;
     }
-    await created.startAsync();
-    if (generation !== lifecycle.current || !running.current || muted.current) {
-      await created.stopAndUnloadAsync().catch(() => undefined);
-      return;
-    }
-    recording.current = created;
   }, []);
 
   const resumeSegment = useCallback(async (generation: number): Promise<boolean> => {
     try {
       await beginSegment(generation);
     } catch {
+      if (generation === lifecycle.current) {
+        closeWebMeter();
+      }
       if (generation === lifecycle.current && running.current && !muted.current) {
         running.current = false;
         if (timer.current) clearInterval(timer.current);
@@ -222,7 +233,7 @@ export function useContinuousVoice({
     setState("off");
     setError("Could not start listening.");
     return false;
-  }, [beginSegment]);
+  }, [beginSegment, closeWebMeter]);
 
   const poll = useCallback(async () => {
     const active = recording.current;
@@ -389,7 +400,16 @@ export function useContinuousVoice({
           allowsRecordingIOS: true,
           playsInSilentModeIOS: true,
         }).catch(() => undefined);
-        await openWebMeter(generation).catch(() => undefined);
+        try {
+          await openWebMeter(generation);
+        } catch {
+          if (generation === lifecycle.current) {
+            running.current = false;
+            await teardown();
+            setState("off");
+          }
+          return;
+        }
         if (generation !== lifecycle.current || !running.current || busy.current || muted.current) {
           return;
         }
@@ -410,7 +430,16 @@ export function useContinuousVoice({
           allowsRecordingIOS: true,
           playsInSilentModeIOS: true,
         }).catch(() => undefined);
-        await openWebMeter(generation).catch(() => undefined);
+        try {
+          await openWebMeter(generation);
+        } catch {
+          if (generation === lifecycle.current) {
+            running.current = false;
+            await teardown();
+            setState("off");
+          }
+          return;
+        }
         if (generation !== lifecycle.current || !running.current || muted.current) return;
         if (!(await resumeSegment(generation))) return;
         if (generation !== lifecycle.current || !running.current || !recording.current) return;

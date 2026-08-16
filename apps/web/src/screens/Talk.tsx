@@ -41,6 +41,7 @@ interface Turn {
 export function Talk() {
   const client = useQueryClient();
   const [conversation, setConversation] = useState<string | null>(null);
+  const [listing, setListing] = useState(true);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [draft, setDraft] = useState("");
   const [mode, setMode] = useState<Mode>("idle");
@@ -93,6 +94,50 @@ export function Talk() {
       setConversation(started.id);
     },
   });
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      let conversations: Awaited<ReturnType<typeof api.listConversations>>["conversations"];
+      try {
+        ({ conversations } = await api.listConversations());
+      } catch {
+        if (!cancelled) begin.mutate();
+        if (!cancelled) setListing(false);
+        return;
+      }
+      if (cancelled) return;
+
+      const open = conversations.find((item) => item.closed_at === null);
+      if (!open) {
+        begin.mutate();
+        setListing(false);
+        return;
+      }
+
+      try {
+        const existing = await api.conversation(open.id);
+        if (cancelled) return;
+        setTurns(
+          existing.turns.map((turn) => ({ speaker: turn.speaker, content: turn.content })),
+        );
+        setConversation(open.id);
+      } catch {
+        if (!cancelled) {
+          setConversation(null);
+          setTurns([]);
+        }
+      } finally {
+        if (!cancelled) setListing(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // The lookup belongs to this screen's mount, and begin is intentionally
+    // reused as the fallback mutation.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /** Play the queued pieces in order until there are none left and none coming.
    *  Only one of these runs at a time; a piece queued while it is running is
@@ -284,6 +329,12 @@ export function Talk() {
       }
       const streamTracks = stream.getTracks();
       context = new AudioContext();
+      if (context.state === "suspended") await context.resume();
+      if (!listening.current || generation !== captureGeneration.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        await context.close().catch(() => undefined);
+        return;
+      }
       const analyser = context.createAnalyser();
       analyser.fftSize = 512;
       context.createMediaStreamSource(stream).connect(analyser);
@@ -345,6 +396,9 @@ export function Talk() {
         if (generation === captureGeneration.current) {
           recorder.current = null;
           captureTracks.current = [];
+          listening.current = false;
+          setHearing(false);
+          setMode("idle");
         }
       }
     }
@@ -468,7 +522,7 @@ export function Talk() {
           id="avatarStart"
           className="talk-avatar-start"
           onClick={() => begin.mutate()}
-          disabled={begin.isPending}
+          disabled={listing || begin.isPending}
           aria-label="Start talking"
         >
           <canvas id="avatar" ref={canvas} width={720} height={720} aria-hidden />
@@ -479,9 +533,11 @@ export function Talk() {
         {kept
           ? kept
           : !conversation
-          ? begin.isPending
-            ? "Starting…"
-            : "Tap to start talking"
+          ? listing
+            ? "Looking for an open conversation…"
+            : begin.isPending
+              ? "Starting…"
+              : "Tap to start talking"
           : hearing
             ? "Hearing."
             : mode === "thinking"

@@ -449,6 +449,24 @@ export const api = {
     request<void>(`/v1/experiments/${id}?revision=${revision}`, { method: "DELETE" }),
 
   /* talking */
+  listConversations: () =>
+    request<{
+      conversations: {
+        id: string;
+        started_at: string;
+        closed_at: string | null;
+        user_turns: number;
+      }[];
+    }>("/v1/conversations"),
+  conversation: (id: string) =>
+    request<{
+      id: string;
+      started_at: string;
+      closed_at: string | null;
+      agent: string;
+      flagged: boolean;
+      turns: { speaker: "user" | "assistant"; content: string }[];
+    }>(`/v1/conversations/${id}`),
   startConversation: () =>
     request<{ id: string; started_at: string; agent: string }>("/v1/conversations", {
       method: "POST",

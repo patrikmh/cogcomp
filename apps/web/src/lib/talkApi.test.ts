@@ -8,6 +8,44 @@ describe("spoken conversation turns", () => {
     vi.restoreAllMocks();
   });
 
+  it("lists conversations without limiting the response", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ conversations: [] }),
+      statusText: "OK",
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(api.listConversations()).resolves.toEqual({ conversations: [] });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]![0]).toBe("/v1/conversations");
+    expect(fetchMock.mock.calls[0]![0]).not.toContain("limit=1");
+  });
+
+  it("loads an existing conversation's turns", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({
+        id: "conversation-1",
+        started_at: "2026-08-16T00:00:00Z",
+        closed_at: null,
+        agent: "converse-v0.1",
+        flagged: false,
+        turns: [{ speaker: "user", content: "hello" }],
+      }),
+      statusText: "OK",
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(api.conversation("conversation-1")).resolves.toMatchObject({
+      id: "conversation-1",
+      turns: [{ speaker: "user", content: "hello" }],
+    });
+    expect(fetchMock.mock.calls[0]![0]).toBe("/v1/conversations/conversation-1");
+  });
+
   it("uploads one multipart request and parses the spoken stream", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
