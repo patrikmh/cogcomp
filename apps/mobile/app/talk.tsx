@@ -87,6 +87,9 @@ export default function TalkScreen() {
   /** The reply as it is arriving, before the server's copy of it is fetched.
    *  Empty whenever there is nothing in flight. */
   const [streamed, setStreamed] = useState("");
+  const stoppedGeneration = useRef(0);
+  const recordingGenerations = useRef<number[]>([]);
+  const [recordCancel, setRecordCancel] = useState(0);
 
   const sheetAnim = useRef(new Animated.Value(0)).current;
 
@@ -138,9 +141,12 @@ export default function TalkScreen() {
   });
 
   const speak = useMutation({
-    mutationFn: (uri: string) => api.sayAloud(token!, conversationId!, uri),
-    onSuccess: (reply) => {
+    mutationFn: ({ uri }: { uri: string; generation: number }) =>
+      api.sayAloud(token!, conversationId!, uri),
+    onSuccess: async (reply, variables) => {
+      if (variables.generation !== stoppedGeneration.current) return;
       setJustReplied(true);
+      setStreamed(reply.reply);
       voice.say(reply.reply);
       if (reply.crisis) setCrisis(reply.crisis_resources);
       // Refetched directly rather than invalidated by key. Invalidation was
@@ -148,7 +154,8 @@ export default function TalkScreen() {
       // turn however long you waited, which is what "the transcript works in
       // some cases" was: it filled only when something else happened to refetch.
       // Asking the query itself leaves no key to mismatch.
-      void conversation.refetch();
+      await conversation.refetch();
+      if (variables.generation === stoppedGeneration.current) setStreamed("");
     },
   });
 
@@ -201,10 +208,20 @@ export default function TalkScreen() {
   const live = useContinuousVoice({
     enabled: Boolean(conversationId),
     speaking: voice.speaking || speak.isPending || say.isPending,
-    onUtterance: async (uri) => {
-      await speak.mutateAsync(uri);
+    onUtterance: async (uri, generation) => {
+      if (generation !== stoppedGeneration.current) return;
+      await speak.mutateAsync({ uri, generation });
     },
   });
+
+  useEffect(() => {
+    return () => {
+      stoppedGeneration.current += 1;
+      recordingGenerations.current = [];
+      live.stop();
+      voice.stop();
+    };
+  }, [live.stop, voice.stop]);
 
   useEffect(() => {
     if (!justReplied) return;
@@ -278,11 +295,16 @@ export default function TalkScreen() {
     // hand.
     voice.unlock();
     if (live.state === "off") {
+      stoppedGeneration.current += 1;
       tapHaptic(Haptics.ImpactFeedbackStyle.Medium);
       void live.start();
     } else {
       tapHaptic(Haptics.ImpactFeedbackStyle.Light);
+      stoppedGeneration.current += 1;
+      recordingGenerations.current = [];
+      setRecordCancel((n) => n + 1);
       live.stop();
+      voice.stop();
     }
   };
 
@@ -323,7 +345,7 @@ export default function TalkScreen() {
             </MotionSurface>
 
             <View style={styles.stageBody}>
-              {turns.length === 0 && !start.isPending ? (
+              {turns.length === 0 && !streamed && !start.isPending ? (
                 <Text style={styles.opening}>
                   Say whatever is on your mind. I'll ask a few questions to help
                   you get it down.
@@ -335,9 +357,9 @@ export default function TalkScreen() {
                       {lastHeard.content}
                     </Text>
                   )}
-                  {lastReply && (
+                  {(streamed || lastReply) && (
                     <Text style={styles.reply} numberOfLines={5}>
-                      {lastReply.content}
+                      {streamed || lastReply?.content}
                     </Text>
                   )}
                 </>
@@ -416,7 +438,11 @@ export default function TalkScreen() {
 
               <MotionSurface
                 onPress={() => {
-                  if (live.state !== "off") live.stop();
+                  stoppedGeneration.current += 1;
+                  recordingGenerations.current = [];
+                  setRecordCancel((n) => n + 1);
+                  live.stop();
+                  voice.stop();
                   setCrisis(crisis ?? []);
                 }}
                 accessibilityRole="button"
@@ -445,10 +471,16 @@ export default function TalkScreen() {
                 <View style={[styles.row, styles.rowStacked]}>
                   <Text style={styles.rowLabel}>Prefer to hold instead?</Text>
                   <RecordButton
-                    onPressStart={voice.unlock}
-                    disabled={say.isPending || speak.isPending}
+                    onPressStart={() => {
+                      recordingGenerations.current.push(stoppedGeneration.current);
+                      voice.unlock();
+                    }}
+                    cancelSignal={recordCancel}
+                    disabled={say.isPending || speak.isPending || voice.speaking}
                     onRecorded={async (uri) => {
-                      await speak.mutateAsync(uri);
+                      const generation = recordingGenerations.current.shift();
+                      if (generation === undefined || generation !== stoppedGeneration.current) return;
+                      await speak.mutateAsync({ uri, generation });
                     }}
                     onStateChange={setRecording}
                     onError={setRecordError}
@@ -485,7 +517,14 @@ export default function TalkScreen() {
               <MotionSurface
                 style={[styles.finish, !saidSomething && styles.disabled]}
                 disabled={!saidSomething || finish.isPending}
-                onPress={() => finish.mutate()}
+                onPress={() => {
+                  stoppedGeneration.current += 1;
+                  recordingGenerations.current = [];
+                  setRecordCancel((n) => n + 1);
+                  live.stop();
+                  voice.stop();
+                  finish.mutate();
+                }}
               >
                 <Text style={styles.finishLabel}>
                   {/* The design says what closing does rather than that it saves:

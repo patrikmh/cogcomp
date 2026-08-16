@@ -98,6 +98,8 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
   const queue = useRef<Promise<SpokenClip>[]>([]);
   /** Whether the loop that empties the queue is already running. */
   const draining = useRef(false);
+  /** Identifies the drain currently allowed to release the lock. */
+  const drainGeneration = useRef(0);
   /** Whether everything this reply will ever contain has been queued. Until it
    *  is, an empty queue means "waiting for the model", not "finished". */
   const complete = useRef(true);
@@ -106,6 +108,10 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
     // Anything still in flight for the utterance being stopped belongs to a
     // generation that is now over, and will drop what it was about to play.
     generation.current += 1;
+    // Let a new reply take over immediately, even while the old drain is
+    // unwinding an in-flight request or playback promise.
+    drainGeneration.current += 1;
+    draining.current = false;
     // Pieces already asked for are let go of rather than played into whatever
     // comes next. The requests themselves cannot be recalled, and are not worth
     // trying to: they are already paid for and their answers are simply dropped.
@@ -246,6 +252,7 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
    */
   const play = useCallback(
     async (clip: { audio: string; envelope: number[]; frame_ms: number }) => {
+      const mine = generation.current;
       envelope.current = { levels: clip.envelope, frameMs: clip.frame_ms };
 
       if (Platform.OS === "web") {
@@ -257,7 +264,20 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
         el.src = clipUri(clip.audio);
         // Any refusal lands in the caller's catch and is named in `lastError`,
         // rather than leaving the reply mute with nothing said about why.
-        await el.play();
+        if (generation.current !== mine) return;
+        try {
+          await el.play();
+        } catch (error) {
+          if (generation.current !== mine) {
+            el.pause();
+            return;
+          }
+          throw error;
+        }
+        if (generation.current !== mine) {
+          el.pause();
+          return;
+        }
         setSpeaking(true);
         startLevel();
         await new Promise<void>((resolve) => {
@@ -268,11 +288,38 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
         return;
       }
 
+      // Native playback must not inherit a leftover recording session. The
+      // continuous recorder already flipped allowsRecordingIOS off; this
+      // restates the silent-switch override so a muted phone still speaks.
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+      }).catch(() => undefined);
+      if (generation.current !== mine) return;
       const { sound: created } = await Audio.Sound.createAsync(
         { uri: clipUri(clip.audio) },
-        { shouldPlay: true },
+        { shouldPlay: false },
       );
+      if (generation.current !== mine) {
+        await created.unloadAsync().catch(() => undefined);
+        return;
+      }
       sound.current = created;
+      try {
+        await created.playAsync();
+      } catch (error) {
+        if (generation.current !== mine) {
+          if (sound.current === created) sound.current = null;
+          await created.unloadAsync().catch(() => undefined);
+          return;
+        }
+        throw error;
+      }
+      if (generation.current !== mine) {
+        if (sound.current === created) sound.current = null;
+        await created.unloadAsync().catch(() => undefined);
+        return;
+      }
       setSpeaking(true);
       startLevel();
       await new Promise<void>((resolve) => {
@@ -314,6 +361,7 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
     async (mine: number) => {
       if (draining.current) return;
       draining.current = true;
+      const owner = ++drainGeneration.current;
       try {
         for (;;) {
           const next = queue.current.shift();
@@ -329,13 +377,14 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
         // Nothing queued. If nothing more is coming either, the reply is spoken.
         if (complete.current && generation.current === mine) stop();
       } catch (error) {
+        if (generation.current !== mine) return;
         report(error);
         // The reply is already on screen to read. A failure to speak it is not
         // something to interrupt someone mid-thought about — this state is
         // exposed for a quiet status line, never a toast.
         stop();
       } finally {
-        draining.current = false;
+        if (drainGeneration.current === owner) draining.current = false;
       }
     },
     [play, report, stop],
@@ -363,6 +412,7 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
 
       const mine = generation.current;
       complete.current = true;
+      setSpeaking(true);
       for (const chunk of speechChunks(text)) enqueue(chunk, mine);
     },
     [token, enabled, stop, enqueue],
@@ -378,6 +428,7 @@ export function useSpokenReply(token: string | null, enabled: boolean): SpokenRe
 
     const mine = generation.current;
     complete.current = false;
+    setSpeaking(true);
     const cutter = new SpokenStream();
 
     return {

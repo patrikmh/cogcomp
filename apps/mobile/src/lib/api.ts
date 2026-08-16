@@ -719,7 +719,30 @@ export const api = {
     }
 
     if (!response.body) {
-      return api.say(token, id, content, source);
+      // The stream POST already stored the person's turn. Repeating it on
+      // /turns would duplicate the entry; parse whatever arrived as one piece.
+      const raw = await response.text();
+      let reply: TurnReply | null = null;
+      let assembled = "";
+      for (const event of raw.split("\n\n")) {
+        const line = event.split("\n").find((l) => l.startsWith("data: "));
+        if (!line) continue;
+        const payload = JSON.parse(line.slice("data: ".length));
+        if (payload.type === "delta") {
+          assembled += payload.text;
+          onDelta(payload.text);
+        } else if (payload.type === "done") {
+          reply = {
+            reply: payload.reply,
+            crisis: payload.crisis,
+            crisis_resources: payload.crisis_resources,
+          };
+        } else if (payload.type === "error") {
+          throw new ApiError(502, payload.message);
+        }
+      }
+      if (reply) return reply;
+      throw new ApiError(502, "the reply ended before it was finished");
     }
 
     const reader = response.body.getReader();

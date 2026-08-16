@@ -9,8 +9,8 @@ import { type VadState, initial, levelFromMetering, step } from "@/lib/vad";
  *
  * Hold-to-record makes you operate a machine while you are trying to think. This
  * listens, notices when you have finished a thought, sends it, and speaks the
- * reply — then listens again. The only button is the one that starts and ends the
- * whole thing.
+ * reply — then listens again. The only button is the one that starts and ends
+ * the whole thing.
  *
  * Three rules keep it from being unpleasant:
  *
@@ -51,13 +51,13 @@ export function useContinuousVoice({
 }: {
   enabled: boolean;
   /** Called with a finished utterance. Resolve when the reply has been spoken. */
-  onUtterance: (uri: string) => Promise<void>;
-  /** True while the agent's voice is playing. The microphone stays shut. */
+  onUtterance: (uri: string, generation: number) => Promise<void>;
+  /** True while a reply is owned — pending synthesis counts. The microphone
+   *  stays shut for the whole of that, not only while a clip is sounding. */
   speaking: boolean;
 }): ContinuousVoice {
   const [state, setState] = useState<ListenState>("off");
   const [level, setLevel] = useState(0);
-  /** The web's own level source; null on native, which uses metering. */
   const meter = useRef<{
     stream: MediaStream;
     context: AudioContext;
@@ -72,33 +72,31 @@ export function useContinuousVoice({
   const busy = useRef(false);
   const running = useRef(false);
   const lastFrame = useRef(Date.now());
-  // Read inside the polling loop, which closes over its first render otherwise.
+  const previousSpeaking = useRef(speaking);
+  const pollRef = useRef<() => Promise<void>>(() => Promise.resolve());
+  const startPollingRef = useRef<() => void>(() => undefined);
+  const lifecycle = useRef(0);
   const muted = useRef(speaking);
   muted.current = speaking;
 
-  /**
-   * A microphone level, on the web.
-   *
-   * `expo-av`'s web recorder answers `getAudioRecordingStatus` with five fields
-   * — canRecord, isRecording, isDoneRecording, durationMillis, uri — and no
-   * `metering` among them. `isMeteringEnabled` is honoured on iOS and Android
-   * and ignored here, so `status.metering` was always undefined, the level was
-   * always 0, and the detector never heard anything: the microphone opened, the
-   * screen said it was listening, and nothing was ever sent however long anyone
-   * talked.
-   *
-   * So the web reads the level itself, off an analyser on its own stream, and
-   * native carries on using metering.
-   */
-  const openWebMeter = useCallback(async () => {
+  const openWebMeter = useCallback(async (generation: number) => {
     if (Platform.OS !== "web" || meter.current) return;
+    if (generation !== lifecycle.current || !running.current || muted.current) return;
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    if (generation !== lifecycle.current || !running.current || muted.current) {
+      stream.getTracks().forEach((track) => track.stop());
+      return;
+    }
     const context = new (window.AudioContext ||
       (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
     const analyser = context.createAnalyser();
-    // Small window: this is asked for a level every 60ms and only needs loudness.
     analyser.fftSize = 512;
     context.createMediaStreamSource(stream).connect(analyser);
+    if (generation !== lifecycle.current || !running.current || muted.current) {
+      stream.getTracks().forEach((track) => track.stop());
+      await context.close().catch(() => undefined);
+      return;
+    }
     meter.current = { stream, context, analyser, data: new Uint8Array(analyser.fftSize) };
   }, []);
 
@@ -110,7 +108,6 @@ export function useContinuousVoice({
     void open.context.close().catch(() => undefined);
   }, []);
 
-  /** Loudness now, 0–1, as root-mean-square about the centre of the waveform. */
   const webLevel = useCallback((): number => {
     const open = meter.current;
     if (!open) return 0;
@@ -120,7 +117,6 @@ export function useContinuousVoice({
       const deviation = (open.data[i]! - 128) / 128;
       sum += deviation * deviation;
     }
-    // The same shape `levelFromMetering` gives: quiet is 0, speech approaches 1.
     return Math.min(1, Math.sqrt(sum / open.data.length) * 4);
   }, []);
 
@@ -135,156 +131,249 @@ export function useContinuousVoice({
     } catch {
       // Already stopped, or never started. Nothing to recover.
     }
-  }, []);
+  }, [closeWebMeter]);
+
+  /**
+   * Close the recording route before asking the voice service for a reply.
+   *
+   * iOS keeps a held-open recorder on the earpiece path; the reply is then
+   * technically playing and completely inaudible. Playback still needs the
+   * silent-switch override — without it a phone on mute speaks nothing.
+   */
+  const releaseForReply = useCallback(async (generation: number, finished?: Audio.Recording | null) => {
+    closeWebMeter();
+    if (timer.current) clearInterval(timer.current);
+    timer.current = null;
+    if (finished && recording.current === finished) recording.current = null;
+    else if (!finished && generation === lifecycle.current) {
+      const active = recording.current;
+      recording.current = null;
+      await active?.stopAndUnloadAsync().catch(() => undefined);
+    }
+    if (generation === lifecycle.current) {
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+      }).catch(() => undefined);
+    }
+  }, [closeWebMeter]);
 
   const stop = useCallback(() => {
+    lifecycle.current += 1;
     running.current = false;
     void teardown();
-    // Release the audio session so other apps are not left muted.
-    void Audio.setAudioModeAsync({ allowsRecordingIOS: false }).catch(() => undefined);
+    void Audio.setAudioModeAsync({
+      allowsRecordingIOS: false,
+      playsInSilentModeIOS: true,
+    }).catch(() => undefined);
     vad.current = initial();
     setLevel(0);
     setState("off");
   }, [teardown]);
 
-  // Leaving the screen must close the microphone. A listening session that
-  // outlives the screen that started it is the worst bug this feature could have.
   useEffect(() => stop, [stop]);
 
-  const beginSegment = useCallback(async () => {
+  const beginSegment = useCallback(async (generation: number) => {
     const created = new Audio.Recording();
-    // The options type requires every per-platform block, while the preset types
-    // them as optional — so spreading it alone does not satisfy the signature
-    // even though the preset defines all three at runtime. Asserted rather than
-    // rebuilt, so this keeps following the preset if expo changes it.
     const preset = Audio.RecordingOptionsPresets.HIGH_QUALITY!;
     const options: Audio.RecordingOptions = {
       ...preset,
       android: preset.android!,
       ios: preset.ios!,
       web: preset.web!,
-      // Without this the status carries no level and the detector is blind.
       isMeteringEnabled: true,
     };
     await created.prepareToRecordAsync(options);
+    if (generation !== lifecycle.current || !running.current || muted.current) {
+      await created.stopAndUnloadAsync().catch(() => undefined);
+      return;
+    }
     await created.startAsync();
+    if (generation !== lifecycle.current || !running.current || muted.current) {
+      await created.stopAndUnloadAsync().catch(() => undefined);
+      return;
+    }
     recording.current = created;
   }, []);
 
+  const poll = useCallback(async () => {
+    const active = recording.current;
+    if (!active || busy.current) return;
+    if (muted.current) {
+      vad.current = initial();
+      setLevel(0);
+      return;
+    }
+    const generation = lifecycle.current;
+    const status = await active.getStatusAsync().catch(() => null);
+    // A poll that crossed stop+restart must not finish the *new* recorder.
+    if (generation !== lifecycle.current || recording.current !== active) return;
+    if (!status?.isRecording) return;
+    const now = Date.now();
+    const elapsed = now - lastFrame.current;
+    lastFrame.current = now;
+    const current = Platform.OS === "web" ? webLevel() : levelFromMetering(status.metering ?? Number.NaN);
+    setLevel(current);
+    const { state: next, action } = step(vad.current, current, elapsed);
+    vad.current = next;
+    if (action.type === "start") setState("hearing");
+
+    if (action.type === "discard") {
+      setState("listening");
+      busy.current = true;
+      await teardown();
+      if (running.current && !muted.current && generation === lifecycle.current) {
+        await beginSegment(generation).catch(() => undefined);
+        startPollingRef.current();
+      }
+      busy.current = false;
+      return;
+    }
+
+    if (action.type === "finish") {
+      if (recording.current !== active) return;
+      busy.current = true;
+      setState("thinking");
+      recording.current = null;
+      try {
+        await active.stopAndUnloadAsync();
+        const uri = active.getURI();
+        // The recording route is gone before the reply is asked for. Opening
+        // the microphone again is the falling edge of `speaking`, not this
+        // finally — `voice.say` claims speaking asynchronously, and a resume
+        // here would win that race on iOS every time.
+        await releaseForReply(generation, active);
+        if (uri && generation === lifecycle.current && running.current) {
+          await onUtterance(uri, generation);
+        } else if (generation === lifecycle.current && running.current && !muted.current) {
+          setError("Could not send that. Still listening.");
+          await Audio.setAudioModeAsync({
+            allowsRecordingIOS: true,
+            playsInSilentModeIOS: true,
+          }).catch(() => undefined);
+          await beginSegment(generation).catch(() => undefined);
+          if (generation === lifecycle.current && recording.current) {
+            vad.current = initial();
+            lastFrame.current = Date.now();
+            setState("listening");
+            startPollingRef.current();
+          }
+        }
+      } catch {
+        if (generation === lifecycle.current) setError("Could not send that. Still listening.");
+      } finally {
+        busy.current = false;
+      }
+    }
+  }, [beginSegment, onUtterance, releaseForReply, teardown, webLevel]);
+
+  const startPolling = useCallback(() => {
+    if (timer.current) return;
+    timer.current = setInterval(() => void pollRef.current(), POLL_MS);
+  }, []);
+  pollRef.current = poll;
+  startPollingRef.current = startPolling;
+
   const start = useCallback(async () => {
     if (running.current || !enabled) return;
+    const generation = ++lifecycle.current;
     setError(null);
-
     try {
       const permission = await Audio.requestPermissionsAsync();
-      if (!permission.granted) {
-        setError("Microphone access is needed to talk.");
+      if (generation !== lifecycle.current || !permission.granted) {
+        if (!permission.granted && generation === lifecycle.current) {
+          setError("Microphone access is needed to talk.");
+        }
         return;
       }
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
       });
-      // The web's own level source. Opened once for the session rather than per
-      // segment, so the analyser is warm when the first word arrives.
-      await openWebMeter();
-
+      if (generation !== lifecycle.current || muted.current) {
+        if (generation === lifecycle.current) {
+          await Audio.setAudioModeAsync({
+            allowsRecordingIOS: false,
+            playsInSilentModeIOS: true,
+          }).catch(() => undefined);
+        }
+        return;
+      }
       running.current = true;
+      await openWebMeter(generation);
+      if (generation !== lifecycle.current || !running.current || muted.current) {
+        await teardown();
+        return;
+      }
       vad.current = initial();
       lastFrame.current = Date.now();
-      await beginSegment();
+      await beginSegment(generation);
+      if (generation !== lifecycle.current || !running.current || muted.current || !recording.current) {
+        await teardown();
+        if (generation === lifecycle.current) {
+          running.current = false;
+          setState("off");
+        }
+        return;
+      }
       setState("listening");
-
-      timer.current = setInterval(async () => {
-        const active = recording.current;
-        if (!active || busy.current) return;
-
-        // Shut while the agent talks, so its own voice is never transcribed as
-        // the person's next turn.
-        if (muted.current) {
-          vad.current = initial();
-          setLevel(0);
-          return;
-        }
-
-        const status = await active.getStatusAsync().catch(() => null);
-        if (!status?.isRecording) return;
-
-        const now = Date.now();
-        const elapsed = now - lastFrame.current;
-        lastFrame.current = now;
-
-        const current =
-          Platform.OS === "web" ? webLevel() : levelFromMetering(status.metering ?? Number.NaN);
-        setLevel(current);
-
-        const { state: next, action } = step(vad.current, current, elapsed);
-        vad.current = next;
-
-        if (action.type === "start") setState("hearing");
-
-        if (action.type === "discard") {
-          // Too short to be speech. Restart the segment so the next utterance
-          // does not arrive with a cough glued to the front of it.
-          setState("listening");
-          busy.current = true;
-          await teardown();
-          if (running.current) await beginSegment().catch(() => undefined);
-          busy.current = false;
-          return;
-        }
-
-        if (action.type === "finish") {
-          busy.current = true;
-          setState("thinking");
-          const finished = recording.current;
-          recording.current = null;
-          try {
-            await finished?.stopAndUnloadAsync();
-            const uri = finished?.getURI();
-            if (uri) await onUtterance(uri);
-          } catch {
-            setError("Could not send that. Still listening.");
-          } finally {
-            // Listening resumes whatever happened — a failed turn must not end
-            // the conversation silently.
-            if (running.current) {
-              await Audio.setAudioModeAsync({
-                allowsRecordingIOS: true,
-                playsInSilentModeIOS: true,
-              }).catch(() => undefined);
-              await beginSegment().catch(() => undefined);
-              vad.current = initial();
-              lastFrame.current = Date.now();
-              setState("listening");
-            }
-            busy.current = false;
-          }
-        }
-      }, POLL_MS);
+      startPolling();
     } catch {
-      setError("Could not start listening.");
-      stop();
+      if (generation === lifecycle.current) {
+        setError("Could not start listening.");
+        stop();
+      }
     }
-  }, [enabled, beginSegment, onUtterance, teardown, stop]);
+  }, [beginSegment, enabled, openWebMeter, startPolling, stop]);
 
-  // Reflect the agent's turn in the reported state without touching the loop.
-  //
-  // The meter is closed for the duration, and its stream with it. A microphone
-  // held open while the agent talks puts iOS into its recording route, where a
-  // reply is played quietly through the earpiece or not audibly at all — the
-  // loop already mutes the recorder for the same reason, and this was the one
-  // stream that stayed open through it.
   useEffect(() => {
-    if (!running.current) return;
-    if (speaking) {
-      closeWebMeter();
-      setState("replying");
-    } else {
-      void openWebMeter();
-      if (!busy.current) setState("listening");
+    if (!running.current) {
+      previousSpeaking.current = speaking;
+      return;
     }
-  }, [speaking, closeWebMeter, openWebMeter]);
+    if (speaking) {
+      void releaseForReply(lifecycle.current);
+      setState("replying");
+    } else if (previousSpeaking.current && !busy.current) {
+      const generation = lifecycle.current;
+      void (async () => {
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: true,
+          playsInSilentModeIOS: true,
+        }).catch(() => undefined);
+        await openWebMeter(generation).catch(() => undefined);
+        if (generation !== lifecycle.current || !running.current || busy.current || muted.current) {
+          return;
+        }
+        await beginSegment(generation).catch(() => undefined);
+        if (generation !== lifecycle.current || !running.current || !recording.current) return;
+        vad.current = initial();
+        lastFrame.current = Date.now();
+        setState("listening");
+        startPollingRef.current();
+      })();
+    } else if (!speaking && !busy.current && running.current && !recording.current) {
+      // Upload failed before anyone claimed speaking. There is no falling edge
+      // to wait for, and sitting silent after "Could not send that" is worse
+      // than opening the microphone again.
+      const generation = lifecycle.current;
+      void (async () => {
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: true,
+          playsInSilentModeIOS: true,
+        }).catch(() => undefined);
+        await openWebMeter(generation).catch(() => undefined);
+        if (generation !== lifecycle.current || !running.current || muted.current) return;
+        await beginSegment(generation).catch(() => undefined);
+        if (generation !== lifecycle.current || !running.current || !recording.current) return;
+        vad.current = initial();
+        lastFrame.current = Date.now();
+        setState("listening");
+        startPollingRef.current();
+      })();
+    }
+    previousSpeaking.current = speaking;
+  }, [beginSegment, openWebMeter, releaseForReply, speaking]);
 
   return { state, level, error, start, stop };
 }

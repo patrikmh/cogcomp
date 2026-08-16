@@ -25,6 +25,7 @@ export function RecordButton({
   onStateChange,
   onError,
   onPressStart,
+  cancelSignal,
   tone = "light",
   compact = false,
 }: {
@@ -41,6 +42,9 @@ export function RecordButton({
   /** Run the moment the press begins, while a user gesture still counts —
    *  where iOS wants anything that will later want to make a sound. */
   onPressStart?: () => void;
+  /** Incremented by the parent when listening must stop immediately — urgent,
+   *  close, unmount — so a held recorder is not left open until the thumb lifts. */
+  cancelSignal?: number;
   /** Dark surfaces need their own colours — the default label is near-black and
    *  vanishes against focus mode's background. */
   tone?: "light" | "dark";
@@ -56,6 +60,23 @@ export function RecordButton({
   const recording = useRef<Audio.Recording | null>(null);
 
   useEffect(() => {
+    if (!cancelSignal) return;
+    holdActive.current = false;
+    const cancelled = ++generation.current;
+    const active = recording.current;
+    recording.current = null;
+    if (active) {
+      active.stopAndUnloadAsync()
+        .catch(() => undefined)
+        .finally(() => {
+          if (generation.current === cancelled) resetAudioMode().catch(() => undefined);
+        });
+    } else if (generation.current === cancelled) {
+      resetAudioMode().catch(() => undefined);
+    }
+    if (mounted.current) setState("idle");
+  }, [cancelSignal]);
+  useEffect(() => {
     onStateChange?.(state);
     // The callback is usually an inline closure; depending on it would fire this
     // on every render of the parent.
@@ -67,14 +88,16 @@ export function RecordButton({
     return () => {
       mounted.current = false;
       holdActive.current = false;
-      generation.current += 1;
+      const cancelled = ++generation.current;
       const active = recording.current;
       recording.current = null;
       if (active) {
         active.stopAndUnloadAsync()
           .catch(() => undefined)
-          .finally(() => resetAudioMode().catch(() => undefined));
-      } else {
+          .finally(() => {
+            if (generation.current === cancelled) resetAudioMode().catch(() => undefined);
+          });
+      } else if (generation.current === cancelled) {
         resetAudioMode().catch(() => undefined);
       }
     };
@@ -106,9 +129,12 @@ export function RecordButton({
   }
 
   async function resetAudioMode() {
+    // Recording is over; playback of the reply still needs the silent-switch
+    // override. Turning that off here is why a hold-to-record turn on a muted
+    // iPhone produced a clip and then no sound.
     await Audio.setAudioModeAsync({
       allowsRecordingIOS: false,
-      playsInSilentModeIOS: false,
+      playsInSilentModeIOS: true,
     });
   }
 
@@ -120,7 +146,7 @@ export function RecordButton({
     try {
       const permission = await Audio.requestPermissionsAsync();
       if (!mounted.current || !holdActive.current || generation.current !== currentGeneration) {
-        await resetAudioMode();
+        if (generation.current === currentGeneration) await resetAudioMode();
         return;
       }
       if (!permission.granted) {
@@ -139,13 +165,13 @@ export function RecordButton({
       const cancelled = !mounted.current || !holdActive.current || generation.current !== currentGeneration;
       if (cancelled) {
         await started.stopAndUnloadAsync().catch(() => undefined);
-        await resetAudioMode();
+        if (generation.current === currentGeneration) await resetAudioMode();
         return;
       }
       recording.current = started;
       setState("recording");
     } catch {
-      await resetAudioMode().catch(() => undefined);
+      if (generation.current === currentGeneration) await resetAudioMode().catch(() => undefined);
       if (mounted.current && generation.current === currentGeneration) {
         setState("idle");
         report("Could not start recording. Please try again.");
@@ -155,7 +181,7 @@ export function RecordButton({
 
   async function stop() {
     holdActive.current = false;
-    generation.current += 1;
+    const released = ++generation.current;
     // Use the ref, not React state: release can arrive after the recording is
     // assigned but before the state commit that follows it.
     const active = recording.current;
@@ -163,7 +189,7 @@ export function RecordButton({
     if (!active) {
       // Release can arrive while permission or createAsync is pending. The
       // startup continuation will also clean up any late-created recording.
-      await resetAudioMode().catch(() => undefined);
+      if (generation.current === released) await resetAudioMode().catch(() => undefined);
       return;
     }
     setState("uploading");
@@ -175,12 +201,14 @@ export function RecordButton({
     let uri: string | null = null;
     try {
       await active?.stopAndUnloadAsync();
-      await resetAudioMode();
+      if (generation.current === released) await resetAudioMode();
+      else return;
       uri = active?.getURI() ?? null;
       if (!uri) throw new Error("the recorder produced no file");
     } catch (cause) {
+      if (generation.current === released) await resetAudioMode().catch(() => undefined);
       report(`Could not save that recording. ${describe(cause)}`);
-      if (mounted.current) setState("idle");
+      if (mounted.current && generation.current === released) setState("idle");
       return;
     }
 
@@ -189,7 +217,7 @@ export function RecordButton({
     } catch (cause) {
       report(`Could not send that recording. ${describe(cause)}`);
     } finally {
-      if (mounted.current) setState("idle");
+      if (mounted.current && generation.current === released) setState("idle");
     }
   }
 

@@ -184,3 +184,56 @@ describe("patterns and agent API wrappers", () => {
     ]);
   });
 });
+
+describe("streaming a turn when the body cannot be read incrementally", () => {
+  const fetchMock = jest.fn();
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    global.fetch = fetchMock as unknown as typeof fetch;
+  });
+
+  it("parses the already-stored stream instead of posting the turn again", async () => {
+    const raw =
+      'data: {"type":"delta","text":"What "}\n\n' +
+      'data: {"type":"delta","text":"next?"}\n\n' +
+      'data: {"type":"done","reply":"What next?","crisis":false,"crisis_resources":[]}\n\n';
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      body: null,
+      text: jest.fn().mockResolvedValue(raw),
+      json: jest.fn(),
+    } as unknown as Response);
+
+    const deltas: string[] = [];
+    await expect(
+      api.sayStreaming("token", "conversation-1", "I said this", "voice", (text) => {
+        deltas.push(text);
+      }),
+    ).resolves.toEqual({ reply: "What next?", crisis: false, crisis_resources: [] });
+
+    expect(deltas).toEqual(["What ", "next?"]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toContain("/turns/stream");
+  });
+
+  it("does not invent a finished reply from a truncated stream", async () => {
+    const raw = 'data: {"type":"delta","text":"What "}\n\n';
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      body: null,
+      text: jest.fn().mockResolvedValue(raw),
+      json: jest.fn(),
+    } as unknown as Response);
+
+    await expect(
+      api.sayStreaming("token", "conversation-1", "I said this", "voice", () => undefined),
+    ).rejects.toThrow("the reply ended before it was finished");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
