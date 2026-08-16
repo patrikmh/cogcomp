@@ -237,3 +237,44 @@ describe("streaming a turn when the body cannot be read incrementally", () => {
   });
 });
 
+describe("streaming a spoken turn", () => {
+  const fetchMock = jest.fn();
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    global.fetch = fetchMock as unknown as typeof fetch;
+  });
+
+  it("posts audio once to the voice stream and never to /turns", async () => {
+    const raw =
+      'data: {"type":"transcript","text":"I said this"}\n\n' +
+      'data: {"type":"delta","text":"What "}\n\n' +
+      'data: {"type":"done","reply":"What next?","crisis":false,"crisis_resources":[]}\n\n';
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      body: null,
+      text: jest.fn().mockResolvedValue(raw),
+      json: jest.fn(),
+    } as unknown as Response);
+
+    const transcripts: string[] = [];
+    const deltas: string[] = [];
+    await expect(
+      api.sayAloudStreaming(
+        "token",
+        "conversation-1",
+        "file:///tmp/recording.m4a",
+        (text) => transcripts.push(text),
+        (text) => deltas.push(text),
+      ),
+    ).resolves.toEqual({ reply: "What next?", crisis: false, crisis_resources: [] });
+
+    expect(transcripts).toEqual(["I said this"]);
+    expect(deltas).toEqual(["What "]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0][0])).toContain("/turns/voice/stream");
+    expect(String(fetchMock.mock.calls[0][0])).not.toMatch(/\/turns$/);
+  });
+});

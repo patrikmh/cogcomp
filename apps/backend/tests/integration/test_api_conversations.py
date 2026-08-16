@@ -455,3 +455,88 @@ class TestStreamedTurn:
         _, events = await self.stream(client, account, cid, "i want to hurt myself")
         assert all("[CRISIS]" not in e.get("text", "") for e in events)
         assert "[CRISIS]" not in events[-1]["reply"]
+
+
+
+class TestStreamedSpokenTurns:
+    """A spoken turn streamed as it is written — same conversation, entered
+    differently, with the timing of /turns/stream."""
+
+    AUDIO = b"not really audio, but the stub does not care"
+
+    async def stream(self, client: AsyncClient, account: Account, cid: str, audio=None):
+        response = await client.post(
+            f"/v1/conversations/{cid}/turns/voice/stream",
+            headers=account.auth,
+            files={"audio": ("r.m4a", audio if audio is not None else self.AUDIO, "audio/m4a")},
+        )
+        return response, parse_sse(response.text)
+
+    async def test_a_spoken_turn_streams_a_reply(self, client: AsyncClient, account: Account):
+        cid = await start(client, account)
+        response, events = await self.stream(client, account, cid)
+        assert response.status_code == 200, response.text
+        assert response.headers["content-type"].startswith("text/event-stream")
+        assert events[0]["type"] == "transcript"
+        assert events[-1]["type"] == "done"
+        assert events[-1]["reply"]
+
+    async def test_the_transcript_is_the_user_turn(self, client: AsyncClient, account: Account):
+        cid = await start(client, account)
+        _, events = await self.stream(client, account, cid)
+        body = (await client.get(f"/v1/conversations/{cid}", headers=account.auth)).json()
+        spoken = next(t for t in body["turns"] if t["speaker"] == "user")
+        assert spoken["content"] == events[0]["text"]
+        assert spoken["source"] == "voice"
+
+    async def test_the_pieces_add_up_to_the_reply(self, client: AsyncClient, account: Account):
+        cid = await start(client, account)
+        _, events = await self.stream(client, account, cid)
+        deltas = "".join(e["text"] for e in events if e["type"] == "delta")
+        assert deltas == events[-1]["reply"]
+
+    async def test_a_closed_conversation_refuses_a_streamed_spoken_turn(
+        self, client: AsyncClient, account: Account
+    ):
+        cid = await start(client, account)
+        await say(client, account, cid, "hello")
+        await client.post(f"/v1/conversations/{cid}/close", headers=account.auth)
+        response, _ = await self.stream(client, account, cid)
+        assert response.status_code == 409
+
+    async def test_another_user_cannot_stream_into_it(
+        self, client: AsyncClient, account: Account, other_account: Account
+    ):
+        cid = await start(client, account)
+        response, _ = await self.stream(client, other_account, cid)
+        assert response.status_code == 404
+
+    async def test_it_requires_authentication(self, client: AsyncClient, account: Account):
+        cid = await start(client, account)
+        response = await client.post(
+            f"/v1/conversations/{cid}/turns/voice/stream",
+            files={"audio": ("r.m4a", self.AUDIO, "audio/m4a")},
+        )
+        assert response.status_code == 401
+
+    async def test_no_audio_is_retained(self, client: AsyncClient, account: Account):
+        cid = await start(client, account)
+        await self.stream(client, account, cid, audio=b"DISTINCTIVE-STREAM-AUDIO")
+        rows = await client._transport.app.state.pool.fetch(
+            "SELECT content FROM conversation_turns"
+        )
+        for row in rows:
+            assert "DISTINCTIVE-STREAM-AUDIO" not in row["content"]
+
+    async def test_an_unknown_timezone_is_refused_before_anything_streams(
+        self, client: AsyncClient, account: Account
+    ):
+        cid = await start(client, account)
+        response = await client.post(
+            f"/v1/conversations/{cid}/turns/voice/stream",
+            headers=account.auth,
+            files={"audio": ("r.m4a", self.AUDIO, "audio/m4a")},
+            data={"timezone": "Not/AZone"},
+        )
+        assert response.status_code == 422
+

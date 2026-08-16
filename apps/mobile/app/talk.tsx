@@ -87,6 +87,7 @@ export default function TalkScreen() {
   /** The reply as it is arriving, before the server's copy of it is fetched.
    *  Empty whenever there is nothing in flight. */
   const [streamed, setStreamed] = useState("");
+  const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
   const stoppedGeneration = useRef(0);
   const recordingGenerations = useRef<number[]>([]);
   const [recordCancel, setRecordCancel] = useState(0);
@@ -141,21 +142,41 @@ export default function TalkScreen() {
   });
 
   const speak = useMutation({
-    mutationFn: ({ uri }: { uri: string; generation: number }) =>
-      api.sayAloud(token!, conversationId!, uri),
+    mutationFn: async ({ uri, generation }: { uri: string; generation: number }) => {
+      const spoken = voice.speakAsItArrives();
+      setStreamed("");
+      setVoiceTranscript(null);
+      try {
+        return await api.sayAloudStreaming(
+          token!,
+          conversationId!,
+          uri,
+          (transcript) => {
+            if (generation === stoppedGeneration.current) setVoiceTranscript(transcript);
+          },
+          (delta) => {
+            if (generation !== stoppedGeneration.current) return;
+            setStreamed((sofar) => sofar + delta);
+            spoken.feed(delta);
+          },
+        );
+      } finally {
+        spoken.end();
+      }
+    },
     onSuccess: async (reply, variables) => {
       if (variables.generation !== stoppedGeneration.current) return;
       setJustReplied(true);
-      setStreamed(reply.reply);
-      voice.say(reply.reply);
       if (reply.crisis) setCrisis(reply.crisis_resources);
-      // Refetched directly rather than invalidated by key. Invalidation was
-      // firing and no GET followed it — the thread stayed empty after a spoken
-      // turn however long you waited, which is what "the transcript works in
-      // some cases" was: it filled only when something else happened to refetch.
-      // Asking the query itself leaves no key to mismatch.
       await conversation.refetch();
-      if (variables.generation === stoppedGeneration.current) setStreamed("");
+      if (variables.generation === stoppedGeneration.current) {
+        setStreamed("");
+        setVoiceTranscript(null);
+      }
+    },
+    onError: () => {
+      setStreamed("");
+      setVoiceTranscript(null);
     },
   });
 
@@ -345,16 +366,16 @@ export default function TalkScreen() {
             </MotionSurface>
 
             <View style={styles.stageBody}>
-              {turns.length === 0 && !streamed && !start.isPending ? (
+              {turns.length === 0 && !streamed && !voiceTranscript && !start.isPending ? (
                 <Text style={styles.opening}>
                   Say whatever is on your mind. I'll ask a few questions to help
                   you get it down.
                 </Text>
               ) : (
                 <>
-                  {lastHeard && (
+                  {(voiceTranscript || lastHeard) && (
                     <Text style={styles.heard} numberOfLines={2}>
-                      {lastHeard.content}
+                      {voiceTranscript ?? lastHeard?.content}
                     </Text>
                   )}
                   {(streamed || lastReply) && (

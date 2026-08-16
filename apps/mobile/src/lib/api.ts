@@ -495,6 +495,57 @@ async function uploadAudio<T>(path: string, token: string, form: FormData): Prom
   return (await response.json()) as T;
 }
 
+type StreamCallbacks = {
+  onTranscript?: (text: string) => void;
+  onDelta: (text: string) => void;
+};
+
+async function parseTurnStream(response: Response, callbacks: StreamCallbacks): Promise<TurnReply> {
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as { detail?: string };
+    throw new ApiError(response.status, body.detail ?? response.statusText);
+  }
+
+  let reply: TurnReply | null = null;
+  const handle = (event: string) => {
+    const line = event.split("\n").find((l) => l.startsWith("data: "));
+    if (!line) return;
+    const payload = JSON.parse(line.slice("data: ".length));
+    if (payload.type === "transcript") callbacks.onTranscript?.(payload.text);
+    else if (payload.type === "delta") callbacks.onDelta(payload.text);
+    else if (payload.type === "done") {
+      reply = {
+        reply: payload.reply,
+        crisis: payload.crisis,
+        crisis_resources: payload.crisis_resources,
+      };
+    } else if (payload.type === "error") {
+      throw new ApiError(502, payload.message);
+    }
+  };
+
+  if (!response.body) {
+    const raw = await response.text();
+    for (const event of raw.split("\n\n")) handle(event);
+  } else {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let pending = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      pending += decoder.decode(value, { stream: true });
+      const events = pending.split("\n\n");
+      pending = events.pop() ?? "";
+      for (const event of events) handle(event);
+    }
+    pending += decoder.decode();
+    if (pending.trim()) handle(pending);
+  }
+  if (!reply) throw new ApiError(502, "the reply ended before it was finished");
+  return reply;
+}
+
 export const api = {
   signup(email: string, password: string, device?: string) {
     return request<AuthResponse>("/v1/auth/signup", null, {
@@ -694,11 +745,9 @@ export const api = {
    * `onDelta` is called with each piece as it lands, and the whole reply comes
    * back at the end for storing and for anything that needs it entire.
    *
-   * Falls back to the plain endpoint wherever a response body cannot be read
-   * incrementally — React Native's fetch has no `body` stream — so a caller
-   * gets the same answer everywhere and only the timing differs. That is worth
-   * more than the streaming: a screen written against this works on a phone
-   * app that cannot stream at all.
+   * Buffered response bodies are parsed with the same SSE parser as readable
+   * bodies. A stream request is never retried through the plain endpoint, which
+   * would duplicate the stored user turn.
    */
   async sayStreaming(
     token: string,
@@ -712,77 +761,23 @@ export const api = {
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ content, source, timezone: deviceTimezone() }),
     });
+    return parseTurnStream(response, { onDelta });
+  },
 
-    if (!response.ok) {
-      const body = (await response.json().catch(() => ({}))) as { detail?: string };
-      throw new ApiError(response.status, body.detail ?? response.statusText);
-    }
-
-    if (!response.body) {
-      // The stream POST already stored the person's turn. Repeating it on
-      // /turns would duplicate the entry; parse whatever arrived as one piece.
-      const raw = await response.text();
-      let reply: TurnReply | null = null;
-      let assembled = "";
-      for (const event of raw.split("\n\n")) {
-        const line = event.split("\n").find((l) => l.startsWith("data: "));
-        if (!line) continue;
-        const payload = JSON.parse(line.slice("data: ".length));
-        if (payload.type === "delta") {
-          assembled += payload.text;
-          onDelta(payload.text);
-        } else if (payload.type === "done") {
-          reply = {
-            reply: payload.reply,
-            crisis: payload.crisis,
-            crisis_resources: payload.crisis_resources,
-          };
-        } else if (payload.type === "error") {
-          throw new ApiError(502, payload.message);
-        }
-      }
-      if (reply) return reply;
-      throw new ApiError(502, "the reply ended before it was finished");
-    }
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    // Events are separated by a blank line and can be split across reads, so
-    // what is left after the last complete one is kept for the next.
-    let pending = "";
-    let reply: TurnReply | null = null;
-
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      pending += decoder.decode(value, { stream: true });
-
-      const events = pending.split("\n\n");
-      pending = events.pop() ?? "";
-
-      for (const event of events) {
-        const line = event.split("\n").find((l) => l.startsWith("data: "));
-        if (!line) continue;
-        const payload = JSON.parse(line.slice("data: ".length));
-
-        if (payload.type === "delta") {
-          onDelta(payload.text);
-        } else if (payload.type === "done") {
-          reply = {
-            reply: payload.reply,
-            crisis: payload.crisis,
-            crisis_resources: payload.crisis_resources,
-          };
-        } else if (payload.type === "error") {
-          // The status line said 200 before the agent failed, so the failure
-          // arrives in the body and has to be raised from here.
-          throw new ApiError(502, payload.message);
-        }
-      }
-    }
-
-    if (!reply) throw new ApiError(502, "the reply ended before it was finished");
-    return reply;
+  async sayAloudStreaming(
+    token: string,
+    conversationId: string,
+    uri: string,
+    onTranscript: (text: string) => void,
+    onDelta: (text: string) => void,
+  ): Promise<TurnReply> {
+    const form = await audioForm(uri);
+    form.append("timezone", deviceTimezone());
+    const response = await fetch(
+      `${BASE_URL}/v1/conversations/${conversationId}/turns/voice/stream`,
+      { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form },
+    );
+    return parseTurnStream(response, { onTranscript, onDelta });
   },
 
   /** Ends the conversation and keeps only what the person said. */

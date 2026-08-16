@@ -21,7 +21,7 @@ from fastapi import (
     status,
 )
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from tlon.auth import current_user
 from tlon.conversation import ConversationError, Delta, Done
@@ -198,8 +198,6 @@ async def add_turn_streaming(
     there, so a failure mid-stream never loses what they said.
     """
     pool = request.app.state.pool
-    settings = request.app.state.settings
-
     conversation = await conversations_db.find(pool, user_id, conversation_id)
     if conversation is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "not found")
@@ -221,9 +219,22 @@ async def add_turn_streaming(
 
     turns = conversation["turns"] + [{"speaker": "user", "content": payload.content}]
 
+    return await _stream_agent_response(request, pool, user_id, conversation_id, turns)
+
+async def _stream_agent_response(
+    request: Request,
+    pool,
+    user_id: UUID,
+    conversation_id: UUID,
+    turns: list[dict],
+    transcript: str | None = None,
+) -> StreamingResponse:
+    """Stream an agent reply, optionally beginning with a voice transcript."""
+    settings = request.app.state.settings
+
     async def events() -> AsyncIterator[str]:
-        # What the agent has said so far, so a reader who walks away mid-sentence
-        # still leaves the exchange readable rather than half-recorded.
+        if transcript is not None:
+            yield _event({"type": "transcript", "text": transcript})
         written = ""
         crisis = False
         finished = False
@@ -232,52 +243,71 @@ async def add_turn_streaming(
                 if isinstance(event, Delta):
                     written += event.text
                     yield _event({"type": "delta", "text": event.text})
-                    continue
-                if isinstance(event, Done):
+                elif isinstance(event, Done):
                     written = event.content
                     crisis = event.crisis
                     finished = True
-                    yield _event(
-                        {
-                            "type": "done",
-                            "reply": event.content,
-                            "crisis": event.crisis,
-                            # Sent with the reply rather than looked up
-                            # separately, so the client cannot show the message
-                            # without the services alongside it.
-                            "crisis_resources": settings.crisis_resources_list
-                            if event.crisis
-                            else [],
-                        }
-                    )
+                    yield _event({
+                        "type": "done",
+                        "reply": event.content,
+                        "crisis": event.crisis,
+                        "crisis_resources": settings.crisis_resources_list if event.crisis else [],
+                    })
         except ConversationError as exc:
-            # The status line is long gone by the time this happens — a stream
-            # says 200 before it knows how it ends — so the failure has to be
-            # something the client reads rather than something it catches.
             logger.warning("conversation stream failed: %s", exc)
             yield _event({"type": "error", "message": f"agent unavailable: {exc}"})
         finally:
-            # Runs on a client that hangs up mid-reply too, which is the case
-            # this is here for: the turn is stored either way.
             if written:
-                await conversations_db.add_turn(
-                    pool, user_id, conversation_id, "assistant", written
-                )
+                await conversations_db.add_turn(pool, user_id, conversation_id, "assistant", written)
                 if crisis and finished:
                     await conversations_db.flag(pool, conversation_id)
 
     return StreamingResponse(
         events(),
         media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            # Without this a proxy is free to hold the whole response until the
-            # generator finishes, which is every byte of the latency this
-            # endpoint exists to remove. Render and nginx both read it.
-            "X-Accel-Buffering": "no",
-        },
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
     )
+
+
+@router.post("/{conversation_id}/turns/voice/stream")
+async def add_voice_turn_streaming(
+    request: Request,
+    conversation_id: UUID,
+    audio: UploadFile = File(...),
+    timezone: str | None = Form(None),
+    user_id: UUID = Depends(current_user),
+) -> StreamingResponse:
+    pool = request.app.state.pool
+    conversation = await conversations_db.find(pool, user_id, conversation_id)
+    if conversation is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "not found")
+    if conversation["closed_at"] is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "conversation is already closed")
+
+    payload = await audio.read()
+    try:
+        transcript = await request.app.state.transcriber.transcribe(
+            payload, audio.filename or "recording.m4a"
+        )
+    except AudioTooLarge as exc:
+        raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, str(exc)) from exc
+    except TranscriptionError as exc:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
+
+    # Same contract as a typed turn: known timezone, non-blank, bounded length.
+    # Skipping TurnRequest here used to let a bad zone persist and then fail
+    # later, when closing the conversation tried to make an observation of it.
+    try:
+        turn = TurnRequest(content=transcript, source="voice", timezone=timezone)
+    except ValidationError as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, exc.errors()[0]["msg"]) from exc
+    if not turn.content.strip():
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "turn cannot be blank")
+    await conversations_db.add_turn(
+        pool, user_id, conversation_id, "user", turn.content, turn.source, turn.timezone
+    )
+    turns = conversation["turns"] + [{"speaker": "user", "content": turn.content}]
+    return await _stream_agent_response(request, pool, user_id, conversation_id, turns, turn.content)
 
 
 @router.post("/{conversation_id}/turns/voice")

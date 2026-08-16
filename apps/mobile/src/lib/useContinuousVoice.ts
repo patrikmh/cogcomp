@@ -260,7 +260,22 @@ export function useContinuousVoice({
           }
         }
       } catch {
-        if (generation === lifecycle.current) setError("Could not send that. Still listening.");
+        if (generation === lifecycle.current && running.current && !muted.current) {
+          setError("Could not send that. Still listening.");
+          await Audio.setAudioModeAsync({
+            allowsRecordingIOS: true,
+            playsInSilentModeIOS: true,
+          }).catch(() => undefined);
+          await beginSegment(generation).catch(() => undefined);
+          if (generation === lifecycle.current && recording.current) {
+            vad.current = initial();
+            lastFrame.current = Date.now();
+            setState("listening");
+            startPollingRef.current();
+          }
+        } else if (generation === lifecycle.current) {
+          setError("Could not send that. Still listening.");
+        }
       } finally {
         busy.current = false;
       }
