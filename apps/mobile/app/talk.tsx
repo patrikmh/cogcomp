@@ -167,7 +167,16 @@ export default function TalkScreen() {
     onSuccess: async (reply, variables) => {
       if (variables.generation !== stoppedGeneration.current) return;
       setJustReplied(true);
-      if (reply.crisis) setCrisis(reply.crisis_resources);
+      if (reply.crisis) {
+        stoppedGeneration.current += 1;
+        recordingGenerations.current = [];
+        setRecordCancel((n) => n + 1);
+        live.stop();
+        voice.stop();
+        setCrisis(reply.crisis_resources);
+        setStreamed("");
+        setVoiceTranscript(null);
+      }
       await conversation.refetch();
       if (variables.generation === stoppedGeneration.current) {
         setStreamed("");
@@ -199,7 +208,14 @@ export default function TalkScreen() {
     },
     onSuccess: async (reply) => {
       setJustReplied(true);
-      if (reply.crisis) setCrisis(reply.crisis_resources);
+      if (reply.crisis) {
+        stoppedGeneration.current += 1;
+        recordingGenerations.current = [];
+        setRecordCancel((n) => n + 1);
+        live.stop();
+        voice.stop();
+        setCrisis(reply.crisis_resources);
+      }
       // Cleared only once the stored turn is actually in hand. Dropping it any
       // earlier leaves the thread a line short for the length of a refetch —
       // the reply visibly disappearing just as it finished arriving.
@@ -227,7 +243,7 @@ export default function TalkScreen() {
    * the next turn and the two of them talk to each other indefinitely.
    */
   const live = useContinuousVoice({
-    enabled: Boolean(conversationId),
+    enabled: Boolean(conversationId) && crisis === null,
     speaking: voice.speaking || speak.isPending || say.isPending,
     onUtterance: async (uri, generation) => {
       if (generation !== stoppedGeneration.current) return;
@@ -310,7 +326,7 @@ export default function TalkScreen() {
   };
 
   const toggleLive = () => {
-    if (recording !== "idle") return;
+    if (recording !== "idle" || crisis !== null) return;
     // Inside the tap, while a gesture still counts: iOS will not play a reply
     // that arrives after the network unless sound has been started once by
     // hand.
@@ -351,7 +367,7 @@ export default function TalkScreen() {
             <MotionSurface
               style={styles.dotSurface}
               onPress={toggleLive}
-              disabled={recording !== "idle"}
+              disabled={recording !== "idle" || crisis !== null}
               accessibilityRole="button"
               accessibilityLabel={
                 live.state === "off" ? "Start talking" : "End the conversation"
@@ -488,7 +504,7 @@ export default function TalkScreen() {
             pointerEvents={menuOpen ? "auto" : "none"}
           >
             <ScrollView contentContainerStyle={styles.sheetContent}>
-              {conversationId && live.state === "off" && (
+              {conversationId && crisis === null && live.state === "off" && (
                 <View style={[styles.row, styles.rowStacked]}>
                   <Text style={styles.rowLabel}>Prefer to hold instead?</Text>
                   <RecordButton

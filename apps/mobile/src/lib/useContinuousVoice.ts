@@ -173,6 +173,10 @@ export function useContinuousVoice({
 
   useEffect(() => stop, [stop]);
 
+  useEffect(() => {
+    if (!enabled) stop();
+  }, [enabled, stop]);
+
   const beginSegment = useCallback(async (generation: number) => {
     const created = new Audio.Recording();
     const preset = Audio.RecordingOptionsPresets.HIGH_QUALITY!;

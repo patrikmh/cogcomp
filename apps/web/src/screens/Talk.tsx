@@ -60,6 +60,8 @@ export function Talk() {
   const queue = useRef<Promise<{ audio: string; envelope: number[]; frame_ms: number }>[]>([]);
   /** Whether the loop that empties the queue is already running. */
   const draining = useRef(false);
+  /** Identifies the drain currently allowed to release the lock. */
+  const drainGeneration = useRef(0);
   /** Whether everything this reply will contain has been queued. Until it is,
    *  an empty queue means "still writing", not "finished". */
   const complete = useRef(true);
@@ -72,10 +74,13 @@ export function Talk() {
   const recorder = useRef<MediaRecorder | null>(null);
   const captureTracks = useRef<MediaStreamTrack[]>([]);
   const startListeningRef = useRef<() => void>(() => undefined);
+  const stopAllRef = useRef<() => void>(() => undefined);
   const primerAudio = useRef<HTMLAudioElement | null>(null);
   const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
   const modeRef = useRef(mode);
   modeRef.current = mode;
+  const conversationRef = useRef(conversation);
+  conversationRef.current = conversation;
 
   useAvatar(canvas, mode, envelope);
 
@@ -84,6 +89,7 @@ export function Talk() {
     onSuccess: (started) => {
       // The last conversation's receipt belongs to the last conversation.
       setKept(null);
+      setCrisis(null);
       setConversation(started.id);
     },
   });
@@ -94,6 +100,7 @@ export function Talk() {
   const drain = useCallback(async (mine: number) => {
     if (draining.current) return;
     draining.current = true;
+    const owner = ++drainGeneration.current;
     try {
       for (;;) {
         const next = queue.current.shift();
@@ -127,21 +134,36 @@ export function Talk() {
       }
     } catch {
       // Speech is optional: with no voice configured the server says so, and
-      // the reply is still there to read.
+      // the reply is still there to read. A superseded drain must not idle a
+      // newer reply that has already taken the lock.
+      if (drainGeneration.current !== owner) return;
       envelope.current = null;
-      setTimeout(() => setMode((m) => (m === "speaking" ? "idle" : m)), 900);
+      setTimeout(() => {
+        if (drainGeneration.current !== owner) return;
+        setMode((m) => (m === "speaking" ? "idle" : m));
+      }, 900);
     } finally {
-      draining.current = false;
+      if (drainGeneration.current === owner) draining.current = false;
     }
+  }, []);
+
+  const takeOverDrain = useCallback(() => {
+    // A newer reply owns the lock immediately. The old drain may still be
+    // awaiting synthesis or playback; it must not clear this lock when it
+    // finally exits, and it must not keep the queue it was walking.
+    drainGeneration.current += 1;
+    draining.current = false;
+    audio.current?.pause();
+    queue.current = [];
+    complete.current = false;
   }, []);
 
   const handleVoice = useCallback(async (mine: number, blob: Blob) => {
     setMode("thinking");
     let transcript = "";
     setVoiceTranscript(null);
+    takeOverDrain();
     const cutter = new SpokenStream();
-    queue.current = [];
-    complete.current = false;
     setStreamed("");
     const reply = await api.sayAloudStreaming(
       conversation!,
@@ -182,16 +204,13 @@ export function Talk() {
       { speaker: "assistant", content: reply.reply },
     ]);
     if (reply.crisis) {
-      utterance.current += 1;
-      audio.current?.pause();
-      envelope.current = null;
-      listening.current = false;
+      stopAllRef.current();
       setCrisis(reply.crisis_resources);
       setMode("stopped");
     } else if (!speakAloud) {
       setMode("idle");
     }
-  }, [conversation, drain, speakAloud]);
+  }, [conversation, drain, speakAloud, takeOverDrain]);
 
   const stopListening = useCallback((upload: boolean, clearWant = false) => {
     const current = recorder.current;
@@ -218,19 +237,19 @@ export function Talk() {
   const stopAll = useCallback(() => {
     stopListening(false, true);
     utterance.current += 1;
-    audio.current?.pause();
+    takeOverDrain();
     if (audio.current) {
       audio.current.removeAttribute("src");
       audio.current.load();
     }
     audio.current = null;
-    queue.current = [];
     envelope.current = null;
-  }, [stopListening]);
+  }, [stopListening, takeOverDrain]);
+  stopAllRef.current = stopAll;
 
   const startListening = useCallback(async () => {
     const currentMode = modeRef.current;
-    if (!conversation || currentMode === "thinking" || currentMode === "speaking" || currentMode === "stopped" || listening.current) return;
+    if (!conversation || crisis !== null || currentMode === "thinking" || currentMode === "speaking" || currentMode === "stopped" || listening.current) return;
     wantListen.current = true;
     const generation = ++captureGeneration.current;
     listening.current = true;
@@ -303,14 +322,16 @@ export function Talk() {
         void context?.close();
       }
     }
-  }, [conversation, handleVoice, primeAudio, stopListening]);
+  }, [conversation, crisis, handleVoice, primeAudio, stopListening]);
   startListeningRef.current = () => { void startListening(); };
 
   useEffect(() => () => stopAll(), [stopAll]);
 
   const say = useMutation({
     mutationFn: async (content: string) => {
+      const startedFor = conversation!;
       stopListening(false);
+      takeOverDrain();
       setTurns((t) => [...t, { speaker: "user", content }]);
       setMode("thinking");
 
@@ -338,7 +359,7 @@ export function Talk() {
       let arrived = false;
 
       try {
-        return await api.sayStreaming(conversation!, content, (delta) => {
+        const reply = await api.sayStreaming(startedFor, content, (delta) => {
           if (utterance.current !== mine) return;
           setStreamed((sofar) => sofar + delta);
           if (!arrived) {
@@ -347,6 +368,7 @@ export function Talk() {
           }
           for (const piece of cutter.push(delta)) enqueue(piece);
         });
+        return { ...reply, startedFor };
       } finally {
         if (utterance.current === mine) {
           for (const piece of cutter.end()) enqueue(piece);
@@ -358,14 +380,13 @@ export function Talk() {
       }
     },
     onSuccess: (reply) => {
+      if (reply.startedFor !== conversationRef.current || modeRef.current === "stopped" || crisis !== null) return;
       setStreamed("");
       setTurns((t) => [...t, { speaker: "assistant", content: reply.reply }]);
       if (reply.crisis) {
         // Elicitation stops entirely, and so does anything still queued to be
         // said over the top of it.
-        utterance.current += 1;
-        audio.current?.pause();
-        envelope.current = null;
+        stopAllRef.current();
         setCrisis(reply.crisis_resources);
         setMode("stopped");
         return;
@@ -376,6 +397,7 @@ export function Talk() {
       }
     },
     onError: () => {
+      if (modeRef.current === "stopped" || crisis !== null) return;
       setStreamed("");
       setMode("idle");
     },
