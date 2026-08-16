@@ -12,6 +12,15 @@
 
 const BASE = import.meta.env.VITE_API_URL ?? "";
 
+function extensionFor(mime: string): string {
+  const type = mime.split(";")[0]?.trim().toLowerCase() ?? "";
+  if (type === "audio/mp4" || type === "audio/x-m4a" || type === "audio/aac") return ".m4a";
+  if (type === "audio/mpeg") return ".mp3";
+  if (type === "audio/wav" || type === "audio/x-wav") return ".wav";
+  if (type === "audio/ogg") return ".ogg";
+  return ".webm";
+}
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -19,6 +28,31 @@ export class ApiError extends Error {
   ) {
     super(message);
   }
+}
+
+function parseVoiceEvents(
+  raw: string,
+  onTranscript: (text: string) => void,
+  onDelta: (text: string) => void,
+): { reply: string; crisis: boolean; crisis_resources: string[] } {
+  let result: { reply: string; crisis: boolean; crisis_resources: string[] } | null = null;
+  for (const event of raw.split("\n\n")) {
+    const line = event.split("\n").find((l) => l.startsWith("data: "));
+    if (!line) continue;
+    const payload = JSON.parse(line.slice("data: ".length));
+    if (payload.type === "transcript") onTranscript(payload.text);
+    else if (payload.type === "delta") onDelta(payload.text);
+    else if (payload.type === "done") {
+      result = {
+        reply: payload.reply,
+        crisis: payload.crisis,
+        crisis_resources: payload.crisis_resources,
+      };
+    }
+    else if (payload.type === "error") throw new ApiError(502, payload.message);
+  }
+  if (!result) throw new ApiError(502, "the reply ended before it was finished");
+  return result;
 }
 
 let token: string | null = localStorage.getItem("tlon.token");
@@ -439,6 +473,61 @@ export const api = {
    * back no readable body, so the answer is the same either way and only the
    * timing differs.
    */
+  sayAloudStreaming: async (
+    conversationId: string,
+    audio: Blob,
+    onTranscript: (text: string) => void,
+    onDelta: (text: string) => void,
+  ): Promise<{ reply: string; crisis: boolean; crisis_resources: string[] }> => {
+    const form = new FormData();
+    form.append("audio", audio, `recording${extensionFor(audio.type)}`);
+    form.append("timezone", Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
+    const headers: Record<string, string> = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const response = await fetch(`${BASE}/v1/conversations/${conversationId}/turns/voice/stream`, {
+      method: "POST",
+      headers,
+      body: form,
+    });
+    if (!response.ok) {
+      const body = (await response.json().catch(() => ({}))) as { detail?: string };
+      throw new ApiError(response.status, body.detail ?? response.statusText);
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) {
+      const raw = await response.text();
+      return parseVoiceEvents(raw, onTranscript, onDelta);
+    }
+    const decoder = new TextDecoder();
+    let pending = "";
+    let result: { reply: string; crisis: boolean; crisis_resources: string[] } | null = null;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      pending += decoder.decode(value, { stream: true });
+      const events = pending.split("\n\n");
+      pending = events.pop() ?? "";
+      for (const event of events) {
+        const line = event.split("\n").find((l) => l.startsWith("data: "));
+        if (!line) continue;
+        const payload = JSON.parse(line.slice("data: ".length));
+        if (payload.type === "transcript") onTranscript(payload.text);
+        else if (payload.type === "delta") onDelta(payload.text);
+        else if (payload.type === "done") {
+          result = {
+            reply: payload.reply,
+            crisis: payload.crisis,
+            crisis_resources: payload.crisis_resources,
+          };
+        }
+        else if (payload.type === "error") throw new ApiError(502, payload.message);
+      }
+    }
+    if (!result) throw new ApiError(502, "the reply ended before it was finished");
+    return result;
+  },
+
   sayStreaming: async (
     conversationId: string,
     content: string,

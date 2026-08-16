@@ -22,6 +22,7 @@ config.resolver.extraNodeModules = {
   // The orb, shared with the web client. Only ever reached from a `.web`
   // module, so three.js stays out of the native bundle entirely.
   "@tlon/headspace": path.resolve(workspace, "packages/headspace"),
+  "@tlon/speech": path.resolve(workspace, "packages/speech"),
   // packages/ has no node_modules above it to walk to, so the shared module's
   // bare `three` import needs anchoring at this app's copy.
   three: path.resolve(__dirname, "node_modules/three"),

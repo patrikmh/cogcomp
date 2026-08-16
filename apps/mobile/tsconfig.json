@@ -34,6 +34,9 @@
       "@tlon/speech/stream": [
         "../../packages/speech/stream.ts"
       ],
+      "@tlon/speech/vad": [
+        "../../packages/speech/vad.ts"
+      ],
       "three": ["./node_modules/@types/three/index.d.ts"],
       "three/*": ["./node_modules/@types/three/*"]
     },

@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { SpokenStream } from "@tlon/speech/stream";
+import { initial, step } from "@tlon/speech/vad";
 
 import { api } from "@/lib/api";
 import { usePreferences } from "@/state/preferences";
@@ -64,6 +65,17 @@ export function Talk() {
   const complete = useRef(true);
   /** The reply as it arrives, shown before the finished one replaces it. */
   const [streamed, setStreamed] = useState("");
+  const [hearing, setHearing] = useState(false);
+  const listening = useRef(false);
+  const wantListen = useRef(false);
+  const captureGeneration = useRef(0);
+  const recorder = useRef<MediaRecorder | null>(null);
+  const captureTracks = useRef<MediaStreamTrack[]>([]);
+  const startListeningRef = useRef<() => void>(() => undefined);
+  const primerAudio = useRef<HTMLAudioElement | null>(null);
+  const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
 
   useAvatar(canvas, mode, envelope);
 
@@ -90,7 +102,9 @@ export function Talk() {
         // Stopped, or a newer reply took over while this was in the air.
         if (utterance.current !== mine) return;
 
-        const el = new Audio(`data:audio/wav;base64,${clip.audio}`);
+        const el = primerAudio.current ?? new Audio();
+        primerAudio.current = el;
+        el.src = `data:audio/wav;base64,${clip.audio}`;
         audio.current = el;
         envelope.current = {
           values: clip.envelope,
@@ -101,12 +115,15 @@ export function Talk() {
         await new Promise<void>((resolve) => {
           el.onended = () => resolve();
           el.onerror = () => resolve();
+          el.onpause = () => resolve();
         });
         if (utterance.current !== mine) return;
       }
       if (complete.current && utterance.current === mine) {
         envelope.current = null;
+        if (modeRef.current === "speaking") modeRef.current = "idle";
         setMode((m) => (m === "speaking" ? "idle" : m));
+        if (wantListen.current && modeRef.current !== "stopped") startListeningRef.current();
       }
     } catch {
       // Speech is optional: with no voice configured the server says so, and
@@ -118,8 +135,182 @@ export function Talk() {
     }
   }, []);
 
+  const handleVoice = useCallback(async (mine: number, blob: Blob) => {
+    setMode("thinking");
+    let transcript = "";
+    setVoiceTranscript(null);
+    const cutter = new SpokenStream();
+    queue.current = [];
+    complete.current = false;
+    setStreamed("");
+    const reply = await api.sayAloudStreaming(
+      conversation!,
+      blob,
+      (text) => {
+        if (utterance.current === mine) {
+          transcript = text;
+          setVoiceTranscript(text);
+        }
+      },
+      (delta) => {
+        if (utterance.current !== mine) return;
+        setStreamed((sofar) => sofar + delta);
+        setMode("speaking");
+        for (const piece of cutter.push(delta)) {
+          if (!speakAloud || !piece.trim()) continue;
+          const request = api.speak(piece);
+          request.catch(() => undefined);
+          queue.current.push(request);
+          void drain(mine);
+        }
+      },
+    );
+    if (utterance.current !== mine) return;
+    for (const piece of cutter.end()) {
+      if (!speakAloud || !piece.trim()) continue;
+      const request = api.speak(piece);
+      request.catch(() => undefined);
+      queue.current.push(request);
+    }
+    complete.current = true;
+    void drain(mine);
+    setVoiceTranscript(null);
+    setStreamed("");
+    setTurns((t) => [
+      ...t,
+      ...(transcript.trim() ? [{ speaker: "user" as const, content: transcript }] : []),
+      { speaker: "assistant", content: reply.reply },
+    ]);
+    if (reply.crisis) {
+      utterance.current += 1;
+      audio.current?.pause();
+      envelope.current = null;
+      listening.current = false;
+      setCrisis(reply.crisis_resources);
+      setMode("stopped");
+    } else if (!speakAloud) {
+      setMode("idle");
+    }
+  }, [conversation, drain, speakAloud]);
+
+  const stopListening = useCallback((upload: boolean, clearWant = false) => {
+    const current = recorder.current;
+    recorder.current = null;
+    listening.current = false;
+    if (clearWant) wantListen.current = false;
+    setHearing(false);
+    if (!upload) captureGeneration.current += 1;
+    captureTracks.current.forEach((track) => track.stop());
+    captureTracks.current = [];
+    if (current) {
+      if (!upload) current.ondataavailable = null;
+      current.stop();
+    }
+  }, []);
+
+  const primeAudio = useCallback(() => {
+    const primer = primerAudio.current ?? new Audio();
+    primerAudio.current = primer;
+    primer.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQAAAAA=";
+    void primer.play().catch(() => undefined);
+  }, []);
+
+  const stopAll = useCallback(() => {
+    stopListening(false, true);
+    utterance.current += 1;
+    audio.current?.pause();
+    if (audio.current) {
+      audio.current.removeAttribute("src");
+      audio.current.load();
+    }
+    audio.current = null;
+    queue.current = [];
+    envelope.current = null;
+  }, [stopListening]);
+
+  const startListening = useCallback(async () => {
+    const currentMode = modeRef.current;
+    if (!conversation || currentMode === "thinking" || currentMode === "speaking" || currentMode === "stopped" || listening.current) return;
+    wantListen.current = true;
+    const generation = ++captureGeneration.current;
+    listening.current = true;
+    primeAudio();
+    let stream: MediaStream | null = null;
+    let context: AudioContext | null = null;
+    let setupComplete = false;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!listening.current || generation !== captureGeneration.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      const streamTracks = stream.getTracks();
+      context = new AudioContext();
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 512;
+      context.createMediaStreamSource(stream).connect(analyser);
+      const data = new Uint8Array(analyser.fftSize);
+      const chunks: Blob[] = [];
+      const media = new MediaRecorder(stream);
+      recorder.current = media;
+      captureTracks.current = streamTracks;
+      let vad = initial();
+      let last = performance.now();
+      media.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
+      media.onstop = () => {
+        void context?.close();
+        streamTracks.forEach((track) => track.stop());
+        if (captureTracks.current === streamTracks) captureTracks.current = [];
+        setHearing(false);
+        if (!chunks.length || generation !== captureGeneration.current) return;
+        const blob = new Blob(chunks, { type: media.mimeType || "audio/webm" });
+        const mine = ++utterance.current;
+        void handleVoice(mine, blob).catch(() => {
+          if (utterance.current === mine) setMode("idle");
+        });
+      };
+      media.start();
+      setupComplete = true;
+      const poll = () => {
+        if (recorder.current !== media || !listening.current) return;
+        analyser.getByteTimeDomainData(data);
+        let sum = 0;
+        for (const value of data) { const sample = (value - 128) / 128; sum += sample * sample; }
+        const now = performance.now();
+        const level = Math.min(1, Math.sqrt(sum / data.length) * 4);
+        const result = step(vad, level, now - last);
+        vad = result.state;
+        last = now;
+        if (result.action.type === "start") setHearing(true);
+        if (result.action.type === "finish") {
+          stopListening(true);
+        } else if (result.action.type === "discard") {
+          const wanted = listening.current;
+          stopListening(false);
+          if (wanted) startListeningRef.current();
+        } else setTimeout(poll, 50);
+      };
+      poll();
+    } catch {
+      listening.current = false;
+      setHearing(false);
+      setMode("idle");
+    } finally {
+      if (!setupComplete) {
+        recorder.current = null;
+        captureTracks.current = [];
+        stream?.getTracks().forEach((track) => track.stop());
+        void context?.close();
+      }
+    }
+  }, [conversation, handleVoice, primeAudio, stopListening]);
+  startListeningRef.current = () => { void startListening(); };
+
+  useEffect(() => () => stopAll(), [stopAll]);
+
   const say = useMutation({
     mutationFn: async (content: string) => {
+      stopListening(false);
       setTurns((t) => [...t, { speaker: "user", content }]);
       setMode("thinking");
 
@@ -216,7 +407,14 @@ export function Talk() {
           with a button underneath a picture of itself; the picture is the thing
           you are talking to, so it is the thing you touch to start. */}
       {conversation ? (
-        <canvas id="avatar" ref={canvas} width={720} height={720} aria-hidden />
+        <button
+          id="avatarTalk"
+          className="talk-avatar-start"
+          onClick={() => (listening.current ? stopListening(false, true) : startListeningRef.current())}
+          aria-label={listening.current ? "Stop listening" : "Start listening"}
+        >
+          <canvas id="avatar" ref={canvas} width={720} height={720} aria-hidden />
+        </button>
       ) : (
         <button
           id="avatarStart"
@@ -236,7 +434,9 @@ export function Talk() {
           ? begin.isPending
             ? "Starting…"
             : "Tap to start talking"
-          : mode === "thinking"
+          : hearing
+            ? "Hearing."
+            : mode === "thinking"
             ? "Thinking."
             : mode === "speaking"
               ? "Speaking."
@@ -255,6 +455,7 @@ export function Talk() {
       ) : (
         <>
           <div className="t-main">
+            {voiceTranscript && <div className="quote"><p>{voiceTranscript}</p></div>}
             {turns.map((turn, i) => (
               <div key={i} className={turn.speaker === "user" ? "quote" : "card"}>
                 <p>{turn.content}</p>
@@ -286,12 +487,16 @@ export function Talk() {
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && draft.trim()) {
+                  primeAudio();
                   say.mutate(draft.trim());
                   setDraft("");
                 }
               }}
             />
           </div>
+          <span className="mono" style={{ color: "var(--faint)" }}>
+            Audio is transcribed, then discarded.
+          </span>
         </>
       )}
 
@@ -304,9 +509,7 @@ export function Talk() {
             // Elicitation stops on the person's say-so, not only on the
             // model's judgement. Anything being spoken stops too — including
             // the pieces of it that have not arrived yet.
-            utterance.current += 1;
-            audio.current?.pause();
-            envelope.current = null;
+            stopAll();
             setMode("stopped");
             setCrisis(crisis ?? []);
           }}
@@ -317,8 +520,7 @@ export function Talk() {
           <button
             className="talk-corner"
             onClick={() => {
-              utterance.current += 1;
-              audio.current?.pause();
+              stopAll();
               close.mutate();
             }}
           >

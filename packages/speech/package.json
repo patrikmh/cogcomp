@@ -6,6 +6,7 @@
   "main": "chunks.ts",
   "exports": {
     ".": "./chunks.ts",
-    "./stream": "./stream.ts"
+    "./stream": "./stream.ts",
+    "./vad": "./vad.ts"
   }
 }
