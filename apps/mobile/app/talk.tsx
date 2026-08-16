@@ -562,9 +562,32 @@ export default function TalkScreen() {
               </Pressable>
 
               <MotionSurface
-                style={[styles.finish, !saidSomething && styles.disabled]}
-                disabled={!saidSomething || finish.isPending}
+                style={[
+                  styles.finish,
+                  (!saidSomething ||
+                    finish.isPending ||
+                    say.isPending ||
+                    speak.isPending ||
+                    live.state === "thinking" ||
+                    recording === "uploading") && styles.disabled,
+                ]}
+                disabled={
+                  !saidSomething ||
+                  finish.isPending ||
+                  say.isPending ||
+                  speak.isPending ||
+                  live.state === "thinking" ||
+                  recording === "uploading"
+                }
                 onPress={() => {
+                  if (
+                    !saidSomething ||
+                    finish.isPending ||
+                    say.isPending ||
+                    speak.isPending ||
+                    live.state === "thinking" ||
+                    recording === "uploading"
+                  ) return;
                   stoppedGeneration.current += 1;
                   recordingGenerations.current = [];
                   setRecordCancel((n) => n + 1);

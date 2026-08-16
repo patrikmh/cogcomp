@@ -717,7 +717,7 @@ export const api = {
         closed_at: string | null;
         user_turns: number;
       }[];
-    }>("/v1/conversations?limit=1", token);
+    }>("/v1/conversations", token);
   },
 
   startConversation(token: string) {

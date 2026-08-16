@@ -31,6 +31,25 @@ describe("experiment API wrappers", () => {
   });
 });
 
+describe("conversation API wrappers", () => {
+  const fetchMock = jest.fn();
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    global.fetch = fetchMock as unknown as typeof fetch;
+  });
+
+  it("lists conversations without limiting the results to one", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ conversations: [] }));
+
+    await api.listConversations("token");
+
+    const url = String(fetchMock.mock.calls[0][0]);
+    expect(url).toBe("http://localhost:8080/v1/conversations");
+    expect(url).not.toContain("limit=1");
+  });
+});
+
 describe("capture carries the device timezone", () => {
   const fetchMock = jest.fn();
 

@@ -565,7 +565,9 @@ export function Talk() {
         {conversation && (
           <button
             className="talk-corner"
+            disabled={mode === "thinking" || mode === "speaking" || say.isPending}
             onClick={() => {
+              if (mode === "thinking" || mode === "speaking" || say.isPending) return;
               stopAll();
               close.mutate();
             }}
