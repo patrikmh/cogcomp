@@ -31,7 +31,11 @@ def day_bounds(day: Date, timezone: str) -> tuple[datetime, datetime]:
 
 
 async def daily_summary(
-    pool: asyncpg.Pool, user_id: UUID, day: Date, timezone: str = "UTC"
+    pool: asyncpg.Pool,
+    user_id: UUID,
+    day: Date,
+    timezone: str = "UTC",
+    include_findings: bool = True,
 ) -> dict:
     start, end = day_bounds(day, timezone)
     observations = await pool.fetch(
@@ -52,6 +56,9 @@ async def daily_summary(
             "inferred": [],
             "recurring": [],
         }
+    if not include_findings:
+        return _summary_payload(day, timezone, observations, [])
+
     ids = [r["node_id"] for r in observations]
     inferred = await pool.fetch(
         """SELECT n.id,n.kind,n.label,n.confidence,n.epistemic_status,n.extractor,
@@ -108,7 +115,11 @@ def _summary_payload(day, timezone, observations, inferred):
 
 
 async def weekly_summary(
-    pool: asyncpg.Pool, user_id: UUID, week_start: Date, timezone: str = "UTC"
+    pool: asyncpg.Pool,
+    user_id: UUID,
+    week_start: Date,
+    timezone: str = "UTC",
+    include_findings: bool = True,
 ) -> dict:
     start, end = week_bounds(week_start, timezone)
     rows = await pool.fetch(
@@ -122,7 +133,7 @@ async def weekly_summary(
     )
     ids = [r["node_id"] for r in rows]
     inferred = []
-    if ids:
+    if ids and include_findings:
         inferred = await pool.fetch(
             """SELECT n.id,n.kind,n.label,n.confidence,n.epistemic_status,n.extractor,
             count(DISTINCT p.observation_id) AS cites,

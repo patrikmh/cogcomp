@@ -7,6 +7,15 @@ to answer "what is actually done" without reading the diff.
 
 Last updated: 2026-08-04
 
+## Product and coverage boundaries
+
+The mobile `/words` disclosure is public, data-free, and returnable; writing and
+Settings remain authenticated actions. Findings are optional: turning them off
+prevents mobile pattern requests and counts while preserving the raw journal and
+provenance, and turning them back on restores the journey. E2E covers these
+bounded journeys and privacy/provenance assertions. It does not claim clinical
+validation, diagnostic safety, or coverage of every native-device interaction.
+
 ---
 
 ## Definition of Done

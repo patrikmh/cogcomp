@@ -14,8 +14,19 @@ export function localToday(now: Date = new Date()): string {
   return `${year}-${month}-${day}`;
 }
 
+export function dayForRoute(routeDate: string | null, today: string = localToday()): string {
+  return routeDate ?? today;
+}
+
 export function deviceTimezone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+}
+
+export function isLocalDate(value: string): boolean {
+  if (!(/^\d{4}-\d{2}-\d{2}$/.test(value))) return false;
+  const [year, month, date] = value.split("-").map(Number);
+  const parsed = new Date(year!, month! - 1, date!, 12);
+  return parsed.getFullYear() === year && parsed.getMonth() === month! - 1 && parsed.getDate() === date;
 }
 
 export function mondayOfWeek(day: string): string {

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { AtmosphericShell } from "@/components/Atmospheric";
@@ -9,6 +9,8 @@ import { ApiError, api, type Experiment, type Pattern, type ObservationResponse 
 import { experimentQueryKeys, eligiblePattern, assessmentLabel } from "@/lib/experiment";
 import { uuidv7 } from "@/lib/ids";
 import { useSession } from "@/state/session";
+import { usePreferences } from "@/state/preferences";
+import { forgetCheckin, pendingCheckins, rememberCheckin, type PendingCheckin } from "@/state/pendingOperations";
 import { colors, fonts } from "@/theme";
 import { radii } from "@tlon/design";
 import { type as scale } from "@tlon/design";
@@ -20,31 +22,109 @@ const assessments: NonNullable<Experiment["outcome"]>["assessment"][] = ["met", 
 export default function ExperimentDetail() {
   const token = useSession((s) => s.token);
   const userId = useSession((s) => s.userId);
+  const showFindings = usePreferences((s) => s.findings);
+  const preferencesReady = usePreferences((s) => s.ready);
+  const findingsVisible = preferencesReady && showFindings;
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const client = useQueryClient();
   const [observation, setObservation] = useState("");
   const [pendingObservationId, setPendingObservationId] = useState<string | null>(null);
+  const [pendingObservationContent, setPendingObservationContent] = useState<string | null>(null);
   const [assessment, setAssessment] = useState<NonNullable<Experiment["outcome"]>["assessment"]>("unclear");
   const [finalId, setFinalId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const query = useQuery({ queryKey: experimentQueryKeys.detail(userId!, id!), queryFn: () => api.experiment(token!, id!), enabled: Boolean(token && userId && id) });
+  const [pendingEnvelope, setPendingEnvelope] = useState<PendingCheckin | null>(null);
+  const [observationExists, setObservationExists] = useState(false);
+  const restoreGeneration = useRef(0);
+  useEffect(() => {
+    setPendingEnvelope(null);
+    setPendingObservationId(null);
+    setPendingObservationContent(null);
+    setObservationExists(false);
+    if (!userId || !id || !token) return;
+    const generation = ++restoreGeneration.current;
+    let cancelled = false;
+    void pendingCheckins(userId, id).then(async (items) => {
+      const saved = items[0];
+      if (!saved || cancelled || saved.userId !== userId || saved.experimentId !== id) return;
+      let exists = false;
+      try {
+        await api.getObservation(token, saved.id);
+        exists = true;
+      } catch (error) {
+        if (!(error instanceof ApiError) || error.status !== 404) return;
+      }
+      if (cancelled || generation !== restoreGeneration.current || useSession.getState().userId !== userId) return;
+      setPendingEnvelope(saved);
+      setPendingObservationId(saved.id);
+      setPendingObservationContent(saved.content);
+      setObservation(saved.content);
+      // An existing observation only needs attachment. A missing one must go
+      // through createObservation with this exact immutable envelope.
+      setObservationExists(exists);
+    });
+    return () => { cancelled = true; };
+  }, [id, token, userId]);
+  const query = useQuery({
+    queryKey: [...experimentQueryKeys.detail(userId!, id!), findingsVisible],
+    queryFn: () => api.experiment(token!, id!, findingsVisible),
+    enabled: Boolean(token && userId && id),
+    // Pattern linking and check-ins can happen through another screen or a
+    // direct authenticated action while this detail route remains cached.
+    // Always reconcile on mount before exposing revision-sensitive controls.
+    refetchOnMount: "always",
+  });
   const refresh = () => { void query.refetch(); };
   const updateAfterMutation = (updated: Experiment) => {
-    client.setQueryData(experimentQueryKeys.detail(userId!, id!), updated);
+    client.setQueryData([...experimentQueryKeys.detail(userId!, id!), findingsVisible], updated);
+    // Reconcile the detail query as well as the list. The server revision is
+    // authoritative for the next transition; leaving this query stale can make
+    // the next button send an old revision and turn a successful action into a
+    // misleading conflict.
+    void query.refetch();
     void client.invalidateQueries({ queryKey: experimentQueryKeys.all(userId!) });
     void client.invalidateQueries({ queryKey: ["observations", userId] });
     void client.invalidateQueries({ queryKey: ["summary"] });
     void client.invalidateQueries({ queryKey: ["patterns", userId] });
     void client.invalidateQueries({ queryKey: ["graph", userId] });
   };
-  const transition = useMutation({ mutationFn: (target: "start" | "pause" | "resume" | "cancel") => api.experimentTransition(token!, id!, target, query.data!.revision), onSuccess: updateAfterMutation, onError: (error) => { if (error instanceof ApiError && error.status === 409) refresh(); } });
-  const link = useMutation({ mutationFn: (nodeId: string) => api.linkExperimentPattern(token!, id!, nodeId, query.data!.revision), onSuccess: updateAfterMutation, onError: (error) => { if (error instanceof ApiError && error.status === 409) refresh(); } });
-  const attach = useMutation({ mutationFn: (observationId: string) => api.attachExperimentCheckin(token!, id!, observationId, query.data!.revision), onSuccess: (updated) => { setPendingObservationId(null); setObservation(""); updateAfterMutation(updated); }, onError: (error) => { if (error instanceof ApiError && error.status === 409) refresh(); } });
-  const saveObservation = useMutation({ mutationFn: async () => { const observationId = pendingObservationId ?? uuidv7(); if (!pendingObservationId) await api.createObservation(token!, { id: observationId, content: observation.trim(), source: "text", capturedAt: new Date().toISOString() }); return observationId; }, onSuccess: (observationId) => { setPendingObservationId(observationId); attach.mutate(observationId); }, onError: (error) => { if (error instanceof ApiError && error.status === 409) refresh(); } });
-  const complete = useMutation({ mutationFn: () => api.experimentTransition(token!, id!, "complete", query.data!.revision, assessment, finalId!), onSuccess: updateAfterMutation, onError: (error) => { if (error instanceof ApiError && error.status === 409) refresh(); } });
+  const transition = useMutation({ mutationFn: (target: "start" | "pause" | "resume" | "cancel") => api.experimentTransition(token!, id!, target, query.data!.revision, undefined, undefined, findingsVisible), onSuccess: updateAfterMutation, onError: (error) => { if (error instanceof ApiError && error.status === 409) refresh(); } });
+  const link = useMutation({ mutationFn: (nodeId: string) => api.linkExperimentPattern(token!, id!, nodeId, query.data!.revision, findingsVisible), onSuccess: updateAfterMutation, onError: (error) => { if (error instanceof ApiError && error.status === 409) refresh(); } });
+  const attach = useMutation({ mutationFn: (observationId: string) => api.attachExperimentCheckin(token!, id!, observationId, query.data!.revision, findingsVisible), onSuccess: async (updated, observationId) => { await forgetCheckin(userId!, id!, observationId); setPendingEnvelope(null); setPendingObservationId(null); setPendingObservationContent(null); setObservation(""); setObservationExists(false); updateAfterMutation(updated); }, onError: (error) => { if (error instanceof ApiError && error.status === 409) refresh(); } });
+  const saveObservation = useMutation({ mutationFn: async () => {
+    const content = observation.trim();
+    const envelope = pendingEnvelope ?? {
+      id: pendingObservationId ?? uuidv7(),
+      userId: userId!,
+      experimentId: id!,
+      content,
+      capturedAt: new Date().toISOString(),
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    };
+    await rememberCheckin(envelope);
+    setPendingEnvelope(envelope);
+    setPendingObservationId(envelope.id);
+    setPendingObservationContent(envelope.content);
+    try {
+      await api.getObservation(token!, envelope.id);
+      setObservationExists(true);
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 404) throw error;
+      await api.createObservation(token!, {
+        id: envelope.id,
+        content: envelope.content,
+        source: "text",
+        capturedAt: envelope.capturedAt,
+        timezone: envelope.timezone,
+      });
+      setObservationExists(true);
+    }
+    return envelope.id;
+  }, onSuccess: (observationId) => { setPendingObservationId(observationId); attach.mutate(observationId); }, onError: (error) => { if (error instanceof ApiError && error.status === 409) refresh(); } });
+  const complete = useMutation({ mutationFn: () => api.experimentTransition(token!, id!, "complete", query.data!.revision, assessment, finalId!, findingsVisible), onSuccess: updateAfterMutation, onError: (error) => { if (error instanceof ApiError && error.status === 409) refresh(); } });
   const remove = useMutation({ mutationFn: () => api.deleteExperiment(token!, id!, query.data!.revision), onSuccess: () => { client.setQueryData(experimentQueryKeys.detail(userId!, id!), undefined); void client.invalidateQueries({ queryKey: experimentQueryKeys.all(userId!) }); setConfirmDelete(false); router.replace("/experiments"); }, onError: (error) => { if (error instanceof ApiError && error.status === 409) refresh(); } });
-  const patterns = useQuery({ queryKey: ["patterns", userId], queryFn: () => api.listPatterns(token!), enabled: Boolean(token && userId && query.data?.state === "draft") });
+  const patterns = useQuery({ queryKey: ["patterns", userId], queryFn: () => api.listPatterns(token!), enabled: Boolean(token && userId && query.data?.state === "draft") && findingsVisible });
   const experiment = query.data;
   if (!token || !userId) return null;
   if (query.isLoading) return <AtmosphericShell><ActivityIndicator accessibilityLabel="Loading experiment" color={colors.cyan} /></AtmosphericShell>;
@@ -81,6 +161,7 @@ export default function ExperimentDetail() {
       big
     />
     <Text style={styles.body}>Optional self-observation, not diagnosis or medical treatment.</Text>
+    <Text style={styles.disclaimer} accessibilityRole="text">Arc cells are illustrative placement, not calendar dates. Check-in counts remain exact.</Text>
     {/* The design groups these under a heading rather than listing them bare
         under the title: the hypothesis, the action and the criterion are one
         thought — why you started — and reading them as three loose sentences
@@ -88,9 +169,9 @@ export default function ExperimentDetail() {
     <Text style={styles.heading}>{SECTIONS.reason.title}</Text><Text style={styles.body}>{experiment.hypothesis}</Text><Text style={styles.body}>Action: {experiment.action}</Text><Text style={styles.body}>Success criterion: {experiment.success_criterion}</Text><Text style={styles.meta}>From {experiment.start_date} · {experiment.duration_days} days · {experiment.timezone} · {experiment.cadence}</Text>
     {mutationError && <View accessibilityRole="alert"><Text style={styles.error}>{mutationError instanceof ApiError && mutationError.status === 409 ? "This changed elsewhere. The latest version was reloaded; try again." : "That action could not be saved."}</Text><MotionSurface onPress={refresh}><Text style={styles.link}>Reload latest</Text></MotionSurface></View>}
     <View style={styles.actions}>{experiment.state === "draft" && <Button label="Start" onPress={() => transition.mutate("start")} disabled={transition.isPending} />}{experiment.state === "active" && <Button label="Pause" onPress={() => transition.mutate("pause")} disabled={transition.isPending} />}{experiment.state === "paused" && <Button label="Resume" onPress={() => transition.mutate("resume")} disabled={transition.isPending} />}{(experiment.state === "draft" || experiment.state === "active" || experiment.state === "paused") && <Button label="Cancel" onPress={() => transition.mutate("cancel")} disabled={transition.isPending} />}</View>
-    {experiment.links && experiment.links.length > 0 && <View style={styles.section}><Text style={styles.heading}>Linked evidence</Text>{experiment.links.map((linkItem: NonNullable<Experiment["links"]>[number]) => linkItem.availability === false ? <Text key={linkItem.node_id} style={styles.meta}>Unavailable evidence: {linkItem.label}</Text> : <MotionSurface key={linkItem.node_id} accessibilityRole="button" accessibilityLabel={`Explain linked evidence ${linkItem.label}`} onPress={() => router.push(`/node/${linkItem.node_id}`)}><Text style={styles.link}>{linkItem.label} · Explain this evidence →</Text></MotionSurface>)}</View>}
-    {experiment.state === "draft" && <View style={styles.section}><Text style={styles.heading}>Link a live pattern before starting</Text>{patterns.isLoading && <ActivityIndicator accessibilityLabel="Loading eligible patterns" color={colors.cyan} />}{patterns.data?.filter(eligiblePattern).map((pattern: Pattern) => <Pressable key={pattern.id} accessibilityRole="button" accessibilityLabel={`Link pattern ${pattern.label}`} disabled={link.isPending} onPress={() => link.mutate(pattern.id)} style={styles.pattern}><Text style={styles.body}>{pattern.label}</Text><Text style={styles.meta}>Live pattern · {pattern.occurrences} occurrences</Text></Pressable>)}{patterns.data?.filter(eligiblePattern).length === 0 && <Text style={styles.meta}>No live patterns are eligible yet.</Text>}</View>}
-    {experiment.state === "active" && <View style={styles.section}><Text style={styles.heading}>{SECTIONS.checkins.title}</Text><Text style={styles.aside}>{SECTIONS.checkins.aside}</Text><Text style={styles.meta}>Write an ordinary Journal observation. It is saved first, then attached once.</Text><TextInput accessibilityLabel="Check-in observation" multiline value={observation} onChangeText={setObservation} editable={!saveObservation.isPending && !attach.isPending} placeholder="What did you notice?" placeholderTextColor={colors.inkMuted} style={[styles.input, pendingObservationId && styles.pending]} />{pendingObservationId && attach.isError && <Text accessibilityRole="alert" style={styles.error}>Saved but not attached. Retry attachment without duplicating the observation.</Text>}<Button label={attach.isPending ? "Attaching…" : pendingObservationId ? "Retry attachment" : "Save check-in"} onPress={() => pendingObservationId ? attach.mutate(pendingObservationId) : saveObservation.mutate()} disabled={saveObservation.isPending || attach.isPending || (!pendingObservationId && !observation.trim())} />{experiment.checkins?.map((checkin: ObservationResponse) => <Pressable key={checkin.id} accessibilityRole="radio" accessibilityState={{ selected: finalId === checkin.id }} onPress={() => setFinalId(checkin.id)} style={styles.checkin}><Text style={styles.body}>{checkin.content}</Text><Text style={styles.meta}>{finalId === checkin.id ? "Selected final check-in" : "Select as final check-in"}</Text></Pressable>)}</View>}
+    {findingsVisible && experiment.links && experiment.links.length > 0 && <View style={styles.section}><Text style={styles.heading}>Linked evidence</Text>{experiment.links.map((linkItem: NonNullable<Experiment["links"]>[number]) => linkItem.availability === false ? <Text key={linkItem.node_id} style={styles.meta}>Unavailable evidence: {linkItem.label}</Text> : <MotionSurface key={linkItem.node_id} accessibilityRole="button" accessibilityLabel={`Explain linked evidence ${linkItem.label}`} onPress={() => router.push(`/node/${linkItem.node_id}`)}><Text style={styles.link}>{linkItem.label} · Explain this evidence →</Text></MotionSurface>)}</View>}
+    {findingsVisible && experiment.state === "draft" && <View style={styles.section}><Text style={styles.heading}>Link a live pattern before starting</Text>{patterns.isLoading && <ActivityIndicator accessibilityLabel="Loading eligible patterns" color={colors.cyan} />}{patterns.data?.filter(eligiblePattern).map((pattern: Pattern) => <Pressable key={pattern.id} accessibilityRole="button" accessibilityLabel={`Link pattern ${pattern.label}`} disabled={link.isPending} onPress={() => link.mutate(pattern.id)} style={styles.pattern}><Text style={styles.body}>{pattern.label}</Text><Text style={styles.meta}>Live pattern · {pattern.occurrences} occurrences</Text></Pressable>)}{patterns.data?.filter(eligiblePattern).length === 0 && <Text style={styles.meta}>No live patterns are eligible yet.</Text>}</View>}
+    {experiment.state === "active" && <View style={styles.section}><Text style={styles.heading}>{SECTIONS.checkins.title}</Text><Text style={styles.aside}>{SECTIONS.checkins.aside}</Text><Text style={styles.meta}>Write an ordinary Journal observation. It is saved first, then attached once.</Text><TextInput accessibilityLabel="Check-in observation" multiline value={observation} onChangeText={(value) => { if (pendingObservationId && value.trim() !== pendingObservationContent) { void forgetCheckin(userId!, id!, pendingObservationId); setPendingEnvelope(null); setPendingObservationId(null); setPendingObservationContent(null); setObservationExists(false); } setObservation(value); }} editable={!saveObservation.isPending && !attach.isPending} placeholder="What did you notice?" placeholderTextColor={colors.inkMuted} style={[styles.input, pendingObservationId && styles.pending]} />{pendingObservationId && attach.isError && <Text accessibilityRole="alert" style={styles.error}>Saved but not attached. Retry attachment without duplicating the observation.</Text>}<Button label={attach.isPending ? "Attaching…" : pendingObservationId ? (observationExists ? "Retry attachment" : "Save check-in") : "Save check-in"} onPress={() => pendingObservationId && observationExists ? attach.mutate(pendingObservationId) : saveObservation.mutate()} disabled={saveObservation.isPending || attach.isPending || (!pendingObservationId && !observation.trim())} />{pendingObservationId && <Button label="Discard" onPress={() => { void forgetCheckin(userId!, id!, pendingObservationId); setPendingEnvelope(null); setPendingObservationId(null); setPendingObservationContent(null); setObservationExists(false); setObservation(""); }} />}{experiment.checkins?.map((checkin: ObservationResponse) => <Pressable key={checkin.id} accessibilityRole="radio" accessibilityState={{ selected: finalId === checkin.id }} onPress={() => setFinalId(checkin.id)} style={styles.checkin}><Text style={styles.body}>{checkin.content}</Text><Text style={styles.meta}>{finalId === checkin.id ? "Selected final check-in" : "Select as final check-in"}</Text></Pressable>)}</View>}
     {experiment.state === "active" && <View style={styles.section}><Text style={styles.heading}>{SECTIONS.finish.title}</Text><Text style={styles.aside}>{SECTIONS.finish.aside}</Text><View style={styles.choices}>{assessments.map((value) => <Pressable key={value} accessibilityRole="radio" accessibilityState={{ selected: assessment === value }} onPress={() => setAssessment(value)} style={[styles.choice, assessment === value && styles.selected]}><Text style={styles.body}>{assessmentLabel(value)}</Text></Pressable>)}</View><Button label="Complete experiment" onPress={() => complete.mutate()} disabled={!finalId || complete.isPending} /></View>}
     {experiment.outcome && <View style={styles.outcome}><Text style={styles.heading}>Outcome</Text><Text style={styles.body}>{assessmentLabel(experiment.outcome.assessment)}</Text><Text style={styles.meta}>Final check-in selected by you. No score or interpretation.</Text></View>}
     <Button label="Delete experiment" onPress={() => setConfirmDelete(true)} disabled={remove.isPending} />
@@ -99,7 +180,7 @@ export default function ExperimentDetail() {
 }
 
 function Button({ label, accessibilityLabel, onPress, disabled }: { label: string; accessibilityLabel?: string; onPress: () => void; disabled?: boolean }) { return <MotionSurface accessibilityRole="button" accessibilityLabel={accessibilityLabel ?? label} accessibilityState={{ disabled }} onPress={onPress} disabled={disabled} style={[styles.button, disabled && styles.disabled]}><Text style={styles.buttonText}>{label}</Text></MotionSurface>; }
-const styles = StyleSheet.create({
+const styles = StyleSheet.create({ disclaimer: { color: colors.inkMuted, fontSize: 12, lineHeight: 18 },
   stateRow: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 10 },
   state: {
     color: colors.inkMuted,

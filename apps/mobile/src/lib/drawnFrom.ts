@@ -17,7 +17,12 @@ import { deviceTimezone, localToday, mondayOfWeek, shiftWeek } from "@/lib/dates
  * that is genuinely per-client: which weeks to ask for, and how this app talks
  * to the API.
  */
-export function useDrawnFrom(token: string | null, userId: string | null, weeksBack = 4) {
+export function useDrawnFrom(
+  token: string | null,
+  userId: string | null,
+  weeksBack = 4,
+  enabled = true,
+) {
   const tz = deviceTimezone();
   const weeks = useQueries({
     queries: Array.from({ length: weeksBack }, (_, back) => {
@@ -25,10 +30,12 @@ export function useDrawnFrom(token: string | null, userId: string | null, weeksB
       return {
         queryKey: ["summary", "week", monday, tz, userId],
         queryFn: () => api.weeklySummary(token!, monday, tz),
-        enabled: Boolean(token && userId),
+        enabled: Boolean(token && userId && enabled),
       };
     }),
   });
 
-  return foldDrawnFrom(weeks.map((week) => week.data?.inferred ?? []));
+  // Disabled queries retain their previous data in React Query. Never fold that
+  // cache into a derived view after findings are hidden.
+  return enabled ? foldDrawnFrom(weeks.map((week) => week.data?.inferred ?? [])) : foldDrawnFrom([]);
 }

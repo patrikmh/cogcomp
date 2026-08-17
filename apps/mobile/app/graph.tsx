@@ -14,6 +14,7 @@ import { MotionSurface } from "@/components/MotionSurface";
 import { InferenceLens, MetricBeacon, FieldFrame, LoadingLens, ErrorLens, EmptyLens } from "@/components/SpatialField";
 import { api, type GraphNode, type Subgraph } from "@/lib/api";
 import { useSession } from "@/state/session";
+import { usePreferences } from "@/state/preferences";
 import { colors, fonts } from "@/theme";
 import { radii } from "@tlon/design";
 import { type as scale } from "@tlon/design";
@@ -30,6 +31,7 @@ import { Guide } from "@/components/Guide";
  */
 export default function GraphScreen() {
   const token = useSession((s) => s.token);
+  const showFindings = usePreferences((s) => s.findings);
   const [hideTentative, setHideTentative] = useState(false);
   const [focusKind, setFocusKind] = useState<string | null>(null);
 
@@ -37,15 +39,16 @@ export default function GraphScreen() {
     queryKey: ["graph", hideTentative],
     queryFn: () =>
       api.graph(token!, { minConfidence: hideTentative ? 0.5 : undefined }),
-    enabled: Boolean(token),
+    enabled: Boolean(token && showFindings),
   });
 
   // The auth gate in _layout redirects before this renders when signed out.
   if (!token) return null;
+  if (!showFindings) return <EmptyLens label="Findings are off. The graph is hidden; your journal is unchanged." />;
 
   if (graph.isLoading) return <LoadingLens label="Scanning the signal field…" />;
   if (graph.isError || !graph.data) {
-    return <ErrorLens label="Could not load the graph." />;
+    return <ErrorLens label="Could not load the graph." onRetry={() => void graph.refetch()} />;
   }
 
   return (
@@ -80,9 +83,15 @@ function Body({
 
   const observations = graph.nodes.filter((n) => n.kind === "Observation");
   const inferred = graph.nodes.filter((n) => n.kind !== "Observation");
-  const visibleInferred = focusKind ? inferred.filter((node) => node.kind === focusKind) : inferred;
+  // Keep the visual contract correct even while the confidence-filtered query
+  // is being refreshed. The API applies the same threshold, but the screen
+  // should never briefly keep drawing a tentative node after the toggle.
+  const confidentInferred = hideTentative ? inferred.filter((node) => !node.tentative) : inferred;
+  const visibleInferred = focusKind
+    ? confidentInferred.filter((node) => node.kind === focusKind)
+    : confidentInferred;
 
-  const byKind = inferred.reduce<Record<string, number>>((acc, node) => {
+  const byKind = confidentInferred.reduce<Record<string, number>>((acc, node) => {
     acc[node.kind] = (acc[node.kind] ?? 0) + 1;
     return acc;
   }, {});
@@ -94,15 +103,15 @@ function Body({
         <Text style={styles.kicker}>GRAPH · DEVELOPER</Text>
         <View style={styles.headingRow}>
           <Text style={[styles.title, styles.headlineFill]}>
-            {graph.nodes.length} {graph.nodes.length === 1 ? "node" : "nodes"},{" "}
-            {graph.edges.length} {graph.edges.length === 1 ? "edge" : "edges"}
+            {observations.length + visibleInferred.length} {observations.length + visibleInferred.length === 1 ? "node" : "nodes"},{" "}
+            {graph.edges.filter((edge) => visibleInferred.some((node) => node.id === edge.from_id || node.id === edge.to_id)).length} {graph.edges.length === 1 ? "edge" : "edges"}
           </Text>
           <Guide id="graph" />
         </View>
       </View>
       <FieldFrame label="Graph metric beacon field"><View style={styles.stats}>
         <MetricBeacon value={observations.length} label="source entries" />
-        <MetricBeacon value={inferred.length} label="readings" tone={colors.violet} />
+        <MetricBeacon value={visibleInferred.length} label="readings" tone={colors.violet} />
         <MetricBeacon value={graph.edges.length} label="links" tone={colors.pink} />
       </View></FieldFrame>
 
@@ -118,7 +127,13 @@ function Body({
         <Text style={styles.exploreLabel}>Explore the graph →</Text>
       </MotionSurface>
 
-      <MotionSurface onPress={onToggle} style={styles.toggle}>
+      <MotionSurface
+        accessibilityRole="button"
+        accessibilityLabel={hideTentative ? "Show tentative guesses" : "Hide tentative guesses"}
+        accessibilityState={{ selected: hideTentative }}
+        onPress={onToggle}
+        style={styles.toggle}
+      >
         <Text style={styles.toggleText}>
           {hideTentative ? "☑" : "☐"} Hide tentative guesses
         </Text>

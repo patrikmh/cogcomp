@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router-dom";
 import { Meter } from "@/components/Meter";
 import { Failed, Loading } from "@/components/States";
 import { api } from "@/lib/api";
+import { usePreferences } from "@/state/preferences";
 import { fmt, stampOf } from "@/lib/format";
 import { Guide } from "@/components/Guide";
 import { HEADINGS } from "@tlon/copy/headings";
@@ -18,7 +19,19 @@ import { HEADINGS } from "@tlon/copy/headings";
 export function Node() {
   const { id = "" } = useParams();
   const client = useQueryClient();
-  const explanation = useQuery({ queryKey: ["explain", id], queryFn: () => api.explain(id) });
+  const showFindings = usePreferences((s) => s.findings);
+  const observations = useQuery({
+    queryKey: ["observations", "node", id],
+    queryFn: () => api.observations(500),
+    enabled: !showFindings,
+  });
+  const explanation = useQuery({
+    queryKey: ["explain", id],
+    queryFn: () => api.explain(id),
+    refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
+    enabled: showFindings,
+  });
 
   const judge = useMutation({
     mutationFn: (status: "hypothesis" | "user_confirmed" | "user_rejected") =>
@@ -39,8 +52,27 @@ export function Node() {
     },
   });
 
+  if (!showFindings) {
+    if (observations.isLoading) return <Loading label="Reading your journal…" />;
+    const observation = observations.data?.observations.find((entry) => entry.id === id);
+    if (!observation) return <Failed label="This finding is hidden while findings are off." />;
+    return (
+      <>
+        <span className="kicker">Your journal</span>
+        <h1>{observation.content}</h1>
+        <div className="row" style={{ gap: 12 }}>
+          <span className="pill">observation</span>
+          <span className="pill">raw entry · no reading</span>
+        </div>
+        <p className="sub" style={{ marginTop: 18 }}>
+          This is what you wrote. Findings are off, so no derived reading or provenance is shown.
+        </p>
+      </>
+    );
+  }
+
   if (explanation.isLoading) return <Loading label="Tracing provenance…" />;
-  if (explanation.isError || !explanation.data) return <Failed />;
+  if (explanation.isError || !explanation.data) return <Failed onRetry={() => void explanation.refetch()} />;
 
   const { node, derived_from, is_observed } = explanation.data;
 

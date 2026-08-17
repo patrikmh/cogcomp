@@ -16,6 +16,7 @@ import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { TabBar } from "@/components/TabBar";
+import { isPublicRoute } from "@/lib/authRoutes";
 import { TopBar } from "@/components/TopBar";
 import { createUserQueryClient } from "@/state/queryClient";
 import { usePreferences } from "@/state/preferences";
@@ -26,6 +27,7 @@ import { colors } from "@/theme";
 function useAuthGate() {
   const { token, ready, restore } = useSession();
   const restorePreferences = usePreferences((s) => s.restore);
+  const preferencesReady = usePreferences((s) => s.ready);
   const segments = useSegments();
   const router = useRouter();
 
@@ -39,20 +41,25 @@ function useAuthGate() {
   useEffect(() => {
     // Wait for the keychain read, or we would redirect someone who is in fact
     // still signed in.
-    if (!ready) return;
-    const onLoginScreen = segments[0] === "login";
-    if (!token && !onLoginScreen) {
+    if (!ready || !preferencesReady) return;
+    const pathname = `/${segments.join("/")}`;
+    const publicRoute = isPublicRoute(pathname);
+    const onLoginScreen = pathname === "/login";
+    if (!token && !publicRoute) {
       router.replace("/login");
     } else if (token && onLoginScreen) {
       router.replace("/");
     }
-  }, [token, ready, segments, router]);
+  }, [token, ready, preferencesReady, segments, router]);
 
-  return ready;
+  // Authenticated screens must not mount against the default findings=true
+  // state while persisted preferences are still being read.
+  return ready && preferencesReady;
 }
 
 export default function RootLayout() {
   const userId = useSession((s) => s.userId);
+  const token = useSession((s) => s.token);
   const signOut = useSession((s) => s.signOut);
   // A QueryClient is private to one principal. Replacing it during an account
   // switch prevents tenant-independent keys in existing screens from exposing
@@ -63,8 +70,14 @@ export default function RootLayout() {
   // the server has forgotten leaves you inside the app with every screen showing
   // its own unrelated error.
   const queryClient = useMemo(
-    () => createUserQueryClient(userId, () => void signOut()),
-    [userId, signOut],
+    () =>
+      createUserQueryClient(userId, () => {
+        // A request from a replaced client may finish after a new account is
+        // signed in. Only that client’s captured token may expire itself.
+        const current = useSession.getState();
+        if (current.userId === userId && current.token === token) void signOut();
+      }),
+    [userId, token, signOut],
   );
 
   return (
@@ -80,7 +93,8 @@ function Gate() {
   const ready = useAuthGate();
   const segments = useSegments();
   // Not on the login screen: there is nowhere to go from there but in.
-  const showDock = segments[0] !== "login";
+  const pathname = `/${segments.join("/")}`;
+  const showDock = !isPublicRoute(pathname);
   // /dev is offered by Settings too; the bar carries it when the switch is on
   // so a developer is not made to go through Settings every time.
   const developer = usePreferences((s) => s.developer);

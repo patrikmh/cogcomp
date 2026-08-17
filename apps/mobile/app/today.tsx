@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -11,11 +11,12 @@ import {
 } from "react-native";
 
 import { Chip, Kicker, Meter, Rule, Spine } from "@/components/Marks";
+import { ErrorLens } from "@/components/SpatialField";
 import { MotionSurface } from "@/components/MotionSurface";
 import { Rise, Rising } from "@/components/Rise";
 import { Seal } from "@/components/Seal";
 import { api, type DailySummary } from "@/lib/api";
-import { deviceTimezone, localToday, shiftDay } from "@/lib/dates";
+import { dayForRoute, deviceTimezone, isLocalDate, localToday, shiftDay } from "@/lib/dates";
 import { useDrawnFrom } from "@/lib/drawnFrom";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
@@ -43,14 +44,39 @@ import { EMPTY as EMPTY_COPY } from "@tlon/copy/empty";
  */
 export default function TodayScreen() {
   const token = useSession((s) => s.token);
-  const [day, setDay] = useState(localToday());
+  const { date } = useLocalSearchParams<{ date?: string }>();
+  const routeDate = typeof date === "string" && isLocalDate(date) ? date : null;
+  const [day, setDay] = useState(routeDate ?? localToday());
   const tz = deviceTimezone();
+  const showFindings = usePreferences((s) => s.findings);
+  const preferencesReady = usePreferences((s) => s.ready);
+  const findingsVisible = preferencesReady && showFindings;
+
+  useFocusEffect(
+    useCallback(() => {
+      const nextDay = dayForRoute(routeDate);
+      setDay((current) => (current === nextDay ? current : nextDay));
+    }, [routeDate]),
+  );
 
   const summary = useQuery({
-    queryKey: ["summary", day, tz],
-    queryFn: () => api.dailySummary(token!, day, tz),
-    enabled: Boolean(token),
+    queryKey: ["summary", day, tz, findingsVisible],
+    queryFn: () => api.dailySummary(token!, day, tz, findingsVisible),
+    enabled: Boolean(token) && preferencesReady,
+    // Extraction and background agent work can update the same day while this
+    // screen remains mounted or is revisited within the query stale window.
+    // A day view must not keep presenting the pre-extraction snapshot.
+    refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
   });
+
+  // Router screens can remain mounted while someone moves between destinations,
+  // so mounting alone is not enough to notice extraction completed elsewhere.
+  useFocusEffect(
+    useCallback(() => {
+      void summary.refetch();
+    }, [summary.refetch]),
+  );
 
   // The auth gate in _layout redirects before this renders when signed out.
   if (!token) return null;
@@ -107,7 +133,7 @@ export default function TodayScreen() {
       {summary.isLoading ? (
         <ActivityIndicator color={colors.violet} style={styles.loader} />
       ) : summary.isError || !summary.data ? (
-        <Text style={styles.error}>Could not load this day.</Text>
+        <ErrorLens label="Could not load this day." onRetry={() => void summary.refetch()} />
       ) : (
         <SummaryBody summary={summary.data} day={day} />
       )}
@@ -121,7 +147,9 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
   const token = useSession((state) => state.token);
   const userId = useSession((state) => state.userId);
   const showFindings = usePreferences((state) => state.findings);
-  const drawnFrom = useDrawnFrom(token, userId);
+  const preferencesReady = usePreferences((state) => state.ready);
+  const findingsVisible = preferencesReady && showFindings;
+  const drawnFrom = useDrawnFrom(token, userId, 4, findingsVisible);
 
   // The recurrences today's material belongs to. The count goes in the line
   // under the heading — "three patterns circling" is a fact about the day, not
@@ -129,9 +157,11 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
   const patterns = useQuery({
     queryKey: ["patterns", userId],
     queryFn: () => api.listPatterns(token!),
-    enabled: Boolean(token) && showFindings,
+    enabled: Boolean(token) && findingsVisible,
   });
-  const circlingList = patterns.data ?? [];
+  // React Query deliberately keeps findings in memory when a screen is revisited.
+  // A preference switch must hide that cache too, not only stop the next request.
+  const circlingList = findingsVisible ? patterns.data ?? [] : [];
   const circling = circlingList[0];
 
   if (summary.entry_count === 0) {
@@ -140,19 +170,22 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
     return <Text style={styles.empty}>{EMPTY_COPY.day}</Text>;
   }
 
-  const confident = summary.inferred.filter((i) => !i.tentative);
-  const tentative = summary.inferred.filter((i) => i.tentative);
+  const inferred = findingsVisible ? summary.inferred : [];
+  const confident = inferred.filter((i) => !i.tentative);
+  const tentative = inferred.filter((i) => i.tentative);
 
   return (
     <>
       {/* What the day holds, counted. The web states this before anything is
           drawn, so the shape of the day is known before it is read. */}
       <Text style={styles.tally}>
-        {`${summary.entry_count} ${summary.entry_count === 1 ? "act" : "acts"} · ${
-          summary.inferred.length
-        } ${summary.inferred.length === 1 ? "reading" : "readings"} drawn${
-          circlingList.length > 0
-            ? ` · ${circlingList.length} ${circlingList.length === 1 ? "pattern" : "patterns"} circling`
+        {`${summary.entry_count} ${summary.entry_count === 1 ? "act" : "acts"}${
+          findingsVisible
+            ? ` · ${inferred.length} ${inferred.length === 1 ? "reading" : "readings"} drawn${
+                circlingList.length > 0
+                  ? ` · ${circlingList.length} ${circlingList.length === 1 ? "pattern" : "patterns"} circling`
+                  : ""
+              }`
             : ""
         }`}
       </Text>
@@ -166,24 +199,32 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
         </View>
         <Text style={styles.aside}>{asideOf("acts", true)}</Text>
       </View>
-      {summary.observations.map((observation, i) => (
-        <Rise key={observation.id} index={i}>
-          <MotionSurface
-            style={styles.entry}
-            onPress={() => router.push(`/node/${observation.id}`)}
-            accessibilityRole="button"
-            accessibilityLabel={observation.content}
-          >
-            <Spine time={shortTime(observation.captured_at)} lit={i === 0} />
-            <View style={styles.act}>
-              <Seal id={observation.id} size={34} />
-              <View style={styles.actBody}>
-                <Text style={styles.body}>{observation.content}</Text>
-                {(drawnFrom.get(observation.id)?.length ?? 0) > 0 ? (
+      {summary.observations.map((observation, i) => {
+        const drawn = drawnFrom.get(observation.id) ?? [];
+        return (
+          <Rise key={observation.id} index={i}>
+            <View style={styles.entry}>
+              <Spine time={shortTime(observation.captured_at)} lit={i === 0} />
+              <View style={styles.act}>
+                <MotionSurface
+                  style={styles.observation}
+                  onPress={() => router.push(`/node/${observation.id}`)}
+                  accessibilityRole="button"
+                  accessibilityLabel={observation.content}
+                >
+                  <Seal id={observation.id} size={34} />
+                  <View style={styles.actBody}>
+                    <Text style={styles.body}>{observation.content}</Text>
+                    {findingsVisible && drawn.length === 0 && (
+                      <Text style={styles.meta}>nothing drawn from this yet</Text>
+                    )}
+                  </View>
+                </MotionSurface>
+                {findingsVisible && drawn.length > 0 && (
                   <View style={styles.chipRow}>
                     <Kicker>Drawn from this</Kicker>
                     <View style={styles.chips}>
-                      {drawnFrom.get(observation.id)!.slice(0, 4).map((r) => (
+                      {drawn.slice(0, 4).map((r) => (
                         <Chip
                           key={r.id}
                           label={r.label}
@@ -194,14 +235,12 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
                       ))}
                     </View>
                   </View>
-                ) : (
-                  <Text style={styles.meta}>nothing drawn from this yet</Text>
                 )}
               </View>
             </View>
-          </MotionSurface>
-        </Rise>
-      ))}
+          </Rise>
+        );
+      })}
 
       {confident.length > 0 && (
         <Section title={SECTIONS.kept.title} aside={asideOf("kept", true)}>
@@ -246,7 +285,7 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
       {/* Only where there is something for it to be about. A note explaining
           two sections that are not on the screen describes a screen the person
           is not looking at. */}
-      {summary.inferred.length > 0 && (
+      {inferred.length > 0 && (
         <Text style={styles.footnote}>
           Everything under “{SECTIONS.kept.title}” and “{SECTIONS.lessSure.title}” is a guess drawn from your
           entries, not a conclusion about you. Tap one to see which words it came
@@ -405,11 +444,12 @@ const styles = StyleSheet.create({
   },
   aside: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: scale.meta.size },
   entry: { flexDirection: "row", gap: 10, alignItems: "flex-start", paddingVertical: 6 },
-  act: { flexDirection: "row", gap: 10, flex: 1, alignItems: "flex-start" },
+  act: { flex: 1, gap: 6 },
+  observation: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
   actBody: { flex: 1, gap: 6 },
   sectionRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 },
   ruleFill: { flex: 1 },
-  chipRow: { gap: 4 },
+  chipRow: { gap: 4, marginLeft: 44 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   screen: { flex: 1, backgroundColor: colors.room },
   content: { paddingHorizontal: 20, paddingBottom: 44, paddingTop: 10, gap: 8 },

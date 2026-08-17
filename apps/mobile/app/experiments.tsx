@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { AtmosphericShell } from "@/components/Atmospheric";
@@ -10,6 +10,7 @@ import { ApiError, api, type Experiment } from "@/lib/api";
 import { localDateToday, localTimezone, validDuration, experimentQueryKeys } from "@/lib/experiment";
 import { uuidv7 } from "@/lib/ids";
 import { useSession } from "@/state/session";
+import { usePreferences } from "@/state/preferences";
 import { colors, fonts } from "@/theme";
 import { radii } from "@tlon/design";
 import { type as scale } from "@tlon/design";
@@ -23,6 +24,9 @@ const cadenceLabel = { daily: "Daily", weekly: "Weekly", end_only: "At the end" 
 export default function ExperimentsScreen() {
   const token = useSession((s) => s.token);
   const userId = useSession((s) => s.userId);
+  const showFindings = usePreferences((s) => s.findings);
+  const preferencesReady = usePreferences((s) => s.ready);
+  const findingsVisible = preferencesReady && showFindings;
   const router = useRouter();
   const client = useQueryClient();
   const [title, setTitle] = useState("");
@@ -32,7 +36,12 @@ export default function ExperimentsScreen() {
   const [startDate, setStartDate] = useState(localDateToday());
   const [duration, setDuration] = useState("7");
   const [cadence, setCadence] = useState<Experiment["cadence"]>("daily");
-  const experiments = useQuery({ queryKey: experimentQueryKeys.all(userId!), queryFn: () => api.listExperiments(token!), enabled: Boolean(token && userId) });
+  const experiments = useQuery({ queryKey: [...experimentQueryKeys.all(userId!), findingsVisible], queryFn: () => api.listExperiments(token!, findingsVisible), enabled: Boolean(token && userId), refetchOnMount: "always", refetchOnWindowFocus: "always" });
+  useFocusEffect(
+    useCallback(() => {
+      void experiments.refetch();
+    }, [experiments.refetch]),
+  );
   const create = useMutation({
     mutationFn: () => api.createExperiment(token!, { id: uuidv7(), title: title.trim(), hypothesis: hypothesis.trim(), action: action.trim(), success_criterion: criterion.trim(), start_date: startDate, duration_days: Number(duration), timezone: localTimezone(), cadence }),
     onSuccess: (created) => { setTitle(""); setHypothesis(""); setAction(""); setCriterion(""); void client.invalidateQueries({ queryKey: experimentQueryKeys.all(userId!) }); router.push(`/experiment/${created.id}`); },
@@ -63,6 +72,7 @@ export default function ExperimentsScreen() {
       {`${all.length} ${all.length === 1 ? "experiment" : "experiments"} · ${running} running · ${completed} completed — you judge them, the app doesn't. Nothing here is proposed, scored, or judged for you.`}
     </Text>
     <Text style={styles.intro}>Optional self-observation, not diagnosis or medical treatment. You choose what to record.</Text>
+    <Text style={styles.disclaimer} accessibilityRole="text">Arc cells are illustrative placement, not calendar dates. Check-in counts remain exact.</Text>
 
     <View style={styles.sectionRow}>
       <Text style={styles.kicker}>{SECTIONS.arcs.title}</Text>
@@ -71,7 +81,7 @@ export default function ExperimentsScreen() {
     </View>
     {experiments.isLoading && <ActivityIndicator accessibilityLabel="Loading experiments" color={colors.cyan} />}
     {experiments.isError && <View><Text accessibilityRole="alert" style={styles.error}>Could not load experiments.</Text><MotionSurface onPress={() => void experiments.refetch()}><Text style={styles.link}>Try again</Text></MotionSurface></View>}
-    {!experiments.isLoading && !experiments.isError && all.length === 0 && <Text style={styles.intro}>Nothing started yet. An experiment is a question you decided to try.</Text>}
+    {!experiments.isLoading && !experiments.isError && all.length === 0 && <Text style={styles.intro}>No experiments yet. An experiment is a question you decided to try.</Text>}
     {all.map((experiment: Experiment) => <MotionSurface key={experiment.id} accessibilityRole="button" accessibilityLabel={`Open experiment ${experiment.title}`} onPress={() => router.push(`/experiment/${experiment.id}`)} style={styles.card}><Seal id={experiment.id} size={28} stamp /><View style={styles.cardBody}><Text style={styles.cardTitle}>{experiment.title}</Text><Text style={styles.meta}>{experiment.state} · {experiment.checkins?.length ?? 0} of {experiment.duration_days} check-ins · {cadenceLabel[experiment.cadence]}</Text>
       {/* The arc: one cell per day of the experiment, lit on the days it was
           checked in. The list said how long an experiment runs and never how it
@@ -96,4 +106,4 @@ export default function ExperimentsScreen() {
   </ScrollView></AtmosphericShell>;
 }
 
-const styles = StyleSheet.create({ tally: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: 10.5, lineHeight: 17, letterSpacing: 0.8, textTransform: "uppercase" }, sectionRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 14 }, ruleFill: { flex: 1 }, rule: { height: 1, backgroundColor: colors.line }, aside: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: scale.meta.size }, screen: { padding: 20, gap: 14, backgroundColor: colors.room, paddingBottom: 48 }, kicker: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: scale.kicker.size, letterSpacing: scale.kicker.tracking, textTransform: "uppercase" }, title: { color: colors.ink, fontSize: scale.title.size, fontWeight: "700" }, intro: { color: colors.inkMuted, lineHeight: 21 }, hint: { color: colors.inkMuted, fontSize: 12 }, input: { backgroundColor: colors.surface, color: colors.ink, borderRadius: radii.surface, padding: 14, minHeight: 48 }, label: { color: colors.ink, fontWeight: "700" }, choices: { flexDirection: "row", gap: 8, flexWrap: "wrap" }, choice: { borderWidth: 1, borderColor: colors.lineStrong, borderRadius: radii.surface, padding: 12 }, choiceSelected: { borderColor: colors.cyan, backgroundColor: colors.surface }, choiceText: { color: colors.ink }, button: { backgroundColor: colors.cyan, padding: 15, borderRadius: radii.surface, alignItems: "center" }, disabled: { opacity: 0.4 }, buttonText: { color: colors.room, fontWeight: "700" }, error: { color: colors.danger }, section: { color: colors.ink, fontWeight: "700", marginTop: 14 }, card: { backgroundColor: colors.surface, padding: 16, borderRadius: radii.surface, gap: 10, flexDirection: "row", alignItems: "flex-start" }, cardBody: { flex: 1, gap: 6 }, cardTitle: { color: colors.ink, fontSize: 17, fontWeight: "700" }, meta: { color: colors.inkMuted }, link: { color: colors.cyan, paddingVertical: 10 } });
+const styles = StyleSheet.create({ disclaimer: { color: colors.inkMuted, fontSize: 12, lineHeight: 18 }, tally: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: 10.5, lineHeight: 17, letterSpacing: 0.8, textTransform: "uppercase" }, sectionRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 14 }, ruleFill: { flex: 1 }, rule: { height: 1, backgroundColor: colors.line }, aside: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: scale.meta.size }, screen: { padding: 20, gap: 14, backgroundColor: colors.room, paddingBottom: 48 }, kicker: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: scale.kicker.size, letterSpacing: scale.kicker.tracking, textTransform: "uppercase" }, title: { color: colors.ink, fontSize: scale.title.size, fontWeight: "700" }, intro: { color: colors.inkMuted, lineHeight: 21 }, hint: { color: colors.inkMuted, fontSize: 12 }, input: { backgroundColor: colors.surface, color: colors.ink, borderRadius: radii.surface, padding: 14, minHeight: 48 }, label: { color: colors.ink, fontWeight: "700" }, choices: { flexDirection: "row", gap: 8, flexWrap: "wrap" }, choice: { borderWidth: 1, borderColor: colors.lineStrong, borderRadius: radii.surface, padding: 12 }, choiceSelected: { borderColor: colors.cyan, backgroundColor: colors.surface }, choiceText: { color: colors.ink }, button: { backgroundColor: colors.cyan, padding: 15, borderRadius: radii.surface, alignItems: "center" }, disabled: { opacity: 0.4 }, buttonText: { color: colors.room, fontWeight: "700" }, error: { color: colors.danger }, section: { color: colors.ink, fontWeight: "700", marginTop: 14 }, card: { backgroundColor: colors.surface, padding: 16, borderRadius: radii.surface, gap: 10, flexDirection: "row", alignItems: "flex-start" }, cardBody: { flex: 1, gap: 6 }, cardTitle: { color: colors.ink, fontSize: 17, fontWeight: "700" }, meta: { color: colors.inkMuted }, link: { color: colors.cyan, paddingVertical: 10 } });

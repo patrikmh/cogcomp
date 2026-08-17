@@ -89,7 +89,9 @@ export function Identity() {
   const unkeep = useMutation({ mutationFn: api.unkeep, onSuccess: invalidate });
 
   if (kept.isLoading || offered.isLoading) return <Loading />;
-  if (kept.isError || offered.isError) return <Failed />;
+  if (kept.isError || offered.isError) {
+    return <Failed onRetry={() => { void kept.refetch(); void offered.refetch(); }} />;
+  }
 
   const nodes = kept.data?.nodes ?? [];
   const selected = nodes.filter((n) => n.status === "selected");

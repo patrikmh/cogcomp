@@ -11,7 +11,7 @@ import { Guide } from "@/components/Guide";
 import { Kicker } from "@/components/Marks";
 import { MotionSurface } from "@/components/MotionSurface";
 import { Observatory, Readout } from "@/components/Observatory";
-import { api } from "@/lib/api";
+import { api, type GraphEdge, type GraphNode } from "@/lib/api";
 import { deviceTimezone, localToday } from "@/lib/dates";
 import { type Lens, lensesFor, resolveLens } from "@/lib/lenses";
 import { usePreferences } from "@/state/preferences";
@@ -43,24 +43,26 @@ export default function HeadspaceScreen() {
   const userId = useSession((s) => s.userId);
   const router = useRouter();
   const showFindings = usePreferences((s) => s.findings);
+  const preferencesReady = usePreferences((s) => s.ready);
+  const findingsVisible = preferencesReady && showFindings;
   const [chosen, setChosen] = useState<Lens>("today");
   // Someone who turns findings off while looking at one must not be left on a
   // lens that no longer exists.
-  const lens = resolveLens(chosen, showFindings);
+  const lens = resolveLens(chosen, findingsVisible);
   const [selected, setSelected] = useState<string | null>(null);
 
   const tz = deviceTimezone();
   const day = localToday();
 
   const today = useQuery({
-    queryKey: ["summary", day, tz],
-    queryFn: () => api.dailySummary(token!, day, tz),
-    enabled: Boolean(token),
+    queryKey: ["summary", day, tz, findingsVisible],
+    queryFn: () => api.dailySummary(token!, day, tz, findingsVisible),
+    enabled: Boolean(token) && preferencesReady,
   });
   const graph = useQuery({
-    queryKey: ["graph", "headspace", userId],
+    queryKey: ["graph", "headspace", userId, findingsVisible],
     queryFn: () => api.graph(token!, { limit: 200 }),
-    enabled: Boolean(token),
+    enabled: Boolean(token) && findingsVisible,
   });
   const patterns = useQuery({
     queryKey: ["patterns", userId],
@@ -68,12 +70,12 @@ export default function HeadspaceScreen() {
     // Not fetched at all when findings are off. Asking the server for
     // conclusions the person has said they do not want to see would make the
     // switch a piece of stagecraft.
-    enabled: Boolean(token) && showFindings,
+    enabled: Boolean(token) && findingsVisible,
   });
   const model = useQuery({
     queryKey: ["self-model", userId],
     queryFn: () => api.selfModel(token!),
-    enabled: Boolean(token),
+    enabled: Boolean(token) && findingsVisible,
   });
   const changed = useQuery({
     queryKey: ["temporal", userId, tz],
@@ -81,7 +83,7 @@ export default function HeadspaceScreen() {
     // Not fetched at all when findings are off. Asking the server for
     // conclusions the person has said they do not want to see would make the
     // switch a piece of stagecraft.
-    enabled: Boolean(token) && showFindings,
+    enabled: Boolean(token) && findingsVisible,
   });
   const themes = useQuery({
     queryKey: ["themes", userId],
@@ -89,13 +91,31 @@ export default function HeadspaceScreen() {
     // Not fetched at all when findings are off. Asking the server for
     // conclusions the person has said they do not want to see would make the
     // switch a piece of stagecraft.
-    enabled: Boolean(token) && showFindings,
+    enabled: Boolean(token) && findingsVisible,
   });
 
   if (!token) return null;
 
-  const points = pointsFor(lens, today.data, graph.data, patterns.data, changed.data, themes.data);
-  const circling = (patterns.data ?? []).length;
+  // Queries retain data in memory when findings are switched off. Hide cached
+  // conclusions from every renderer as well as disabling future requests.
+  const visiblePatterns = findingsVisible ? patterns.data : undefined;
+  const visibleToday = findingsVisible
+    ? today.data
+    : today.data && { ...today.data, inferred: [] };
+  const visibleGraph = findingsVisible
+    ? graph.data
+    : graph.data && {
+        ...graph.data,
+        // Observations are the person's own record and remain available. Every
+        // other node is derived and must disappear when findings are off.
+        nodes: graph.data.nodes.filter((node: GraphNode) => node.kind === "Observation"),
+        edges: graph.data.edges.filter((edge: GraphEdge) =>
+          graph.data.nodes.some((node: GraphNode) => node.id === edge.from_id && node.kind === "Observation") &&
+          graph.data.nodes.some((node: GraphNode) => node.id === edge.to_id && node.kind === "Observation"),
+        ),
+      };
+  const points = pointsFor(lens, visibleToday, visibleGraph, visiblePatterns, findingsVisible ? changed.data : undefined, findingsVisible ? themes.data : undefined);
+  const circling = visiblePatterns?.length ?? 0;
   const whorls = whorlsFor(lens, points);
   const current = points.find((p) => p.id === selected) ?? null;
   const loading =
@@ -110,7 +130,7 @@ export default function HeadspaceScreen() {
           A portrait made entirely of unexamined guesses is a rumour, and it
           should say so rather than presenting them with the same face as the
           things you agreed with. */}
-      {model.data && model.data.unreviewed + model.data.confirmed + model.data.rejected > 0 && (
+      {findingsVisible && model.data && model.data.unreviewed + model.data.confirmed + model.data.rejected > 0 && (
         // Tappable, and it goes where the judging happens. The bar stated that
         // forty-five readings had never been agreed with and then offered
         // nothing to do about it — the one number on the screen that is a
@@ -138,7 +158,7 @@ export default function HeadspaceScreen() {
         </MotionSurface>
       )}
 
-      {!showFindings && (
+      {!findingsVisible && (
         // Stated where the lenses used to be, so the absence reads as a choice
         // rather than as an empty app. Nothing has been deleted, and the
         // sentence says so.
@@ -170,9 +190,9 @@ export default function HeadspaceScreen() {
         style={styles.lenses}
         contentContainerStyle={styles.lensesRow}
       >
-        {lensesFor(showFindings).map((option) => {
+        {lensesFor(findingsVisible).map((option) => {
           const on = lens === option.id;
-          const count = countFor(option.id, points, today.data, patterns.data, themes.data, changed.data);
+          const count = countFor(option.id, points, visibleToday, visiblePatterns, findingsVisible ? themes.data : undefined, findingsVisible ? changed.data : undefined);
           return (
             <MotionSurface
               key={option.id}
@@ -215,7 +235,7 @@ export default function HeadspaceScreen() {
           tentative,
           status,
         }))}
-        links={lens === "all" ? edgesOf(graph.data) : undefined}
+        links={lens === "all" ? edgesOf(visibleGraph) : undefined}
         selected={selected}
         onSelect={setSelected}
         dotSize={lens === "patterns" ? 10 : 7}

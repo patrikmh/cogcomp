@@ -15,6 +15,7 @@ import { Seal } from "@/components/Seal";
 import { STRIP_CELLS, daysOfFortnight } from "@tlon/design/marks";
 
 import { Composition } from "@/components/Composition";
+import { ErrorLens } from "@/components/SpatialField";
 import { Strip } from "@/components/Strip";
 import { StripLegend } from "@/components/StripLegend";
 import { colors, fonts } from "@/theme";
@@ -90,6 +91,8 @@ export default function PatternsScreen() {
     );
   }
 
+  if (patterns.isError) return <ErrorLens label="Could not load patterns." onRetry={() => void patterns.refetch()} />;
+
   const found: Pattern[] = patterns.data ?? [];
   const busiest = Math.max(...found.map((p) => p.occurrences), 1);
   // Days against the fortnight, which is what the design divides by: its
@@ -134,17 +137,10 @@ export default function PatternsScreen() {
 
       {found.map((pattern, i) => (
         <Rise key={pattern.id} index={i}>
-          <MotionSurface
-            style={styles.row}
-            onPress={() => router.push(patternDestination(pattern).href)}
-            accessibilityRole="button"
-            accessibilityLabel={pattern.label}
-          >
-            {/* How strong this finding is, as a length behind the row: the
-                design's `.p-pow`, sized against the busiest finding in the
-                record and not against any absolute standard. A number says
-                five days; this says five days *compared to what*, which is the
-                only frame the record can honestly offer. */}
+          <View style={styles.row}>
+            {/* The card is a layout container, not a button. Keeping only its
+                header interactive avoids putting the independently clickable
+                Composition links inside another pressable on web. */}
             <View
               style={[
                 styles.power,
@@ -152,55 +148,31 @@ export default function PatternsScreen() {
               ]}
               pointerEvents="none"
             />
-            {/* Seal, what the finding is, and how strong it is — three columns
-                across, as the design sets `.p-top`. The meter used to sit under
-                the meta inside the text column, which read as another line of
-                description rather than as the measure of the row. */}
-            <View style={styles.top}>
-              <Seal id={pattern.id} size={40} stamp />
-              <View style={styles.rowBody}>
-                <Text style={styles.label}>{pattern.label}</Text>
-                <Kicker>{patternMeta(pattern)}</Kicker>
+            <MotionSurface
+              style={styles.header}
+              onPress={() => router.push(patternDestination(pattern).href)}
+              accessibilityRole="button"
+              accessibilityLabel={pattern.label}
+            >
+              <View style={styles.top}>
+                <Seal id={pattern.id} size={40} stamp />
+                <View style={styles.rowBody}>
+                  <Text style={styles.label}>{pattern.label}</Text>
+                  <Kicker>{patternMeta(pattern)}</Kicker>
+                </View>
+                <View style={styles.met}>
+                  <Meter confidence={pattern.confidence} tentative={pattern.tentative} />
+                  <Text style={styles.metCount}>
+                    {daysOfFortnight(pattern.distinct_days).replace(" of ", " / ")}
+                  </Text>
+                </View>
               </View>
-              {/* The same figure as a length, at the end of the row where the
-                  design puts it. "70% confident" is a phrase people skim; a bar
-                  visibly two thirds full is not, and a finding sits beside
-                  readings that are metered the same way. */}
-              <View style={styles.met}>
-                <Meter confidence={pattern.confidence} tentative={pattern.tentative} />
-                {/* Days over the fortnight — but only while the finding fits
-                    inside one. A record older than two weeks produces findings
-                    resting on more days than the window has, and "18 / 14" is
-                    the same nonsense a caption here once printed. Past the
-                    window the count stands on its own. */}
-                <Text style={styles.metCount}>
-                  {daysOfFortnight(pattern.distinct_days).replace(" of ", " / ")}
-                </Text>
-              </View>
-            </View>
-            {/* The fortnight it rests on, full width beneath the row rather
-                than indented past the seal — the design's `.p-stripwrap` is a
-                sibling of `.p-top`, not a child of its text column. Which days
-                is illustrative; how many is the number above. */}
+            </MotionSurface>
+            {/* The strip and its legend are card content, not nested controls. */}
             <Strip pattern={pattern} />
-              {/* What the strip is showing. A two-sided finding draws its
-                  halves in ink and sand, and nothing said which was which —
-                  two colours and no way to learn what they mean is worse than
-                  one colour, because it looks like it is telling you something. */}
-              <StripLegend pattern={pattern} />
-              {/* What the finding is made of. A recurrence is a count over
-                  readings, not a fact about a person, and unless those readings
-                  are named and reachable the count is the end of the chain
-                  rather than a step in it. */}
-              <Composition token={token!} patternId={pattern.id} />
-              {/* No caption under the strip. The line above already states the
-                  true count — "8 entries across 7 days" — and the caption I put
-                  here restated it from `distinct_days`, which is not capped at
-                  fourteen: a finding resting on eighteen days read "18 of 14".
-                  The web's captions name the two sides of a two-sided finding
-                  and invite a hover, neither of which applies to a touch screen
-                  showing one strip. */}
-          </MotionSurface>
+            <StripLegend pattern={pattern} />
+            <Composition token={token!} patternId={pattern.id} />
+          </View>
         </Rise>
       ))}
 
@@ -251,6 +223,7 @@ export default function PatternsScreen() {
           style={styles.action}
           onPress={() => router.push(found.length > 0 ? "/experiments" : "/first")}
           accessibilityRole="button"
+          accessibilityLabel={found.length > 0 ? "Open experiments" : "What each detector is waiting for"}
         >
           <Text style={styles.actionLabel}>
             {found.length > 0 ? "Open experiments" : "What each detector is waiting for"}
@@ -284,6 +257,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.line,
   },
+  header: { alignSelf: "stretch" },
   power: {
     position: "absolute",
     left: 0,

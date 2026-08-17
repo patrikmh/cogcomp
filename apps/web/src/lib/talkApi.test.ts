@@ -23,6 +23,22 @@ describe("spoken conversation turns", () => {
     expect(fetchMock.mock.calls[0]![0]).not.toContain("limit=1");
   });
 
+  it("passes findings preference when closing a conversation", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ conversation_id: "conversation-1", observations: [], turns_converted: 0 }),
+      statusText: "OK",
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.closeConversation("conversation-1", false);
+
+    expect(fetchMock.mock.calls[0]![0]).toBe(
+      "/v1/conversations/conversation-1/close?include_findings=false",
+    );
+  });
+
   it("loads an existing conversation's turns", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -94,11 +110,13 @@ describe("spoken conversation turns", () => {
     vi.stubGlobal("fetch", fetchMock);
     const deltas: string[] = [];
 
-    await expect(api.sayStreaming("conversation-1", "I said this", deltas.push.bind(deltas)))
+    await expect(api.sayStreaming("conversation-1", "I said this", deltas.push.bind(deltas), "22222222-2222-4222-8222-222222222222"))
       .resolves.toEqual({ reply: "What next?", crisis: false, crisis_resources: [] });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock.mock.calls[0]![0]).toContain("/turns/stream");
+    expect(JSON.parse((fetchMock.mock.calls[0]![1] as RequestInit).body as string).client_turn_id)
+      .toBe("22222222-2222-4222-8222-222222222222");
     expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/turns"))).toBe(false);
     expect(deltas).toEqual(["What ", "next?"]);
   });

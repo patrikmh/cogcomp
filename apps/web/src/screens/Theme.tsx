@@ -48,7 +48,7 @@ export function Theme() {
   });
 
   if (theme.isLoading) return <Loading label="Reading the region…" />;
-  if (theme.isError || !theme.data) return <Failed label="Could not load this region." />;
+  if (theme.isError || !theme.data) return <Failed label="Could not load this region." onRetry={() => void theme.refetch()} />;
 
   const region = theme.data;
   const status = region.epistemic_status;

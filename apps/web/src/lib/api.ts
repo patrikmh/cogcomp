@@ -56,7 +56,7 @@ function parseVoiceEvents(
 }
 
 let token: string | null = localStorage.getItem("tlon.token");
-let onUnauthorized: (() => void) | null = null;
+let onUnauthorized: ((token: string) => void) | null = null;
 
 export function setToken(next: string | null) {
   token = next;
@@ -69,15 +69,20 @@ export function currentToken() {
 }
 
 /** Called when the server has forgotten a token we still hold. */
-export function onSessionLost(handler: () => void) {
+export function onSessionLost(handler: (token: string) => void) {
   onUnauthorized = handler;
 }
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+async function request<T>(
+  path: string,
+  init: RequestInit = {},
+  authToken: string | null | undefined = undefined,
+  handleUnauthorized = true,
+): Promise<T> {
   const headers: Record<string, string> = { ...(init.headers as Record<string, string>) };
   // FormData sets its own multipart boundary; naming a content type breaks it.
   if (!(init.body instanceof FormData)) headers["Content-Type"] = "application/json";
-  const sent = token;
+  const sent = authToken === undefined ? token : authToken;
   if (sent) headers.Authorization = `Bearer ${sent}`;
 
   const response = await fetch(`${BASE}${path}`, { ...init, headers });
@@ -87,11 +92,12 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   // one: it cleared a token that was never there, fired the session-lost
   // handler, and replaced the server's "invalid email or password" with the
   // status line's own word for it, which named neither field.
-  if (response.status === 401 && sent) {
+  if (response.status === 401 && sent && sent === token && handleUnauthorized) {
     // A token the server has forgotten leaves you inside the app with every
-    // screen showing its own unrelated error. Clear it once, here.
+    // screen showing its own unrelated error. Clear it once, here. A stale
+    // request from an older account must not clear the newer account.
     setToken(null);
-    onUnauthorized?.();
+    onUnauthorized?.(sent);
     throw new ApiError(401, "unauthorized");
   }
   if (!response.ok) {
@@ -105,6 +111,24 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
+}
+
+/** Apply the same session-loss semantics to endpoints whose body is a stream. */
+async function checkStreamingResponse(response: Response, sent: string | null): Promise<void> {
+  if (response.status === 401 && sent && sent === token) {
+    setToken(null);
+    onUnauthorized?.(sent);
+    throw new ApiError(401, "unauthorized");
+  }
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as {
+      detail?: string | { msg?: string }[];
+    };
+    const detail = Array.isArray(body.detail)
+      ? body.detail.map((d) => d.msg ?? "invalid value").join(", ")
+      : (body.detail ?? response.statusText);
+    throw new ApiError(response.status, detail);
+  }
 }
 
 /* ------------------------------------------------------------------ types */
@@ -319,7 +343,8 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ email, password, device: "web" }),
     }),
-  logout: () => request<void>("/v1/auth/logout", { method: "POST" }),
+  logout: (authToken?: string) =>
+    request<void>("/v1/auth/logout", { method: "POST" }, authToken, false),
   me: () => request<{ user_id: string; email: string; created_at: string }>("/v1/auth/me"),
 
   /* capture */
@@ -327,7 +352,7 @@ export const api = {
     request<{ observations: Observation[]; next_before: string | null }>(
       `/v1/observations?limit=${limit}`,
     ),
-  createObservation: (input: { id: string; content: string; capturedAt: string }) =>
+  createObservation: (input: { id: string; content: string; capturedAt: string; timezone?: string }) =>
     request<Observation>("/v1/observations", {
       method: "POST",
       body: JSON.stringify({
@@ -336,16 +361,16 @@ export const api = {
         source: "text",
         captured_at: input.capturedAt,
         // A day is a local fact; attached here so no screen can forget it.
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+        timezone: input.timezone ?? (Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"),
       }),
     }),
-  createVoiceObservation: (input: { id: string; audio: Blob; capturedAt: string }) => {
+  createVoiceObservation: (input: { id: string; audio: Blob; capturedAt: string; timezone?: string }, authToken?: string) => {
     const form = new FormData();
     form.append("id", input.id);
     form.append("audio", input.audio, "recording.webm");
     form.append("captured_at", input.capturedAt);
-    form.append("timezone", Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
-    return request<Observation>("/v1/observations/voice", { method: "POST", body: form });
+    form.append("timezone", input.timezone ?? (Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"));
+    return request<Observation>("/v1/observations/voice", { method: "POST", body: form }, authToken);
   },
   extract: (id: string) =>
     request<{ observation_id: string; nodes: number; edges: number }>(
@@ -354,10 +379,14 @@ export const api = {
     ),
 
   /* reading back */
-  daily: (day: string, tz: string) =>
-    request<DailySummary>(`/v1/summary/${day}?tz=${encodeURIComponent(tz)}`),
-  weekly: (monday: string, tz: string) =>
-    request<WeeklySummary>(`/v1/summary/week/${monday}?tz=${encodeURIComponent(tz)}`),
+  daily: (day: string, tz: string, includeFindings = true) =>
+    request<DailySummary>(
+      `/v1/summary/${day}?tz=${encodeURIComponent(tz)}&include_findings=${includeFindings}`,
+    ),
+  weekly: (monday: string, tz: string, includeFindings = true) =>
+    request<WeeklySummary>(
+      `/v1/summary/week/${monday}?tz=${encodeURIComponent(tz)}&include_findings=${includeFindings}`,
+    ),
   vocabulary: (monday: string, tz: string, weeks = 8) =>
     request<{ timezone: string; weeks: VocabularyWeek[] }>(
       `/v1/vocabulary/${monday}?tz=${encodeURIComponent(tz)}&weeks=${weeks}`,
@@ -416,18 +445,21 @@ export const api = {
     request<void>(`/v1/identity/selections/${nodeId}`, { method: "DELETE" }),
 
   /* experiments */
-  experiments: () => request<{ experiments: Experiment[] }>("/v1/experiments"),
-  experiment: (id: string) => request<Experiment>(`/v1/experiments/${id}`),
+  experiments: (includeLinks = true) =>
+    request<{ experiments: Experiment[] }>(`/v1/experiments${includeLinks ? "" : "?include_links=false"}`),
+  experiment: (id: string, includeLinks = true) =>
+    request<Experiment>(`/v1/experiments/${id}${includeLinks ? "" : "?include_links=false"}`),
   createExperiment: (input: Omit<Experiment, "state" | "revision">) =>
     request<Experiment>("/v1/experiments", { method: "POST", body: JSON.stringify(input) }),
   experimentTransition: (
     id: string,
     target: "start" | "pause" | "resume" | "cancel",
     revision: number,
+    includeLinks = true,
   ) =>
     request<Experiment>(`/v1/experiments/${id}/${target}`, {
       method: "POST",
-      body: JSON.stringify({ revision }),
+      body: JSON.stringify({ revision, ...(includeLinks ? {} : { include_links: false }) }),
     }),
   completeExperiment: (
     id: string,
@@ -435,6 +467,7 @@ export const api = {
     assessment: string,
     finalCheckin: string,
     note?: string,
+    includeLinks = true,
   ) =>
     request<Experiment>(`/v1/experiments/${id}/complete`, {
       method: "POST",
@@ -443,6 +476,7 @@ export const api = {
         assessment,
         note: note?.trim() || null,
         final_checkin_observation_id: finalCheckin,
+        ...(includeLinks ? {} : { include_links: false }),
       }),
     }),
   deleteExperiment: (id: string, revision: number) =>
@@ -465,13 +499,14 @@ export const api = {
       closed_at: string | null;
       agent: string;
       flagged: boolean;
+      crisis_resources: string[];
       turns: { speaker: "user" | "assistant"; content: string }[];
     }>(`/v1/conversations/${id}`),
   startConversation: () =>
     request<{ id: string; started_at: string; agent: string }>("/v1/conversations", {
       method: "POST",
     }),
-  say: (conversationId: string, content: string) =>
+  say: (conversationId: string, content: string, clientTurnId = crypto.randomUUID()) =>
     request<{ reply: string; crisis: boolean; crisis_resources: string[] }>(
       `/v1/conversations/${conversationId}/turns`,
       {
@@ -480,6 +515,7 @@ export const api = {
           content,
           source: "text",
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+          client_turn_id: clientTurnId,
         }),
       },
     ),
@@ -495,21 +531,22 @@ export const api = {
     audio: Blob,
     onTranscript: (text: string) => void,
     onDelta: (text: string) => void,
+    clientTurnId = crypto.randomUUID(),
+    authToken?: string,
   ): Promise<{ reply: string; crisis: boolean; crisis_resources: string[] }> => {
     const form = new FormData();
     form.append("audio", audio, `recording${extensionFor(audio.type)}`);
     form.append("timezone", Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
+    form.append("client_turn_id", clientTurnId);
     const headers: Record<string, string> = {};
-    if (token) headers.Authorization = `Bearer ${token}`;
+    const sentToken = authToken === undefined ? token : authToken;
+    if (sentToken) headers.Authorization = `Bearer ${sentToken}`;
     const response = await fetch(`${BASE}/v1/conversations/${conversationId}/turns/voice/stream`, {
       method: "POST",
       headers,
       body: form,
     });
-    if (!response.ok) {
-      const body = (await response.json().catch(() => ({}))) as { detail?: string };
-      throw new ApiError(response.status, body.detail ?? response.statusText);
-    }
+    await checkStreamingResponse(response, sentToken);
 
     const reader = response.body?.getReader();
     if (!reader) {
@@ -549,9 +586,11 @@ export const api = {
     conversationId: string,
     content: string,
     onDelta: (text: string) => void,
+    clientTurnId = crypto.randomUUID(),
   ): Promise<{ reply: string; crisis: boolean; crisis_resources: string[] }> => {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (token) headers.Authorization = `Bearer ${token}`;
+    const sentToken = token;
+    if (sentToken) headers.Authorization = `Bearer ${sentToken}`;
 
     const response = await fetch(`${BASE}/v1/conversations/${conversationId}/turns/stream`, {
       method: "POST",
@@ -560,13 +599,11 @@ export const api = {
         content,
         source: "text",
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+        client_turn_id: clientTurnId,
       }),
     });
 
-    if (!response.ok) {
-      const body = (await response.json().catch(() => ({}))) as { detail?: string };
-      throw new ApiError(response.status, body.detail ?? response.statusText);
-    }
+    await checkStreamingResponse(response, sentToken);
     if (!response.body) {
       const raw = await response.text();
       let reply: { reply: string; crisis: boolean; crisis_resources: string[] } | null = null;
@@ -629,11 +666,13 @@ export const api = {
     return reply;
   },
 
-  closeConversation: (conversationId: string) =>
-    request<{ conversation_id: string; observations: string[]; turns_converted: number }>(
-      `/v1/conversations/${conversationId}/close`,
+  closeConversation: (conversationId: string, includeFindings = true) => {
+    const params = new URLSearchParams({ include_findings: String(includeFindings) });
+    return request<{ conversation_id: string; observations: string[]; turns_converted: number }>(
+      `/v1/conversations/${conversationId}/close?${params.toString()}`,
       { method: "POST" },
-    ),
+    );
+  },
 
   /** Synthesise a reply so it can be listened to.
    *

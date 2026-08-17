@@ -14,41 +14,32 @@ export function Settings() {
   const [exported, setExported] = useState(false);
 
   async function exportEverything() {
-    // Everything the person wrote, and everything drawn from it. Assembled
-    // client-side from the same endpoints the screens use.
-    //
-    // The readings are the point and they were missing: this offered "entries,
-    // readings and patterns" and wrote a file with no readings in it. What was
-    // inferred about someone is the part they are least able to reconstruct
-    // themselves, so it is the part an export most owes them. The trials they
-    // set and what they chose to keep are theirs too.
-    const [observations, patterns, themes, readings, identity, experiments] = await Promise.all([
+    // Findings are derived from the person's observations. When they are off,
+    // keep the observations and the person's experiment fields, but do not
+    // export any derived reading or metadata that links an experiment to one.
+    const [observations, experiments, patterns, themes, readings, identity] = await Promise.all([
       api.observations(500),
-      api.patterns().catch(() => []),
-      api.themes().catch(() => []),
-      api.graph(1000).catch(() => ({ nodes: [], edges: [] })),
-      api.identity(true).catch(() => ({ nodes: [] })),
-      api.experiments().catch(() => ({ experiments: [] })),
+      api.experiments(findings).catch(() => ({ experiments: [] })),
+      findings ? api.patterns().catch(() => []) : Promise.resolve(undefined),
+      findings ? api.themes().catch(() => []) : Promise.resolve(undefined),
+      findings ? api.graph(1000).catch(() => ({ nodes: [], edges: [] })) : Promise.resolve(undefined),
+      findings ? api.identity(true).catch(() => ({ nodes: [] })) : Promise.resolve(undefined),
     ]);
-    const blob = new Blob(
-      [
-        JSON.stringify(
-          {
-            exported: new Date().toISOString(),
-            observations,
-            readings: readings.nodes,
-            edges: readings.edges,
+    const exportData = {
+      exported: new Date().toISOString(),
+      observations: observations.observations,
+      experiments: experiments.experiments,
+      ...(findings
+        ? {
+            readings: readings!.nodes,
+            edges: readings!.edges,
             patterns,
             themes,
-            identity: identity.nodes,
-            experiments: experiments.experiments,
-          },
-          null,
-          2,
-        ),
-      ],
-      { type: "application/json" },
-    );
+            identity: identity!.nodes,
+          }
+        : {}),
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -84,7 +75,11 @@ export function Settings() {
 
         <Action
           label="Export everything"
-          note="Entries, readings, patterns, regions, what you kept, and your experiments — as JSON."
+          note={
+            findings
+              ? "Entries, readings, patterns, regions, what you kept, and your experiments — as JSON."
+              : "Entries and your experiment details — as JSON. Findings and their links are omitted; nothing is deleted."
+          }
           button={
             <button className="btn ghost" onClick={() => void exportEverything()}>
               {exported ? "EXPORTED" : "EXPORT"}

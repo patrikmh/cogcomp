@@ -6,6 +6,7 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { Kicker, Rule } from "@/components/Marks";
 import { MotionSurface } from "@/components/MotionSurface";
 import { colors, fonts } from "@/theme";
+import { useSession } from "@/state/session";
 
 /**
  * What happens to your words.
@@ -21,6 +22,8 @@ import { colors, fonts } from "@/theme";
  */
 export default function WordsScreen() {
   const router = useRouter();
+  const token = useSession((state) => state.token);
+  const destination = token ? "/" : "/login";
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -43,14 +46,14 @@ export default function WordsScreen() {
       <View style={styles.actions}>
         <MotionSurface
           style={styles.primary}
-          onPress={() => router.replace("/")}
+          onPress={() => router.replace(destination)}
           accessibilityRole="button"
         >
           <Text style={styles.primaryLabel}>Start writing</Text>
         </MotionSurface>
         <MotionSurface
           style={styles.secondary}
-          onPress={() => router.push("/settings")}
+          onPress={() => router.push(token ? "/settings" : "/login")}
           accessibilityRole="button"
         >
           <Text style={styles.secondaryLabel}>Settings</Text>

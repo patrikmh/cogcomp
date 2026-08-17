@@ -114,6 +114,8 @@ export function PatternDetail() {
       {ordered ? (
         ordering.isLoading ? (
           <Loading label="Reading the order…" />
+        ) : ordering.isError ? (
+          <Failed label="Could not load ordered evidence." onRetry={() => void ordering.refetch()} />
         ) : occasions.length === 0 ? (
           // An absence, not a failure. `Failed` carries role="alert", which
           // tells a screen reader something went wrong; nothing did — the
@@ -157,6 +159,8 @@ export function PatternDetail() {
           </div>
           {evidence.isLoading ? (
             <Loading />
+          ) : evidence.isError ? (
+            <Failed label="Could not load source evidence." onRetry={() => void evidence.refetch()} />
           ) : (
             (evidence.data?.derived_from ?? []).map((e) => (
               <Act key={e.id} id={e.id} content={e.content} at={e.captured_at} />

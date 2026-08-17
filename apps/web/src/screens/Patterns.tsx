@@ -72,7 +72,7 @@ export function Patterns() {
   }
 
   if (patterns.isLoading) return <Loading />;
-  if (patterns.isError) return <Failed />;
+  if (patterns.isError) return <Failed onRetry={() => void patterns.refetch()} />;
 
   const found = patterns.data ?? [];
   const held = found.filter((p) => !p.tentative).sort((a, b) => b.distinct_days - a.distinct_days);
@@ -199,6 +199,7 @@ function Row({ pattern }: { pattern: Pattern }) {
         <div className="p-peek">
           {peek ?? <Legend pattern={pattern} />}
         </div>
+        <p className="mono">Illustrative placement only — cells are not calendar days or counted dates. Exact counts and source evidence are on the finding.</p>
       </div>
 
       {/* What the finding is made of, linked to their own evidence. A finding
@@ -235,7 +236,7 @@ function Legend({ pattern }: { pattern: Pattern }) {
       <>
         <span className="p-sw ink" />
         stated · <span className="p-sw sand" />
-        recorded — the two rarely meet. Hover a day.
+        recorded — the two rarely meet. Illustrative cells, not calendar dates. Hover a cell.
       </>
     );
   }
@@ -244,14 +245,14 @@ function Legend({ pattern }: { pattern: Pattern }) {
       <>
         <span className="p-sw ink" />
         first · <span className="p-sw line" />
-        then — never in the same entry. Hover a day.
+        then — never in the same entry. Illustrative cells, not calendar dates. Hover a cell.
       </>
     );
   }
   return (
     <>
       <span className="p-sw ink" />
-      {pattern.distinct_days} of the {pattern.occurrences} it rests on — hover a day.
+      {pattern.distinct_days} of the {pattern.occurrences} it rests on — illustrative placement, not calendar dates. Hover a cell.
     </>
   );
 }
@@ -272,10 +273,10 @@ function Strip({ pattern, onPeek }: { pattern: Pattern; onPeek: (peek: string | 
       {lit.map((on, i) => {
         const other = second[i];
         const label = on
-          ? `day ${i + 1} of 14 · counted`
+          ? `illustrative cell ${i + 1} of 14 · counted recurrence, not a calendar date`
           : other
-            ? `day ${i + 1} of 14 · the other side of the pair`
-            : `day ${i + 1} of 14 · neither`;
+            ? `illustrative cell ${i + 1} of 14 · the other side of the pair, not a calendar date`
+            : `illustrative cell ${i + 1} of 14 · neither; not a calendar date`;
         return (
           <div
             key={i}

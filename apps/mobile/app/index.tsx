@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import {
   ScrollView,
   StyleSheet,
@@ -16,9 +16,12 @@ import { Seal } from "@/components/Seal";
 import Svg, { Path } from "react-native-svg";
 import { RecordButton } from "@/components/RecordButton";
 import { ApiError, api, type ObservationResponse } from "@/lib/api";
+import { deviceTimezone } from "@/lib/dates";
 import { useDrawnFrom } from "@/lib/drawnFrom";
 import { uuidv7 } from "@/lib/ids";
 import { useSession } from "@/state/session";
+import { forgetCapture, pendingCaptures, rememberCapture, type PendingCapture } from "@/state/pendingCapture";
+import { usePreferences } from "@/state/preferences";
 import { colors, fonts } from "@/theme";
 import { type as scale } from "@tlon/design";
 import { radii } from "@tlon/design";
@@ -49,6 +52,26 @@ export default function JournalScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState("");
+  const [pendingVoice, setPendingVoice] = useState<PendingCapture[]>([]);
+  const [pendingText, setPendingText] = useState<PendingCapture[]>([]);
+  const restoreGeneration = useRef(0);
+  const voiceIds = useRef(new Map<string, string>());
+  const showFindings = usePreferences((s) => s.findings);
+  const preferencesReady = usePreferences((s) => s.ready);
+  const findingsVisible = preferencesReady && showFindings;
+  const timezone = deviceTimezone();
+  useEffect(() => {
+    const generation = ++restoreGeneration.current;
+    setDraft("");
+    setPendingVoice([]);
+    setPendingText([]);
+    if (!userId) return;
+    void pendingCaptures(userId).then((captures) => {
+      if (generation !== restoreGeneration.current || useSession.getState().userId !== userId) return;
+      setPendingText(captures.filter((capture) => capture.source === "text"));
+      setPendingVoice(captures.filter((capture) => capture.source === "voice"));
+    });
+  }, [userId]);
 
   const observations = useQuery({
     queryKey: ["observations", userId],
@@ -56,31 +79,46 @@ export default function JournalScreen() {
     enabled: Boolean(token && userId),
   });
 
-  const drawnFrom = useDrawnFrom(token, userId);
+  // Derived provenance is opt-in and must not be fetched or read from the
+  // React Query cache while findings are hidden. Observations remain raw journal
+  // content and continue to render normally.
+  const drawnFrom = useDrawnFrom(token, userId, 4, findingsVisible);
 
   const capture = useMutation({
-    mutationFn: (content: string) =>
-      api.createObservation(token!, {
-        id: uuidv7(),
-        content,
-        source: "text",
-        capturedAt: new Date().toISOString(),
-      }),
-    onSuccess: () => {
+    mutationFn: async ({ content, id }: { content: string; id: string }) => {
+      // An existing envelope is reused only when Retry supplies its ID. Normal
+      // submissions mint a fresh ID before reaching this mutation.
+      const existing = (await pendingCaptures(userId!)).find((item) => item.id === id);
+      const envelope: PendingCapture = existing ?? { id, userId: userId!, content, source: "text", capturedAt: new Date().toISOString(), timezone };
+      await rememberCapture(envelope);
+      if (useSession.getState().userId === userId) setPendingText((items) => items.some((item) => item.id === envelope.id) ? items : [...items, envelope]);
+      return api.createObservation(token!, { ...envelope, content: envelope.content! });
+    },
+    onSuccess: async (created, { content }) => {
+      if (useSession.getState().userId !== userId) return;
+      await forgetCapture(userId!, created.id);
+      setPendingText((items) => items.filter((item) => item.id !== created.id));
       setDraft("");
       void queryClient.invalidateQueries({ queryKey: ["observations", userId] });
+      void queryClient.invalidateQueries({ queryKey: ["summary"] });
     },
   });
 
   const captureVoice = useMutation({
-    mutationFn: (uri: string) =>
-      api.createVoiceObservation(token!, {
-        id: uuidv7(),
-        uri,
-        capturedAt: new Date().toISOString(),
-      }),
-    onSuccess: () => {
+    mutationFn: async ({ uri, id }: { uri: string; id: string }) => {
+      const existing = (await pendingCaptures(userId!)).find((item) => item.id === id);
+      const envelope: PendingCapture = existing ?? { id, userId: userId!, source: "voice", uri, capturedAt: new Date().toISOString(), timezone };
+      await rememberCapture(envelope);
+      if (useSession.getState().userId === userId) setPendingVoice((items) => items.some((item) => item.id === envelope.id) ? items : [...items, envelope]);
+      return api.createVoiceObservation(token!, { id: envelope.id, uri: envelope.uri!, capturedAt: envelope.capturedAt, timezone: envelope.timezone });
+    },
+    onSuccess: async (_, { id, uri }) => {
+      if (useSession.getState().userId !== userId) return;
+      await forgetCapture(userId!, id);
+      setPendingVoice((items) => items.filter((item) => item.id !== id));
+      voiceIds.current.delete(uri);
       void queryClient.invalidateQueries({ queryKey: ["observations", userId] });
+      void queryClient.invalidateQueries({ queryKey: ["summary"] });
     },
   });
 
@@ -134,12 +172,7 @@ export default function JournalScreen() {
                 stagger={DAY_STAGGER_MS}
                 cap={DAY_STAGGER_CAP_MS}
               >
-                <MotionSurface
-                  style={styles.entry}
-                  onPress={() => router.push(`/node/${entry.id}`)}
-                  accessibilityRole="button"
-                  accessibilityLabel={entry.content}
-                >
+                <View style={styles.entry}>
                   <Text style={styles.time}>{shortTime(entry.captured_at)}</Text>
                   {/* A hairline with a dot on it, filled on the latest act and
                       hollow on the rest — the design's `.j-spine`. This was a
@@ -152,11 +185,18 @@ export default function JournalScreen() {
                   <View style={styles.act}>
                     <Seal id={entry.id} size={gi === 0 && i === 0 ? 58 : 52} />
                     <View style={styles.actBody}>
-                      {gi === 0 && i === 0 && <Kicker>Latest · saved</Kicker>}
-                      <Text style={[styles.entryText, gi === 0 && i === 0 && styles.entryTextLatest]}>
-                        {entry.content}
-                      </Text>
-                      {(drawnFrom.get(entry.id)?.length ?? 0) > 0 ? (
+                      <MotionSurface
+                        style={styles.entryTextControl}
+                        onPress={() => router.push(`/node/${entry.id}`)}
+                        accessibilityRole="button"
+                        accessibilityLabel={entry.content}
+                      >
+                        {gi === 0 && i === 0 && <Kicker>Latest · saved</Kicker>}
+                        <Text style={[styles.entryText, gi === 0 && i === 0 && styles.entryTextLatest]}>
+                          {entry.content}
+                        </Text>
+                      </MotionSurface>
+                      {findingsVisible && (drawnFrom.get(entry.id)?.length ?? 0) > 0 ? (
                         <View style={styles.chipRow}>
                           {/* On the newest entry only, and only while the words
                               are still the ones in front of you: the kicker asks
@@ -179,12 +219,12 @@ export default function JournalScreen() {
                             ))}
                           </View>
                         </View>
-                      ) : (
+                      ) : findingsVisible ? (
                         <Text style={styles.readoutOpen}>nothing drawn from this yet</Text>
-                      )}
+                      ) : null}
                     </View>
                   </View>
-                </MotionSurface>
+                </View>
               </Rise>
             ))}
           </View>
@@ -222,12 +262,30 @@ export default function JournalScreen() {
           editable={!capture.isPending}
           accessibilityLabel="Journal entry"
         />
+        {(pendingText.length > 0 || pendingVoice.length > 0) && (
+          <View style={styles.recovery}>
+            {pendingText.map((item) => item.content && <View key={item.id} style={styles.recoveryRow}>
+              <Text style={styles.recoveryText}>An entry is waiting to be saved.</Text>
+              <MotionSurface disabled={capture.isPending} onPress={() => capture.mutate({ content: item.content!, id: item.id })} accessibilityRole="button" accessibilityLabel="Retry journal entry"><Text style={styles.recoveryAction}>Retry</Text></MotionSurface>
+              <MotionSurface onPress={async () => { await forgetCapture(userId!, item.id); setPendingText((items) => items.filter((candidate) => candidate.id !== item.id)); }} accessibilityRole="button" accessibilityLabel="Discard journal entry"><Text style={styles.recoveryAction}>Discard</Text></MotionSurface>
+            </View>)}
+            {pendingVoice.map((item) => (
+              <View key={item.id} style={styles.recoveryRow}>
+                <Text style={styles.recoveryText}>A recording is waiting to be saved.</Text>
+                <MotionSurface disabled={captureVoice.isPending} onPress={() => item.uri && captureVoice.mutate({ uri: item.uri, id: item.id })} accessibilityRole="button" accessibilityLabel="Retry recording"><Text style={styles.recoveryAction}>Retry</Text></MotionSurface>
+                <MotionSurface onPress={async () => { await forgetCapture(userId!, item.id); setPendingVoice((items) => items.filter((candidate) => candidate.id !== item.id)); }} accessibilityRole="button" accessibilityLabel="Discard recording"><Text style={styles.recoveryAction}>Discard</Text></MotionSurface>
+              </View>
+            ))}
+          </View>
+        )}
         <RecordButton
           compact
           tone="dark"
           disabled={capture.isPending}
           onRecorded={async (uri) => {
-            await captureVoice.mutateAsync(uri);
+            const id = voiceIds.current.get(uri) ?? uuidv7();
+            voiceIds.current.set(uri, id);
+            await captureVoice.mutateAsync({ uri, id });
           }}
         />
         {/* Only once there are words to keep. With nothing written the only
@@ -237,7 +295,12 @@ export default function JournalScreen() {
           <MotionSurface
             style={styles.send}
             disabled={capture.isPending}
-            onPress={() => capture.mutate(draft)}
+            onPress={() => {
+              const content = draft.trim();
+              // Every new submission gets its own immutable envelope. Only the
+              // explicit Retry action supplies an existing pending ID.
+              capture.mutate({ content, id: uuidv7() });
+            }}
             accessibilityRole="button"
             accessibilityLabel="Save this entry"
           >
@@ -321,6 +384,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  recovery: { paddingBottom: 6, gap: 4 },
+  recoveryText: { color: colors.warning, fontFamily: fonts.sans, fontSize: 12 },
+  recoveryRow: { flexDirection: "row", gap: 18 },
+  recoveryAction: { color: colors.cyan, fontFamily: fonts.sans, fontWeight: "700" },
   capState: {
     paddingTop: 8,
     color: colors.inkMuted,
@@ -367,6 +434,7 @@ const styles = StyleSheet.create({
   rule: { flex: 1, height: 1, backgroundColor: colors.line },
   // Time down the left, a hairline spine, then the act — the web's j-entry.
   entry: { flexDirection: "row", alignItems: "flex-start", gap: 10, paddingVertical: 8 },
+  entryTextControl: { alignSelf: "stretch" },
   // Right-aligned against the spine, dropped to meet the first line of the act
   // rather than the top of its seal — the design's `.j-time`.
   time: {

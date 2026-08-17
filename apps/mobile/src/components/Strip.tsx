@@ -1,6 +1,6 @@
 import { stripSeries } from "@tlon/design/marks";
 import { useEffect, useRef } from "react";
-import { Animated, Easing, StyleSheet, View } from "react-native";
+import { Animated, Easing, StyleSheet, Text, View } from "react-native";
 
 import { useReducedMotion } from "@/lib/motion";
 import { colors } from "@/theme";
@@ -65,7 +65,8 @@ export function Strip({ pattern }: {
   }, [grow, pattern.id, reduced]);
 
   return (
-    <View style={styles.strip} accessibilityElementsHidden>
+    <View>
+      <View style={styles.strip} accessibilityLabel="Illustrative recurrence strip; cells are not calendar days or counted dates">
       {lit.map((on, i) => {
         const other = second[i];
         const dim = !on && !other;
@@ -98,12 +99,15 @@ export function Strip({ pattern }: {
           </View>
         );
       })}
+      </View>
+      <Text style={styles.disclosure}>Illustrative placement only — cells are not calendar days or counted dates. Exact counts and source evidence are on the finding.</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   strip: { flexDirection: "row", alignItems: "flex-end", gap: 3, height: STRIP_HEIGHT },
+  disclosure: { color: colors.inkMuted, fontSize: 11, lineHeight: 16, marginTop: 6 },
   cell: { flex: 1, height: "100%", justifyContent: "flex-end" },
   // Grown from the bottom, as `transform-origin: bottom` does on the web.
   bar: { width: "100%", borderTopLeftRadius: 2, borderTopRightRadius: 2, backgroundColor: colors.ink },

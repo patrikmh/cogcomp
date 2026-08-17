@@ -62,11 +62,12 @@ export function Guide({ id, lens }: { id: string; lens?: string }) {
       </Pressable>
 
       <Modal visible={open} transparent animationType="none" onRequestClose={() => setOpen(false)}>
-        <Pressable
-          style={styles.backdrop}
-          onPress={() => setOpen(false)}
-          accessibilityLabel="Close"
-        >
+        <View style={styles.backdrop}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setOpen(false)}
+            accessibilityLabel="Close"
+          />
           <Animated.View style={[styles.dialog, { opacity: fade }]}>
             <ScrollView>
               <Text style={styles.title}>{entry.title}</Text>
@@ -81,7 +82,7 @@ export function Guide({ id, lens }: { id: string; lens?: string }) {
               <Text style={styles.closeMark}>×</Text>
             </Pressable>
           </Animated.View>
-        </Pressable>
+        </View>
       </Modal>
     </>
   );

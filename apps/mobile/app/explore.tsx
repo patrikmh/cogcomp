@@ -6,6 +6,7 @@ import { GraphPanel } from "@/components/GraphPanel";
 import { Observatory, Readout } from "@/components/Observatory";
 import { api, type Subgraph } from "@/lib/api";
 import { useSession } from "@/state/session";
+import { usePreferences } from "@/state/preferences";
 import { HEADINGS } from "@tlon/copy/headings";
 import { EMPTY as EMPTY_COPY } from "@tlon/copy/empty";
 
@@ -31,15 +32,19 @@ import { EMPTY as EMPTY_COPY } from "@tlon/copy/empty";
 export default function ExploreScreen() {
   const token = useSession((s) => s.token);
   const router = useRouter();
+  const showFindings = usePreferences((s) => s.findings);
   const [selected, setSelected] = useState<string | null>(null);
 
   const graph = useQuery({
     queryKey: ["graph", "explore"],
     queryFn: () => api.graph(token!, { limit: 200 }),
-    enabled: Boolean(token),
+    enabled: Boolean(token && showFindings),
   });
 
   if (!token) return null;
+  if (!showFindings) {
+    return <Readout tone="Findings off" label="Derived graph views are hidden" meta="Your journal is unchanged" />;
+  }
 
   const subgraph: Subgraph | undefined = graph.data;
   const nodes = subgraph?.nodes ?? [];
@@ -88,6 +93,7 @@ export default function ExploreScreen() {
       onSelect={setSelected}
       loading={graph.isLoading}
       error={graph.isError ? "Could not load the graph." : null}
+      action={graph.isError ? { label: "Retry", onPress: () => void graph.refetch() } : undefined}
       empty={EMPTY_COPY.explore}
       hint={
         subgraph?.truncated

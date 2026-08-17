@@ -19,6 +19,8 @@ export function messageFor(err: unknown): string {
  *  a journal is — the guidance that matters is stated before it is demanded. */
 export function Login() {
   const signIn = useSession((s) => s.signIn);
+  const signOutError = useSession((s) => s.signOutError);
+  const retrySignOut = useSession((s) => s.retrySignOut);
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -73,10 +75,18 @@ export function Login() {
             onChange={(e) => setPassword(e.target.value)}
           />
         </div>
-        {error && (
-          <p className="mono" style={{ marginTop: 12, color: "var(--rust)" }} role="alert">
-            {error}
-          </p>
+        {(error || signOutError) && (
+          <div className="mono" style={{ marginTop: 12, color: "var(--rust)" }} role="alert">
+            {error && <p style={{ margin: 0 }}>{error}</p>}
+            {signOutError && (
+              <>
+                <p style={{ margin: 0 }}>{signOutError}</p>
+                <button className="btn ghost" type="button" onClick={() => void retrySignOut()}>
+                  RETRY REVOCATION
+                </button>
+              </>
+            )}
+          </div>
         )}
         <div className="row" style={{ marginTop: 14 }}>
           <button className="btn" type="submit" disabled={busy}>

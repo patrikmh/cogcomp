@@ -39,6 +39,16 @@ class TestObservations:
         )
         assert response.json()["content"] == "I keep putting this off."
 
+    async def test_a_repeated_matching_id_returns_the_existing_observation(
+        self, client: AsyncClient, account: Account
+    ):
+        observation_id = str(uuid4())
+        payload = {"id": observation_id, "content": "same thought", "source": "text"}
+        first = await client.post("/v1/observations", headers=account.auth, json=payload)
+        second = await client.post("/v1/observations", headers=account.auth, json=payload)
+        assert first.status_code == second.status_code == 201
+        assert second.json() == first.json()
+
     async def test_a_repeated_id_is_a_conflict_not_a_second_thought(
         self, client: AsyncClient, account: Account
     ):

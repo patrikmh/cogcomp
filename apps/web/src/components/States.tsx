@@ -4,10 +4,21 @@ export function Loading({ label = "Reading…" }: { label?: string }) {
   return <div className="empty mono">{label}</div>;
 }
 
-export function Failed({ label = "Could not load this." }: { label?: string }) {
+export function Failed({
+  label = "Could not load this.",
+  onRetry,
+}: {
+  label?: string;
+  onRetry?: () => void;
+}) {
   return (
     <div className="empty mono" role="alert">
-      {label}
+      <span>{label}</span>
+      {onRetry && (
+        <button className="btn ghost" type="button" onClick={onRetry}>
+          Retry
+        </button>
+      )}
     </div>
   );
 }

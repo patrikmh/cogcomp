@@ -70,7 +70,7 @@ export function FieldFrame({ children, label = "Living Observatory field" }: { c
 
 export function LoadingLens({ label = "Reading the field…" }: { label?: string }) { return <View accessibilityRole="progressbar" style={styles.state}><View style={styles.loadingRing} /><Text style={styles.stateText}>{label}</Text></View>; }
 export function EmptyLens({ label }: { label: string }) { return <View accessibilityRole="summary" style={styles.state}><View style={styles.emptyRing} /><Text style={styles.stateText}>{label}</Text></View>; }
-export function ErrorLens({ label }: { label: string }) { return <View accessibilityRole="alert" style={styles.state}><View style={[styles.emptyRing, styles.errorRing]} /><Text style={styles.stateText}>{label}</Text></View>; }
+export function ErrorLens({ label, onRetry }: { label: string; onRetry?: () => void }) { return <View accessibilityRole="alert" style={styles.state}><View style={[styles.emptyRing, styles.errorRing]} /><Text style={styles.stateText}>{label}</Text>{onRetry && <Pressable accessibilityRole="button" accessibilityLabel="Retry loading" onPress={onRetry} style={styles.retry}><Text style={styles.retryText}>Retry</Text></Pressable>}</View>; }
 
 const styles = StyleSheet.create({
   orbit: { position: "absolute", alignSelf: "center", borderWidth: 1, borderRadius: 999, transform: [{ rotate: "24deg" }] },
@@ -92,5 +92,5 @@ const styles = StyleSheet.create({
   // `quiet` finally does something. It has been on Settings since the list was
   // written and no menu had ever read it.
   dockMarkQuiet: { opacity: 0.5 }, dockLabelQuiet: { opacity: 0.6 }, dockMark: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.cyan }, dockLabel: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: 10 },
-  state: { alignItems: "center", justifyContent: "center", gap: 10, minHeight: 120, padding: 24 }, loadingRing: { width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: colors.cyan, borderRightColor: "transparent" }, emptyRing: { width: 22, height: 22, borderRadius: 11, borderWidth: 1, borderColor: colors.lineStrong }, errorRing: { borderColor: colors.danger }, stateText: { color: colors.inkMuted, textAlign: "center", lineHeight: 20 },
+  state: { alignItems: "center", justifyContent: "center", gap: 10, minHeight: 120, padding: 24 }, retry: { minHeight: 44, paddingHorizontal: 18, paddingVertical: 10, borderWidth: 1, borderColor: colors.lineStrong, borderRadius: 4 }, retryText: { color: colors.ink, fontFamily: fonts.sans, fontWeight: "600" }, loadingRing: { width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: colors.cyan, borderRightColor: "transparent" }, emptyRing: { width: 22, height: 22, borderRadius: 11, borderWidth: 1, borderColor: colors.lineStrong }, errorRing: { borderColor: colors.danger }, stateText: { color: colors.inkMuted, textAlign: "center", lineHeight: 20 },
 });

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useLocalSearchParams } from "expo-router";
+import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import {
   ActivityIndicator,
   ScrollView,
@@ -7,14 +7,16 @@ import {
   Text,
   View,
 } from "react-native";
+import { useCallback, useEffect, useState } from "react";
 
 import { AtmosphericShell } from "@/components/Atmospheric";
 import { Kicker, Meter, Rule } from "@/components/Marks";
 import { Seal } from "@/components/Seal";
 import { EvidenceRail, FieldFrame, LoadingLens, ErrorLens, ObservablePearl } from "@/components/SpatialField";
 import { MotionSurface } from "@/components/MotionSurface";
-import { api, type Explanation, type Judgement } from "@/lib/api";
+import { api, type Explanation, type Judgement, type ObservationResponse } from "@/lib/api";
 import { useSession } from "@/state/session";
+import { usePreferences } from "@/state/preferences";
 import { colors, fonts } from "@/theme";
 import { radii } from "@tlon/design";
 import { type as scale } from "@tlon/design";
@@ -32,19 +34,38 @@ import { SECTIONS } from "@tlon/copy/sections";
 export default function NodeScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const token = useSession((s) => s.token);
+  const showFindings = usePreferences((s) => s.findings);
 
   const explanation = useQuery({
     queryKey: ["explain", id],
     queryFn: () => api.explain(token!, id!),
-    enabled: Boolean(token && id),
+    enabled: Boolean(token && id && showFindings),
+    refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
   });
+  const observation = useQuery({
+    queryKey: ["observation", id],
+    queryFn: () => api.getObservation(token!, id!),
+    enabled: Boolean(token && id && !showFindings),
+  });
+
+  useFocusEffect(
+    useCallback(() => {
+      if (token && id && showFindings) void explanation.refetch();
+    }, [explanation.refetch, id, showFindings, token]),
+  );
 
   // The auth gate in _layout redirects before this renders when signed out.
   if (!token) return null;
+  if (!showFindings) {
+    if (observation.isLoading) return <LoadingLens label="Loading entry…" />;
+    if (observation.data) return <RawObservation observation={observation.data} />;
+    return <ErrorLens label="This derived reading is hidden." />;
+  }
 
   if (explanation.isLoading) return <LoadingLens label="Tracing provenance…" />;
   if (explanation.isError || !explanation.data) {
-    return <ErrorLens label="Could not load this." />;
+    return <ErrorLens label="Could not load this." onRetry={() => void explanation.refetch()} />;
   }
 
   return <Body explanation={explanation.data} nodeId={id!} />;
@@ -64,11 +85,25 @@ export default function NodeScreen() {
 function Verdict({ nodeId, status }: { nodeId: string; status: string }) {
   const token = useSession((s) => s.token);
   const client = useQueryClient();
+  const [visibleStatus, setVisibleStatus] = useState(status);
+
+  // Keep the server response authoritative once it changes, while allowing the
+  // consequence of a tap to be visible before the explanation query is refetched.
+  useEffect(() => setVisibleStatus(status), [status]);
 
   const judge = useMutation({
     mutationFn: (next: Judgement) => api.judgeNode(token!, nodeId, next),
+    onMutate: (next) => {
+      const previousStatus = visibleStatus;
+      setVisibleStatus(next);
+      return { previousStatus };
+    },
+    onError: (_error, _next, context) => {
+      // Never leave an optimistic withdrawal visible after the server rejected it.
+      if (context) setVisibleStatus(context.previousStatus);
+    },
     onSuccess: () => {
-      void client.invalidateQueries({ queryKey: ["explain", nodeId] });
+      void client.invalidateQueries({ queryKey: ["explain", nodeId], refetchType: "active" });
       // Rejecting a reading removes it from everything derived from it, so the
       // screens showing those have to be told.
       void client.invalidateQueries({ queryKey: ["patterns"] });
@@ -82,47 +117,53 @@ function Verdict({ nodeId, status }: { nodeId: string; status: string }) {
       // stands behind.
       void client.invalidateQueries({ queryKey: ["summary"] });
     },
+    onSettled: () => {
+      // Success and failure both reconcile against the authority, including a
+      // withdrawal that raced with a previous judgement.
+      void client.invalidateQueries({ queryKey: ["explain", nodeId], refetchType: "active" });
+    },
   });
-
-  const choose = (next: Judgement) =>
-    judge.mutate(status === next ? "hypothesis" : next);
+  const choose = (next: Judgement) => {
+    if (judge.isPending) return;
+    judge.mutate(visibleStatus === next ? "hypothesis" : next);
+  };
 
   return (
     <View style={styles.verdict}>
       <Text style={styles.verdictAsk}>Does this match how it was?</Text>
       <View style={styles.verdictRow}>
         <MotionSurface
-          style={[styles.choice, status === "user_confirmed" && styles.choiceYes]}
+          style={[styles.choice, visibleStatus === "user_confirmed" && styles.choiceYes]}
           onPress={() => choose("user_confirmed")}
           accessibilityRole="button"
-          accessibilityState={{ selected: status === "user_confirmed" }}
+          accessibilityState={{ selected: visibleStatus === "user_confirmed" }}
         >
           <Text
             style={[
               styles.choiceLabel,
-              status === "user_confirmed" && styles.choiceLabelOn,
+              visibleStatus === "user_confirmed" && styles.choiceLabelOn,
             ]}
           >
             Yes
           </Text>
         </MotionSurface>
         <MotionSurface
-          style={[styles.choice, status === "user_rejected" && styles.choiceNo]}
+          style={[styles.choice, visibleStatus === "user_rejected" && styles.choiceNo]}
           onPress={() => choose("user_rejected")}
           accessibilityRole="button"
-          accessibilityState={{ selected: status === "user_rejected" }}
+          accessibilityState={{ selected: visibleStatus === "user_rejected" }}
         >
           <Text
             style={[
               styles.choiceLabel,
-              status === "user_rejected" && styles.choiceLabelOn,
+              visibleStatus === "user_rejected" && styles.choiceLabelOn,
             ]}
           >
             Not really
           </Text>
         </MotionSurface>
       </View>
-      {status === "user_rejected" && (
+      {visibleStatus === "user_rejected" && (
         // Said plainly, because the consequence is the point: this is what makes
         // disagreeing worth the tap.
         <Text style={styles.verdictNote}>
@@ -133,6 +174,25 @@ function Verdict({ nodeId, status }: { nodeId: string; status: string }) {
         <Text style={styles.verdictNote}>Could not save that. Try again.</Text>
       )}
     </View>
+  );
+}
+
+function RawObservation({ observation }: { observation: ObservationResponse }) {
+  return (
+    <AtmosphericShell variant="secondary">
+      <ScrollView contentContainerStyle={styles.screen}>
+        <View style={styles.actHead}>
+          <Seal id={observation.id} size={34} />
+          <Kicker>{HEADINGS.node.kicker}</Kicker>
+        </View>
+        <Text style={styles.rawContent} accessibilityLabel={`Journal entry: ${observation.content}`}>
+          {observation.content}
+        </Text>
+        <Text style={styles.meta}>
+          {new Date(observation.captured_at).toLocaleString()} · {observation.source}
+        </Text>
+      </ScrollView>
+    </AtmosphericShell>
   );
 }
 
@@ -363,6 +423,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   sourceText: { fontFamily: fonts.sans, fontSize: 16, lineHeight: 23, color: colors.ink },
+  rawContent: { fontFamily: fonts.sans, fontSize: 22, lineHeight: 31, color: colors.ink, marginTop: 16 },
   meta: { fontFamily: fonts.sans, fontSize: 12, color: colors.inkMuted },
   provenance: {
     backgroundColor: colors.surface,

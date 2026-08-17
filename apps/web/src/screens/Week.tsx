@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 import { DETECTOR_LABEL, deviceTimezone, localDay, mondayOf, shiftDay } from "@/lib/format";
 import { Seal } from "@/lib/seal";
 import { SECTIONS, asideOf } from "@tlon/copy/sections";
+import { usePreferences } from "@/state/preferences";
 
 /**
  * A week, as a rhythm.
@@ -26,6 +27,7 @@ import { SECTIONS, asideOf } from "@tlon/copy/sections";
  */
 export function Week() {
   const tz = deviceTimezone();
+  const showFindings = usePreferences((s) => s.findings);
   const navigate = useNavigate();
   const [back, setBack] = useState(0);
   const [peek, setPeek] = useState<string | null>(null);
@@ -33,19 +35,20 @@ export function Week() {
   const monday = mondayOf(shiftDay(localDay(), -7 * back));
   const otherMonday = mondayOf(shiftDay(monday, back === 0 ? -7 : 7));
 
-  const week = useQuery({ queryKey: ["summary", "week", monday, tz], queryFn: () => api.weekly(monday, tz) });
+  const week = useQuery({ queryKey: ["summary", "week", monday, tz, showFindings], queryFn: () => api.weekly(monday, tz, showFindings) });
   const other = useQuery({
-    queryKey: ["summary", "week", otherMonday, tz],
-    queryFn: () => api.weekly(otherMonday, tz),
+    queryKey: ["summary", "week", otherMonday, tz, showFindings],
+    queryFn: () => api.weekly(otherMonday, tz, showFindings),
   });
-  const patterns = useQuery({ queryKey: ["patterns"], queryFn: api.patterns });
+  const patterns = useQuery({ queryKey: ["patterns"], queryFn: api.patterns, enabled: showFindings });
   const words = useQuery({
     queryKey: ["vocabulary", monday, tz],
     queryFn: () => api.vocabulary(monday, tz, 1),
+    enabled: showFindings,
   });
 
   if (week.isLoading) return <Loading />;
-  if (week.isError || !week.data) return <Failed />;
+  if (week.isError || !week.data) return <Failed onRetry={() => void week.refetch()} />;
 
   const days = week.data.days;
   const acts = week.data.entry_count;
@@ -60,8 +63,8 @@ export function Week() {
       ? `as many acts as ${otherName}`
       : `${Math.abs(acts - otherActs)} ${acts > otherActs ? "more" : "fewer"} than ${otherName}`;
 
-  const kept = (patterns.data ?? []).filter((p) => !p.tentative);
-  const forming = (patterns.data ?? []).filter((p) => p.tentative);
+  const kept = showFindings ? (patterns.data ?? []).filter((p) => !p.tentative) : [];
+  const forming = showFindings ? (patterns.data ?? []).filter((p) => p.tentative) : [];
 
   return (
     <div className="scr">
@@ -187,7 +190,7 @@ export function Week() {
           apart from the gathering`. A count of someone's own language is the
           one summary that has nothing in it they could not have counted
           themselves, and it withholds the only part worth showing back. */}
-      {(words.data?.weeks.at(-1)?.words ?? []).length > 0 && (
+      {showFindings && (words.data?.weeks.at(-1)?.words ?? []).length > 0 && (
         <>
           <div className="t-sec">
             <span className="kicker">{SECTIONS.words.title}</span>

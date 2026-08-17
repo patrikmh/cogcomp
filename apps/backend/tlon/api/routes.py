@@ -4,6 +4,7 @@ Handlers stay thin: validate, delegate, serialize. Business logic lives in the d
 and persistence layers where it can be tested without HTTP.
 """
 
+import logging
 from datetime import date as Date
 from datetime import datetime
 from uuid import UUID
@@ -29,7 +30,9 @@ from tlon.domain.observation import NewObservation, Observation, Source
 from tlon.domain.weekly import NonMonday, UnknownTimezone
 from tlon.extraction.pipeline import ExtractionFailed
 from tlon.graph.schema import SCHEMA_VERSION, NodeKind
-from tlon.transcription import AudioTooLarge, TranscriptionError
+from tlon.transcription import AudioTooLarge, TranscriptionError, transcribe_bounded_upload
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -93,7 +96,10 @@ async def create_observation(
     except FileExistsError as exc:
         # The client mints the id, so a retry after a flaky connection resolves to
         # the same observation rather than a second copy of the same thought.
-        raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "that observation id is already in use",
+        ) from exc
     return ObservationResponse.of(observation)
 
 
@@ -116,18 +122,34 @@ async def create_voice_observation(
     Declared before the `/{observation_id}` routes so that "voice" is matched as a
     literal rather than swallowed as an id.
     """
-    payload = await audio.read()
+    existing = await observations_db.find(request.app.state.pool, user_id, id)
+    if existing is not None:
+        if existing.source is Source.VOICE:
+            # A response-loss retry must reconcile before touching the provider. The
+            # immutable envelope metadata must also match; do not let a regenerated
+            # capture time or zone silently attach to the old observation.
+            if (
+                (captured_at is not None and existing.captured_at != captured_at)
+                or existing.timezone != timezone
+            ):
+                raise HTTPException(status.HTTP_409_CONFLICT, "that observation id is already in use")
+            return ObservationResponse.of(existing)
+        raise HTTPException(status.HTTP_409_CONFLICT, "that observation id is already in use")
 
     try:
-        transcript = await request.app.state.transcriber.transcribe(
-            payload, audio.filename or "recording.m4a"
-        )
+        transcript = await transcribe_bounded_upload(audio, request.app.state.transcriber)
     except AudioTooLarge as exc:
-        raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, str(exc)) from exc
+        logger.warning("observation audio upload too large: %s", exc)
+        raise HTTPException(
+            status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            "That recording is too large. Please try a shorter recording.",
+        ) from exc
     except TranscriptionError as exc:
-        # The recording reached us and was rejected downstream, so this is not
-        # something the client fixes by re-sending the same bytes.
-        raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
+        logger.warning("observation transcription failed: %s", exc)
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            "We could not understand that recording. Please try again.",
+        ) from exc
 
     try:
         new = NewObservation(
@@ -143,7 +165,10 @@ async def create_voice_observation(
     try:
         observation = await observations_db.insert(request.app.state.pool, user_id, new)
     except FileExistsError as exc:
-        raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "that observation id is already in use",
+        ) from exc
 
     return ObservationResponse.of(observation)
 
@@ -227,15 +252,19 @@ async def extract_observation(
     try:
         extraction = await extractor.extract(observation.content)
     except ExtractionFailed as exc:
-        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"extraction failed: {exc}") from exc
+        logger.error("extraction failed for observation %s: %s", observation_id, exc)
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "extraction failed") from exc
 
-    counts = await inferences_db.persist(
-        pool,
-        user_id=user_id,
-        observation_id=observation_id,
-        extraction=extraction,
-        extractor=extractor.version,
-    )
+    try:
+        counts = await inferences_db.persist(
+            pool,
+            user_id=user_id,
+            observation_id=observation_id,
+            extraction=extraction,
+            extractor=extractor.version,
+        )
+    except inferences_db.AlreadyExtractedError as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, "observation already extracted") from exc
     return ExtractionResponse(observation_id=observation_id, extractor=extractor.version, **counts)
 
 
@@ -270,10 +299,13 @@ async def weekly_summary(
     request: Request,
     week_start: Date,
     tz: str = "UTC",
+    include_findings: bool = True,
     user_id: UUID = Depends(current_user),
 ) -> dict:
     try:
-        return await summary_db.weekly_summary(request.app.state.pool, user_id, week_start, tz)
+        return await summary_db.weekly_summary(
+            request.app.state.pool, user_id, week_start, tz, include_findings
+        )
     except (UnknownTimezone, NonMonday) as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
 
@@ -283,6 +315,7 @@ async def daily_summary(
     request: Request,
     day: Date,
     tz: str = "UTC",
+    include_findings: bool = True,
     user_id: UUID = Depends(current_user),
 ) -> dict:
     """What a given day held.
@@ -295,7 +328,9 @@ async def daily_summary(
     user's own words or an inference already carrying confidence and provenance.
     """
     try:
-        return await summary_db.daily_summary(request.app.state.pool, user_id, day, tz)
+        return await summary_db.daily_summary(
+            request.app.state.pool, user_id, day, tz, include_findings
+        )
     except summary_db.UnknownTimezone as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
 

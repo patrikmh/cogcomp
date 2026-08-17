@@ -4,10 +4,12 @@ import { Link } from "react-router-dom";
 
 import { api } from "@/lib/api";
 import { useDrawnFrom } from "@/lib/drawn-from";
+import { usePreferences } from "@/state/preferences";
 import { dayLabelOf } from "@/lib/format";
 import { Seal } from "@/lib/seal";
 import { useSession } from "@/state/session";
 import { Guide } from "@/components/Guide";
+import { Failed } from "@/components/States";
 import { HEADINGS } from "@tlon/copy/headings";
 
 /**
@@ -25,7 +27,10 @@ export function Search() {
     queryKey: ["observations", userId],
     queryFn: () => api.observations(200),
   });
-  const drawnFrom = useDrawnFrom();
+  const findingsVisible = usePreferences((s) => s.findings);
+  const drawnFrom = useDrawnFrom(4, findingsVisible);
+
+  if (entries.isError) return <Failed onRetry={() => void entries.refetch()} />;
 
   const all = entries.data?.observations ?? [];
   const needle = term.trim().toLowerCase();
@@ -82,7 +87,7 @@ export function Search() {
                 <Seal id={hit.id} />
                 <div>
                   <p>{highlight(hit.content, needle)}</p>
-                  {(drawnFrom.get(hit.id) ?? []).length > 0 && (
+                  {findingsVisible && (drawnFrom.get(hit.id) ?? []).length > 0 && (
                     <div className="j-meta">
                       <span className="j-from">drawn from this</span>
                       {(drawnFrom.get(hit.id) ?? []).map((r) => (

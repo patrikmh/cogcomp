@@ -7,10 +7,12 @@ import { Animated, Easing, ScrollView, StyleSheet, Text, TextInput, View } from 
 import { Guide } from "@/components/Guide";
 import { Chip, Kicker, Rule } from "@/components/Marks";
 import { MotionSurface } from "@/components/MotionSurface";
+import { ErrorLens } from "@/components/SpatialField";
 import { Seal } from "@/components/Seal";
 import { api, type ObservationResponse } from "@/lib/api";
 import { useDrawnFrom } from "@/lib/drawnFrom";
 import { useSession } from "@/state/session";
+import { usePreferences } from "@/state/preferences";
 import { colors, fonts } from "@/theme";
 import { Rise, Rising } from "@/components/Rise";
 import { useReducedMotion } from "@/lib/motion";
@@ -40,9 +42,15 @@ export default function SearchScreen() {
     queryFn: () => api.listObservations(token!),
     enabled: Boolean(token && userId),
   });
-  const drawnFrom = useDrawnFrom(token, userId);
+  const preferencesReady = usePreferences((s) => s.ready);
+  const showFindings = usePreferences((s) => s.findings);
+  const findingsVisible = preferencesReady && showFindings;
+  const drawnFrom = useDrawnFrom(token, userId, 4, findingsVisible);
 
   if (!token) return null;
+  if (entries.isError) {
+    return <ErrorLens label="Could not load your observations." onRetry={() => void entries.refetch()} />;
+  }
 
   const all: ObservationResponse[] = entries.data?.observations ?? [];
   const needle = term.trim().toLowerCase();
@@ -94,12 +102,13 @@ export default function SearchScreen() {
         const drawn = drawnFrom.get(hit.id) ?? [];
         return (
           <Rise key={hit.id} index={i} duration={400} stagger={50} restartKey={needle}>
-          <MotionSurface
-            style={styles.hit}
-            onPress={() => router.push(`/node/${hit.id}`)}
-            accessibilityRole="button"
-            accessibilityLabel={hit.content}
-          >
+          <View style={styles.hit}>
+            <MotionSurface
+              style={styles.hitMain}
+              onPress={() => router.push(`/node/${hit.id}`)}
+              accessibilityRole="button"
+              accessibilityLabel={hit.content}
+            >
             <Seal id={hit.id} size={28} />
             <View style={styles.hitBody}>
               {/* Dated as everything else in the record is dated. A bare
@@ -114,7 +123,9 @@ export default function SearchScreen() {
                 })}
               </Kicker>
               <Text style={styles.hitText}>{highlight(hit.content, needle)}</Text>
-              {drawn.length > 0 && (
+              </View>
+            </MotionSurface>
+              {findingsVisible && drawn.length > 0 && (
                 <View style={styles.chips}>
                   {drawn.slice(0, 3).map((r) => (
                     <Chip
@@ -127,8 +138,7 @@ export default function SearchScreen() {
                   ))}
                 </View>
               )}
-            </View>
-          </MotionSurface>
+          </View>
           </Rise>
         );
       })}
@@ -239,7 +249,8 @@ const styles = StyleSheet.create({
   fieldOn: { borderBottomColor: colors.ink },
   headingRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   count: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: scale.meta.size },
-  hit: { flexDirection: "row", gap: 10, alignItems: "flex-start", paddingVertical: 8 },
+  hit: { gap: 6, paddingVertical: 8 },
+  hitMain: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
   hitBody: { flex: 1, gap: 6 },
   hitText: {
     color: colors.ink,

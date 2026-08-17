@@ -14,16 +14,22 @@ import { deviceTimezone, localDay, mondayOf, shiftDay } from "./format";
  * must show the same chips wherever it appears — two screens disagreeing about
  * what an entry produced would undermine the one promise the app makes.
  */
-export function useDrawnFrom(weeksBack = 4) {
+export function useDrawnFrom(weeksBack = 4, enabled = true) {
   const tz = deviceTimezone();
   const weeks = useQueries({
     queries: Array.from({ length: weeksBack }, (_, back) => {
       const monday = mondayOf(shiftDay(localDay(), -7 * back));
-      return { queryKey: ["summary", "week", monday, tz], queryFn: () => api.weekly(monday, tz) };
+      return {
+        queryKey: ["summary", "week", monday, tz],
+        queryFn: () => api.weekly(monday, tz),
+        refetchOnMount: "always" as const,
+        refetchOnWindowFocus: "always" as const,
+        enabled,
+      };
     }),
   });
 
-  return foldDrawnFrom(weeks.map((week) => week.data?.inferred ?? []));
+  return enabled ? foldDrawnFrom(weeks.map((week) => week.data?.inferred ?? [])) : foldDrawnFrom([]);
 }
 
 export { foldDrawnFrom, type Drawn } from "@tlon/ontology";

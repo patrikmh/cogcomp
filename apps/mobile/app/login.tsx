@@ -23,6 +23,8 @@ const MIN_PASSWORD_LENGTH = 12;
 export default function LoginScreen() {
   const router = useRouter();
   const signIn = useSession((s) => s.signIn);
+  const signOutError = useSession((s) => s.signOutError);
+  const retrySignOut = useSession((s) => s.retrySignOut);
   const { width } = useWindowDimensions();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
@@ -122,6 +124,14 @@ export default function LoginScreen() {
             ? submit.error.message
             : "Could not reach the server."}
         </Text>
+      )}
+      {signOutError && (
+        <View>
+          <Text style={styles.error}>{signOutError}</Text>
+          <MotionSurface onPress={() => void retrySignOut()} accessibilityRole="button">
+            <Text style={styles.switch}>Retry revocation</Text>
+          </MotionSurface>
+        </View>
       )}
 
       <MotionSurface

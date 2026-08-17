@@ -8,7 +8,16 @@ import { api, type Observation } from "@/lib/api";
 import { useDrawnFrom } from "@/lib/drawn-from";
 import { clockOf, dayLabelOf, fmt } from "@/lib/format";
 import { useSession } from "@/state/session";
+import { usePreferences } from "@/state/preferences";
 import { EMPTY as EMPTY_COPY } from "@tlon/copy/empty";
+import { deletePendingVoice, listPendingVoice, putPendingVoice, type PendingVoiceEnvelope } from "@/lib/pendingVoice";
+
+export async function extractIfFindingsEnabledAfterSave(
+  save: Promise<Pick<Observation, "id">>,
+) {
+  const created = await save;
+  if (usePreferences.getState().findings) void api.extract(created.id).catch(() => undefined);
+}
 
 /**
  * The journal.
@@ -24,33 +33,68 @@ import { EMPTY as EMPTY_COPY } from "@tlon/copy/empty";
  */
 export function Journal() {
   const userId = useSession((s) => s.userId);
+  const showFindings = usePreferences((s) => s.findings);
   const client = useQueryClient();
   const [text, setText] = useState("");
   const [recording, setRecording] = useState<{ since: number } | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const box = useRef<HTMLTextAreaElement>(null);
   const recorder = useRef<MediaRecorder | null>(null);
+  const textIds = useRef(new Map<string, string>());
+  const voiceIds = useRef(new WeakMap<Blob, string>());
+  const [pendingVoice, setPendingVoice] = useState<PendingVoiceEnvelope[]>([]);
+  const [voiceDurability, setVoiceDurability] = useState<string | null>(null);
+  type Envelope = { id: string; content: string; source: "text"; capturedAt: string; timezone: string };
+  const pendingKey = `tlon.pending-capture.${userId ?? "anonymous"}`;
+  const pending = useRef<Envelope[]>([]);
+  const [pendingText, setPendingText] = useState<Envelope[]>([]);
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const loadPending = () => {
+    try { return JSON.parse(localStorage.getItem(pendingKey) ?? "[]") as Envelope[]; } catch { return []; }
+  };
+  const remember = (envelope: Envelope) => {
+    pending.current = [...loadPending().filter((item) => item.id !== envelope.id), envelope];
+    localStorage.setItem(pendingKey, JSON.stringify(pending.current));
+    setPendingText((items) => [...items.filter((item) => item.id !== envelope.id), envelope]);
+  };
+  const forget = (id: string) => {
+    pending.current = loadPending().filter((item) => item.id !== id);
+    localStorage.setItem(pendingKey, JSON.stringify(pending.current));
+  };
+
+  useEffect(() => {
+    const restored = loadPending();
+    pending.current = restored;
+    const timer = setTimeout(() => setPendingText(restored), 0);
+    for (const envelope of restored) textIds.current.set(envelope.content, envelope.id);
+    // loadPending is scoped to pendingKey, so including the function itself would
+    // reload on every render.
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingKey]);
 
   const entries = useQuery({
     queryKey: ["observations", userId],
     queryFn: () => api.observations(60),
   });
 
-  const drawnFrom = useDrawnFrom();
+  const drawnFrom = useDrawnFrom(4, showFindings);
 
   const save = useMutation({
-    mutationFn: async (content: string) => {
-      const created = await api.createObservation({
-        id: crypto.randomUUID(),
-        content,
-        capturedAt: new Date().toISOString(),
-      });
+    mutationFn: async (envelope: Envelope) => {
+      remember(envelope);
+      const save = api.createObservation(envelope);
+      const created = await save;
       // Extraction is what turns an act into readings; the journal does not
-      // wait for it, but it does ask.
-      void api.extract(created.id).catch(() => undefined);
+      // wait for it, but it does ask. Read the store after the request: the
+      // preference may have changed while the observation was being saved.
+      void extractIfFindingsEnabledAfterSave(save);
       return created;
     },
-    onSuccess: () => {
+    onSuccess: (created, envelope) => {
+      forget(created.id);
+      setPendingText((items) => items.filter((item) => item.id !== envelope.id));
+      textIds.current.delete(envelope.content);
       setText("");
       void client.invalidateQueries({ queryKey: ["observations", userId] });
       void client.invalidateQueries({ queryKey: ["summary"] });
@@ -58,18 +102,43 @@ export function Journal() {
   });
 
   const speak = useMutation({
-    mutationFn: (audio: Blob) =>
-      api.createVoiceObservation({
-        id: crypto.randomUUID(),
-        audio,
-        capturedAt: new Date().toISOString(),
-      }),
-    onSuccess: (created) => {
+    mutationFn: async ({ audio, id }: { audio: Blob; id: string }) => {
+      const capturedUserId = useSession.getState().userId;
+      const capturedToken = useSession.getState().token;
+      if (!capturedUserId || !capturedToken) throw new Error("session changed");
+      const envelope: PendingVoiceEnvelope = { id, userId: capturedUserId, source: "journal", audio, capturedAt: new Date().toISOString(), timezone };
+      await putPendingVoice(envelope);
+      if (useSession.getState().userId !== capturedUserId || useSession.getState().token !== capturedToken) {
+        throw new Error("session changed");
+      }
+      setPendingVoice((items) => items.some((item) => item.id === id) ? items : [...items, envelope]);
+      return api.createVoiceObservation(envelope, capturedToken);
+    },
+    onSuccess: (created, { audio }) => {
+      if (useSession.getState().userId !== userId) return;
+      void deletePendingVoice({ userId: userId!, source: "journal", id: created.id });
+      setPendingVoice((items) => items.filter((item) => item.id !== created.id));
+      voiceIds.current.delete(audio);
       setNote(`Recording kept on device · transcribed · ${created.content.length} characters`);
       void client.invalidateQueries({ queryKey: ["observations", userId] });
     },
-    onError: () => setNote("Could not transcribe that. The recording was not kept."),
+    onError: () => setNote("Could not transcribe that. Retry the recording or discard it."),
   });
+
+  const retryVoice = async (envelope: PendingVoiceEnvelope) => {
+    try {
+      const created = await api.createVoiceObservation(envelope);
+      await deletePendingVoice(envelope);
+      setPendingVoice((items) => items.filter((item) => item.id !== envelope.id));
+      setNote(`Recording kept on device · transcribed · ${created.content.length} characters`);
+      void client.invalidateQueries({ queryKey: ["observations", userId] });
+    } catch { setNote("Could not transcribe that. Retry the recording or discard it."); }
+  };
+
+  useEffect(() => {
+    if (!userId) return;
+    void listPendingVoice(userId, "journal").then(setPendingVoice).catch(() => setVoiceDurability("Voice recovery is unavailable in this browser; the recording cannot be retained."));
+  }, [userId]);
 
   useEffect(() => {
     const el = box.current;
@@ -101,7 +170,10 @@ export function Journal() {
       mr.ondataavailable = (ev) => chunks.push(ev.data);
       mr.onstop = () => {
         stream.getTracks().forEach((t) => t.stop());
-        speak.mutate(new Blob(chunks, { type: mr.mimeType }));
+        const audio = new Blob(chunks, { type: mr.mimeType });
+        const id = crypto.randomUUID();
+        voiceIds.current.set(audio, id);
+        speak.mutate({ audio, id });
       };
       mr.start();
       recorder.current = mr;
@@ -136,7 +208,7 @@ export function Journal() {
         {entries.isLoading ? (
           <Loading label="Reading the journal…" />
         ) : entries.isError ? (
-          <Failed />
+          <Failed onRetry={() => void entries.refetch()} />
         ) : list.length === 0 ? (
           <Empty label={EMPTY_COPY.journal} />
         ) : (
@@ -165,25 +237,27 @@ export function Journal() {
                         </span>
                       )}
                       <p>{entry.content}</p>
-                      {(drawnFrom.get(entry.id)?.length ?? 0) > 0 ? (
-                        <div className="j-meta">
-                          <span className="j-from">drawn from this</span>
-                          {drawnFrom.get(entry.id)!.map((r) => (
-                            <Link
-                              key={r.id}
-                              className={`j-chip${r.tentative ? " ghost" : ""}`}
-                              to={`/node/${r.id}`}
-                            >
-                              {r.label} · {fmt(r.confidence)}
+                      {showFindings && (
+                        (drawnFrom.get(entry.id)?.length ?? 0) > 0 ? (
+                          <div className="j-meta">
+                            <span className="j-from">drawn from this</span>
+                            {drawnFrom.get(entry.id)!.map((r) => (
+                              <Link
+                                key={r.id}
+                                className={`j-chip${r.tentative ? " ghost" : ""}`}
+                                to={`/node/${r.id}`}
+                              >
+                                {r.label} · {fmt(r.confidence)}
+                              </Link>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="j-meta">
+                            <Link to={`/node/${entry.id}`} className="j-from">
+                              nothing drawn from this yet →
                             </Link>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="j-meta">
-                          <Link to={`/node/${entry.id}`} className="j-from">
-                            nothing drawn from this yet →
-                          </Link>
-                        </div>
+                          </div>
+                        )
                       )}
                     </div>
                   </div>
@@ -213,7 +287,12 @@ export function Journal() {
               // Enter sends, Shift+Enter is a newline — the prototype's contract.
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
-                if (text.trim()) save.mutate(text.trim());
+                if (text.trim()) {
+                  const content = text.trim();
+                  const id = textIds.current.get(content) ?? crypto.randomUUID();
+                  textIds.current.set(content, id);
+                  save.mutate({ id, content, source: "text", capturedAt: new Date().toISOString(), timezone });
+                }
               }
             }}
           />
@@ -248,7 +327,12 @@ export function Journal() {
             id="send"
             className={text.trim() && !save.isPending ? "on" : ""}
             disabled={!text.trim() || save.isPending}
-            onClick={() => save.mutate(text.trim())}
+            onClick={() => {
+              const content = text.trim();
+              const id = textIds.current.get(content) ?? crypto.randomUUID();
+              textIds.current.set(content, id);
+              save.mutate({ id, content, source: "text", capturedAt: new Date().toISOString(), timezone });
+            }}
             aria-label="Send journal entry"
           >
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -258,6 +342,18 @@ export function Journal() {
         </div>
         {/* One quiet line, as the design has it — not a kicker and a sentence.
             "CAPTURE" labelled a section that is a single field. */}
+        {voiceDurability && <div role="alert">{voiceDurability}</div>}
+        {pendingVoice.length > 0 && <div role="status" className="mono">{pendingVoice.map((item) => <span key={item.id}>Recording waiting to be saved. <button onClick={() => void retryVoice(item)}>Retry</button>{" "}<button onClick={() => void deletePendingVoice(item).then(() => setPendingVoice((items) => items.filter((candidate) => candidate.id !== item.id)))}>Discard</button>{" "}</span>)}</div>}
+        {pendingText.length > 0 && (
+          <div role="status" className="mono">
+            {pendingText.map((item) => (
+              <div key={item.id}>
+                Journal entry waiting to be saved. <button type="button" onClick={() => save.mutate(item)}>Retry</button>{" "}
+                <button type="button" onClick={() => { forget(item.id); setPendingText((items) => items.filter((candidate) => candidate.id !== item.id)); }}>Discard</button>
+              </div>
+            ))}
+          </div>
+        )}
         <div id="capState" role="status" aria-live="polite" aria-atomic="true">
           <span>
             {note ??

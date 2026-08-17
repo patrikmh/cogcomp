@@ -73,6 +73,62 @@ describe("a 401 from the server", () => {
     expect(currentToken()).toBe("");
   });
 
+  it("reports a lost session for a refused streaming text turn", async () => {
+    localStorage.setItem("tlon.token", "stale");
+    reply(401, { detail: "unauthorized" });
+    const { api, onSessionLost } = await freshApi();
+    const lost = vi.fn();
+    onSessionLost(lost);
+
+    await expect(api.sayStreaming("conversation-1", "hello", () => undefined)).rejects.toMatchObject({
+      status: 401,
+      message: "unauthorized",
+    });
+    expect(lost).toHaveBeenCalledOnce();
+    expect(localStorage.getItem("tlon.token")).toBeNull();
+  });
+
+  it("reports a lost session for a refused streaming voice turn", async () => {
+    localStorage.setItem("tlon.token", "stale");
+    reply(401, { detail: "unauthorized" });
+    const { api, onSessionLost } = await freshApi();
+    const lost = vi.fn();
+    onSessionLost(lost);
+
+    await expect(
+      api.sayAloudStreaming("conversation-1", new Blob(["audio"]), () => undefined, () => undefined),
+    ).rejects.toMatchObject({ status: 401, message: "unauthorized" });
+    expect(lost).toHaveBeenCalledOnce();
+    expect(localStorage.getItem("tlon.token")).toBeNull();
+  });
+
+  it("does not clear the newer account when an older streaming request is refused", async () => {
+    localStorage.setItem("tlon.token", "account-a");
+    const { api, onSessionLost, currentToken, setToken } = await freshApi();
+    const lost = vi.fn();
+    onSessionLost(lost);
+
+    let resolveResponse!: (response: Response) => void;
+    const response = new Promise<Response>((resolve) => {
+      resolveResponse = resolve;
+    });
+    vi.stubGlobal("fetch", vi.fn().mockReturnValue(response));
+
+    const request = api.sayStreaming("conversation-1", "hello", () => undefined);
+    setToken("account-b");
+    resolveResponse({
+      ok: false,
+      status: 401,
+      statusText: "",
+      json: async () => ({ detail: "unauthorized" }),
+    } as Response);
+
+    await expect(request).rejects.toMatchObject({ status: 401 });
+    expect(currentToken()).toBe("account-b");
+    expect(localStorage.getItem("tlon.token")).toBe("account-b");
+    expect(lost).not.toHaveBeenCalled();
+  });
+
   it("passes a duplicate signup through as the server explains it", async () => {
     reply(409, { detail: "an account with that email already exists" });
     const { api } = await freshApi();

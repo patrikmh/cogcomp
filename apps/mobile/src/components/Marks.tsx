@@ -77,7 +77,12 @@ export function Chip({ label, confidence, tentative = false, onPress }: {
   return (
     <MotionSurface
       style={[styles.chip, tentative && styles.chipTentative]}
-      onPress={onPress}
+      onPress={(event) => {
+        // Chips can appear inside an entry surface. Stop the child action from
+        // also opening the containing observation on web and native.
+        event.stopPropagation();
+        onPress();
+      }}
       accessibilityRole="button"
       accessibilityLabel={`${label}, drawn with ${Math.round(confidence * 100)} per cent confidence. Open to agree or disagree.`}
     >

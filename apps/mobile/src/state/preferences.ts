@@ -61,7 +61,10 @@ function read(value: string | null, fallback: boolean): boolean {
 export const usePreferences = create<PreferencesState>((set) => ({
   voice: true,
   developer: false,
-  findings: true,
+  // Findings stay hidden until storage restore completes. This prevents a
+  // mounted screen from requesting or rendering conclusions before it knows
+  // whether they were turned off in an earlier session.
+  findings: false,
   ready: false,
 
   restore: async () => {

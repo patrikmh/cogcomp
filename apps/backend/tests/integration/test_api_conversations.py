@@ -1,13 +1,17 @@
 """Conversational journalling over HTTP, against a real database."""
 
+import asyncio
 from datetime import UTC
-from uuid import uuid4
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+from uuid import UUID, uuid4
 
 import pytest
 from asyncpg.exceptions import CheckViolationError
 from httpx import AsyncClient
 
 from tests.integration.conftest import Account
+from tlon.db import conversations as conversations_db
 
 pytestmark = [pytest.mark.anyio, pytest.mark.integration]
 
@@ -25,11 +29,13 @@ async def say(
     text: str,
     source="text",
     timezone: str | None = None,
+    client_turn_id: str | None = None,
 ):
     return await client.post(
         f"/v1/conversations/{cid}/turns",
         headers=account.auth,
-        json={"content": text, "source": source, "timezone": timezone},
+        json={"content": text, "source": source, "timezone": timezone,
+              "client_turn_id": client_turn_id or str(uuid4())},
     )
 
 
@@ -90,6 +96,37 @@ class TestOnlyUserTurnsBecomeObservations:
         assert observations[0]["content"] == (
             "I told Sara I would finish the report.\n\nI still have not started it."
         )
+
+    async def test_findings_off_keeps_observations_without_extracting(
+        self, client: AsyncClient, account: Account, monkeypatch
+    ):
+        cid = await start(client, account)
+        await say(client, account, cid, "a private thought")
+
+        app = client._transport.app
+        extractor = SimpleNamespace(version="test", extract=AsyncMock())
+        original_extractor = app.state.extractor
+        app.state.extractor = extractor
+        persist = AsyncMock()
+        monkeypatch.setattr("tlon.api.conversation_routes.inferences_db.persist", persist)
+        try:
+            closed = await client.post(
+                f"/v1/conversations/{cid}/close",
+                headers=account.auth,
+                params={"include_findings": "false"},
+            )
+        finally:
+            app.state.extractor = original_extractor
+
+        assert closed.status_code == 200
+        assert closed.json()["turns_converted"] == 1
+        assert closed.json()["observations"]
+        observations = await client.get("/v1/observations", headers=account.auth)
+        assert [o["content"] for o in observations.json()["observations"]] == [
+            "a private thought"
+        ]
+        extractor.extract.assert_not_awaited()
+        persist.assert_not_awaited()
 
     async def test_no_assistant_text_ever_reaches_the_observations_table(
         self, client: AsyncClient, account: Account
@@ -192,6 +229,17 @@ class TestClosing:
         await client.post(f"/v1/conversations/{cid}/close", headers=account.auth)
         assert (await say(client, account, cid, "more")).status_code == 409
 
+    async def test_concurrent_closes_create_one_observation(self, client: AsyncClient, account: Account):
+        cid = await start(client, account)
+        await say(client, account, cid, "hello")
+        first, second = await asyncio.gather(
+            client.post(f"/v1/conversations/{cid}/close", headers=account.auth),
+            client.post(f"/v1/conversations/{cid}/close", headers=account.auth),
+        )
+        assert sorted((first.status_code, second.status_code)) == [200, 409]
+        listed = await client.get("/v1/observations", headers=account.auth)
+        assert len(listed.json()["observations"]) == 1
+
     async def test_closing_twice_is_refused(self, client: AsyncClient, account: Account):
         cid = await start(client, account)
         await say(client, account, cid, "hello")
@@ -231,6 +279,20 @@ class TestCrisisResources:
         body = (await say(client, account, cid, "just a normal day")).json()
         assert body["crisis"] is False
         assert body["crisis_resources"] == []
+
+    async def test_non_streaming_turn_refuses_a_persisted_flag_after_reload(
+        self, client: AsyncClient, account: Account
+    ):
+        cid = await start(client, account)
+        await conversations_db.flag(client._transport.app.state.pool, UUID(cid))
+
+        reloaded = await client.get(f"/v1/conversations/{cid}", headers=account.auth)
+        assert reloaded.status_code == 200
+        assert reloaded.json()["flagged"] is True
+
+        blocked = await say(client, account, cid, "please answer this too")
+        assert blocked.status_code == 409
+        assert "crisis" in blocked.text.lower()
 
     async def test_resources_are_parsed_from_configuration(self, client: AsyncClient):
         # Config rather than hardcoded, so they can be right for the user's country.
@@ -303,6 +365,7 @@ class TestSpokenTurns:
             f"/v1/conversations/{cid}/turns/voice",
             headers=account.auth,
             files={"audio": ("r.m4a", audio if audio is not None else self.AUDIO, "audio/m4a")},
+            data={"client_turn_id": str(uuid4())},
         )
 
     async def test_a_spoken_turn_gets_a_reply(self, client: AsyncClient, account: Account):
@@ -394,7 +457,8 @@ class TestStreamedTurn:
         response = await client.post(
             f"/v1/conversations/{cid}/turns/stream",
             headers=account.auth,
-            json={"content": text, "source": "text", "timezone": None},
+            json={"content": text, "source": "text", "timezone": None,
+                  "client_turn_id": str(uuid4())},
         )
         return response, parse_sse(response.text)
 
@@ -441,7 +505,8 @@ class TestStreamedTurn:
         response = await client.post(
             f"/v1/conversations/{uuid4()}/turns/stream",
             headers=account.auth,
-            json={"content": "hello", "source": "text", "timezone": None},
+            json={"content": "hello", "source": "text", "timezone": None,
+                  "client_turn_id": str(uuid4())},
         )
         assert response.status_code == 404
 
@@ -469,6 +534,7 @@ class TestStreamedSpokenTurns:
             f"/v1/conversations/{cid}/turns/voice/stream",
             headers=account.auth,
             files={"audio": ("r.m4a", audio if audio is not None else self.AUDIO, "audio/m4a")},
+            data={"client_turn_id": str(uuid4())},
         )
         return response, parse_sse(response.text)
 

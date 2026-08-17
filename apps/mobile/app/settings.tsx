@@ -3,7 +3,6 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Kicker, Rule } from "@/components/Marks";
 import { MotionSurface } from "@/components/MotionSurface";
-import { api } from "@/lib/api";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
@@ -74,8 +73,6 @@ export default function SettingsScreen() {
       <MotionSurface
         style={styles.link}
         onPress={() => {
-          // Revoked server-side too, so a copied token cannot outlive sign-out.
-          void api.logout(token).catch(() => undefined);
           void signOut();
         }}
       >

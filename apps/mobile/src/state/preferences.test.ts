@@ -12,7 +12,7 @@ const wrote = setItem as jest.MockedFunction<typeof setItem>;
 
 beforeEach(() => {
   jest.clearAllMocks();
-  usePreferences.setState({ voice: true, developer: false, findings: true, ready: false });
+  usePreferences.setState({ voice: true, developer: false, findings: false, ready: false });
 });
 
 describe("defaults", () => {
@@ -25,10 +25,10 @@ describe("defaults", () => {
     expect(usePreferences.getState().developer).toBe(false);
   });
 
-  it("shows findings by default", () => {
-    // The thing the app is for. Off is a choice someone makes, never the
-    // starting state.
-    expect(usePreferences.getState().findings).toBe(true);
+  it("keeps findings hidden until preferences are restored", () => {
+    // Screens must not request or render conclusions while the stored choice
+    // is still unknown.
+    expect(usePreferences.getState().findings).toBe(false);
   });
 
   it("keeps findings off across a restart once turned off", async () => {

@@ -11,6 +11,7 @@ import { Seal } from "@/lib/seal";
 import { Guide } from "@/components/Guide";
 import { SECTIONS, asideOf } from "@tlon/copy/sections";
 import { EMPTY as EMPTY_COPY } from "@tlon/copy/empty";
+import { usePreferences } from "@/state/preferences";
 
 /**
  * One day, as it happened.
@@ -26,17 +27,29 @@ import { EMPTY as EMPTY_COPY } from "@tlon/copy/empty";
  */
 export function Today() {
   const tz = deviceTimezone();
+  const showFindings = usePreferences((s) => s.findings);
   const [offset, setOffset] = useState(0);
   const day = shiftDay(localDay(), offset);
 
-  const summary = useQuery({ queryKey: ["summary", day, tz], queryFn: () => api.daily(day, tz) });
-  const drawnFrom = useDrawnFrom();
-  const patterns = useQuery({ queryKey: ["patterns"], queryFn: api.patterns });
+  const summary = useQuery({
+    queryKey: ["summary", day, tz, showFindings],
+    queryFn: () => api.daily(day, tz, showFindings),
+    refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
+  });
+  const drawnFrom = useDrawnFrom(4, showFindings);
+  const patterns = useQuery({
+    queryKey: ["patterns"],
+    queryFn: api.patterns,
+    enabled: showFindings,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
+  });
 
-  const inferred = summary.data?.inferred ?? [];
+  const inferred = showFindings ? summary.data?.inferred ?? [] : [];
   const kept = inferred.filter((i) => !i.tentative).sort((a, b) => b.confidence - a.confidence);
   const faint = inferred.filter((i) => i.tentative).sort((a, b) => b.confidence - a.confidence);
-  const circling = (patterns.data ?? [])[0];
+  const circling = showFindings ? (patterns.data ?? [])[0] : undefined;
 
   return (
     <div className="scr">
@@ -80,7 +93,7 @@ export function Today() {
       {summary.isLoading ? (
         <Loading />
       ) : summary.isError ? (
-        <Failed />
+        <Failed onRetry={() => void summary.refetch()} />
       ) : summary.data!.entry_count === 0 ? (
         <>
           <p className="sub">
@@ -98,9 +111,13 @@ export function Today() {
             happened.
           </p>
           <div className="t-sum">
-            {summary.data!.entry_count} {summary.data!.entry_count === 1 ? "act" : "acts"} ·{" "}
-            {inferred.length} {inferred.length === 1 ? "reading" : "readings"} drawn
-            {circling ? ` · ${(patterns.data ?? []).length} circling` : ""}
+            {summary.data!.entry_count} {summary.data!.entry_count === 1 ? "act" : "acts"}
+            {showFindings && (
+              <>
+                {" · "}{inferred.length} {inferred.length === 1 ? "reading" : "readings"} drawn
+                {circling ? ` · ${(patterns.data ?? []).length} circling` : ""}
+              </>
+            )}
           </div>
 
           <div className="t-sec">
@@ -118,20 +135,22 @@ export function Today() {
                 <Seal id={o.id} />
                 <div>
                   <p>{o.content}</p>
-                  <div className="j-meta">
-                    <span className="j-from">
-                      {(drawnFrom.get(o.id)?.length ?? 0) > 0 ? "drawn from this" : "nothing drawn from this yet"}
-                    </span>
-                    {(drawnFrom.get(o.id) ?? []).map((r) => (
-                      <Link
-                        key={r.id}
-                        className={`j-chip${r.tentative ? " ghost" : ""}`}
-                        to={`/node/${r.id}`}
-                      >
-                        {r.label} · {fmt(r.confidence)}
-                      </Link>
-                    ))}
-                  </div>
+                  {showFindings && (
+                    <div className="j-meta">
+                      <span className="j-from">
+                        {(drawnFrom.get(o.id)?.length ?? 0) > 0 ? "drawn from this" : "nothing drawn from this yet"}
+                      </span>
+                      {(drawnFrom.get(o.id) ?? []).map((r) => (
+                        <Link
+                          key={r.id}
+                          className={`j-chip${r.tentative ? " ghost" : ""}`}
+                          to={`/node/${r.id}`}
+                        >
+                          {r.label} · {fmt(r.confidence)}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

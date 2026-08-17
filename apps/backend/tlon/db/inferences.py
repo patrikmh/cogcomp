@@ -19,6 +19,10 @@ from tlon.domain.inference import EpistemicStatus
 from tlon.extraction.models import OBSERVATION_REF, Extraction
 
 
+class AlreadyExtractedError(ValueError):
+    """Raised when another extraction already claimed this observation."""
+
+
 def _uuid7_like() -> UUID:
     """Server-generated id for an inferred node.
 
@@ -46,6 +50,19 @@ async def persist(
         raise ValueError("; ".join(errors))
 
     async with pool.acquire() as conn, conn.transaction():
+        # Serialize extraction attempts for this observation. Advisory locks are
+        # transaction-scoped, so a failed transaction releases the claim.
+        await conn.execute(
+            "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+            str(observation_id),
+        )
+        if await conn.fetchval(
+            "SELECT EXISTS (SELECT 1 FROM node_provenance WHERE observation_id = $1) "
+            "OR EXISTS (SELECT 1 FROM observation_extraction_markers WHERE observation_id = $1)",
+            observation_id,
+        ):
+            raise AlreadyExtractedError("observation already extracted")
+
         # Confirm the observation exists, belongs to this user, and is live.
         # Doing this inside the transaction means a concurrent delete cannot
         # slip an orphaned inference in behind us.
@@ -114,6 +131,11 @@ async def persist(
                 observation_id,
             )
 
+        await conn.execute(
+            "INSERT INTO observation_extraction_markers (observation_id, extractor) VALUES ($1, $2)",
+            observation_id, extractor,
+        )
+
     return {"nodes": len(extraction.nodes), "edges": len(extraction.edges)}
 
 
@@ -123,7 +145,8 @@ async def already_extracted(pool: asyncpg.Pool, observation_id: UUID) -> bool:
     Extraction is not idempotent — running it twice writes a second set of nodes
     citing the same entry. The API uses this to refuse rather than duplicate.
     """
-    count = await pool.fetchval(
-        "SELECT count(*) FROM node_provenance WHERE observation_id = $1", observation_id
-    )
-    return bool(count)
+    return bool(await pool.fetchval(
+        "SELECT EXISTS (SELECT 1 FROM node_provenance WHERE observation_id = $1) "
+        "OR EXISTS (SELECT 1 FROM observation_extraction_markers WHERE observation_id = $1)",
+        observation_id,
+    ))

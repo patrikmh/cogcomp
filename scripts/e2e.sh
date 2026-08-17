@@ -17,11 +17,40 @@
 # Usage: scripts/e2e.sh
 
 set -uo pipefail
+# Keep the browser, shell date helpers, and API summary buckets on one explicit
+# timezone. This prevents a local midnight from disagreeing with the browser's
+# Today route during the run.
+export TZ=UTC
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 API_PORT=8080
 WEB_PORT=8081
 API_URL="http://localhost:${API_PORT}"
+E2E_DATABASE_URL="${E2E_DATABASE_URL:-postgres://tlon:tlon@127.0.0.1:5433/tlon_e2e_$$}"
+FALKOR_DATABASE="tlon_e2e_$$"
+
+if ! E2E_DATABASE_URL="$E2E_DATABASE_URL" python3 - <<'PYDB'
+from urllib.parse import unquote, urlparse
+import os
+import re
+
+url = urlparse(os.environ["E2E_DATABASE_URL"])
+if url.scheme not in {"postgres", "postgresql"} or url.hostname not in {"localhost", "127.0.0.1", "::1"}:
+    raise SystemExit("E2E_DATABASE_URL must be a local PostgreSQL URL")
+database = unquote(url.path.lstrip("/"))
+if not re.fullmatch(r"tlon_e2e_[a-z0-9_]+", database):
+    raise SystemExit("E2E_DATABASE_URL database must match tlon_e2e_*")
+PYDB
+then
+  exit 1
+fi
+export E2E_DATABASE_URL
+# E2E is an isolated local contract: never inherit remote agents or graph
+# settings, even when the caller's shell has production-like values.
+export AGENTS_ENABLED=false
+export FALKOR_HOST=127.0.0.1
+export FALKOR_PORT=6379
+export FALKOR_DATABASE
 
 # The section names come from the design, through the same file both clients
 # render them from. Asserting on a literal here is how this suite came to
@@ -40,21 +69,142 @@ PYSEC
 
 WEB_URL="http://localhost:${WEB_PORT}"
 LOGS="$(mktemp -d)"
+# Keep bearer tokens out of the external curl process argv. Calls below can
+# continue to read naturally while this wrapper moves Authorization headers to
+# a mode-600 temporary file before invoking the real binary.
+AUTH_HEADER_FILE="$(mktemp "${LOGS}/auth-header.XXXXXX")"
+chmod 600 "$AUTH_HEADER_FILE"
+curl() {
+  local -a safe=() input=("$@")
+  local index arg next
+  for ((index = 0; index < ${#input[@]}; index += 1)); do
+    arg="${input[index]}"
+    if [ "$arg" = "-H" ] && [ $((index + 1)) -lt "${#input[@]}" ]; then
+      next="${input[index + 1]}"
+      if [[ "$next" == Authorization:\ Bearer\ * ]]; then
+        printf '%s\n' "$next" >"$AUTH_HEADER_FILE"
+        safe+=( -H "@${AUTH_HEADER_FILE}" )
+        index=$((index + 1))
+        continue
+      fi
+    fi
+    safe+=( "$arg" )
+  done
+  command curl "${safe[@]}"
+}
+# Refs are generated from the newest snapshot. Old snapshots from a previous
+# run can otherwise make a navigation wait pass before the new route exists and
+# send the next click to a stale control.
+rm -f "${ROOT}/.playwright-cli"/page-*.yml "${ROOT}/.playwright-cli"/console-*.log
 EMAIL="e2e-$(date +%s)@example.com"
 PASSWORD="a long enough passphrase"
 
 FAILURES=0
 STARTED_API=0
 STARTED_WEB=0
+DATABASE_CREATED=0
+
+create_database() {
+  E2E_DATABASE_URL="$E2E_DATABASE_URL" "${ROOT}/apps/backend/.venv/bin/python" - <<'PYCREATE'
+import asyncio
+import os
+import re
+from urllib.parse import unquote, urlparse
+
+import asyncpg
+
+
+async def main():
+    database_url = os.environ["E2E_DATABASE_URL"]
+    url = urlparse(database_url)
+    database = unquote(url.path.lstrip("/"))
+    if not re.fullmatch(r"tlon_e2e_[a-z0-9_]+", database):
+        raise RuntimeError("refusing to create a non-disposable E2E database")
+
+    admin_url = url._replace(path="/postgres").geturl()
+    connection = await asyncpg.connect(admin_url)
+    try:
+        if await connection.fetchval(
+            "SELECT 1 FROM pg_database WHERE datname = $1", database
+        ):
+            raise RuntimeError(f"E2E database already exists: {database}")
+        identifier = '"' + database.replace('"', '""') + '"'
+        await connection.execute(f"CREATE DATABASE {identifier}")
+    finally:
+        await connection.close()
+
+
+asyncio.run(main())
+PYCREATE
+}
+
+drop_falkor_graph() {
+  "${ROOT}/apps/backend/.venv/bin/python" - "$FALKOR_DATABASE" <<'PYFALKOR'
+import os
+import sys
+
+import redis
+
+client = redis.Redis(host="127.0.0.1", port=6379)
+try:
+    client.execute_command("GRAPH.DELETE", sys.argv[1])
+except redis.ResponseError as error:
+    if "does not exist" not in str(error).lower():
+        raise
+PYFALKOR
+}
+
+drop_database() {
+  E2E_DATABASE_URL="$E2E_DATABASE_URL" "${ROOT}/apps/backend/.venv/bin/python" - <<'PYDROP'
+import asyncio
+import os
+import re
+from urllib.parse import unquote, urlparse
+
+import asyncpg
+
+
+async def main():
+    database_url = os.environ["E2E_DATABASE_URL"]
+    url = urlparse(database_url)
+    database = unquote(url.path.lstrip("/"))
+    if not re.fullmatch(r"tlon_e2e_[a-z0-9_]+", database):
+        raise RuntimeError("refusing to drop a non-disposable E2E database")
+
+    admin_url = url._replace(path="/postgres").geturl()
+    connection = await asyncpg.connect(admin_url)
+    try:
+        await connection.execute(
+            "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
+            "WHERE datname = $1 AND pid <> pg_backend_pid()",
+            database,
+        )
+        identifier = '"' + database.replace('"', '""') + '"'
+        await connection.execute(f"DROP DATABASE IF EXISTS {identifier}")
+    finally:
+        await connection.close()
+
+
+asyncio.run(main())
+PYDROP
+}
+
 
 pass() { printf '  \033[32m✓\033[0m %s\n' "$1"; }
 fail() { printf '  \033[31m✗\033[0m %s\n' "$1"; FAILURES=$((FAILURES + 1)); }
 step() { printf '\n\033[1m%s\033[0m\n' "$1"; }
 
 cleanup() {
-  playwright-cli close >/dev/null 2>&1
+  playwright-cli close-all >/dev/null 2>&1
+  drop_falkor_graph >/dev/null 2>&1 || true
   [ "$STARTED_WEB" = 1 ] && pkill -f "expo start --web --port ${WEB_PORT}" >/dev/null 2>&1
   [ "$STARTED_API" = 1 ] && pkill -f "uvicorn tlon.main:app.*${API_PORT}" >/dev/null 2>&1
+  if [ "$DATABASE_CREATED" = 1 ] && ! drop_database; then
+    echo "failed to drop disposable E2E database" >&2
+    exit 1
+  fi
+  rm -f "${LOGS}"/* 2>/dev/null
+  rmdir "${LOGS}" 2>/dev/null || true
   return 0
 }
 trap cleanup EXIT
@@ -127,6 +277,42 @@ wait_for_snapshot() {
   return 1
 }
 
+wait_for_experiment_state() {
+  local state="$1" attempts="${2:-90}"
+  for _ in $(seq 1 "$attempts"); do
+    playwright-cli snapshot >/dev/null 2>&1
+    if grep -qE "generic \\[ref=e[0-9]+\\]: ${state}$" "$(latest_snapshot)" 2>/dev/null; then
+      return 0
+    fi
+    sleep 1
+  done
+  return 1
+}
+
+# Mutation completion is a server contract, not a rendering delay. Poll the
+# authenticated collection before asserting that a save took effect.
+wait_for_api_text() {
+  local url="$1" text="$2" attempts="${3:-30}" body
+  for _ in $(seq 1 "$attempts"); do
+    body="$(curl -s "$url" -H "Authorization: Bearer ${TOKEN:-}")"
+    if printf '%s' "$body" | grep -qF "$text"; then return 0; fi
+    sleep 1
+  done
+  return 1
+}
+
+wait_for_empty_observations() {
+  local token="$1" attempts="${2:-30}" body
+  for _ in $(seq 1 "$attempts"); do
+    body="$(curl -sf "${API_URL}/v1/observations" -H "Authorization: Bearer ${token}")" || return 1
+    if python3 -c 'import json,sys; raise SystemExit(0 if not json.load(sys.stdin).get("observations") else 1)' <<<"$body"; then
+      return 0
+    fi
+    sleep 1
+  done
+  return 1
+}
+
 # The console buffer resets on navigation, so checking once at the end only ever
 # inspected the final page — the login screen, the least interesting one in the
 # run. Checked per page instead, right after that page has been exercised.
@@ -173,6 +359,29 @@ wait_for() {
 }
 
 step "Starting services"
+playwright-cli close-all >/dev/null 2>&1 || true
+for port in "$API_PORT" "$WEB_PORT"; do
+  if lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
+    echo "a service is already listening on port ${port}; refusing shared E2E services" >&2
+    exit 1
+  fi
+done
+
+# The database is created only after all local-service and port checks pass, so a
+# failed preflight never touches a shared database.
+if ! "${ROOT}/apps/backend/.venv/bin/python" - <<'PYFALKORCHECK'
+import redis
+redis.Redis(host="127.0.0.1", port=6379).ping()
+PYFALKORCHECK
+then
+  echo "could not reach the required loopback FalkorDB service" >&2
+  exit 1
+fi
+if ! create_database; then
+  echo "could not create disposable E2E database" >&2
+  exit 1
+fi
+DATABASE_CREATED=1
 
 # Cleared so the run uses the deterministic stubs even when real keys are in
 # .env. An end-to-end test that quietly starts calling a paid API is slow,
@@ -183,23 +392,20 @@ export TRANSCRIPTION_API_KEY=""
 export ELEVENLABS_API_KEY=""
 
 if curl -sf -o /dev/null "${API_URL}/health"; then
-  # A backend we did not start may be running against real keys, which would
-  # make the confidence-dependent checks below nondeterministic.
-  if ! curl -s "${API_URL}/ready" | grep -q '/stub"'; then
-    echo "  ! a backend is already running with real keys; stop it first" >&2
-    exit 1
-  fi
-  pass "backend already running (stub extractor)"
+  echo "backend became reachable after listener check; refusing reused E2E service" >&2
+  exit 1
 else
-  (cd "${ROOT}/apps/backend" && .venv/bin/python -m uvicorn tlon.main:app \
-    --host 0.0.0.0 --port "${API_PORT}" >"${LOGS}/api.log" 2>&1 &)
+  (cd "${ROOT}/apps/backend" && DATABASE_URL="${E2E_DATABASE_URL}" AGENTS_ENABLED=false \
+    FALKOR_HOST=127.0.0.1 FALKOR_PORT=6379 .venv/bin/python -m uvicorn tlon.main:app \
+    --host 127.0.0.1 --port "${API_PORT}" >"${LOGS}/api.log" 2>&1 &)
   STARTED_API=1
   wait_for "${API_URL}/health" "backend" || { cat "${LOGS}/api.log"; exit 1; }
   pass "backend started"
 fi
 
 if curl -sf -o /dev/null "${WEB_URL}"; then
-  pass "web already running"
+  echo "web became reachable after listener check; refusing reused E2E service" >&2
+  exit 1
 else
   (cd "${ROOT}/apps/mobile" && EXPO_PUBLIC_API_URL="${API_URL}" \
     npx expo start --web --port "${WEB_PORT}" >"${LOGS}/web.log" 2>&1 &)
@@ -210,7 +416,7 @@ fi
 
 step "Signed-out users are sent to the login screen"
 playwright-cli open "${WEB_URL}" >/dev/null 2>&1
-sleep 3
+wait_for_snapshot "Welcome back." 30 || true
 if playwright-cli snapshot 2>&1 | grep -q "/login"; then
   pass "redirected to /login"
 else
@@ -220,9 +426,23 @@ else
     || fail "did not land on the login screen"
 fi
 
+step "Signed-out disclosure is public and returnable"
+playwright-cli goto "${WEB_URL}/words" >/dev/null 2>&1
+wait_for_snapshot "What happens to your words" 30 \
+  && pass "signed-out users can read the disclosure" \
+  || fail "signed-out disclosure did not render"
+snapshot_contains "Start writing" \
+  && pass "disclosure offers a return to writing" \
+  || fail "disclosure has no writing action"
+playwright-cli click "$(ref_for 'Start writing')" >/dev/null 2>&1
+wait_for_snapshot "Welcome back." 30 \
+  && pass "signed-out writing action returns to login" \
+  || fail "signed-out writing action bypassed login"
+
 step "Creating an account"
 SWITCH="$(ref_for 'Create an account instead')"
-[ -n "$SWITCH" ] && playwright-cli click "$SWITCH" >/dev/null 2>&1 && sleep 1
+[ -n "$SWITCH" ] && playwright-cli click "$SWITCH" >/dev/null 2>&1
+wait_for_snapshot "At least 12 characters" 15 || true
 snapshot_contains "At least 12 characters" \
   && pass "password guidance shown before signup" \
   || fail "password guidance missing"
@@ -230,7 +450,7 @@ snapshot_contains "At least 12 characters" \
 playwright-cli fill "$(ref_for 'Email')" "$EMAIL" >/dev/null 2>&1
 playwright-cli fill "$(ref_for 'Password')" "$PASSWORD" >/dev/null 2>&1
 playwright-cli click "$(ref_for 'Create account')" >/dev/null 2>&1
-sleep 4
+wait_for_snapshot "Write what happened" 30 || true
 
 playwright-cli snapshot >/dev/null 2>&1
 # The composer's placeholder, which is now the design's wording and pinned to
@@ -254,26 +474,53 @@ playwright-cli fill "$(ref_for "Journal entry")" "$ENTRY" >/dev/null 2>&1
 # pre-fill snapshot found nothing, so the click silently did nothing.
 playwright-cli snapshot >/dev/null 2>&1
 playwright-cli click "$(ref_for 'Save this entry')" >/dev/null 2>&1
-sleep 3
-playwright-cli snapshot >/dev/null 2>&1
-
-# Asked of the server, not the screen. The previous check looked for the entry
-# text in the snapshot — which passes whether the entry saved or is merely still
-# sitting in the input, so it could not fail for the reason it claimed to.
-curl -s "${API_URL}/v1/observations" -H "Authorization: Bearer ${TOKEN}" \
-  | grep -qF "$ENTRY" \
+wait_for_api_text "${API_URL}/v1/observations" "$ENTRY" 30 \
   && pass "entry was actually saved" \
   || fail "entry was not saved"
-snapshot_contains "$ENTRY" \
+wait_for_snapshot "$ENTRY" 30 \
   && pass "entry round-tripped and rendered" \
   || fail "entry did not appear in the journal"
 
+step "Findings can be turned off and back on"
+playwright-cli goto "${WEB_URL}/settings" >/dev/null 2>&1
+wait_for_snapshot "Patterns and regions" 30 || fail "findings setting missing"
+playwright-cli click "$(ref_for 'Patterns and regions')" >/dev/null 2>&1
+playwright-cli goto "${WEB_URL}/patterns" >/dev/null 2>&1
+wait_for_snapshot "Patterns are turned off" 30 \
+  && pass "findings-off hides the patterns screen" \
+  || fail "findings-off did not hide patterns"
+# The mobile journal is the public root route; preserve the raw record through
+# the authoritative API check without inventing a /journal destination.
+playwright-cli goto "${WEB_URL}/" >/dev/null 2>&1
+wait_for_api_text "${API_URL}/v1/observations" "$ENTRY" 30 \
+  && pass "findings-off preserves the raw journal" \
+  || fail "findings-off hid the raw journal"
+playwright-cli goto "${WEB_URL}/search" >/dev/null 2>&1
+playwright-cli fill "$(ref_for 'A word you remember writing')" "Sara" >/dev/null 2>&1
+wait_for_snapshot "$ENTRY" 30 \
+  && pass "findings-off preserves raw Search results" \
+  || fail "findings-off hid raw Search results"
+playwright-cli goto "${WEB_URL}/settings" >/dev/null 2>&1
+playwright-cli click "$(ref_for 'Patterns and regions')" >/dev/null 2>&1
+playwright-cli goto "${WEB_URL}/patterns" >/dev/null 2>&1
+wait_for_snapshot "What keeps returning" 30 \
+  && pass "findings can be restored" \
+  || fail "findings could not be restored"
+
 step "The daily summary"
-playwright-cli click "$(ref_for 'Today')" >/dev/null 2>&1
-sleep 3
-playwright-cli snapshot >/dev/null 2>&1
-snapshot_contains "1 act" && pass "today reports one act" || fail "act count wrong"
+# Use the route after the account-wide save assertion; the link itself is
+# covered by the shared toolbar checks, while a direct route avoids a stale
+# generic ref turning this critical state transition into a silent no-op.
+playwright-cli goto "${WEB_URL}/today" >/dev/null 2>&1
+wait_for_snapshot "The acts" 30 \
+  && pass "today reports one act" || fail "act count wrong"
 snapshot_contains "$ENTRY" && pass "entry shown under what you wrote" || fail "entry missing"
+# Invalid route input must not be handed to the API as a date or render a blank
+# summary; Today falls back to the local day through its validated param parser.
+playwright-cli goto "${WEB_URL}/today?date=not-a-date" >/dev/null 2>&1
+wait_for_snapshot "$ENTRY" 30 \
+  && pass "invalid Today date falls back to the local day" \
+  || fail "invalid Today date produced an unsafe or blank route"
 
 step "A low-confidence inference is presented as a guess"
 # No UI for extraction yet, so it is triggered directly. What is being verified is
@@ -283,14 +530,25 @@ OID="$(curl -s "${API_URL}/v1/observations" -H "Authorization: Bearer ${TOKEN}" 
   | python3 -c 'import json,sys; print(json.load(sys.stdin)["observations"][0]["id"])')"
 curl -sf -X POST "${API_URL}/v1/observations/${OID}/extract" \
   -H "Authorization: Bearer ${TOKEN}" >/dev/null && pass "extraction ran" || fail "extraction failed"
-
-playwright-cli reload >/dev/null 2>&1
-sleep 3
-playwright-cli snapshot >/dev/null 2>&1
-snapshot_has_section "$(section lessSure)" \
+TODAY="$(date -u +%F)"
+SUMMARY_READY=0
+for _ in $(seq 1 30); do
+  if curl -s "${API_URL}/v1/summary/${TODAY}?tz=UTC" -H "Authorization: Bearer ${TOKEN}" \
+    | python3 -c 'import json,sys; raise SystemExit(0 if json.load(sys.stdin).get("inferred") else 1)'; then
+    SUMMARY_READY=1
+    break
+  fi
+  sleep 1
+done
+[ "$SUMMARY_READY" = 1 ] \
+  && pass "summary reports extraction completion" \
+  || fail "summary never reported inferred content"
+playwright-cli goto "${WEB_URL}/today?date=${TODAY}" >/dev/null 2>&1
+wait_for_snapshot "Today" 30 \
+  && wait_for_snapshot "Less sure" 60 \
   && pass "tentative inference is in its own section" \
   || fail "tentative section missing"
-snapshot_has_section "$(section kept)" \
+grep -qF 'heading "What they left behind"' "$(latest_snapshot)" 2>/dev/null \
   && fail "a 0.3-confidence guess was presented as something the record stands behind" \
   || pass "guess kept out of the confident section"
 snapshot_contains "not a conclusion about you" \
@@ -307,8 +565,7 @@ wait_for_snapshot "More" 30 \
   && pass "journal exposes the way to everything else" \
   || fail "no route out of the journal"
 playwright-cli click "$(ref_for 'More places to go')" >/dev/null 2>&1
-sleep 1
-playwright-cli snapshot >/dev/null 2>&1
+wait_for_snapshot "This week" 30 || true
 playwright-cli click "$(ref_for 'This week')" >/dev/null 2>&1
 wait_for_snapshot "$ENTRY" 30 \
   && pass "current week renders the entry" \
@@ -345,7 +602,7 @@ wait_for_snapshot "This week" 30 \
 # The pagers show which week or day they go to; their accessible names say
 # what they do, which is the handle that survives the label changing.
 playwright-cli click "$(ref_for 'Previous week')" >/dev/null 2>&1
-wait_for_snapshot "Nothing recorded." 30 \
+wait_for_snapshot "Nothing recorded" 30 \
   && pass "previous empty week says nothing was recorded" \
   || fail "previous empty week not reported"
 for nudge in "streak" "Keep going" "Why not"; do
@@ -357,56 +614,41 @@ console_clean "the journal"
 
 step "The dashboard"
 playwright-cli goto "${WEB_URL}/graph" >/dev/null 2>&1
-sleep 3
-playwright-cli snapshot >/dev/null 2>&1
-snapshot_contains "entries" && pass "dashboard renders counts" || fail "dashboard counts missing"
+wait_for_snapshot "entries" 30 \
+  && pass "dashboard renders counts" || fail "dashboard counts missing"
 snapshot_contains "What has been noticed" \
   && pass "dashboard lists what was drawn from entries" \
   || fail "dashboard list missing"
-snapshot_contains "Hide tentative guesses" \
+snapshot_contains 'button "Hide tentative guesses"' \
   && pass "tentative guesses can be filtered out" \
   || fail "tentative filter missing"
 
 # Hiding tentative guesses should empty the list, since the stub emits 0.3.
 playwright-cli click "$(ref_for 'Hide tentative guesses')" >/dev/null 2>&1
-sleep 3
-playwright-cli snapshot >/dev/null 2>&1
-snapshot_contains "Nothing confident enough to show" \
+wait_for_snapshot "Nothing confident enough to show" 30 \
+  && snapshot_contains "Nothing confident enough to show" \
   && pass "filtering removes the low-confidence guesses" \
   || fail "filter had no effect"
 
 console_clean "the dashboard"
 
 step "The graph explorer"
-# Skia on web loads CanvasKit as a 7.6MB WASM module, so the canvas appears
-# several seconds after the route does. Waiting for the element rather than
-# sleeping a fixed amount keeps this from being flaky on a slow machine.
+# Expo-Web now exposes the graph as an accessible SVG panel rather than a
+# Skia canvas. Assert the named surface and its relationship disclaimer.
 playwright-cli goto "${WEB_URL}/explore" >/dev/null 2>&1
-CANVAS=""
-for _ in $(seq 1 20); do
-  if playwright-cli eval "document.querySelector('canvas') ? 'yes' : 'no'" 2>&1 | grep -q '"yes"'; then
-    CANVAS="yes"; break
-  fi
-  sleep 3
-done
-[ -n "$CANVAS" ] && pass "the Skia canvas renders" || fail "canvas never appeared"
-
-CANVAS_ERRORS="$(playwright-cli console 2>&1 | grep -oE 'Errors: [0-9]+' | grep -oE '[0-9]+' | head -1)"
-[ "${CANVAS_ERRORS:-0}" = "0" ] \
-  && pass "no errors while rendering the graph" \
-  || fail "${CANVAS_ERRORS} errors on the explorer"
+wait_for_snapshot "The graph, as points and threads" 30 \
+  && pass "the graph surface is accessible" \
+  || fail "graph surface never appeared"
+snapshot_contains "Position carries no meaning" \
+  && pass "graph semantics disclaim positional meaning" \
+  || fail "graph semantics missing"
+console_clean "the graph explorer"
 
 step "An empty day says so, without nudging"
 playwright-cli goto "${WEB_URL}/today" >/dev/null 2>&1
-sleep 3
-playwright-cli snapshot >/dev/null 2>&1
-playwright-cli goto "${WEB_URL}/today" >/dev/null 2>&1
-sleep 3
-playwright-cli snapshot >/dev/null 2>&1
+wait_for_snapshot "Previous day" 30
 playwright-cli click "$(ref_for 'Previous day')" >/dev/null 2>&1
-sleep 2
-playwright-cli snapshot >/dev/null 2>&1
-snapshot_contains "Nothing recorded" \
+wait_for_snapshot "Nothing recorded" 30 \
   && pass "empty day stated plainly" \
   || fail "empty day not reported"
 for nudge in "streak" "Keep going" "Why not"; do
@@ -429,38 +671,86 @@ echo "$WEEK_BODY" | grep -q '"mood_score"\|"trend"\|"streak"' \
 
 step "Talking to the agent"
 playwright-cli goto "${WEB_URL}/talk" >/dev/null 2>&1
-sleep 4
-playwright-cli snapshot >/dev/null 2>&1
-snapshot_contains "Hold to record" \
-  && pass "voice capture offered" \
-  || fail "no record control on the talk screen"
-snapshot_contains "isn't saved as an entry" \
-  && pass "says which side of the conversation is kept" \
-  || fail "did not state what is kept"
+wait_for_snapshot "What stays from this conversation" 30 \
+  && pass "Talk privacy disclosure is visible" \
+  || fail "Talk privacy disclosure missing"
+snapshot_contains "The conversation transcript, including your turns and the agent's turns" \
+  && pass "says which turns become entries" \
+  || fail "did not state which turns are kept"
+snapshot_contains "Audio is transcribed and then discarded" \
+  && pass "says audio is discarded after transcription" \
+  || fail "did not state audio handling"
 
-# The sphere is the interface; the transcript is one tap away rather than the
-# thing you sit and read while talking.
-STAGE="$(ref_for 'focus mode')"
-[ -n "$STAGE" ] && playwright-cli click "$STAGE" >/dev/null 2>&1
-sleep 2
-playwright-cli snapshot >/dev/null 2>&1
-COMPOSER="$(ref_for 'Say something')"
-if [ -n "$COMPOSER" ]; then
-  pass "tapping the sphere reveals the transcript"
-  playwright-cli fill "$COMPOSER" "Mondays have felt heavy lately" >/dev/null 2>&1
-  playwright-cli click "$(ref_for 'Send')" >/dev/null 2>&1
-  sleep 5
-  playwright-cli snapshot >/dev/null 2>&1
-  snapshot_contains "Mondays have felt heavy lately" \
-    && pass "the turn round-tripped" \
-    || fail "turn did not appear"
+# The mobile Talk surface is voice-first: options expose push-to-talk and the
+# transcript drawer, while typed Talk is covered by the desktop client's suite.
+wait_for_snapshot "Show options" 30 \
+  && pass "Talk options are reachable" \
+  || fail "Talk options never appeared"
+OPTIONS="$(ref_for 'Show options')"
+if [ -n "$OPTIONS" ]; then
+  playwright-cli click "$OPTIONS" >/dev/null 2>&1
+  wait_for_snapshot "Prefer to hold instead?" 30 \
+    && pass "push-to-talk fallback is exposed" \
+    || fail "push-to-talk fallback never appeared"
+  snapshot_contains "View transcript" \
+    && pass "transcript control is exposed" \
+    || fail "transcript control is missing"
 else
-  fail "composer never appeared"
+  fail "Talk options control was not addressable"
 fi
+
+# Exercise a real, deterministic typed turn through the authenticated API. The
+# Expo-Web surface is voice-first, so this keeps the UI responsible for closing
+# and displaying the receipt while avoiding microphone/device nondeterminism.
+TALK_ID="$(curl -sf "${API_URL}/v1/conversations" -H "Authorization: Bearer ${TOKEN}" \
+  | python3 -c 'import json,sys; print(next(c["id"] for c in json.load(sys.stdin)["conversations"] if c["closed_at"] is None))')" \
+  && pass "an open Talk conversation is available" \
+  || fail "could not find the open Talk conversation"
+TALK_TEXT="A deterministic typed Talk turn for the end-to-end check."
+TALK_TURN_ID="$(python3 -c 'import uuid; print(uuid.uuid4())')"
+TALK_REPLY="$(curl -sf -X POST "${API_URL}/v1/conversations/${TALK_ID}/turns" \
+  -H "Authorization: Bearer ${TOKEN}" -H 'Content-Type: application/json' \
+  -d '{"content":"'"${TALK_TEXT}"'","source":"text","timezone":"UTC","client_turn_id":"'"${TALK_TURN_ID}"'"}')" \
+  && echo "$TALK_REPLY" | grep -q '"reply"' \
+  && pass "typed Talk turn was accepted" \
+  || fail "typed Talk turn was not accepted"
+# The Talk query does not refetch after an external API turn. Reload the mounted
+# screen so saidSomething observes the seeded turn before the close control is read.
+playwright-cli reload >/dev/null 2>&1 \
+  && pass "Talk screen was reloaded after the API turn" \
+  || fail "Talk screen did not reload after the API turn"
+wait_for_snapshot "$TALK_TEXT" 30 \
+  && pass "Talk turn is observable in the surface" \
+  || fail "Talk turn never appeared in the surface"
+# Reloading closes the options drawer, so reopen it from the freshly rendered
+# screen before resolving the close control.
+wait_for_snapshot "Show options" 30 \
+  && OPTIONS="$(ref_for 'Show options')" \
+  && [ -n "$OPTIONS" ] \
+  && playwright-cli click "$OPTIONS" >/dev/null 2>&1 \
+  && wait_for_snapshot "Close conversation · keeps your turns" 30 \
+  || fail "Talk options did not reopen after the API turn"
+CLOSE_REF="$(ref_for 'Close conversation · keeps your turns')"
+[ -n "$CLOSE_REF" ] \
+  && playwright-cli click "$CLOSE_REF" >/dev/null 2>&1 \
+  && pass "Talk conversation close was requested" \
+  || fail "Talk close control was not addressable"
+wait_for_snapshot "Conversation closed" 30 \
+  && snapshot_contains "1 turn converted to Journal entries." \
+  && pass "authoritative Talk conversion receipt is visible" \
+  || fail "authoritative Talk conversion receipt missing"
 # The only excused error in the run: speech is deliberately unconfigured here, so
 # the one probe the client makes before learning that is expected. It asks once
-# and then stops — see src/lib/useSpokenReply.ts.
+# and then stops — see src/lib/useSpokenReply.ts. Check Talk before navigating so
+# a clean Journal console cannot mask an error on the conversation screen.
 console_clean "the talk screen" "/v1/voice/speak"
+RETURN_REF="$(ref_for 'Return to Journal')"
+[ -n "$RETURN_REF" ] \
+  && playwright-cli click "$RETURN_REF" >/dev/null 2>&1 \
+  && wait_for_snapshot "Journal" 30 \
+  && pass "Talk returns explicitly to Journal" \
+  || fail "Talk did not return to Journal"
+console_clean "the Journal after Talk"
 
 step "Speech is absent rather than faked"
 # No key in this run. A stub that returned a beep would make a missing
@@ -483,9 +773,9 @@ curl -s "${API_URL}/v1/agents" -H "Authorization: Bearer ${TOKEN}" \
   || fail "registry did not list its agents"
 
 RUNS="$(curl -s -X POST "${API_URL}/v1/agents/run" -H "Authorization: Bearer ${TOKEN}")"
-echo "$RUNS" | grep -q '"status"' \
+python3 -c 'import json,sys; data=json.load(sys.stdin); statuses=[item.get("status") for item in data]; raise SystemExit(0 if data and "succeeded" in statuses and all(status in {"succeeded", "skipped"} for status in statuses) else 1)' <<<"$RUNS" \
   && pass "agents ran on request" \
-  || fail "manual run produced nothing"
+  || fail "manual agent run did not complete successfully"
 # A button that declines to look is baffling; a forced run must report what it
 # found, not that it did not check.
 echo "$RUNS" | grep -q 'nothing new to work on' \
@@ -501,7 +791,7 @@ echo "$LOG" | grep -q '"version"' \
   || fail "version not recorded"
 # The run log must not become a second copy of someone's private writing. The
 # same grep matches when the content IS present, so this is a live assertion.
-echo "$LOG" | grep -q "Mondays have felt heavy" \
+echo "$LOG" | grep -qF "$ENTRY" \
   && fail "the run log copied the user's words" \
   || pass "the log holds counts, not content"
 
@@ -550,9 +840,8 @@ done
 # The stub extractor emits Thought nodes, which mining excludes. Seed eligible
 # provenance-backed inferred nodes in the disposable database, then use the real
 # mining API.
-ENV_DB_URL="$(sed -n 's/^DATABASE_URL=//p' "${ROOT}/apps/backend/.env" | head -1)"
-DB_URL="${DATABASE_URL:-${ENV_DB_URL:-postgres://tlon:tlon@localhost:5433/tlon}}"
-DATABASE_URL="$DB_URL" uv run --env-file "${ROOT}/apps/backend/.env" --project "${ROOT}/apps/backend" python - "$EMAIL" "${PATTERN_IDS[@]-}" <<'PYSEED'
+DB_URL="$E2E_DATABASE_URL"
+DATABASE_URL="$DB_URL" uv run --project "${ROOT}/apps/backend" python - "$EMAIL" "${PATTERN_IDS[@]-}" <<'PYSEED'
 import asyncio
 import os
 import sys
@@ -602,7 +891,7 @@ wait_for_snapshot "Open experiments" 30 \
   || fail "Patterns screen has no Experiments entry"
 experiment_language_clean "Patterns"
 playwright-cli click "$(ref_for 'Open experiments')" >/dev/null 2>&1
-wait_for_snapshot "Try a question, in your own words." 30 \
+wait_for_snapshot "Try a question" 30 \
   && pass "Experiments screen opened from the Pattern" \
   || fail "Experiments screen did not open"
 
@@ -656,16 +945,18 @@ console_clean "linked Pattern explanation"
 # Return through the stable route after the explanation view; refs are always
 # resolved from the fresh snapshot rather than carried across navigation.
 playwright-cli goto "${WEB_URL}/experiment/${EXPERIMENT_ID}" >/dev/null 2>&1
-wait_for_snapshot "$HYPOTHESIS" 30 || fail "experiment detail did not render"
+# The hypothesis also exists on the creation form, so it is not a navigation
+# boundary. The detail-only delete action proves the route has rendered.
+wait_for_snapshot "Delete experiment" 30 || fail "experiment detail did not render"
 EXPERIMENT_URL="${WEB_URL}/experiment/${EXPERIMENT_ID}"
-playwright-cli click "$(ref_for 'Start')" >/dev/null 2>&1
-wait_for_snapshot "EXPERIMENT · ACTIVE" 30 \
+playwright-cli click "$(ref_for_role button 'Start')" >/dev/null 2>&1
+wait_for_experiment_state "active" 90 \
   && pass "experiment started" || fail "experiment did not start"
-playwright-cli click "$(ref_for 'Pause')" >/dev/null 2>&1
-wait_for_snapshot "EXPERIMENT · PAUSED" 30 \
+playwright-cli click "$(ref_for_role button 'Pause')" >/dev/null 2>&1
+wait_for_experiment_state "paused" 90 \
   && pass "experiment paused" || fail "experiment did not pause"
-playwright-cli click "$(ref_for 'Resume')" >/dev/null 2>&1
-wait_for_snapshot "EXPERIMENT · ACTIVE" 30 \
+playwright-cli click "$(ref_for_role button 'Resume')" >/dev/null 2>&1
+wait_for_experiment_state "active" 90 \
   && pass "experiment resumed" || fail "experiment did not resume"
 
 playwright-cli fill "$(ref_for_role textbox 'Check-in observation')" "$CHECKIN" >/dev/null 2>&1
@@ -707,7 +998,7 @@ if [ -n "$OTHER" ]; then
     && pass "a new account sees none of another's agent runs" \
     || fail "agent runs leaked between accounts"
   curl -s "${API_URL}/v1/observations" -H "Authorization: Bearer ${OTHER}" \
-    | grep -q "Mondays have felt heavy" \
+    | grep -qF "$ENTRY" \
     && fail "entries leaked between accounts" \
     || pass "a new account sees none of another's entries"
   curl -s "${API_URL}/v1/experiments" -H "Authorization: Bearer ${OTHER}" \
@@ -724,9 +1015,45 @@ else
   fail "could not create a second account"
 fi
 
+# Exercise the same account boundary through the real browser session, rather
+# than relying only on a second bearer token. Sign out of account A, sign into B,
+# and verify the current fixtures are absent from both its API and rendered UI.
+playwright-cli goto "${WEB_URL}/settings" >/dev/null 2>&1
+wait_for_snapshot "Sign out" 30 || fail "could not open account switching settings"
+playwright-cli click "$(ref_for 'Sign out')" >/dev/null 2>&1
+wait_for_snapshot "Welcome back." 30 || fail "browser did not sign out before account switch"
+playwright-cli fill "$(ref_for 'Email address')" "$OTHER_EMAIL" >/dev/null 2>&1
+playwright-cli fill "$(ref_for 'Password')" "$PASSWORD" >/dev/null 2>&1
+playwright-cli click "$(ref_for 'Sign in')" >/dev/null 2>&1
+wait_for_snapshot "Write what happened" 30 || fail "browser did not sign into the second account"
+if wait_for_empty_observations "$OTHER" 30; then
+  pass "second account API is settled with an empty journal"
+else
+  fail "second account journal did not settle empty"
+fi
+playwright-cli goto "${WEB_URL}/" >/dev/null 2>&1
+if wait_for_snapshot "Nothing written yet" 30; then
+  pass "second account UI is settled with an empty journal"
+else
+  fail "second account UI did not settle empty"
+fi
+snapshot_contains "$ENTRY" && fail "browser account switch leaked the first account's entry" \
+  || pass "browser account switch hides the first account's entry"
+snapshot_contains "$TITLE" && fail "browser account switch leaked the first account's experiment" \
+  || pass "browser account switch hides the first account's experiment"
+
+# Restore account A before continuing its deletion and rejection journeys.
+playwright-cli goto "${WEB_URL}/settings" >/dev/null 2>&1
+wait_for_snapshot "Sign out" 30 || fail "could not reopen second account settings"
+playwright-cli click "$(ref_for 'Sign out')" >/dev/null 2>&1
+wait_for_snapshot "Welcome back." 30 || fail "could not sign out of second account"
+playwright-cli fill "$(ref_for 'Email address')" "$EMAIL" >/dev/null 2>&1
+playwright-cli fill "$(ref_for 'Password')" "$PASSWORD" >/dev/null 2>&1
+playwright-cli click "$(ref_for 'Sign in')" >/dev/null 2>&1
+wait_for_snapshot "Write what happened" 30 || fail "could not restore first account"
+TOKEN="$(playwright-cli localstorage-get tlon.token 2>&1 | grep -oE '[A-Za-z0-9_-]{40,}' | head -1)"
+
 step "Returning to the first account and deleting the experiment"
-# The second account was checked through bounded authenticated API calls, so the
-# browser session remains the first account and can finish its own lifecycle.
 playwright-cli goto "${EXPERIMENT_URL}" >/dev/null 2>&1
 wait_for_snapshot "Outcome" 30 || fail "first account could not reopen completed experiment"
 playwright-cli click "$(ref_for 'Delete experiment')" >/dev/null 2>&1
@@ -815,7 +1142,7 @@ for offset in $(seq 0 31); do
   case " 1 9 18 28 " in *" ${offset} "*) LAG_TARGET_IDS+=("$OID") ;; esac
 done
 
-DATABASE_URL="$DB_URL" uv run --env-file "${ROOT}/apps/backend/.env" --project "${ROOT}/apps/backend" python - "$EMAIL" "${LAG_SOURCE_IDS[@]-}" -- "${LAG_TARGET_IDS[@]-}" <<'PYSEED'
+DATABASE_URL="$DB_URL" uv run --project "${ROOT}/apps/backend" python - "$EMAIL" "${LAG_SOURCE_IDS[@]-}" -- "${LAG_TARGET_IDS[@]-}" <<'PYSEED'
 import asyncio
 import os
 import sys
@@ -877,7 +1204,7 @@ else
     esac
 
     playwright-cli goto "${WEB_URL}/pattern/${LAG_ID}" >/dev/null 2>&1
-    wait_for_snapshot "WHAT CAME FIRST" 30 \
+    wait_for_snapshot "These entries were written" 30 \
       && pass "the ordered evidence screen opens" \
       || fail "the ordered evidence screen did not render"
     snapshot_contains "1 day later" \

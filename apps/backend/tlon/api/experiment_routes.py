@@ -14,6 +14,7 @@ router = APIRouter()
 
 class Mutation(BaseModel):
     revision: int
+    include_links: bool = True
 
 
 class Outcome(Mutation):
@@ -56,14 +57,29 @@ async def create(
 
 
 @router.get("/v1/experiments")
-async def listing(request: Request, user_id: UUID = Depends(current_user)):
-    return {"experiments": await db.list_for_user(request.app.state.pool, user_id)}
+async def listing(
+    request: Request,
+    include_links: bool = True,
+    user_id: UUID = Depends(current_user),
+):
+    return {
+        "experiments": await db.list_for_user(
+            request.app.state.pool, user_id, include_links=include_links
+        )
+    }
 
 
 @router.get("/v1/experiments/{experiment_id}")
-async def fetch(request: Request, experiment_id: UUID, user_id: UUID = Depends(current_user)):
+async def fetch(
+    request: Request,
+    experiment_id: UUID,
+    include_links: bool = True,
+    user_id: UUID = Depends(current_user),
+):
     try:
-        return await db.detail(request.app.state.pool, user_id, experiment_id)
+        return await db.detail(
+            request.app.state.pool, user_id, experiment_id, include_links=include_links
+        )
     except db.Missing as exc:
         fail(exc)
 
@@ -74,10 +90,13 @@ async def edit(
     experiment_id: UUID,
     payload: ExperimentEdit,
     revision: int,
+    include_links: bool = True,
     user_id: UUID = Depends(current_user),
 ):
     try:
-        return await db.edit(request.app.state.pool, user_id, experiment_id, revision, payload)
+        return await db.edit(
+            request.app.state.pool, user_id, experiment_id, revision, payload, include_links
+        )
     except (db.Conflict, db.Missing) as exc:
         fail(exc)
 
@@ -103,6 +122,7 @@ async def state(request, experiment_id, payload, target, user_id):
             getattr(payload, "assessment", None),
             getattr(payload, "note", None),
             getattr(payload, "final_checkin_observation_id", None),
+            payload.include_links,
         )
     except (db.Conflict, db.Missing) as exc:
         fail(exc)
@@ -149,7 +169,12 @@ async def add_link(
 ):
     try:
         return await db.link(
-            request.app.state.pool, user_id, experiment_id, payload.node_id, payload.revision
+            request.app.state.pool,
+            user_id,
+            experiment_id,
+            payload.node_id,
+            payload.revision,
+            payload.include_links,
         )
     except (db.Conflict, db.Missing) as exc:
         fail(exc)
@@ -161,10 +186,13 @@ async def remove_link(
     experiment_id: UUID,
     node_id: UUID,
     revision: int,
+    include_links: bool = True,
     user_id: UUID = Depends(current_user),
 ):
     try:
-        return await db.unlink(request.app.state.pool, user_id, experiment_id, node_id, revision)
+        return await db.unlink(
+            request.app.state.pool, user_id, experiment_id, node_id, revision, include_links
+        )
     except (db.Conflict, db.Missing) as exc:
         fail(exc)
 
@@ -175,7 +203,12 @@ async def checkin(
 ):
     try:
         return await db.attach_checkin(
-            request.app.state.pool, user_id, experiment_id, payload.observation_id, payload.revision
+            request.app.state.pool,
+            user_id,
+            experiment_id,
+            payload.observation_id,
+            payload.revision,
+            payload.include_links,
         )
     except (db.Conflict, db.Missing) as exc:
         fail(exc)

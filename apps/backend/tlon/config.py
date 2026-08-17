@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import AliasChoices, Field
+from pydantic import AliasChoices, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -31,12 +31,17 @@ class Settings(BaseSettings):
 
     #: Hosted Whisper, for voice entries. Absent in development, in which case the
     #: stub transcriber keeps the voice path exercisable without a key.
-    #: Accepts the provider-specific name too, since ELEVENLABS_API_KEY is what
-    #: their dashboard hands you and renaming it on the way in is a papercut.
+    #: TRANSCRIPTION_API_KEY is deliberately provider-neutral: it is the explicit
+    #: choice for the provider selected below. Provider-specific environment keys
+    #: are kept separate so a Groq key cannot accidentally be sent to ElevenLabs.
     transcription_api_key: str = Field(
+        default="", validation_alias="TRANSCRIPTION_API_KEY"
+    )
+    elevenlabs_api_key: str = Field(default="", validation_alias="ELEVENLABS_API_KEY")
+    openai_compatible_api_key: str = Field(
         default="",
         validation_alias=AliasChoices(
-            "TRANSCRIPTION_API_KEY", "ELEVENLABS_API_KEY", "GROQ_API_KEY"
+            "OPENAI_COMPATIBLE_API_KEY", "OPENAI_API_KEY", "GROQ_API_KEY"
         ),
     )
     #: "elevenlabs" or "openai" — they do not share a request shape, so this
@@ -44,6 +49,40 @@ class Settings(BaseSettings):
     transcription_provider: str = "elevenlabs"
     #: Only used by the openai-compatible provider.
     transcription_base_url: str = "https://api.groq.com/openai/v1"
+
+    @model_validator(mode="after")
+    def resolve_transcription_credential(self) -> "Settings":
+        provider = self.transcription_provider.strip().lower()
+        if provider == "elevenlabs":
+            fallback = self.elevenlabs_api_key
+            provider_name = "ELEVENLABS_API_KEY"
+        elif provider in {"openai", "groq", "openai-compatible"}:
+            fallback = self.openai_compatible_api_key
+            provider_name = "GROQ_API_KEY or OPENAI_COMPATIBLE_API_KEY"
+        else:
+            # build_transcriber reports the canonical provider error; do not
+            # obscure it with credential resolution for an unknown provider.
+            return self
+
+        if self.transcription_api_key.strip():
+            return self
+        if fallback.strip():
+            self.transcription_api_key = fallback
+            return self
+        # No key at all is supported in development (the stub transcriber). A
+        # key for another provider, however, is a configuration mistake and must
+        # not be forwarded to a network client.
+        mismatched = (
+            self.openai_compatible_api_key
+            if provider == "elevenlabs"
+            else self.elevenlabs_api_key
+        )
+        if mismatched.strip():
+            raise ValueError(
+                f"{provider_name} is required for transcription provider "
+                f"{self.transcription_provider!r}; only a mismatched provider key was configured"
+            )
+        return self
     #: Blank means the provider's own default model.
     transcription_model: str = ""
 

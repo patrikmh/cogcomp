@@ -249,6 +249,56 @@ class TestTheListNamesWhatEachTrialTests:
         [item] = listing.json()["experiments"]
         assert [link["label"] for link in item["links"]] == ["rest"]
 
+    async def test_findings_off_link_and_unlink_mutations_omit_links(
+        self, client: AsyncClient, account: Account, pool
+    ):
+        created = await create(client, account)
+        node_id = await a_reading_drawn_from_an_entry(client, pool, account)
+        linked = await client.post(
+            f"/v1/experiments/{created['id']}/links",
+            headers=account.auth,
+            json={
+                "revision": created["revision"],
+                "node_id": str(node_id),
+                "include_links": False,
+            },
+        )
+        assert linked.status_code == 200
+        assert "links" not in linked.json()
+
+        unlinked = await client.delete(
+            f"/v1/experiments/{created['id']}/links/{node_id}",
+            headers=account.auth,
+            params={"revision": linked.json()["revision"], "include_links": "false"},
+        )
+        assert unlinked.status_code == 200
+        assert "links" not in unlinked.json()
+
+    async def test_findings_off_listing_omits_links(self, client: AsyncClient, account: Account, pool):
+        created = await create(client, account)
+        node_id = await a_reading_drawn_from_an_entry(client, pool, account)
+        await client.post(
+            f"/v1/experiments/{created['id']}/links",
+            headers=account.auth,
+            json={"revision": created["revision"], "node_id": str(node_id)},
+        )
+        response = await client.get("/v1/experiments?include_links=false", headers=account.auth)
+        assert "links" not in response.json()["experiments"][0]
+
+    async def test_findings_off_detail_omits_links(self, client: AsyncClient, account: Account, pool):
+        created = await create(client, account)
+        node_id = await a_reading_drawn_from_an_entry(client, pool, account)
+        await client.post(
+            f"/v1/experiments/{created['id']}/links",
+            headers=account.auth,
+            json={"revision": created["revision"], "node_id": str(node_id)},
+        )
+        response = await client.get(
+            f"/v1/experiments/{created['id']}?include_links=false", headers=account.auth
+        )
+        assert "links" not in response.json()
+        assert response.json()["title"] == created["title"]
+
     async def test_an_experiment_with_no_links_carries_an_empty_list(
         self, client: AsyncClient, account: Account
     ):

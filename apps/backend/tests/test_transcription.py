@@ -112,8 +112,9 @@ class TestBuildTranscriber:
     def test_a_blank_model_falls_back_to_the_providers_default(self):
         assert build_transcriber("key", "elevenlabs", "", "").version.endswith("scribe_v1")
 
-    def test_an_unknown_provider_fails_loudly(self):
+    @pytest.mark.parametrize("api_key", ["key", ""])
+    def test_an_unknown_provider_fails_loudly_before_stub_fallback(self, api_key):
         # Silently picking the wrong provider would surface much later as a
-        # confusing authentication error.
+        # confusing authentication error, even when development has no key.
         with pytest.raises(ValueError, match="unknown TRANSCRIPTION_PROVIDER"):
-            build_transcriber("key", "whisper.cpp", "", "")
+            build_transcriber(api_key, "whisper.cpp", "", "")

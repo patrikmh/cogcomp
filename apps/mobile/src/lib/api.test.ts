@@ -24,10 +24,45 @@ describe("experiment API wrappers", () => {
     expect(fetchMock).toHaveBeenCalledWith("http://localhost:8080/v1/experiments", { headers: { "Content-Type": "application/json", Authorization: "Bearer token" } });
   });
 
+  it("can omit derived links for findings-off reads", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ experiments: [] }));
+    await api.listExperiments("token", false);
+    expect(String(fetchMock.mock.calls[0][0])).toBe("http://localhost:8080/v1/experiments?include_links=false");
+
+    fetchMock.mockResolvedValue(jsonResponse({ id: "experiment" }));
+    await api.experiment("token", "experiment", false);
+    expect(String(fetchMock.mock.calls[1][0])).toBe("http://localhost:8080/v1/experiments/experiment?include_links=false");
+  });
+
   it("sends revision and completion fields to lifecycle endpoints", async () => {
     fetchMock.mockResolvedValue(jsonResponse({ id: "experiment", state: "completed" }));
     await api.experimentTransition("token", "experiment", "complete", 3, "met", "observation");
     expect(fetchMock).toHaveBeenCalledWith("http://localhost:8080/v1/experiments/experiment/complete", expect.objectContaining({ method: "POST", body: JSON.stringify({ revision: 3, assessment: "met", final_checkin_observation_id: "observation" }) }));
+  });
+
+  it("can omit derived links from lifecycle responses", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ id: "experiment", state: "active" }));
+    await api.experimentTransition("token", "experiment", "start", 3, undefined, undefined, false);
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body).toEqual({ revision: 3, assessment: undefined, final_checkin_observation_id: undefined, include_links: false });
+  });
+});
+
+describe("summary API wrappers", () => {
+  const fetchMock = jest.fn();
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    global.fetch = fetchMock as unknown as typeof fetch;
+    fetchMock.mockResolvedValue(jsonResponse({}));
+  });
+
+  it("passes findings state to daily and weekly summaries", async () => {
+    await api.dailySummary("token", "2026-03-05", "UTC", false);
+    await api.weeklySummary("token", "2026-03-02", "UTC", false);
+
+    expect(String(fetchMock.mock.calls[0][0])).toContain("include_findings=false");
+    expect(String(fetchMock.mock.calls[1][0])).toContain("include_findings=false");
   });
 });
 
@@ -37,6 +72,16 @@ describe("conversation API wrappers", () => {
   beforeEach(() => {
     fetchMock.mockReset();
     global.fetch = fetchMock as unknown as typeof fetch;
+  });
+
+  it("passes findings preference when closing a conversation", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ conversation_id: "conversation-1", observations: [], turns_converted: 0 }));
+
+    await api.closeConversation("token", "conversation-1", false);
+
+    expect(String(fetchMock.mock.calls[0][0])).toBe(
+      "http://localhost:8080/v1/conversations/conversation-1/close?include_findings=false",
+    );
   });
 
   it("lists conversations without limiting the results to one", async () => {
@@ -230,12 +275,14 @@ describe("streaming a turn when the body cannot be read incrementally", () => {
     await expect(
       api.sayStreaming("token", "conversation-1", "I said this", "voice", (text) => {
         deltas.push(text);
-      }),
+      }, "11111111-1111-4111-8111-111111111111"),
     ).resolves.toEqual({ reply: "What next?", crisis: false, crisis_resources: [] });
 
     expect(deltas).toEqual(["What ", "next?"]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock.mock.calls[0][0]).toContain("/turns/stream");
+    expect(JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string).client_turn_id)
+      .toBe("11111111-1111-4111-8111-111111111111");
   });
 
   it("does not invent a finished reply from a truncated stream", async () => {
@@ -287,6 +334,7 @@ describe("streaming a spoken turn", () => {
         "file:///tmp/recording.m4a",
         (text) => transcripts.push(text),
         (text) => deltas.push(text),
+        "33333333-3333-4333-8333-333333333333",
       ),
     ).resolves.toEqual({ reply: "What next?", crisis: false, crisis_resources: [] });
 
@@ -295,5 +343,7 @@ describe("streaming a spoken turn", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(String(fetchMock.mock.calls[0][0])).toContain("/turns/voice/stream");
     expect(String(fetchMock.mock.calls[0][0])).not.toMatch(/\/turns$/);
+    expect(((fetchMock.mock.calls[0][1] as RequestInit).body as FormData).get("client_turn_id"))
+      .toBe("33333333-3333-4333-8333-333333333333");
   });
 });

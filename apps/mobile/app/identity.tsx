@@ -14,6 +14,7 @@ import {
   type IdentityProjection,
 } from "@/lib/api";
 import { useSession } from "@/state/session";
+import { usePreferences } from "@/state/preferences";
 import { colors, fonts } from "@/theme";
 import { type as scale } from "@tlon/design";
 import { Kicker } from "@/components/Marks";
@@ -47,17 +48,20 @@ export default function IdentityScreen() {
   const compositionSize = Math.min(height * 0.64, 440, width * 0.92);
   const client = useQueryClient();
   const [selected, setSelected] = useState<string | null>(null);
+  const showFindings = usePreferences((s) => s.findings);
+  const preferencesReady = usePreferences((s) => s.ready);
+  const findingsVisible = preferencesReady && showFindings;
 
   const scope = ["identity", userId] as const;
   const projection = useQuery<IdentityProjection>({
     queryKey: scope,
     queryFn: () => api.identity(token!, true),
-    enabled: Boolean(token && userId),
+    enabled: Boolean(token && userId) && findingsVisible,
   });
   const candidates = useQuery<IdentityCandidates>({
     queryKey: [...scope, "candidates"],
     queryFn: () => api.identityCandidates(token!),
-    enabled: Boolean(token && userId),
+    enabled: Boolean(token && userId) && findingsVisible,
   });
 
   const invalidate = () => {
@@ -74,9 +78,11 @@ export default function IdentityScreen() {
 
   if (!token) return null;
 
-  const kept = projection.data?.nodes ?? [];
+  // Queries retain cached data when disabled, so make the visibility boundary
+  // explicit before any identity renderer consumes it.
+  const kept = findingsVisible ? projection.data?.nodes ?? [] : [];
   const keptIds = new Set(kept.map((node: IdentityNode) => node.id));
-  const offered = (candidates.data?.candidates ?? []).filter(
+  const offered = (findingsVisible ? candidates.data?.candidates ?? [] : []).filter(
     (node: IdentityNode) => !keptIds.has(node.id),
   );
   const everything = [...kept, ...offered];
@@ -140,11 +146,17 @@ export default function IdentityScreen() {
       selected={selected}
       onSelect={setSelected}
       dotSize={9}
-      loading={projection.isLoading || candidates.isLoading}
+      loading={findingsVisible && (projection.isLoading || candidates.isLoading)}
       error={
-        projection.isError || candidates.isError ? "Could not load identity." : null
+        findingsVisible && (projection.isError || candidates.isError)
+          ? "Could not load identity."
+          : null
       }
-      empty={EMPTY_COPY.identity}
+      empty={
+        findingsVisible
+          ? EMPTY_COPY.identity
+          : "Findings are turned off. Your journal is still kept."
+      }
       // The figures above already say how many of each there are. The design
       // spends this line on how to read the picture instead — hovering on the
       // web, tapping here.

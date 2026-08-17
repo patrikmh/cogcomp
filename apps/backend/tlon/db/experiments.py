@@ -93,7 +93,7 @@ async def create(
     return _item(row)
 
 
-async def list_for_user(pool, user_id):
+async def list_for_user(pool, user_id, *, include_links=True):
     rows = await pool.fetch(
         f"SELECT {_FIELDS} FROM experiments WHERE user_id=$1 AND deleted_at IS NULL ORDER BY start_date DESC, created_at DESC, id",
         user_id,
@@ -101,17 +101,19 @@ async def list_for_user(pool, user_id):
     # The readings each trial was set against, in one query rather than one per
     # experiment. The list screen names them — an experiment with nothing behind
     # it is a task, and which belief it tests is the whole point of running it.
-    links = await pool.fetch(
-        """
-        SELECT l.experiment_id, l.node_id, n.kind, n.label,
-               (l.deleted_at IS NULL AND n.id IS NOT NULL AND n.deleted_at IS NULL) AS availability
-        FROM experiment_links l
-        LEFT JOIN graph_nodes n ON n.id=l.node_id AND n.user_id=l.user_id
-        WHERE l.user_id=$1 AND l.deleted_at IS NULL
-        ORDER BY l.created_at, l.node_id
-        """,
-        user_id,
-    )
+    links = []
+    if include_links:
+        links = await pool.fetch(
+            """
+            SELECT l.experiment_id, l.node_id, n.kind, n.label,
+                   (l.deleted_at IS NULL AND n.id IS NOT NULL AND n.deleted_at IS NULL) AS availability
+            FROM experiment_links l
+            LEFT JOIN graph_nodes n ON n.id=l.node_id AND n.user_id=l.user_id
+            WHERE l.user_id=$1 AND l.deleted_at IS NULL
+            ORDER BY l.created_at, l.node_id
+            """,
+            user_id,
+        )
     by_experiment: dict = {}
     for link in links:
         row = dict(link)
@@ -120,7 +122,8 @@ async def list_for_user(pool, user_id):
     items = []
     for row in rows:
         item = _item(row)
-        item["links"] = by_experiment.get(item["id"], [])
+        if include_links:
+            item["links"] = by_experiment.get(item["id"], [])
         items.append(item)
     return items
 
@@ -133,22 +136,24 @@ async def get(pool, user_id, experiment_id, *, conn=None, lock=False):
     return _item(row)
 
 
-async def _detail_conn(conn, user_id, experiment_id):
+async def _detail_conn(conn, user_id, experiment_id, *, include_links=True):
     row = await get(conn, user_id, experiment_id, conn=conn)
     if not row:
         raise Missing()
-    links = await conn.fetch(
-        """
-        SELECT l.node_id, n.kind, n.label,
-               (l.deleted_at IS NULL AND n.id IS NOT NULL AND n.deleted_at IS NULL) AS availability
-        FROM experiment_links l
-        LEFT JOIN graph_nodes n ON n.id=l.node_id AND n.user_id=l.user_id
-        WHERE l.experiment_id=$1 AND l.user_id=$2
-        ORDER BY l.created_at,l.node_id
-        """,
-        experiment_id,
-        user_id,
-    )
+    links = []
+    if include_links:
+        links = await conn.fetch(
+            """
+            SELECT l.node_id, n.kind, n.label,
+                   (l.deleted_at IS NULL AND n.id IS NOT NULL AND n.deleted_at IS NULL) AS availability
+            FROM experiment_links l
+            LEFT JOIN graph_nodes n ON n.id=l.node_id AND n.user_id=l.user_id
+            WHERE l.experiment_id=$1 AND l.user_id=$2
+            ORDER BY l.created_at,l.node_id
+            """,
+            experiment_id,
+            user_id,
+        )
     checks = await conn.fetch(
         """
         SELECT o.node_id id,o.content,o.source,o.captured_at,n.created_at,
@@ -167,18 +172,19 @@ async def _detail_conn(conn, user_id, experiment_id):
         experiment_id,
         user_id,
     )
-    row["links"] = [dict(x) for x in links]
+    if include_links:
+        row["links"] = [dict(x) for x in links]
     row["checkins"] = [dict(x) for x in checks]
     row["outcome"] = dict(outcome) if outcome else None
     return row
 
 
-async def detail(pool, user_id, experiment_id):
+async def detail(pool, user_id, experiment_id, *, include_links=True):
     async with pool.acquire() as conn, conn.transaction():
-        return await _detail_conn(conn, user_id, experiment_id)
+        return await _detail_conn(conn, user_id, experiment_id, include_links=include_links)
 
 
-async def edit(pool, user_id, experiment_id, revision, data):
+async def edit(pool, user_id, experiment_id, revision, data, include_links=True):
     async with pool.acquire() as conn, conn.transaction():
         row = await get(conn, user_id, experiment_id, conn=conn, lock=True)
         if not row:
@@ -200,7 +206,7 @@ async def edit(pool, user_id, experiment_id, revision, data):
             data.timezone,
             data.cadence,
         )
-        return await _detail_conn(conn, user_id, experiment_id)
+        return await _detail_conn(conn, user_id, experiment_id, include_links=include_links)
 
 
 async def set_state(
@@ -212,13 +218,14 @@ async def set_state(
     assessment=None,
     note=None,
     final_checkin_observation_id=None,
+    include_links=True,
 ):
     async with pool.acquire() as conn, conn.transaction():
         row = await get(conn, user_id, experiment_id, conn=conn, lock=True)
         if not row:
             raise Missing()
         if row["state"] == target:
-            return await _detail_conn(conn, user_id, experiment_id)
+            return await _detail_conn(conn, user_id, experiment_id, include_links=include_links)
         if row["revision"] != revision:
             raise Conflict("revision conflict")
         try:
@@ -260,7 +267,7 @@ async def set_state(
         # same shape a read does, because the client writes this response into
         # the cache the screen renders from — a reply without `outcome`,
         # `links` or `checkins` does not omit them, it erases them.
-        return await _detail_conn(conn, user_id, experiment_id)
+        return await _detail_conn(conn, user_id, experiment_id, include_links=include_links)
 
 
 async def soft_delete(pool, user_id, experiment_id, revision):
@@ -277,7 +284,7 @@ async def soft_delete(pool, user_id, experiment_id, revision):
         )
 
 
-async def link(pool, user_id, experiment_id, node_id, revision):
+async def link(pool, user_id, experiment_id, node_id, revision, include_links=True):
     async with pool.acquire() as conn, conn.transaction():
         row = await get(conn, user_id, experiment_id, conn=conn, lock=True)
         if not row:
@@ -289,7 +296,7 @@ async def link(pool, user_id, experiment_id, node_id, revision):
             user_id,
         )
         if existing:
-            return await _detail_conn(conn, user_id, experiment_id)
+            return await _detail_conn(conn, user_id, experiment_id, include_links=include_links)
         if row["revision"] != revision:
             raise Conflict("revision conflict")
         if row["state"] != "draft":
@@ -312,10 +319,10 @@ async def link(pool, user_id, experiment_id, node_id, revision):
             experiment_id,
             user_id,
         )
-        return await _detail_conn(conn, user_id, experiment_id)
+        return await _detail_conn(conn, user_id, experiment_id, include_links=include_links)
 
 
-async def unlink(pool, user_id, experiment_id, node_id, revision):
+async def unlink(pool, user_id, experiment_id, node_id, revision, include_links=True):
     async with pool.acquire() as conn, conn.transaction():
         row = await get(conn, user_id, experiment_id, conn=conn, lock=True)
         if not row:
@@ -335,10 +342,10 @@ async def unlink(pool, user_id, experiment_id, node_id, revision):
             experiment_id,
             user_id,
         )
-        return await _detail_conn(conn, user_id, experiment_id)
+        return await _detail_conn(conn, user_id, experiment_id, include_links=include_links)
 
 
-async def attach_checkin(pool, user_id, experiment_id, observation_id, revision):
+async def attach_checkin(pool, user_id, experiment_id, observation_id, revision, include_links=True):
     async with pool.acquire() as conn, conn.transaction():
         row = await get(conn, user_id, experiment_id, conn=conn, lock=True)
         if not row:
@@ -350,7 +357,7 @@ async def attach_checkin(pool, user_id, experiment_id, observation_id, revision)
             user_id,
         )
         if existing:
-            return await _detail_conn(conn, user_id, experiment_id)
+            return await _detail_conn(conn, user_id, experiment_id, include_links=include_links)
         if row["revision"] != revision:
             raise Conflict("revision conflict")
         if row["state"] != "active":
@@ -373,4 +380,4 @@ async def attach_checkin(pool, user_id, experiment_id, observation_id, revision)
             experiment_id,
             user_id,
         )
-        return await _detail_conn(conn, user_id, experiment_id)
+        return await _detail_conn(conn, user_id, experiment_id, include_links=include_links)

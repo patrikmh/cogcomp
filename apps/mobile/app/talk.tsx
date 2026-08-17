@@ -16,6 +16,7 @@ import {
   View,
 } from "react-native";
 import Svg, { Path } from "react-native-svg";
+import * as Crypto from "expo-crypto";
 
 import { AtmosphericShell } from "@/components/Atmospheric";
 import { FieldFrame } from "@/components/SpatialField";
@@ -23,16 +24,18 @@ import { MotionSurface } from "@/components/MotionSurface";
 import { useReducedMotion } from "@/lib/motion";
 import { Haptics, selectHaptic, tapHaptic } from "@/lib/haptics";
 import { RecordButton, type RecordState } from "@/components/RecordButton";
-import { ApiError, api, type Conversation } from "@/lib/api";
+import { api, type Conversation } from "@/lib/api";
 import type { BlobState } from "@/lib/blobShape";
 import { lazySkia } from "@/lib/lazySkia";
 import { useContinuousVoice } from "@/lib/useContinuousVoice";
 import { useSpokenReply } from "@/lib/useSpokenReply";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
+import { forgetTalkOperation, pendingTalkOperations, rememberTalkOperation } from "@/state/pendingOperations";
 import { colors, fonts } from "@/theme";
 import { radii, type as scale } from "@tlon/design";
 import { Pill } from "@/components/Marks";
+import { TALK_DISCLOSURE } from "@tlon/copy";
 
 const LazyBlob = lazySkia(() => import("@/components/TalkAvatar"));
 
@@ -67,6 +70,7 @@ const LIVE_LABEL: Record<string, string> = {
  */
 export default function TalkScreen() {
   const token = useSession((s) => s.token);
+  const userId = useSession((s) => s.userId);
   const router = useRouter();
   const queryClient = useQueryClient();
   const { width, height } = useWindowDimensions();
@@ -88,22 +92,73 @@ export default function TalkScreen() {
    *  Empty whenever there is nothing in flight. */
   const [streamed, setStreamed] = useState("");
   const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
+  const [closeReceipt, setCloseReceipt] = useState<number | null>(null);
   const stoppedGeneration = useRef(0);
+  const requestGeneration = useRef(0);
+  const requestIdentities = useRef(new Map<string, { generation: number; userId: string; token: string; conversationId: string }>());
   const recordingGenerations = useRef<number[]>([]);
   const [recordCancel, setRecordCancel] = useState(0);
+  const turnIds = useRef(new Map<string, string>());
+  const voiceTurnIds = useRef(new Map<string, string>());
+  const [recordingGuard, setRecordingGuard] = useState(false);
+  const [pendingStorageError, setPendingStorageError] = useState<string | null>(null);
+  const [pendingVoiceIds, setPendingVoiceIds] = useState<string[]>([]);
+  const [pendingText, setPendingText] = useState<{ id: string; content: string }[]>([]);
+  const [pendingVoice, setPendingVoice] = useState<{ id: string; uri?: string }[]>([]);
+  const restoreGeneration = useRef(0);
+  const conversationIdRef = useRef<string | null>(null);
+  conversationIdRef.current = conversationId;
 
   const sheetAnim = useRef(new Animated.Value(0)).current;
 
   // Speaking is an addition to the text, never a replacement: if it is off, or
   // unconfigured, or fails, the reply is still on screen to read.
   const voiceOn = usePreferences((s) => s.voice);
+  const findingsVisible = usePreferences((s) => s.ready && s.findings);
   const setVoice = usePreferences((s) => s.setVoice);
   const voice = useSpokenReply(token, voiceOn);
 
   const start = useMutation({
     mutationFn: () => api.startConversation(token!),
-    onSuccess: (c) => setConversationId(c.id),
+    onSuccess: (c) => {
+      const session = useSession.getState();
+      if (session.token !== token || session.userId !== userId) return;
+      setConversationId(c.id);
+    },
   });
+
+  const sessionIdentity = useRef<{ token: string; userId: string } | null>(null);
+  useEffect(() => {
+    const previous = sessionIdentity.current;
+    sessionIdentity.current = token && userId ? { token, userId } : null;
+    if (!previous || (previous.token === token && previous.userId === userId)) return;
+
+    requestGeneration.current += 1;
+    stoppedGeneration.current += 1;
+    recordingGenerations.current = [];
+    requestIdentities.current.clear();
+    turnIds.current.clear();
+    voiceTurnIds.current.clear();
+    queryClient.removeQueries({ queryKey: ["conversation"] });
+    setConversationId(null);
+    setStreamed("");
+    setVoiceTranscript(null);
+    setCrisis(null);
+    setCloseReceipt(null);
+    setJustReplied(false);
+    setMenuOpen(false);
+    setTranscriptOpen(false);
+    setRecordCancel((n) => n + 1);
+    setRecording("idle");
+    setRecordError(null);
+    setPendingStorageError(null);
+    setPendingVoiceIds([]);
+    setPendingText([]);
+    setPendingVoice([]);
+    setRecordingGuard(false);
+    live.stop();
+    voice.stop();
+  }, [token, userId]);
 
   // Pick up where you left off, and only start a new one when there is nothing
   // open to return to.
@@ -112,6 +167,42 @@ export default function TalkScreen() {
   // and back lost the thread — it was still on the server, unclosed, and the
   // screen had no way to show it. It also left an abandoned conversation behind
   // each time, which is why an account used for an afternoon had twenty of them.
+  useEffect(() => {
+    requestGeneration.current += 1;
+    // These maps contain raw text keys and server IDs; an account change must
+    // not carry either across the authentication boundary.
+    turnIds.current.clear();
+    voiceTurnIds.current.clear();
+    setPendingVoiceIds([]);
+    setPendingText([]);
+    setPendingVoice([]);
+    setPendingStorageError(null);
+    setRecordingGuard(false);
+  }, [conversationId, token, userId]);
+
+  useEffect(() => {
+    const generation = ++restoreGeneration.current;
+    if (!token || !userId || !conversationId) return;
+    void pendingTalkOperations(userId, conversationId).then((operations) => {
+      const session = useSession.getState();
+      if (generation !== restoreGeneration.current || session.userId !== userId || session.token !== token || conversationIdRef.current !== conversationId) return;
+      for (const operation of operations) {
+        const current = useSession.getState();
+        if (generation !== restoreGeneration.current || current.userId !== userId || current.token !== token || conversationIdRef.current !== conversationId) return;
+        if (operation.userId !== userId || operation.conversationId !== conversationId) continue;
+        if (operation.source === "text" && operation.content) {
+          turnIds.current.set(`${operation.source}:${operation.content}`, operation.id);
+          setPendingText((items) => items.some((item) => item.id === operation.id) ? items : [...items, { id: operation.id, content: operation.content! }]);
+        } else if (operation.source === "voice") {
+          voiceTurnIds.current.set(operation.recordingUri ?? operation.id, operation.id);
+          setPendingVoice((items) => items.some((item) => item.id === operation.id) ? items : [...items, { id: operation.id, uri: operation.recordingUri }]);
+          setPendingVoiceIds((ids) => ids.includes(operation.id) ? ids : [...ids, operation.id]);
+          setRecordingGuard(true);
+        }
+      }
+    });
+  }, [conversationId, token, userId]);
+
   useEffect(() => {
     if (!token || conversationId || start.isPending) return;
     let cancelled = false;
@@ -133,7 +224,7 @@ export default function TalkScreen() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [conversationId, token, userId]);
 
   const conversation = useQuery({
     queryKey: ["conversation", conversationId],
@@ -141,8 +232,59 @@ export default function TalkScreen() {
     enabled: Boolean(token && conversationId),
   });
 
+  useEffect(() => {
+    const restored = conversation.data;
+    if (!restored || !restored.flagged) return;
+    setCrisis(restored.crisis_resources ?? []);
+    stoppedGeneration.current += 1;
+    recordingGenerations.current = [];
+    setRecordCancel((n) => n + 1);
+    live.stop();
+    voice.stop();
+  }, [conversation.data]);
+
+  const captureIdentity = () => token && userId && conversationId
+    ? { generation: requestGeneration.current, userId, token, conversationId }
+    : null;
+  const ownsIdentity = (identity: { generation: number; userId: string; token: string; conversationId: string } | null) =>
+    identity !== null && identity.generation === requestGeneration.current &&
+    useSession.getState().userId === identity.userId && useSession.getState().token === identity.token &&
+    conversationIdRef.current === identity.conversationId;
+
+  const ownsCurrentOperation = (operationId: string, expectedUserId: string, expectedConversationId: string) =>
+    useSession.getState().userId === expectedUserId &&
+    useSession.getState().token === token &&
+    conversationId === expectedConversationId &&
+    Array.from(voiceTurnIds.current.values()).includes(operationId);
+
   const speak = useMutation({
     mutationFn: async ({ uri, generation }: { uri: string; generation: number }) => {
+      const identity = captureIdentity();
+      if (!identity) throw new Error("stale talk operation");
+      const operationId = voiceTurnIds.current.get(uri) ?? Crypto.randomUUID();
+      voiceTurnIds.current.set(uri, operationId);
+      requestIdentities.current.set(operationId, identity);
+      // Keep controls guarded until the envelope is durable. If storage fails,
+      // retain the URI on screen for recovery instead of losing the recording.
+      setRecordingGuard(true);
+      try {
+        await rememberTalkOperation({
+          id: operationId,
+          userId: userId!,
+          conversationId: conversationId!,
+          source: "voice",
+          recordingUri: uri,
+          metadata: { timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+        });
+      } catch (error) {
+        if (ownsIdentity(identity)) {
+          setPendingVoice((items) => items.some((item) => item.id === operationId) ? items : [...items, { id: operationId, uri }]);
+          setPendingVoiceIds((ids) => ids.includes(operationId) ? ids : [...ids, operationId]);
+          setPendingStorageError("Your recording could not be saved for recovery. Retry storage or discard it.");
+        }
+        throw new Error("pending operation could not be stored", { cause: error });
+      }
+      if (!ownsCurrentOperation(operationId, userId!, conversationId!)) throw new Error("stale talk operation");
       const spoken = voice.speakAsItArrives();
       setStreamed("");
       setVoiceTranscript(null);
@@ -152,19 +294,33 @@ export default function TalkScreen() {
           conversationId!,
           uri,
           (transcript) => {
-            if (generation === stoppedGeneration.current) setVoiceTranscript(transcript);
+            if (generation === stoppedGeneration.current && ownsIdentity(identity)) setVoiceTranscript(transcript);
           },
           (delta) => {
-            if (generation !== stoppedGeneration.current) return;
+            if (generation !== stoppedGeneration.current || !ownsIdentity(identity)) return;
             setStreamed((sofar) => sofar + delta);
             spoken.feed(delta);
           },
+          voiceTurnIds.current.get(uri) ?? (() => {
+            const id = Crypto.randomUUID();
+            voiceTurnIds.current.set(uri, id);
+            return id;
+          })(),
         );
       } finally {
         spoken.end();
       }
     },
     onSuccess: async (reply, variables) => {
+      const operationId = voiceTurnIds.current.get(variables.uri);
+      const identity = operationId ? requestIdentities.current.get(operationId) ?? null : null;
+      if (!ownsIdentity(identity)) return;
+      if (operationId) await forgetTalkOperation(userId!, conversationId!, operationId);
+      if (operationId) { setPendingVoice((items) => items.filter((item) => item.id !== operationId)); setPendingVoiceIds((ids) => ids.filter((id) => id !== operationId)); }
+      voiceTurnIds.current.delete(variables.uri);
+      if (operationId) requestIdentities.current.delete(operationId);
+      setPendingStorageError(null);
+      setRecordingGuard(false);
       const current = variables.generation === stoppedGeneration.current;
       if (current) setJustReplied(true);
       if (reply.crisis) {
@@ -183,9 +339,18 @@ export default function TalkScreen() {
         setVoiceTranscript(null);
       }
     },
-    onError: async () => {
+    onError: async (error, variables) => {
+      const session = useSession.getState();
+      if (session.userId !== userId || session.token !== token || conversationIdRef.current !== conversationId) return;
+      // A storage failure has retained the recording locally. Do not replace
+      // that recovery state with an empty storage read.
       setStreamed("");
       setVoiceTranscript(null);
+      if (error instanceof Error && error.message === "pending operation could not be stored") return;
+      const operations = await pendingTalkOperations(userId!, conversationId!);
+      setPendingVoice(operations.filter((item) => item.source === "voice").map((item) => ({ id: item.id, uri: item.recordingUri })));
+      setPendingVoiceIds(operations.filter((item) => item.source === "voice").map((item) => item.id));
+      setRecordingGuard(operations.some((item) => item.source === "voice"));
       await conversation.refetch();
     },
   });
@@ -196,18 +361,53 @@ export default function TalkScreen() {
       // the model is still writing the second sentence while the first is
       // already sounding. Ending the feed is in a finally because a reply that
       // fails halfway still has to release whatever was held back.
+      const identity = captureIdentity();
+      if (!identity) throw new Error("stale talk operation");
       const spoken = voice.speakAsItArrives();
       setStreamed("");
+      const key = `${source}:${text}`;
+      const clientTurnId = turnIds.current.get(key) ?? (() => {
+        const id = Crypto.randomUUID();
+        turnIds.current.set(key, id);
+        return id;
+      })();
+      try {
+        await rememberTalkOperation({
+          id: clientTurnId,
+          userId: userId!,
+          conversationId: conversationId!,
+          source,
+          content: text,
+          metadata: { timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+        });
+      } catch (error) {
+        if (ownsIdentity(identity)) {
+          setPendingText((items) => items.some((item) => item.id === clientTurnId) ? items : [...items, { id: clientTurnId, content: text }]);
+          setPendingStorageError("This turn could not be saved for recovery. Retry storage or discard it.");
+        }
+        throw new Error("pending operation could not be stored", { cause: error });
+      }
+      if (useSession.getState().userId !== userId || useSession.getState().token !== token || conversationId === null || turnIds.current.get(key) !== clientTurnId) throw new Error("stale talk operation");
+      requestIdentities.current.set(clientTurnId, identity);
       try {
         return await api.sayStreaming(token!, conversationId!, text, source, (delta) => {
+          if (!ownsIdentity(identity)) return;
           setStreamed((sofar) => sofar + delta);
           spoken.feed(delta);
-        });
+        }, clientTurnId);
       } finally {
         spoken.end();
       }
     },
-    onSuccess: async (reply) => {
+    onSuccess: async (reply, variables) => {
+      const operationId = turnIds.current.get(`${variables.source}:${variables.text}`);
+      const identity = operationId ? requestIdentities.current.get(operationId) ?? null : null;
+      if (!ownsIdentity(identity)) return;
+      if (operationId) await forgetTalkOperation(userId!, conversationId!, operationId);
+      if (operationId) setPendingText((items) => items.filter((item) => item.id !== operationId));
+      turnIds.current.delete(`${variables.source}:${variables.text}`);
+      if (operationId) requestIdentities.current.delete(operationId);
+      setPendingStorageError(null);
       setJustReplied(true);
       if (reply.crisis) {
         stoppedGeneration.current += 1;
@@ -223,19 +423,35 @@ export default function TalkScreen() {
       await queryClient.invalidateQueries({ queryKey: ["conversation", conversationId] });
       setStreamed("");
     },
-    onError: async () => {
+    onError: async (error, variables) => {
+      const session = useSession.getState();
+      if (session.userId !== userId || session.token !== token || conversationIdRef.current !== conversationId) return;
+      // A storage failure has retained the turn locally. Do not replace that
+      // recovery state with an empty storage read.
       setStreamed("");
       setVoiceTranscript(null);
+      if (error instanceof Error && error.message === "pending operation could not be stored") return;
+      const operations = await pendingTalkOperations(userId!, conversationId!);
+      setPendingText(operations.filter((item) => item.source === "text").map((item) => ({ id: item.id, content: item.content! })));
+      setPendingVoice(operations.filter((item) => item.source === "voice").map((item) => ({ id: item.id, uri: item.recordingUri })));
+      setPendingVoiceIds(operations.filter((item) => item.source === "voice").map((item) => item.id));
+      setRecordingGuard(operations.some((item) => item.source === "voice"));
       await conversation.refetch();
     },
   });
 
   const finish = useMutation({
-    mutationFn: () => api.closeConversation(token!, conversationId!),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["observations"] });
-      queryClient.invalidateQueries({ queryKey: ["summary"] });
-      router.replace("/");
+    mutationFn: () => api.closeConversation(token!, conversationId!, findingsVisible),
+    onSuccess: (receipt) => {
+      const session = useSession.getState();
+      if (session.token !== token || session.userId !== userId) return;
+      void queryClient.invalidateQueries({ queryKey: ["observations"] });
+      void queryClient.invalidateQueries({ queryKey: ["summary"] });
+      setCloseReceipt(receipt.turns_converted);
+    },
+    onError: () => {
+      // Keep the conversation visible so a failed close can be retried and is
+      // never mistaken for a successful save.
     },
   });
 
@@ -248,13 +464,35 @@ export default function TalkScreen() {
    * the next turn and the two of them talk to each other indefinitely.
    */
   const live = useContinuousVoice({
-    enabled: Boolean(conversationId) && crisis === null,
+    enabled: Boolean(token && conversationId) && crisis === null && closeReceipt === null,
     speaking: voice.speaking || speak.isPending || say.isPending,
     onUtterance: async (uri, generation) => {
       if (generation !== stoppedGeneration.current) return;
       await speak.mutateAsync({ uri, generation });
     },
   });
+
+  useEffect(() => {
+    if (closeReceipt === null) return;
+    // The successful close is the lifecycle boundary, not merely a receipt:
+    // invalidate every in-flight capture generation before releasing devices.
+    stoppedGeneration.current += 1;
+    recordingGenerations.current = [];
+    setRecordCancel((n) => n + 1);
+    live.stop();
+    voice.stop();
+  }, [closeReceipt, live.stop, voice.stop]);
+
+  useEffect(() => {
+    if (token) return;
+    stoppedGeneration.current += 1;
+    recordingGenerations.current = [];
+    setRecordCancel((n) => n + 1);
+    setStreamed("");
+    setVoiceTranscript(null);
+    live.stop();
+    voice.stop();
+  }, [live.stop, token, voice.stop]);
 
   useEffect(() => {
     return () => {
@@ -331,7 +569,7 @@ export default function TalkScreen() {
   };
 
   const toggleLive = () => {
-    if (recording !== "idle" || crisis !== null) return;
+    if (recording !== "idle" || crisis !== null || closeReceipt !== null) return;
     // Inside the tap, while a gesture still counts: iOS will not play a reply
     // that arrives after the network unless sound has been started once by
     // hand.
@@ -339,6 +577,10 @@ export default function TalkScreen() {
     if (live.state === "off") {
       stoppedGeneration.current += 1;
       tapHaptic(Haptics.ImpactFeedbackStyle.Medium);
+      if (!conversationId) {
+        if (!start.isPending) start.mutate();
+        return;
+      }
       void live.start();
     } else {
       tapHaptic(Haptics.ImpactFeedbackStyle.Light);
@@ -352,14 +594,13 @@ export default function TalkScreen() {
     }
   };
 
-  const speakError =
-    say.isError || speak.isError
-      ? say.error instanceof ApiError
-        ? say.error.message
-        : speak.error instanceof ApiError
-          ? speak.error.message
-          : "Could not send that — what you said is still saved."
-      : null;
+  const finishError = finish.isError
+    ? "Could not close this conversation. Your turns are still here — try again."
+    : null;
+
+  const speakError = say.isError || speak.isError
+    ? "The reply could not be completed. Your turn may already be saved; check the transcript before sending another message."
+    : null;
 
   return (
     <AtmosphericShell variant="secondary">
@@ -374,12 +615,21 @@ export default function TalkScreen() {
             <MotionSurface
               style={styles.dotSurface}
               onPress={toggleLive}
-              disabled={recording !== "idle" || crisis !== null}
+              disabled={recording !== "idle" || crisis !== null || closeReceipt !== null}
               accessibilityRole="button"
               accessibilityLabel={
-                live.state === "off" ? "Start talking" : "End the conversation"
+                live.state === "off"
+                  ? conversationId
+                    ? "Start talking"
+                    : start.isError
+                      ? "Retry starting the conversation"
+                      : "Start the conversation"
+                  : "End the conversation"
               }
-              accessibilityState={{ selected: live.state !== "off" }}
+              accessibilityState={{
+                selected: live.state !== "off",
+                busy: start.isPending,
+              }}
               accessibilityHint="Double tap to start or stop the conversation."
             >
               <Suspense fallback={<View style={{ height: dotSize }} />}>
@@ -389,7 +639,12 @@ export default function TalkScreen() {
             </MotionSurface>
 
             <View style={styles.stageBody}>
-              {turns.length === 0 && !streamed && !voiceTranscript && !start.isPending ? (
+              <Text style={styles.disclosure} accessibilityLabel={`${TALK_DISCLOSURE.heading}. ${TALK_DISCLOSURE.body}`}>
+                {TALK_DISCLOSURE.heading}: {TALK_DISCLOSURE.body}
+              </Text>
+              {start.isPending || conversation.isLoading ? (
+                <Text style={styles.opening}>Opening a private conversation…</Text>
+              ) : turns.length === 0 && !streamed && !voiceTranscript ? (
                 <Text style={styles.opening}>
                   Say whatever is on your mind. I'll ask a few questions to help
                   you get it down.
@@ -413,11 +668,24 @@ export default function TalkScreen() {
               )}
               {speakError && <Text style={styles.error}>{speakError}</Text>}
               {(live.error || recordError) && (
-                <Text style={styles.error}>{live.error ?? recordError}</Text>
+                <Text style={styles.error}>{live.error ? "Could not start listening. Please try again." : "That recording could not be sent. Your turn was not confirmed; please try again."}</Text>
               )}
+              {start.isError && <Text style={styles.error}>Could not start talking. Try again.</Text>}
+              {conversation.isError && <Text style={styles.error}>Could not load this conversation. Try again.</Text>}
+              {finishError && <Text style={styles.error}>{finishError}</Text>}
             </View>
           </View>
         </FieldFrame>
+
+        {closeReceipt !== null && (
+          <View style={styles.receipt} accessibilityRole="alert">
+            <Text style={styles.receiptTitle}>Conversation closed</Text>
+            <Text style={styles.receiptBody}>{closeReceipt} {closeReceipt === 1 ? "turn" : "turns"} converted to Journal entries.</Text>
+            <MotionSurface onPress={() => router.replace("/")} accessibilityRole="button" accessibilityLabel="Return to Journal" style={styles.returnAction}>
+              <Text style={styles.returnLabel}>Return to Journal →</Text>
+            </MotionSurface>
+          </View>
+        )}
 
         {crisis !== null && (
           // Shown above the drawer, unconditionally — the one thing on this
@@ -454,6 +722,7 @@ export default function TalkScreen() {
             <View style={styles.handle} />
             <View style={styles.peekRow}>
               <Pressable
+                disabled={closeReceipt !== null}
                 onPress={() => {
                   // Turning it off stops the current sentence too. Waiting for a
                   // reply you have just muted to finish is the opposite of what
@@ -481,7 +750,9 @@ export default function TalkScreen() {
               </Pressable>
 
               <MotionSurface
+                disabled={closeReceipt !== null}
                 onPress={() => {
+                  if (closeReceipt !== null) return;
                   stoppedGeneration.current += 1;
                   recordingGenerations.current = [];
                   setRecordCancel((n) => n + 1);
@@ -513,7 +784,25 @@ export default function TalkScreen() {
             pointerEvents={menuOpen ? "auto" : "none"}
           >
             <ScrollView contentContainerStyle={styles.sheetContent}>
-              {conversationId && crisis === null && live.state === "off" && (
+              {(pendingText.length > 0 || recordingGuard) && (
+                <View style={styles.recovery}>
+                  {pendingText.map((operation) => (
+                    <View key={operation.id} style={styles.recoveryRow}>
+                      <Text style={styles.error}>A text turn is waiting to be reconciled.</Text>
+                      <MotionSurface accessibilityRole="button" onPress={() => say.mutate({ text: operation.content, source: "text" })} style={styles.recoveryAction}><Text style={styles.recoveryLabel}>Retry</Text></MotionSurface>
+                      <MotionSurface accessibilityRole="button" onPress={async () => { await forgetTalkOperation(userId!, conversationId!, operation.id); setPendingText((items) => items.filter((item) => item.id !== operation.id)); turnIds.current.delete(`text:${operation.content}`); setPendingStorageError(null); }} style={styles.recoveryAction}><Text style={styles.recoveryLabel}>Discard</Text></MotionSurface>
+                    </View>
+                  ))}
+                  {pendingVoice.map((operation) => (
+                    <View key={operation.id} style={styles.recoveryRow}>
+                      <Text style={styles.error}>{pendingStorageError ?? (operation.uri ? "A voice turn is waiting to be reconciled." : "The recording file is no longer available.")}</Text>
+                      {operation.uri && <MotionSurface accessibilityRole="button" onPress={() => speak.mutate({ uri: operation.uri!, generation: stoppedGeneration.current })} style={styles.recoveryAction}><Text style={styles.recoveryLabel}>Retry</Text></MotionSurface>}
+                      <MotionSurface accessibilityRole="button" onPress={async () => { await forgetTalkOperation(userId!, conversationId!, operation.id); setPendingVoice((items) => items.filter((item) => item.id !== operation.id)); setPendingVoiceIds((ids) => ids.filter((id) => id !== operation.id)); setPendingStorageError(null); setRecordingGuard(false); }} style={styles.recoveryAction}><Text style={styles.recoveryLabel}>Discard</Text></MotionSurface>
+                    </View>
+                  ))}
+                </View>
+              )}
+              {closeReceipt === null && conversationId && crisis === null && live.state === "off" && !recordingGuard && (
                 <View style={[styles.row, styles.rowStacked]}>
                   <Text style={styles.rowLabel}>Prefer to hold instead?</Text>
                   <RecordButton
@@ -563,29 +852,41 @@ export default function TalkScreen() {
               <MotionSurface
                 style={[
                   styles.finish,
-                  (!saidSomething ||
-                    finish.isPending ||
-                    say.isPending ||
-                    speak.isPending ||
-                    live.state === "thinking" ||
-                    recording === "uploading") && styles.disabled,
-                ]}
-                disabled={
-                  !saidSomething ||
-                  finish.isPending ||
-                  say.isPending ||
-                  speak.isPending ||
-                  live.state === "thinking" ||
-                  recording === "uploading"
-                }
-                onPress={() => {
-                  if (
+                  (closeReceipt !== null ||
                     !saidSomething ||
                     finish.isPending ||
                     say.isPending ||
                     speak.isPending ||
                     live.state === "thinking" ||
-                    recording === "uploading"
+                    recording === "uploading" ||
+                    recordingGuard ||
+                    pendingText.length > 0 ||
+                    pendingVoice.length > 0) && styles.disabled,
+                ]}
+                disabled={
+                  closeReceipt !== null ||
+                  !saidSomething ||
+                  finish.isPending ||
+                  say.isPending ||
+                  speak.isPending ||
+                  live.state === "thinking" ||
+                  recording === "uploading" ||
+                  recordingGuard ||
+                  pendingText.length > 0 ||
+                  pendingVoice.length > 0
+                }
+                onPress={() => {
+                  if (
+                    closeReceipt !== null ||
+                    !saidSomething ||
+                    finish.isPending ||
+                    say.isPending ||
+                    speak.isPending ||
+                    live.state === "thinking" ||
+                    recording === "uploading" ||
+                    recordingGuard ||
+                    pendingText.length > 0 ||
+                    pendingVoice.length > 0
                   ) return;
                   stoppedGeneration.current += 1;
                   recordingGenerations.current = [];
@@ -603,9 +904,8 @@ export default function TalkScreen() {
                 </Text>
               </MotionSurface>
 
-              <Text style={styles.footnote}>
-                Only your turns become entries. The recording is transcribed and
-                then discarded, and nothing here is interpreted.
+              <Text style={styles.footnote} accessibilityLabel={`${TALK_DISCLOSURE.heading}. ${TALK_DISCLOSURE.body}`}>
+                {TALK_DISCLOSURE.heading}: {TALK_DISCLOSURE.body}
               </Text>
             </ScrollView>
           </Animated.View>
@@ -686,6 +986,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
+  disclosure: {
+    color: colors.inkMuted,
+    fontFamily: fonts.sans,
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: "center",
+  },
   opening: {
     color: colors.inkMuted,
     fontFamily: fonts.sans,
@@ -709,6 +1016,16 @@ const styles = StyleSheet.create({
   },
   thinking: { marginTop: 2 },
   error: { color: colors.danger, fontFamily: fonts.sans, fontSize: 13, textAlign: "center" },
+  recovery: { gap: 6 },
+  recoveryRow: { gap: 8, alignItems: "center" },
+  recoveryAction: { alignSelf: "center" },
+  recoveryLabel: { color: colors.cyan, fontFamily: fonts.sans, fontWeight: "700" },
+
+  receipt: { marginHorizontal: 16, borderWidth: 1, borderColor: colors.cyan, borderRadius: radii.surface, padding: 12, gap: 6, marginBottom: 8 },
+  receiptTitle: { fontFamily: fonts.sans, fontWeight: "700", color: colors.ink },
+  receiptBody: { fontFamily: fonts.sans, color: colors.ink, lineHeight: 21 },
+  returnAction: { paddingVertical: 6 },
+  returnLabel: { color: colors.cyan, fontFamily: fonts.sans, fontWeight: "700" },
 
   crisis: {
     marginHorizontal: 16,

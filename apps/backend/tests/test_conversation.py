@@ -1,5 +1,8 @@
 """Conversation agent behaviour that does not need a network."""
 
+import asyncio
+from uuid import UUID
+
 import pytest
 
 from tlon.conversation import (
@@ -14,8 +17,101 @@ from tlon.conversation import (
     build_agent,
     load_system_prompt,
 )
+from tlon.db import conversations as conversations_db
 
 pytestmark = pytest.mark.anyio
+
+
+class TestCloseLockCleanup:
+    async def test_partial_turn_lock_acquisition_is_released_before_connection_return(self):
+        user_id = UUID("00000000-0000-0000-0000-000000000001")
+        conversation_id = UUID("00000000-0000-0000-0000-000000000002")
+        turn_ids = [
+            UUID("00000000-0000-0000-0000-000000000003"),
+            UUID("00000000-0000-0000-0000-000000000004"),
+        ]
+
+        class Connection:
+            def __init__(self):
+                self.calls = []
+
+            async def execute(self, query, key):
+                self.calls.append((query, key))
+                if "pg_advisory_lock" in query and len([call for call in self.calls if "pg_advisory_lock" in call[0]]) == 3:
+                    raise asyncio.CancelledError
+
+            async def fetch(self, query, *args):
+                return [{"client_turn_id": turn_id} for turn_id in turn_ids]
+
+        class Acquire:
+            def __init__(self, connection):
+                self.connection = connection
+
+            async def __aenter__(self):
+                return self.connection
+
+            async def __aexit__(self, *args):
+                return False
+
+        class Pool:
+            def __init__(self, connection):
+                self.connection = connection
+
+            def acquire(self):
+                return Acquire(self.connection)
+
+        connection = Connection()
+        with pytest.raises(asyncio.CancelledError):
+            await conversations_db.close(Pool(connection), user_id, conversation_id)
+
+        unlocks = [key for query, key in connection.calls if "pg_advisory_unlock" in query]
+        assert unlocks == [
+            conversations_db._turn_key(user_id, conversation_id, turn_ids[0]),
+            conversations_db._lifecycle_key(user_id, conversation_id),
+        ]
+
+
+class TestTurnOperationLock:
+    async def test_it_uses_the_conversation_lifecycle_key(self):
+        user_id = UUID("00000000-0000-0000-0000-000000000011")
+        conversation_id = UUID("00000000-0000-0000-0000-000000000012")
+        client_turn_id = UUID("00000000-0000-0000-0000-000000000013")
+
+        class Connection:
+            def __init__(self):
+                self.calls = []
+
+            async def execute(self, query, key):
+                self.calls.append((query, key))
+
+        class Acquire:
+            def __init__(self, connection):
+                self.connection = connection
+
+            async def __aenter__(self):
+                return self.connection
+
+            async def __aexit__(self, *args):
+                return False
+
+        class Pool:
+            def __init__(self, connection):
+                self.connection = connection
+
+            def acquire(self):
+                return Acquire(self.connection)
+
+        connection = Connection()
+        async with conversations_db.turn_operation_lock(
+            Pool(connection), user_id, conversation_id, client_turn_id
+        ):
+            pass
+
+        keys = [key for _, key in connection.calls]
+        assert keys == [
+            conversations_db._lifecycle_key(user_id, conversation_id),
+            conversations_db._lifecycle_key(user_id, conversation_id),
+        ]
 
 
 class TestCrisisMarker:

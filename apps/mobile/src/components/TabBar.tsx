@@ -10,6 +10,7 @@ import { TABS } from "@/lib/destinations";
 import { api, type GraphNode } from "@/lib/api";
 import { deviceTimezone, localToday, mondayOfWeek } from "@/lib/dates";
 import { useSession } from "@/state/session";
+import { usePreferences } from "@/state/preferences";
 import { colors, fonts } from "@/theme";
 
 /**
@@ -33,11 +34,14 @@ export function TabBar() {
   const token = useSession((s) => s.token);
   const userId = useSession((s) => s.userId);
   const tz = deviceTimezone();
+  const showFindings = usePreferences((s) => s.findings);
+  const preferencesReady = usePreferences((s) => s.ready);
+  const findingsVisible = preferencesReady && showFindings;
 
   const graph = useQuery({
-    queryKey: ["graph", "headspace", userId],
+    queryKey: ["graph", "headspace", userId, findingsVisible],
     queryFn: () => api.graph(token!, { limit: 200 }),
-    enabled: Boolean(token) && showMore,
+    enabled: Boolean(token) && showMore && findingsVisible,
   });
   const entries = useQuery({
     queryKey: ["observations", userId],
@@ -45,36 +49,41 @@ export function TabBar() {
     enabled: Boolean(token) && showMore,
   });
   const today = useQuery({
-    queryKey: ["summary", localToday(), tz],
-    queryFn: () => api.dailySummary(token!, localToday(), tz),
-    enabled: Boolean(token) && showMore,
+    queryKey: ["summary", localToday(), tz, findingsVisible],
+    queryFn: () => api.dailySummary(token!, localToday(), tz, findingsVisible),
+    enabled: Boolean(token) && showMore && preferencesReady,
   });
   const week = useQuery({
-    queryKey: ["week", mondayOfWeek(localToday()), tz],
-    queryFn: () => api.weeklySummary(token!, mondayOfWeek(localToday()), tz),
-    enabled: Boolean(token) && showMore,
+    queryKey: ["week", mondayOfWeek(localToday()), tz, findingsVisible],
+    queryFn: () => api.weeklySummary(token!, mondayOfWeek(localToday()), tz, findingsVisible),
+    enabled: Boolean(token) && showMore && preferencesReady,
   });
   const patterns = useQuery({
     queryKey: ["patterns", userId],
     queryFn: () => api.listPatterns(token!),
-    enabled: Boolean(token) && showMore,
+    enabled: Boolean(token) && showMore && findingsVisible,
   });
   const runs = useQuery({
     queryKey: ["agent-runs"],
     queryFn: () => api.listAgentRuns(token!),
-    enabled: Boolean(token) && showMore,
+    enabled: Boolean(token) && showMore && findingsVisible,
   });
 
   const nodes: GraphNode[] = graph.data?.nodes ?? [];
+  const visibleNodes = findingsVisible
+    ? nodes
+    : nodes.filter((node) => node.kind === "Observation");
   const counts = {
-    headspace: some(nodes.filter((n) => n.kind !== "Observation").length),
+    headspace: findingsVisible ? some(visibleNodes.length) : undefined,
     journal: some(entries.data?.observations.length),
     today: some(today.data?.entry_count),
     week: week.data ? `${week.data.active_days} / 7` : undefined,
-    patterns: some(patterns.data?.length),
-    identity: some(nodes.filter((n) => n.kind !== "Observation" && n.kind !== "Pattern").length),
-    agents: some(runs.data?.length),
-    graph: some(nodes.length),
+    patterns: findingsVisible ? some(patterns.data?.length) : undefined,
+    identity: findingsVisible
+      ? some(nodes.filter((n) => n.kind !== "Observation" && n.kind !== "Pattern").length)
+      : undefined,
+    agents: findingsVisible ? some(runs.data?.length) : undefined,
+    graph: findingsVisible ? some(visibleNodes.length) : undefined,
   };
 
   return (

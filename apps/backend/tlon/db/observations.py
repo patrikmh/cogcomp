@@ -35,48 +35,61 @@ def _to_observation(row: asyncpg.Record) -> Observation:
     )
 
 
-async def insert(pool: asyncpg.Pool, user_id: UUID, new: NewObservation) -> Observation:
+async def _insert_on_connection(conn: asyncpg.Connection, user_id: UUID, new: NewObservation) -> Observation:
     captured_at = new.captured_at or datetime.now().astimezone()
-
-    async with pool.acquire() as conn, conn.transaction():
-        exists = await conn.fetchval("SELECT 1 FROM graph_nodes WHERE id = $1", new.id)
-        if exists:
-            raise FileExistsError(f"observation {new.id} already exists")
-
-        created_at = await conn.fetchval(
-            """
-            INSERT INTO graph_nodes (id, user_id, kind, label)
-            VALUES ($1, $2, $3, $4)
-            RETURNING created_at
-            """,
-            new.id,
-            user_id,
-            str(NodeKind.OBSERVATION),
-            label_for(new.content),
-        )
-        await conn.execute(
-            """
-            INSERT INTO observations
-                (node_id, user_id, content, source, captured_at, timezone)
-            VALUES ($1, $2, $3, $4, $5, $6)
-            """,
-            new.id,
-            user_id,
-            new.content,
-            str(new.source),
-            captured_at,
-            new.timezone,
-        )
-
-    return Observation(
-        id=new.id,
-        user_id=user_id,
-        content=new.content,
-        source=new.source,
-        captured_at=captured_at,
-        created_at=created_at,
-        timezone=new.timezone,
+    created_at = await conn.fetchval(
+        """
+        INSERT INTO graph_nodes (id, user_id, kind, label)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (id) DO NOTHING
+        RETURNING created_at
+        """,
+        new.id,
+        user_id,
+        str(NodeKind.OBSERVATION),
+        label_for(new.content),
     )
+    if created_at is None:
+        existing = await conn.fetchrow(
+            _SELECT + "WHERE o.node_id = $1",
+            new.id,
+        )
+        # A UUID belonging to another user is deliberately indistinguishable
+        # from any other conflicting id at the API boundary.
+        if existing is None or existing["user_id"] != user_id:
+            raise FileExistsError(f"observation {new.id} already exists")
+        observation = _to_observation(existing)
+        if (
+            observation.content != new.content
+            or observation.source != new.source
+            or (new.captured_at is not None and observation.captured_at != new.captured_at)
+            or observation.timezone != new.timezone
+        ):
+            # Keep id conflicts tenant-neutral: callers cannot learn whether a
+            # UUID belongs to another account or whether its payload differs.
+            raise FileExistsError(f"observation {new.id} already exists")
+        return observation
+
+    await conn.execute(
+        """
+        INSERT INTO observations
+            (node_id, user_id, content, source, captured_at, timezone)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        """,
+        new.id, user_id, new.content, str(new.source), captured_at, new.timezone,
+    )
+    stored = await conn.fetchrow(_SELECT + "WHERE o.node_id = $1", new.id)
+    return _to_observation(stored)
+
+
+async def insert(pool: asyncpg.Pool, user_id: UUID, new: NewObservation) -> Observation:
+    async with pool.acquire() as conn, conn.transaction():
+        return await _insert_on_connection(conn, user_id, new)
+
+
+async def insert_on_connection(conn: asyncpg.Connection, user_id: UUID, new: NewObservation) -> Observation:
+    """Persist within a caller-owned transaction, such as conversation close."""
+    return await _insert_on_connection(conn, user_id, new)
 
 
 _SELECT = """

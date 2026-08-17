@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 import { localDay, mondayOf } from "@/lib/format";
 import { Guide } from "@/components/Guide";
 import { HEADINGS } from "@tlon/copy/headings";
+import { usePreferences } from "@/state/preferences";
 
 /** What the app does with what you write, in content rather than a consent wall. */
 export function Words() {
@@ -55,13 +56,14 @@ export function Words() {
  * it is not a nudge. Nobody owes the system material.
  */
 export function First() {
+  const findingsVisible = usePreferences((s) => s.findings);
   const entries = useQuery({ queryKey: ["observations"], queryFn: () => api.observations(500) });
-  const patterns = useQuery({ queryKey: ["patterns"], queryFn: api.patterns });
+  const patterns = useQuery({ queryKey: ["patterns"], queryFn: api.patterns, enabled: findingsVisible });
 
   const written = entries.data?.observations ?? [];
   const days = new Set(written.map((o) => localDay(new Date(o.captured_at))));
   const weeks = new Set([...days].map((d) => mondayOf(d)));
-  const found = patterns.data ?? [];
+  const found = findingsVisible ? patterns.data ?? [] : [];
 
   // The arithmetic and the thresholds live in `@tlon/ontology`, shared with the
   // mobile client and checked against the Python by
@@ -84,6 +86,7 @@ export function First() {
         detector is waiting for.
       </p>
 
+      {findingsVisible ? (
       <div className="cards">
         {waiting.map((w) => (
           <div className={`card${w.ready ? "" : " hollow"}`} key={w.name}>
@@ -97,6 +100,12 @@ export function First() {
           </div>
         ))}
       </div>
+      ) : (
+        <div className="card">
+          Findings are turned off. Your writing is still kept, and these detector readings
+          are here when you want them again in Settings.
+        </div>
+      )}
 
       <div className="row" style={{ marginTop: 18 }}>
         <Link className="btn" to="/journal">

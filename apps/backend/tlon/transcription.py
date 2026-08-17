@@ -17,10 +17,12 @@ whole voice path be tested without a key, a network, or a real recording.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Protocol
 
 import httpx
+from fastapi import UploadFile
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +37,37 @@ OPENAI_COMPATIBLE_MODEL = "whisper-large-v3-turbo"
 MAX_AUDIO_BYTES = 25 * 1024 * 1024
 
 TRANSCRIPTION_TIMEOUT_SECONDS = 120
+_AUDIO_READ_CHUNK_BYTES = 1024 * 1024
+#: Two 25 MiB recordings is enough parallelism for normal Talk use while
+#: bounding retained upload bytes (including the temporary join) at a
+#: conservative process-wide level. The permit covers reading and the provider
+#: request, so it cannot be evaded by queueing completed reads.
+AUDIO_TRANSCRIPTION_CONCURRENCY = 2
+_audio_transcription_budget = asyncio.Semaphore(AUDIO_TRANSCRIPTION_CONCURRENCY)
+
+
+async def read_bounded_audio(audio: UploadFile) -> bytes:
+    """Read an upload in bounded chunks without accepting an oversized body."""
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        chunk = await audio.read(_AUDIO_READ_CHUNK_BYTES)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > MAX_AUDIO_BYTES:
+            raise AudioTooLarge(f"audio exceeds the limit of {MAX_AUDIO_BYTES} bytes")
+        chunks.append(chunk)
+    if not chunks:
+        raise TranscriptionError("audio file is empty")
+    return b"".join(chunks)
+
+
+async def transcribe_bounded_upload(audio: UploadFile, transcriber: Transcriber) -> str:
+    """Read and transcribe one upload under the shared audio memory budget."""
+    async with _audio_transcription_budget:
+        payload = await read_bounded_audio(audio)
+        return await transcriber.transcribe(payload, audio.filename or "recording.m4a")
 
 
 class TranscriptionError(Exception):
@@ -168,11 +201,18 @@ class WhisperTranscriber:
 
 
 def build_transcriber(api_key: str, provider: str, base_url: str, model: str) -> Transcriber:
+    normalized = provider.strip().lower()
+    if normalized not in {"elevenlabs", "openai", "groq", "openai-compatible"}:
+        # Validate configuration before allowing the no-credential development
+        # stub. An invalid provider must never be hidden by a blank key.
+        raise ValueError(
+            f"unknown TRANSCRIPTION_PROVIDER {provider!r}; expected 'elevenlabs' or 'openai'"
+        )
+
     if not api_key.strip():
         logger.warning("TRANSCRIPTION_API_KEY is unset — voice entries will use the stub")
         return StubTranscriber()
 
-    normalized = provider.strip().lower()
     if normalized == "elevenlabs":
         chosen = model or ELEVENLABS_MODEL
         logger.info("transcription via ElevenLabs Scribe (%s)", chosen)
@@ -181,9 +221,3 @@ def build_transcriber(api_key: str, provider: str, base_url: str, model: str) ->
         chosen = model or OPENAI_COMPATIBLE_MODEL
         logger.info("transcription via %s (%s)", base_url, chosen)
         return WhisperTranscriber(api_key, base_url, chosen)
-
-    # Failing loudly beats silently transcribing with the wrong provider, which
-    # would surface as a confusing auth error much later.
-    raise ValueError(
-        f"unknown TRANSCRIPTION_PROVIDER {provider!r}; expected 'elevenlabs' or 'openai'"
-    )

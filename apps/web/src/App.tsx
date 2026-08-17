@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import { Rail, type RailCounts } from "@/components/Rail";
@@ -33,7 +33,12 @@ export function App() {
     void restore();
     // A token the server has forgotten must not leave someone inside the app
     // with every screen showing its own unrelated error.
-    onSessionLost(() => useSession.setState({ token: null, userId: null }));
+    onSessionLost((lostToken) => {
+      // A stale request from a replaced account must not clear the current one.
+      if (useSession.getState().token === lostToken) {
+        useSession.setState({ token: null, userId: null });
+      }
+    });
   }, [restore]);
 
 
@@ -106,16 +111,16 @@ export function App() {
             <Route path="/today" element={<Today />} />
             <Route path="/week" element={<Week />} />
             <Route path="/search" element={<Search />} />
-            <Route path="/patterns" element={<Patterns />} />
-            <Route path="/pattern/:id" element={<PatternDetail />} />
-            <Route path="/theme/:id" element={<Theme />} />
-            <Route path="/identity" element={<Identity />} />
+            <Route path="/patterns" element={<FindingsRoute><Patterns /></FindingsRoute>} />
+            <Route path="/pattern/:id" element={<FindingsRoute><PatternDetail /></FindingsRoute>} />
+            <Route path="/theme/:id" element={<FindingsRoute><Theme /></FindingsRoute>} />
+            <Route path="/identity" element={<FindingsRoute><Identity /></FindingsRoute>} />
             <Route path="/node/:id" element={<Node />} />
             <Route path="/experiments" element={<Experiments />} />
             <Route path="/experiment/:id" element={<ExperimentDetail />} />
-            <Route path="/agents" element={<Agents />} />
-            <Route path="/graph" element={<Graph />} />
-            <Route path="/explore" element={<Explore />} />
+            <Route path="/agents" element={<FindingsRoute><Agents /></FindingsRoute>} />
+            <Route path="/graph" element={<FindingsRoute><Graph /></FindingsRoute>} />
+            <Route path="/explore" element={<FindingsRoute><Explore /></FindingsRoute>} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/words" element={<Words />} />
             <Route path="/first" element={<First />} />
@@ -130,6 +135,11 @@ export function App() {
 
 /** The rail's counts are real: what it says beside each destination is what is
  *  actually there. A count that lies is worse than no count. */
+function FindingsRoute({ children }: { children: ReactNode }) {
+  const showFindings = usePreferences((s) => s.findings);
+  return showFindings ? <>{children}</> : <Navigate to="/" replace />;
+}
+
 function RailWithCounts() {
   const showFindings = usePreferences((s) => s.findings);
   const userId = useSession((s) => s.userId);
@@ -145,9 +155,16 @@ function RailWithCounts() {
     queryFn: api.patterns,
     enabled: showFindings,
   });
-  const experiments = useQuery({ queryKey: ["experiments"], queryFn: api.experiments });
-  const runs = useQuery({ queryKey: ["agent-runs"], queryFn: () => api.agentRuns(50) });
-  const graph = useQuery({ queryKey: ["graph-summary"], queryFn: api.graphSummary });
+  const experiments = useQuery({
+    queryKey: ["experiments", showFindings],
+    queryFn: () => api.experiments(showFindings),
+  });
+  const runs = useQuery({
+    queryKey: ["agent-runs"],
+    queryFn: () => api.agentRuns(50),
+    enabled: showFindings,
+  });
+  const graph = useQuery({ queryKey: ["graph-summary"], queryFn: api.graphSummary, enabled: showFindings });
   const identity = useQuery({
     queryKey: ["identity", userId],
     queryFn: () => api.identity(true),
@@ -163,36 +180,36 @@ function RailWithCounts() {
   // with the screen it points at.
   const tz = deviceTimezone();
   const today = useQuery({
-    queryKey: ["summary", localDay(), tz],
-    queryFn: () => api.daily(localDay(), tz),
+    queryKey: ["summary", localDay(), tz, showFindings],
+    queryFn: () => api.daily(localDay(), tz, showFindings),
   });
   const week = useQuery({
-    queryKey: ["summary", "week", mondayOf(localDay()), tz],
-    queryFn: () => api.weekly(mondayOf(localDay()), tz),
+    queryKey: ["summary", "week", mondayOf(localDay()), tz, showFindings],
+    queryFn: () => api.weekly(mondayOf(localDay()), tz, showFindings),
   });
-  const graphNodes = useQuery({ queryKey: ["graph"], queryFn: () => api.graph(120) });
+  const graphNodes = useQuery({ queryKey: ["graph", showFindings], queryFn: () => api.graph(120), enabled: showFindings });
 
   const counts: RailCounts = {
     head:
-      today.data && graphNodes.data
+      showFindings && today.data && graphNodes.data
         ? String(headspaceCount(patterns.data ?? [], today.data.inferred, graphNodes.data.nodes))
         : "",
     journal: entries.data ? String(entries.data.observations.length) : "",
     today: today.data ? String(today.data.entry_count) : "",
     week: week.data ? `${week.data.active_days} / 7` : "",
-    patterns: patterns.data ? String(patterns.data.length) : "",
+    patterns: showFindings && patterns.data ? String(patterns.data.length) : "",
     // What the screen actually draws: kept and offered alike. Counting only the
     // kept ones said "0" beside a page showing twenty-one rings.
     identity:
-      identity.data && candidates.data
+      showFindings && identity.data && candidates.data
         ? String(
             identity.data.nodes.filter((n) => n.status === "selected").length +
               candidates.data.candidates.length,
           )
         : "",
     exps: experiments.data ? String(experiments.data.experiments.length) : "",
-    agents: runs.data ? String(runs.data.length) : "",
-    graph: graph.data
+    agents: showFindings && runs.data ? String(runs.data.length) : "",
+    graph: showFindings && graph.data
       ? String(graph.data.counts.reduce((n, c) => n + c.count, 0))
       : "",
   };

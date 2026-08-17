@@ -3,9 +3,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { SpokenStream } from "@tlon/speech/stream";
 import { initial, step } from "@tlon/speech/vad";
+import { TALK_DISCLOSURE } from "@tlon/copy";
 
-import { api } from "@/lib/api";
+import { ApiError, api } from "@/lib/api";
 import { usePreferences } from "@/state/preferences";
+import { useSession } from "@/state/session";
+import { deletePendingVoice, listPendingVoice, putPendingVoice, type PendingVoiceEnvelope } from "@/lib/pendingVoice";
 
 /**
  * Talk it through.
@@ -40,7 +43,11 @@ interface Turn {
 
 export function Talk() {
   const client = useQueryClient();
+  const userId = useSession((s) => s.userId);
   const [conversation, setConversation] = useState<string | null>(null);
+  const [pendingText, setPendingText] = useState<{ id: string; text: string }[]>([]);
+  const [pendingVoice, setPendingVoice] = useState<PendingVoiceEnvelope[]>([]);
+  const [voiceDurability, setVoiceDurability] = useState<string | null>(null);
   const [listing, setListing] = useState(true);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [draft, setDraft] = useState("");
@@ -48,7 +55,10 @@ export function Talk() {
   const [crisis, setCrisis] = useState<string[] | null>(null);
   /** What the last closed conversation left behind, shown where it happened. */
   const [kept, setKept] = useState<string | null>(null);
+  const [talkError, setTalkError] = useState<string | null>(null);
+  const [speechError, setSpeechError] = useState(false);
   const speakAloud = usePreferences((s) => s.voice);
+  const findingsVisible = usePreferences((s) => s.findings);
   const canvas = useRef<HTMLCanvasElement>(null);
   const envelope = useRef<Envelope | null>(null);
   const audio = useRef<HTMLAudioElement | null>(null);
@@ -78,21 +88,55 @@ export function Talk() {
   const stopAllRef = useRef<() => void>(() => undefined);
   const primerAudio = useRef<HTMLAudioElement | null>(null);
   const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
+  const turnIds = useRef(new Map<string, ReturnType<typeof crypto.randomUUID>>());
+  const voiceTurnIds = useRef(new WeakMap<Blob, ReturnType<typeof crypto.randomUUID>>());
   const modeRef = useRef(mode);
   modeRef.current = mode;
   const conversationRef = useRef(conversation);
   conversationRef.current = conversation;
+  const pendingKey = `tlon.pending-talk-text.${userId ?? "anonymous"}.${conversation ?? "none"}`;
+  const loadPending = () => {
+    try { return JSON.parse(localStorage.getItem(pendingKey) ?? "[]") as { id: string; userId: string; conversationId: string; text: string }[]; } catch { return []; }
+  };
+  const rememberPending = (envelope: { id: string; userId: string; conversationId: string; text: string }) => {
+    // Update the live recovery state first. A storage failure must not leave a
+    // failed operation looking successful until the screen is remounted.
+    setPendingText((items) => [...items.filter((item) => item.id !== envelope.id), { id: envelope.id, text: envelope.text }]);
+    const values = loadPending().filter((item) => item.id !== envelope.id);
+    localStorage.setItem(pendingKey, JSON.stringify([...values, envelope]));
+  };
+  const forgetPending = (id: string) => {
+    const values = loadPending().filter((item) => item.id !== id);
+    if (values.length) localStorage.setItem(pendingKey, JSON.stringify(values));
+    else localStorage.removeItem(pendingKey);
+  };
 
   useAvatar(canvas, mode, envelope);
+
+  useEffect(() => {
+    if (!userId) return;
+    void listPendingVoice(userId, "talk").then(setPendingVoice).catch(() => setVoiceDurability("Voice recovery is unavailable in this browser; the recording cannot be retained."));
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId || !conversation) return;
+    const restored = loadPending().filter((item) => item.userId === userId && item.conversationId === conversation).map((item) => ({ id: item.id, text: item.text }));
+    const timer = setTimeout(() => setPendingText(restored), 0);
+    return () => clearTimeout(timer);
+    // loadPending is scoped to pendingKey, which is the durable account/conversation key.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingKey, userId, conversation]);
 
   const begin = useMutation({
     mutationFn: () => api.startConversation(),
     onSuccess: (started) => {
+      setTalkError(null);
       // The last conversation's receipt belongs to the last conversation.
       setKept(null);
       setCrisis(null);
       setConversation(started.id);
     },
+    onError: () => setTalkError("Could not start the conversation. Try again."),
   });
 
   useEffect(() => {
@@ -121,6 +165,11 @@ export function Talk() {
         setTurns(
           existing.turns.map((turn) => ({ speaker: turn.speaker, content: turn.content })),
         );
+        if (existing.flagged) {
+          setCrisis(existing.crisis_resources ?? []);
+          setMode("stopped");
+          stopAllRef.current();
+        }
         setConversation(open.id);
       } catch {
         if (!cancelled) {
@@ -178,6 +227,7 @@ export function Talk() {
         if (wantListen.current && modeRef.current !== "stopped") startListeningRef.current();
       }
     } catch {
+      setSpeechError(true);
       // Speech is optional: with no voice configured the server says so, and
       // the reply is still there to read. A superseded drain must not idle a
       // newer reply that has already taken the lock.
@@ -207,6 +257,20 @@ export function Talk() {
 
   const handleVoice = useCallback(async (mine: number, blob: Blob) => {
     setMode("thinking");
+    setTalkError(null);
+    setSpeechError(false);
+    const clientTurnId = voiceTurnIds.current.get(blob) ?? crypto.randomUUID();
+    voiceTurnIds.current.set(blob, clientTurnId);
+    const capturedSession = useSession.getState();
+    const capturedToken = capturedSession.token;
+    const capturedUserId = capturedSession.userId;
+    if (!capturedToken || !capturedUserId || !conversation) return;
+    const voiceEnvelope: PendingVoiceEnvelope = { id: clientTurnId, userId: capturedUserId, source: "talk", conversationId: conversation, audio: blob, capturedAt: new Date().toISOString(), timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC" };
+    try {
+      await putPendingVoice(voiceEnvelope);
+      if (useSession.getState().userId !== capturedUserId || useSession.getState().token !== capturedToken) return;
+      setPendingVoice((items) => items.some((item) => item.id === clientTurnId) ? items : [...items, voiceEnvelope]);
+    } catch { setVoiceDurability("Voice recovery is unavailable in this browser; the recording cannot be retained."); }
     let transcript = "";
     setVoiceTranscript(null);
     takeOverDrain();
@@ -235,8 +299,11 @@ export function Talk() {
             void drain(mine);
           }
         },
+        clientTurnId,
+        capturedToken,
       );
     } catch {
+      // Retain the id so retrying this failed operation reconciles the same turn.
       if (utterance.current !== mine) return;
       setStreamed("");
       setVoiceTranscript(null);
@@ -250,6 +317,9 @@ export function Talk() {
       return;
     }
     if (utterance.current !== mine) return;
+    voiceTurnIds.current.delete(blob);
+    await deletePendingVoice(voiceEnvelope).catch(() => undefined);
+    setPendingVoice((items) => items.filter((item) => item.id !== clientTurnId));
     for (const piece of cutter.end()) {
       if (!speakAloud || !piece.trim()) continue;
       const request = api.speak(piece);
@@ -439,6 +509,12 @@ export function Talk() {
       let arrived = false;
 
       try {
+        const clientTurnId = turnIds.current.get(content) ?? (() => {
+          const id = crypto.randomUUID();
+          turnIds.current.set(content, id);
+          return id;
+        })();
+        rememberPending({ id: clientTurnId, userId: userId!, conversationId: startedFor, text: content });
         const reply = await api.sayStreaming(startedFor, content, (delta) => {
           if (utterance.current !== mine) return;
           setStreamed((sofar) => sofar + delta);
@@ -447,7 +523,7 @@ export function Talk() {
             setMode("speaking");
           }
           for (const piece of cutter.push(delta)) enqueue(piece);
-        });
+        }, clientTurnId);
         return { ...reply, startedFor };
       } finally {
         if (utterance.current === mine) {
@@ -459,7 +535,13 @@ export function Talk() {
         }
       }
     },
-    onSuccess: (reply) => {
+    onSuccess: (reply, content) => {
+      const clientTurnId = turnIds.current.get(content);
+      if (clientTurnId) forgetPending(clientTurnId);
+      setPendingText((items) => items.filter((item) => item.id !== clientTurnId));
+      turnIds.current.delete(content);
+      setDraft("");
+      setTalkError(null);
       if (reply.startedFor !== conversationRef.current || modeRef.current === "stopped" || crisis !== null) return;
       setStreamed("");
       setTurns((t) => [...t, { speaker: "assistant", content: reply.reply }]);
@@ -476,16 +558,40 @@ export function Talk() {
         setMode("idle");
       }
     },
-    onError: () => {
+    onError: (error, content) => {
+      // Keep the operation id available so retrying this failed operation
+      // reconciles the same server-side turn rather than creating a duplicate.
       if (modeRef.current === "stopped" || crisis !== null) return;
       setStreamed("");
       setMode("idle");
+      if (error instanceof ApiError && error.status === 409) {
+        setTalkError(error.message.includes("later messages")
+          ? "This turn already has later messages. Refresh the conversation before retrying."
+          : "Your turn was not saved because this conversation is closed. You can start a new conversation and try again.");
+        setTurns((current) => {
+          const index = [...current].reverse().findIndex(
+            (turn) => turn.speaker === "user" && turn.content === content,
+          );
+          if (index < 0) return current;
+          const removeAt = current.length - 1 - index;
+          return current.filter((_, itemIndex) => itemIndex !== removeAt);
+        });
+        return;
+      }
+      setDraft("");
+      setTalkError("The reply could not be completed. Your turn may already be saved; check the transcript before sending another message. Send a new message to start another operation.");
     },
   });
 
+  const pendingVoiceForConversation = pendingVoice.filter((item) => item.conversationId === conversation);
+  const closeBlocked = say.isPending || mode === "thinking" || mode === "speaking" || pendingText.length > 0 || pendingVoiceForConversation.length > 0;
+
   const close = useMutation({
-    mutationFn: () => api.closeConversation(conversation!),
+    mutationFn: () => api.closeConversation(conversation!, findingsVisible),
     onSuccess: (result) => {
+      // Closing is terminal for capture: disown late recorder callbacks before
+      // changing the view to the receipt/start state.
+      stopAll();
       setConversation(null);
       setTurns([]);
       setMode("idle");
@@ -501,6 +607,7 @@ export function Talk() {
           : `${result.turns_converted} turns of yours became entries. The agent's did not — they never do.`,
       );
     },
+    onError: () => setTalkError("Could not close the conversation. Nothing was lost; try closing again."),
   });
 
   return (
@@ -529,6 +636,13 @@ export function Talk() {
         </button>
       )}
 
+      {(talkError || speechError) && (
+        <div className="empty mono" role="alert" aria-live="assertive">
+          {talkError}
+          {speechError && " Speech is unavailable, but readable text remains available."}
+        </div>
+      )}
+
       <p className="talk-caption mono" aria-live="polite">
         {kept
           ? kept
@@ -547,6 +661,10 @@ export function Talk() {
               : mode === "stopped"
                 ? "Stopped asking. Nothing more will be asked of you."
                 : "Listening."}
+      </p>
+
+      <p className="mono talk-disclosure" aria-label={`${TALK_DISCLOSURE.heading}. ${TALK_DISCLOSURE.body}`}>
+        {TALK_DISCLOSURE.heading}: {TALK_DISCLOSURE.body}
       </p>
 
       {!conversation ? (
@@ -580,6 +698,21 @@ export function Talk() {
             )}
           </div>
 
+          {pendingVoiceForConversation.length > 0 && <div className="empty mono" role="status">{pendingVoiceForConversation.map((item) => <div key={item.id}>A recording is waiting to be reconciled. <button onClick={() => { voiceTurnIds.current.set(item.audio, item.id as ReturnType<typeof crypto.randomUUID>); const mine = ++utterance.current; void handleVoice(mine, item.audio); }}>Retry</button>{" "}<button onClick={() => void deletePendingVoice(item).then(() => setPendingVoice((items) => items.filter((candidate) => candidate.id !== item.id)))}>Discard</button></div>)}</div>}
+          {voiceDurability && <div role="alert">{voiceDurability}</div>}
+
+          {pendingText.length > 0 && (
+            <div className="empty mono" role="status">
+              {pendingText.map((item) => (
+                <div key={item.id}>
+                  A message is waiting to be reconciled.
+                  <button onClick={() => { turnIds.current.set(item.text, item.id as ReturnType<typeof crypto.randomUUID>); say.mutate(item.text); }}>Retry</button>
+                  <button onClick={() => { forgetPending(item.id); setPendingText((items) => items.filter((candidate) => candidate.id !== item.id)); }}>Discard</button>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="talk-input">
             <input
               id="talkText"
@@ -593,14 +726,11 @@ export function Talk() {
                 if (e.key === "Enter" && draft.trim() && !say.isPending) {
                   primeAudio();
                   say.mutate(draft.trim());
-                  setDraft("");
                 }
               }}
             />
           </div>
-          <span className="mono" style={{ color: "var(--faint)" }}>
-            Audio is transcribed, then discarded.
-          </span>
+
         </>
       )}
 
@@ -623,9 +753,10 @@ export function Talk() {
         {conversation && (
           <button
             className="talk-corner"
-            disabled={mode === "thinking" || mode === "speaking" || say.isPending}
+            disabled={closeBlocked || close.isPending}
+            aria-describedby="talk-close-guidance"
             onClick={() => {
-              if (mode === "thinking" || mode === "speaking" || say.isPending) return;
+              if (closeBlocked || close.isPending) return;
               stopAll();
               close.mutate();
             }}
@@ -634,6 +765,11 @@ export function Talk() {
           </button>
         )}
       </div>
+      {conversation && closeBlocked && (
+        <p id="talk-close-guidance" className="sr-only" role="status">
+          Finish or reconcile the pending turn before closing this conversation. Retry or discard remains available above.
+        </p>
+      )}
 
       {crisis && (
         <div className="talk-crisis">

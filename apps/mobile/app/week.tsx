@@ -12,12 +12,14 @@ import {
 import { SECTIONS, asideOf } from "@tlon/copy/sections";
 
 import { Kicker, Rule } from "@/components/Marks";
+import { ErrorLens } from "@/components/SpatialField";
 import { MotionSurface } from "@/components/MotionSurface";
 import { Seal } from "@/components/Seal";
 import { WeekChart } from "@/components/WeekChart";
 import { api, type WeeklySummary } from "@/lib/api";
 import { deviceTimezone, localToday, mondayOfWeek, shiftWeek } from "@/lib/dates";
 import { useSession } from "@/state/session";
+import { usePreferences } from "@/state/preferences";
 import { colors, fonts } from "@/theme";
 import { type as scale } from "@tlon/design";
 import { Rising } from "@/components/Rise";
@@ -42,26 +44,29 @@ export default function WeekScreen() {
   const tz = deviceTimezone();
   const [week, setWeek] = useState(() => mondayOfWeek(localToday()));
   const current = week === mondayOfWeek(localToday());
+  const showFindings = usePreferences((s) => s.findings);
+  const preferencesReady = usePreferences((s) => s.ready);
+  const findingsVisible = preferencesReady && showFindings;
 
   const query = useQuery({
-    queryKey: ["summary", "week", week, tz],
-    queryFn: () => api.weeklySummary(token!, week, tz),
-    enabled: Boolean(token),
+    queryKey: ["summary", "week", week, tz, findingsVisible],
+    queryFn: () => api.weeklySummary(token!, week, tz, findingsVisible),
+    enabled: Boolean(token) && preferencesReady,
   });
   // The week before this one, so the two can be set side by side. A week's
   // shape means little on its own — "four of seven days" is only informative
   // against what the week before held.
   const other = useQuery({
-    queryKey: ["summary", "week", shiftWeek(week, -1), tz],
-    queryFn: () => api.weeklySummary(token!, shiftWeek(week, -1), tz),
-    enabled: Boolean(token),
+    queryKey: ["summary", "week", shiftWeek(week, -1), tz, findingsVisible],
+    queryFn: () => api.weeklySummary(token!, shiftWeek(week, -1), tz, findingsVisible),
+    enabled: Boolean(token) && preferencesReady,
   });
   // Not a finding: these are the person's own words counted back to them, the
   // way the entry count is. It stays when patterns are switched off.
   const words = useQuery({
     queryKey: ["vocabulary", week, tz],
     queryFn: () => api.vocabulary(token!, week, tz, 1),
-    enabled: Boolean(token),
+    enabled: Boolean(token) && findingsVisible,
   });
 
   if (!token) return null;
@@ -100,17 +105,22 @@ export default function WeekScreen() {
       {query.isLoading ? (
         <ActivityIndicator color={colors.violet} style={styles.loader} />
       ) : query.isError || !query.data ? (
-        <Text style={styles.error}>Could not load this week.</Text>
+        <ErrorLens label="Could not load this week." onRetry={() => void query.refetch()} />
       ) : (
         <>
-          <Body summary={query.data} other={other.data?.entry_count ?? 0} current={current} />
+          <Body
+            summary={query.data}
+            other={other.data?.entry_count ?? 0}
+            current={current}
+            findingsVisible={findingsVisible}
+          />
           {/* The words themselves, not a tally of them. This client fetched
               the vocabulary and printed only its description — "13 different
               words for how you felt" — while the words sat unread in the
               response. A count of someone's own language is the one summary
               with nothing in it they could not have counted themselves, and it
               withholds the only part worth showing back. */}
-          {(words.data?.weeks.at(-1)?.words ?? []).length > 0 && (
+          {findingsVisible && (words.data?.weeks.at(-1)?.words ?? []).length > 0 && (
             <Section title={SECTIONS.words.title} aside={asideOf("words", true)}>
               <View style={styles.words}>
                 {words.data!.weeks.at(-1)!.words.map((word: string) => (
@@ -133,17 +143,23 @@ function Body({
   summary,
   other,
   current,
+  findingsVisible,
 }: {
   summary: WeeklySummary;
   /** Acts in the week before this one, for the comparison. */
   other: number;
   current: boolean;
+  findingsVisible: boolean;
 }) {
   const router = useRouter();
 
 
   const acts = summary.entry_count;
   const both = Math.max(acts, other, 1);
+  // Summary responses contain both the person's observations and derived
+  // readings. Keep the former available while hiding cached/current findings.
+  const recurring = findingsVisible ? summary.recurring : [];
+  const inferred = findingsVisible ? summary.inferred : [];
   const vs =
     acts === other
       ? "as many acts as the week before"
@@ -186,7 +202,7 @@ function Body({
       <WeekChart
         days={summary.days}
         today={localToday()}
-        onOpen={() => router.push("/today")}
+        onOpen={(date) => router.push(`/today?date=${date}`)}
       />
       <Text style={styles.peek}>
         Written days open. Empty days stay visible: a quiet week is not a lapse.
@@ -218,9 +234,9 @@ function Body({
             )}
           </Section>
 
-          {summary.recurring.length > 0 && (
+          {recurring.length > 0 && (
             <Section title={SECTIONS.returning.title} aside={asideOf("returning", true)}>
-              {summary.recurring.map((item) => (
+              {recurring.map((item) => (
                 <Text key={`${item.kind}-${item.label}`} style={styles.body}>
                   {item.label} <Text style={styles.meta}>in {item.entries} entries</Text>
                 </Text>
@@ -231,7 +247,7 @@ function Body({
           <Inferences
             title={SECTIONS.kept.title}
             aside={asideOf("kept", true)}
-            items={summary.inferred.filter((x) => !x.tentative)}
+            items={inferred.filter((x) => !x.tentative)}
           />
           {/* Kept in its own section rather than mixed in and greyed out: a
               low-confidence guess beside a confident one reads as equally true
@@ -239,13 +255,15 @@ function Body({
           <Inferences
             title={SECTIONS.forming.title}
             aside={asideOf("forming", true)}
-            items={summary.inferred.filter((x) => x.tentative)}
+            items={inferred.filter((x) => x.tentative)}
           />
 
-          <Text style={styles.footnote}>
-            Readings are hypotheses drawn from your own words, not conclusions about
-            you. Tap one to see its source entries.
-          </Text>
+          {findingsVisible && (
+            <Text style={styles.footnote}>
+              Readings are hypotheses drawn from your own words, not conclusions about
+              you. Tap one to see its source entries.
+            </Text>
+          )}
         </>
       )}
     </>

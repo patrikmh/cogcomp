@@ -8,6 +8,7 @@ import { Kicker, Rule } from "@/components/Marks";
 import { api, type ObservationResponse, type Pattern } from "@/lib/api";
 import { localToday, mondayOfWeek } from "@/lib/dates";
 import { useSession } from "@/state/session";
+import { usePreferences } from "@/state/preferences";
 import { colors, fonts } from "@/theme";
 
 /**
@@ -27,6 +28,9 @@ import { colors, fonts } from "@/theme";
 export default function FirstScreen() {
   const token = useSession((s) => s.token);
   const userId = useSession((s) => s.userId);
+  const showFindings = usePreferences((s) => s.findings);
+  const preferencesReady = usePreferences((s) => s.ready);
+  const findingsVisible = preferencesReady && showFindings;
 
   const entries = useQuery({
     queryKey: ["observations", userId],
@@ -36,7 +40,7 @@ export default function FirstScreen() {
   const patterns = useQuery({
     queryKey: ["patterns", userId],
     queryFn: () => api.listPatterns(token!),
-    enabled: Boolean(token && userId),
+    enabled: Boolean(token && userId) && findingsVisible,
   });
 
   if (!token) return null;
@@ -44,9 +48,11 @@ export default function FirstScreen() {
   const written: ObservationResponse[] = entries.data?.observations ?? [];
   const days = new Set(written.map((o) => o.captured_at.slice(0, 10)));
   const weeks = new Set([...days].map((d) => mondayOfWeek(d)));
-  const found = (patterns.data ?? []).map((p: Pattern) => p.detector);
+  // React Query retains disabled query data. Readiness is part of the gate so
+  // restored findings-off preferences cannot briefly render stale detectors.
+  const found = findingsVisible ? (patterns.data ?? []).map((p: Pattern) => p.detector) : [];
 
-  const waiting = detectorsWaiting({ days: days.size, weeks: weeks.size, found });
+  const waiting = findingsVisible ? detectorsWaiting({ days: days.size, weeks: weeks.size, found }) : [];
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>

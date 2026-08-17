@@ -16,6 +16,11 @@ each other.
 
 ## 1. Router model
 
+`/words` is the public, data-free disclosure route. It is intentionally the only
+public app route besides `/login`: signed-out visitors can read it and return to
+login, while its writing and Settings actions remain authenticated. The bottom
+TabBar is hidden on both public routes.
+
 `apps/mobile/app/_layout.tsx` is the only layout file. It renders one `<Stack>`
 with a screen list. File-based routing means **a file under `app/` is a route
 whether or not it is registered** in that list; registration only sets the
@@ -31,7 +36,7 @@ RootLayout
 `useAuthGate()` (same file) does two things and is the reason screens can assume
 a token exists:
 
-- signed out + not on `/login` → `router.replace("/login")`
+- signed out + not on `/login` or `/words` → `router.replace("/login")`
 - signed in + on `/login` → `router.replace("/")`
 - it waits for `ready` (the keychain read) before either, so a returning user is
   not bounced out during the async restore.

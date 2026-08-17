@@ -7,6 +7,7 @@ import { Meter } from "@/components/Meter";
 import { Failed, Loading } from "@/components/States";
 import { api } from "@/lib/api";
 import { fmt } from "@/lib/format";
+import { usePreferences } from "@/state/preferences";
 import { EXPLORE_PANEL, explorePosition } from "@tlon/design/marks";
 import { toneFor } from "@tlon/design";
 import { Guide } from "@/components/Guide";
@@ -22,10 +23,18 @@ import { EMPTY as EMPTY_COPY } from "@tlon/copy/empty";
  * someone's private writing.
  */
 export function Agents() {
+  const showFindings = usePreferences((s) => s.findings);
   const client = useQueryClient();
-  const runs = useQuery({ queryKey: ["agent-runs"], queryFn: () => api.agentRuns(50) });
+  const runs = useQuery({
+    queryKey: ["agent-runs"],
+    queryFn: () => api.agentRuns(50),
+    enabled: showFindings,
+  });
   const run = useMutation({
-    mutationFn: api.runAgents,
+    mutationFn: () => {
+      if (!showFindings) throw new Error("Findings are turned off");
+      return api.runAgents();
+    },
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: ["agent-runs"] });
       // A run that did work changes what the findings screens hold. The mobile
@@ -37,8 +46,12 @@ export function Agents() {
     },
   });
 
+  if (!showFindings) {
+    return <p className="sub">Agent activity is hidden while findings are turned off.</p>;
+  }
+
   if (runs.isLoading) return <Loading />;
-  if (runs.isError) return <Failed />;
+  if (runs.isError) return <Failed onRetry={() => void runs.refetch()} />;
 
   const all = runs.data ?? [];
   const wrote = all.filter((r) => r.status === "succeeded").length;
@@ -129,7 +142,7 @@ export function Graph() {
   const [tentativeOnly, setTentativeOnly] = useState(false);
 
   if (summary.isLoading) return <Loading />;
-  if (summary.isError || !summary.data) return <Failed />;
+  if (summary.isError || !summary.data) return <Failed onRetry={() => void summary.refetch()} />;
 
   const total = summary.data.counts.reduce((n, c) => n + c.count, 0);
   const nodes = (graph.data?.nodes ?? []).filter((n) => n.kind !== "Observation");
@@ -160,7 +173,7 @@ export function Graph() {
           aria-pressed={tentativeOnly}
           onClick={() => setTentativeOnly(!tentativeOnly)}
         >
-          tentative only · {tentative.length}
+          {tentativeOnly ? "Show tentative guesses" : "Hide tentative guesses"} · {tentative.length}
         </button>
         <Link className="btn ghost" to="/explore">
           OPEN EXPLORER
@@ -216,7 +229,7 @@ export function Explore() {
   const [peek, setPeek] = useState<string | null>(null);
 
   if (graph.isLoading) return <Loading />;
-  if (graph.isError || !graph.data) return <Failed />;
+  if (graph.isError || !graph.data) return <Failed onRetry={() => void graph.refetch()} />;
 
   const nodes = graph.data.nodes.filter((n) => n.kind !== "Observation");
   const at = new Map(

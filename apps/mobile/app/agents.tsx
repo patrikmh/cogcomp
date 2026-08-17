@@ -9,6 +9,7 @@ import { Rise, Rising } from "@/components/Rise";
 import { summaryLines } from "@/lib/agentActivity";
 import { api, type AgentRun } from "@/lib/api";
 import { useSession } from "@/state/session";
+import { usePreferences } from "@/state/preferences";
 import { colors, fonts, statusColor } from "@/theme";
 import { HEADINGS } from "@tlon/copy/headings";
 import { EMPTY as EMPTY_COPY } from "@tlon/copy/empty";
@@ -59,15 +60,21 @@ function sinceYesterday(runs: AgentRun[]): string {
 export default function AgentsScreen() {
   const token = useSession((s) => s.token);
   const queryClient = useQueryClient();
+  const showFindings = usePreferences((s) => s.findings);
+  const preferencesReady = usePreferences((s) => s.ready);
+  const findingsVisible = preferencesReady && showFindings;
 
   const runs = useQuery({
     queryKey: ["agent-runs"],
     queryFn: () => api.listAgentRuns(token!),
-    enabled: Boolean(token),
+    enabled: Boolean(token) && findingsVisible,
   });
 
   const runNow = useMutation({
-    mutationFn: () => api.runAgents(token!),
+    mutationFn: () => {
+      if (!findingsVisible) throw new Error("Findings are turned off");
+      return api.runAgents(token!);
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["agent-runs"] });
       void queryClient.invalidateQueries({ queryKey: ["patterns"] });
@@ -76,6 +83,14 @@ export default function AgentsScreen() {
   });
 
   if (!token) return null;
+
+  if (!findingsVisible) {
+    return (
+      <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+        <Text style={styles.off}>Agent activity is hidden while findings are turned off.</Text>
+      </ScrollView>
+    );
+  }
 
   const all: AgentRun[] = runs.data ?? [];
   const wrote = all.filter((run) => run.status === "succeeded").length;
@@ -166,6 +181,7 @@ function statusLabel(status: string): string {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.room },
+  off: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: scale.body.size, lineHeight: scale.body.line },
   content: { padding: 20, paddingBottom: 56, gap: 10 },
   title: {
     color: colors.ink,

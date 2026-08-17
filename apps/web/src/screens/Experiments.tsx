@@ -7,6 +7,7 @@ import { Empty, Failed, Loading } from "@/components/States";
 import { api, type Experiment } from "@/lib/api";
 import { deviceTimezone, localDay, stampOf } from "@/lib/format";
 import { Seal, seed } from "@/lib/seal";
+import { usePreferences } from "@/state/preferences";
 
 /**
  * Experiments: trials someone writes for themselves.
@@ -18,7 +19,13 @@ import { Seal, seed } from "@/lib/seal";
 export function Experiments() {
   const client = useQueryClient();
   const navigate = useNavigate();
-  const list = useQuery({ queryKey: ["experiments"], queryFn: api.experiments });
+  const findingsVisible = usePreferences((s) => s.findings);
+  const list = useQuery({
+    queryKey: ["experiments", findingsVisible],
+    queryFn: () => api.experiments(findingsVisible),
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+  });
 
   const create = useMutation({
     mutationFn: () =>
@@ -45,16 +52,17 @@ export function Experiments() {
   // does not carry would have been an empty arc that looked like a real one.
   const details = useQueries({
     queries: (list.data?.experiments ?? []).map((x) => ({
-      queryKey: ["experiment", x.id],
-      queryFn: () => api.experiment(x.id),
+      queryKey: ["experiment", x.id, findingsVisible],
+      queryFn: () => api.experiment(x.id, findingsVisible),
     })),
   });
   const checkinsOf = new Map(
     details.filter((d) => d.data).map((d) => [d.data!.id, d.data!.checkins?.length ?? 0]),
   );
+  const detailById = new Map(details.map((d, i) => [list.data?.experiments[i]?.id, d]));
 
   if (list.isLoading) return <Loading />;
-  if (list.isError) return <Failed />;
+  if (list.isError) return <Failed onRetry={() => void list.refetch()} />;
 
   const all = list.data?.experiments ?? [];
   const order: Record<string, number> = { active: 0, paused: 1, draft: 2, completed: 3, cancelled: 4 };
@@ -82,7 +90,13 @@ export function Experiments() {
             <span className="mono">active first</span>
           </div>
           {sorted.map((x) => (
-            <Row key={x.id} experiment={x} checkins={checkinsOf.get(x.id) ?? 0} />
+            <Row
+              key={x.id}
+              experiment={x}
+              checkins={checkinsOf.get(x.id)}
+              detailError={detailById.get(x.id)?.isError}
+              onRetry={() => void detailById.get(x.id)?.refetch()}
+            />
           ))}
         </>
       )}
@@ -117,7 +131,17 @@ const LOOK: Record<Experiment["state"], string> = {
 };
 
 /** One trial, with its arc: a cell per day, lit where a check-in landed. */
-function Row({ experiment, checkins }: { experiment: Experiment; checkins: number }) {
+function Row({
+  experiment,
+  checkins,
+  detailError,
+  onRetry,
+}: {
+  experiment: Experiment;
+  checkins?: number;
+  detailError?: boolean;
+  onRetry: () => void;
+}) {
   const look = LOOK[experiment.state];
   return (
     <div className={`p-row x-row ${look}`}>
@@ -142,11 +166,11 @@ function Row({ experiment, checkins }: { experiment: Experiment; checkins: numbe
               words for this are running, drafted and completed. */}
           <span className={`x-state ${look}`}>{look}</span>
           <span className="mono">
-            {checkins} of {experiment.duration_days} check-ins
+            {detailError ? <Failed label="Could not load check-ins." onRetry={onRetry} /> : `${checkins ?? 0} of ${experiment.duration_days} check-ins`}
           </span>
         </div>
       </Link>
-      <Arc experiment={experiment} checkins={checkins} look={look} />
+      {checkins !== undefined && !detailError && <Arc experiment={experiment} checkins={checkins} look={look} />}
     </div>
   );
 }
@@ -187,6 +211,7 @@ function Arc({
 
 export function ExperimentDetail() {
   const { id = "" } = useParams();
+  const findingsVisible = usePreferences((s) => s.findings);
   const client = useQueryClient();
   const navigate = useNavigate();
   const [arming, setArming] = useState(false);
@@ -194,22 +219,27 @@ export function ExperimentDetail() {
   const [note, setNote] = useState("");
   const [final, setFinal] = useState<string | null>(null);
 
-  const detail = useQuery({ queryKey: ["experiment", id], queryFn: () => api.experiment(id) });
+  const detail = useQuery({
+    queryKey: ["experiment", id, findingsVisible],
+    queryFn: () => api.experiment(id, findingsVisible),
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+  });
 
   const took = (updated: Experiment) => {
     // The transition answers with the whole experiment, so the cache takes it
     // directly rather than refetching.
-    client.setQueryData(["experiment", id], updated);
+    client.setQueryData(["experiment", id, findingsVisible], updated);
     void client.invalidateQueries({ queryKey: ["experiments"] });
   };
   const move = useMutation({
     mutationFn: (target: "start" | "pause" | "resume" | "cancel") =>
-      api.experimentTransition(id, target, detail.data!.revision),
+      api.experimentTransition(id, target, detail.data!.revision, findingsVisible),
     onSuccess: took,
   });
   const complete = useMutation({
     mutationFn: () =>
-      api.completeExperiment(id, detail.data!.revision, assessment!, final!, note),
+      api.completeExperiment(id, detail.data!.revision, assessment!, final!, note, findingsVisible),
     onSuccess: took,
   });
   const remove = useMutation({
@@ -221,7 +251,7 @@ export function ExperimentDetail() {
   });
 
   if (detail.isLoading) return <Loading />;
-  if (detail.isError || !detail.data) return <Failed />;
+  if (detail.isError || !detail.data) return <Failed onRetry={() => void detail.refetch()} />;
 
   const x = detail.data;
   const look = LOOK[x.state];
@@ -343,7 +373,7 @@ export function ExperimentDetail() {
         </>
       )}
 
-      {(x.links ?? []).length > 0 && (
+      {findingsVisible && (x.links ?? []).length > 0 && (
         <>
           <div className="t-sec">
             <span className="kicker">What it tests</span>

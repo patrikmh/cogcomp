@@ -91,6 +91,7 @@ export interface Conversation {
   closed_at: string | null;
   agent: string;
   flagged: boolean;
+  crisis_resources: string[];
   turns: ConversationTurn[];
 }
 
@@ -582,6 +583,7 @@ export const api = {
       content: string;
       source: "text" | "voice";
       capturedAt: string;
+      timezone?: string;
     },
   ) {
     return request<ObservationResponse>("/v1/observations", token, {
@@ -593,7 +595,7 @@ export const api = {
         captured_at: input.capturedAt,
         // Attached here rather than by each caller, so no capture path can
         // forget it and leave the server guessing which day this belongs to.
-        timezone: deviceTimezone(),
+        timezone: input.timezone ?? deviceTimezone(),
       }),
     });
   },
@@ -604,12 +606,12 @@ export const api = {
    */
   async createVoiceObservation(
     token: string,
-    input: { id: string; uri: string; capturedAt: string },
+    input: { id: string; uri: string; capturedAt: string; timezone?: string },
   ): Promise<ObservationResponse> {
     const form = await audioForm(input.uri);
     form.append("id", input.id);
     form.append("captured_at", input.capturedAt);
-    form.append("timezone", deviceTimezone());
+    form.append("timezone", input.timezone ?? deviceTimezone());
     return uploadAudio<ObservationResponse>("/v1/observations/voice", token, form);
   },
 
@@ -619,9 +621,11 @@ export const api = {
     token: string,
     conversationId: string,
     uri: string,
+    clientTurnId: string = Crypto.randomUUID(),
   ): Promise<TurnReply> {
     const form = await audioForm(uri);
     form.append("timezone", deviceTimezone());
+    form.append("client_turn_id", clientTurnId);
     return uploadAudio<TurnReply>(
       `/v1/conversations/${conversationId}/turns/voice`,
       token,
@@ -649,27 +653,42 @@ export const api = {
     );
     return request<Experiment>("/v1/experiments", token, { method: "POST", headers: { "X-Request-Fingerprint": fingerprint }, body: JSON.stringify(input) });
   },
-  listExperiments(token: string) { return request<{ experiments: Experiment[] }>("/v1/experiments", token); },
-  experiment(token: string, id: string) { return request<Experiment>(`/v1/experiments/${id}`, token); },
-  editExperiment(token: string, id: string, revision: number, input: { id?: string; title: string; hypothesis: string; action: string; success_criterion: string; start_date: string; duration_days: number; timezone: string; cadence: Experiment["cadence"] }) {
-    return request<Experiment>(`/v1/experiments/${id}?revision=${revision}`, token, { method: "PATCH", body: JSON.stringify(input) });
+  listExperiments(token: string, includeLinks = true) {
+    const query = includeLinks ? "" : "?include_links=false";
+    return request<{ experiments: Experiment[] }>(`/v1/experiments${query}`, token);
+  },
+  experiment(token: string, id: string, includeLinks = true) {
+    const query = includeLinks ? "" : "?include_links=false";
+    return request<Experiment>(`/v1/experiments/${id}${query}`, token);
+  },
+  editExperiment(token: string, id: string, revision: number, input: { id?: string; title: string; hypothesis: string; action: string; success_criterion: string; start_date: string; duration_days: number; timezone: string; cadence: Experiment["cadence"] }, includeLinks = true) {
+    const query = `?revision=${revision}${includeLinks ? "" : "&include_links=false"}`;
+    return request<Experiment>(`/v1/experiments/${id}${query}`, token, { method: "PATCH", body: JSON.stringify(input) });
+  },
+  unlinkExperimentPattern(token: string, id: string, nodeId: string, revision: number, includeLinks = true) {
+    const query = `?revision=${revision}${includeLinks ? "" : "&include_links=false"}`;
+    return request<Experiment>(`/v1/experiments/${id}/links/${nodeId}${query}`, token, { method: "DELETE" });
   },
   deleteExperiment(token: string, id: string, revision: number) {
     return request<void>(`/v1/experiments/${id}?revision=${revision}`, token, { method: "DELETE" });
   },
-  experimentTransition(token: string, id: string, transition: "start" | "pause" | "resume" | "cancel" | "complete", revision: number, assessment?: string, finalCheckinObservationId?: string) {
-    return request<Experiment>(`/v1/experiments/${id}/${transition}`, token, { method: "POST", body: JSON.stringify({ revision, assessment, final_checkin_observation_id: finalCheckinObservationId }) });
+  experimentTransition(token: string, id: string, transition: "start" | "pause" | "resume" | "cancel" | "complete", revision: number, assessment?: string, finalCheckinObservationId?: string, includeLinks = true) {
+    return request<Experiment>(`/v1/experiments/${id}/${transition}`, token, { method: "POST", body: JSON.stringify({ revision, assessment, final_checkin_observation_id: finalCheckinObservationId, ...(includeLinks ? {} : { include_links: false }) }) });
   },
-  linkExperimentPattern(token: string, id: string, nodeId: string, revision: number) {
-    return request<Experiment>(`/v1/experiments/${id}/links`, token, { method: "POST", body: JSON.stringify({ node_id: nodeId, revision }) });
+  linkExperimentPattern(token: string, id: string, nodeId: string, revision: number, includeLinks = true) {
+    return request<Experiment>(`/v1/experiments/${id}/links`, token, { method: "POST", body: JSON.stringify({ node_id: nodeId, revision, ...(includeLinks ? {} : { include_links: false }) }) });
   },
-  attachExperimentCheckin(token: string, id: string, observationId: string, revision: number) {
-    return request<Experiment>(`/v1/experiments/${id}/checkins`, token, { method: "POST", body: JSON.stringify({ observation_id: observationId, revision }) });
+  attachExperimentCheckin(token: string, id: string, observationId: string, revision: number, includeLinks = true) {
+    return request<Experiment>(`/v1/experiments/${id}/checkins`, token, { method: "POST", body: JSON.stringify({ observation_id: observationId, revision, ...(includeLinks ? {} : { include_links: false }) }) });
   },
 
   listObservations(token: string, before?: string) {
     const query = before ? `?before=${encodeURIComponent(before)}` : "";
     return request<ListResponse>(`/v1/observations${query}`, token);
+  },
+
+  getObservation(token: string, id: string) {
+    return request<ObservationResponse>(`/v1/observations/${id}`, token);
   },
 
   deleteObservation(token: string, id: string) {
@@ -693,16 +712,16 @@ export const api = {
     );
   },
 
-  weeklySummary(token: string, weekStart: string, tz: string) {
+  weeklySummary(token: string, weekStart: string, tz: string, includeFindings = true) {
     return request<WeeklySummary>(
-      `/v1/summary/week/${weekStart}?tz=${encodeURIComponent(tz)}`,
+      `/v1/summary/week/${weekStart}?tz=${encodeURIComponent(tz)}&include_findings=${includeFindings}`,
       token,
     );
   },
 
-  dailySummary(token: string, day: string, tz: string) {
+  dailySummary(token: string, day: string, tz: string, includeFindings = true) {
     return request<DailySummary>(
-      `/v1/summary/${day}?tz=${encodeURIComponent(tz)}`,
+      `/v1/summary/${day}?tz=${encodeURIComponent(tz)}&include_findings=${includeFindings}`,
       token,
     );
   },
@@ -732,10 +751,10 @@ export const api = {
     return request<Conversation>(`/v1/conversations/${id}`, token);
   },
 
-  say(token: string, id: string, content: string, source: "text" | "voice" = "text") {
+  say(token: string, id: string, content: string, source: "text" | "voice" = "text", clientTurnId: string = Crypto.randomUUID()) {
     return request<TurnReply>(`/v1/conversations/${id}/turns`, token, {
       method: "POST",
-      body: JSON.stringify({ content, source, timezone: deviceTimezone() }),
+      body: JSON.stringify({ content, source, timezone: deviceTimezone(), client_turn_id: clientTurnId }),
     });
   },
 
@@ -755,11 +774,12 @@ export const api = {
     content: string,
     source: "text" | "voice",
     onDelta: (text: string) => void,
+    clientTurnId: string = Crypto.randomUUID(),
   ): Promise<TurnReply> {
     const response = await fetch(`${BASE_URL}/v1/conversations/${id}/turns/stream`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ content, source, timezone: deviceTimezone() }),
+      body: JSON.stringify({ content, source, timezone: deviceTimezone(), client_turn_id: clientTurnId }),
     });
     return parseTurnStream(response, { onDelta });
   },
@@ -770,9 +790,11 @@ export const api = {
     uri: string,
     onTranscript: (text: string) => void,
     onDelta: (text: string) => void,
+    clientTurnId: string = Crypto.randomUUID(),
   ): Promise<TurnReply> {
     const form = await audioForm(uri);
     form.append("timezone", deviceTimezone());
+    form.append("client_turn_id", clientTurnId);
     const response = await fetch(
       `${BASE_URL}/v1/conversations/${conversationId}/turns/voice/stream`,
       { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form },
@@ -781,9 +803,10 @@ export const api = {
   },
 
   /** Ends the conversation and keeps only what the person said. */
-  closeConversation(token: string, id: string) {
+  closeConversation(token: string, id: string, includeFindings = true) {
+    const params = new URLSearchParams({ include_findings: String(includeFindings) });
     return request<{ turns_converted: number; observations: string[] }>(
-      `/v1/conversations/${id}/close`,
+      `/v1/conversations/${id}/close?${params.toString()}`,
       token,
       { method: "POST" },
     );

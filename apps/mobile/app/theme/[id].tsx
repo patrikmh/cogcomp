@@ -7,6 +7,7 @@ import { MotionSurface } from "@/components/MotionSurface";
 import { ErrorLens, LoadingLens } from "@/components/SpatialField";
 import { api, type ThemeDetail, type ThemeMember } from "@/lib/api";
 import { useSession } from "@/state/session";
+import { usePreferences } from "@/state/preferences";
 import { colors, fonts } from "@/theme";
 import { radii } from "@tlon/design";
 import { type as scale } from "@tlon/design";
@@ -32,17 +33,19 @@ import { Guide } from "@/components/Guide";
 export default function ThemeScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const token = useSession((s) => s.token);
+  const showFindings = usePreferences((s) => s.findings);
 
   const theme = useQuery({
     queryKey: ["theme", id],
     queryFn: () => api.theme(token!, id!),
-    enabled: Boolean(token && id),
+    enabled: Boolean(token && id && showFindings),
   });
 
   if (!token) return null;
+  if (!showFindings) return <ErrorLens label="Findings are off. This region is hidden." />;
 
   if (theme.isLoading) return <LoadingLens label="Reading the region…" />;
-  if (theme.isError || !theme.data) return <ErrorLens label="Could not load this region." />;
+  if (theme.isError || !theme.data) return <ErrorLens label="Could not load this region." onRetry={() => void theme.refetch()} />;
 
   return <Body theme={theme.data} />;
 }

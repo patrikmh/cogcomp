@@ -11,12 +11,15 @@ feature works, the other doesn't" split this file guards against.
 import pytest
 
 from tlon.config import Settings
+from tlon.transcription import build_transcriber
 
 CREDENTIALS = (
     "DATABASE_URL",
     "TRANSCRIPTION_API_KEY",
     "ELEVENLABS_API_KEY",
     "GROQ_API_KEY",
+    "OPENAI_COMPATIBLE_API_KEY",
+    "OPENAI_API_KEY",
     "SPEECH_API_KEY",
     "SPEECH_VOICE_ID",
     "TRANSCRIPTION_PROVIDER",
@@ -74,6 +77,30 @@ class TestSpeechApiKey:
         )
         assert s.transcription_api_key == "gsk_groq_only"
         assert s.speech_api_key == "sk_elevenlabs_for_speech"
+
+
+class TestProviderCredentialResolution:
+    def test_unknown_provider_is_rejected_without_a_credential(self):
+        config = settings(TRANSCRIPTION_PROVIDER="whisper.cpp")
+        with pytest.raises(ValueError, match="unknown TRANSCRIPTION_PROVIDER"):
+            build_transcriber(
+                config.transcription_api_key,
+                config.transcription_provider,
+                config.transcription_base_url,
+                config.transcription_model,
+            )
+
+    def test_openai_provider_uses_only_its_provider_fallback(self):
+        s = settings(TRANSCRIPTION_PROVIDER="openai", GROQ_API_KEY="gsk_provider")
+        assert s.transcription_api_key == "gsk_provider"
+
+    def test_elevenlabs_provider_rejects_only_groq_key(self):
+        with pytest.raises(ValueError, match="mismatched provider key"):
+            settings(GROQ_API_KEY="gsk_provider")
+
+    def test_openai_provider_rejects_only_elevenlabs_key(self):
+        with pytest.raises(ValueError, match="mismatched provider key"):
+            settings(TRANSCRIPTION_PROVIDER="openai", ELEVENLABS_API_KEY="xi_provider")
 
 
 class TestUsesRealSpeech:

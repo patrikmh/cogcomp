@@ -1,7 +1,7 @@
 import { toneFor } from "@tlon/design";
 import { EXPLORE_PANEL, explorePosition } from "@tlon/design/marks";
 import { useMemo } from "react";
-import { StyleSheet, View } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 import Svg, { Circle, Line } from "react-native-svg";
 
 import { colors } from "@/theme";
@@ -75,6 +75,29 @@ export function GraphPanel({
             caption below, where there is room for it. */}
         {drawn.map((node) => {
           const p = at.get(node.id)!;
+          const select = onSelect ? () => onSelect(node) : undefined;
+          const interaction = Platform.select({
+            web: {
+              onClick: select,
+              role: "button",
+              "aria-label": `${node.label}, ${node.kind}${node.tentative ? ", tentative hypothesis" : ""}`,
+              tabIndex: 0,
+              onKeyDown: (event: { key: string; preventDefault: () => void }) => {
+                if (select && (event.key === "Enter" || event.key === " ")) {
+                  event.preventDefault();
+                  select();
+                }
+              },
+            },
+            default: {
+              onPress: select,
+              accessible: true,
+              focusable: true,
+              accessibilityRole: "button",
+              accessibilityLabel: `${node.label}, ${node.kind}${node.tentative ? ", tentative hypothesis" : ""}`,
+              accessibilityHint: "Activate to open this hypothesis",
+            },
+          });
           return (
             <Circle
               key={node.id}
@@ -85,7 +108,7 @@ export function GraphPanel({
               fill={node.tentative ? "none" : toneFor({ kind: node.kind })}
               stroke={node.tentative ? toneFor({ tentative: true }) : "none"}
               strokeWidth={2}
-              onPress={onSelect ? () => onSelect(node) : undefined}
+              {...(interaction as unknown as React.ComponentProps<typeof Circle>)}
             />
           );
         })}

@@ -20,12 +20,26 @@ export interface Disclosure {
 
 export const DISCLOSURE_HEADING = "What happens to your words";
 
+/** The receipt shown on Talk, where a person needs to know exactly which side
+ * of a conversation becomes part of the journal before they speak. */
+export const TALK_DISCLOSURE = {
+  heading: "What stays from this conversation",
+  body:
+    "The conversation transcript, including your turns and the agent's turns, is " +
+    "kept on your account. Only your turns become journal entries; the agent's " +
+    "turns never do. To provide Talk, conversation text is sent to the configured " +
+    "model provider and voice audio is sent to the configured transcription " +
+    "provider. Audio is transcribed and then discarded.",
+} as const;
+
 export const DISCLOSURES: Disclosure[] = [
   {
     title: "Where it is kept",
     body:
       "What you write is stored on your account and shown back to you. It is not " +
-      "shared with anyone, and nothing here is sold or advertised against.",
+      "shared with other users or used for advertising. When you use extraction " +
+      "or transcription, the required text or audio is sent to the configured " +
+      "processing provider to provide that feature.",
   },
   {
     title: "What reads it",

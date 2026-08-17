@@ -11,7 +11,7 @@ import pytest
 from httpx import AsyncClient
 
 from tests.integration.conftest import Account
-from tlon.speech import clip_from_pcm
+from tlon.speech import SpeechError, clip_from_pcm
 
 pytestmark = [pytest.mark.anyio, pytest.mark.integration]
 
@@ -33,6 +33,31 @@ class TestUnconfigured:
         )
         # A stub beep would make a missing key look like a working feature.
         assert "audio" not in response.json()
+
+
+class TestConfiguredFailure:
+    async def test_provider_details_are_logged_but_not_returned(
+        self, client: AsyncClient, account: Account, caplog
+    ):
+        class FailingVoice:
+            enabled = True
+
+            async def speak(self, text: str):
+                raise SpeechError("upstream provider detail")
+
+        app = client._transport.app
+        original_voice = app.state.voice
+        app.state.voice = FailingVoice()
+        try:
+            response = await client.post(
+                "/v1/voice/speak", headers=account.auth, json={"text": "hello"}
+            )
+        finally:
+            app.state.voice = original_voice
+
+        assert response.status_code == 502
+        assert response.json() == {"detail": "We could not generate audio. Please try again."}
+        assert "upstream provider detail" in caplog.text
 
 
 class TestValidation:

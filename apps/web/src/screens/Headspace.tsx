@@ -40,10 +40,10 @@ export function Headspace() {
   const stage = useRef<Stage | null>(null);
 
   const today = useQuery({
-    queryKey: ["summary", localDay(), tz],
-    queryFn: () => api.daily(localDay(), tz),
+    queryKey: ["summary", localDay(), tz, showFindings],
+    queryFn: () => api.daily(localDay(), tz, showFindings),
   });
-  const graph = useQuery({ queryKey: ["graph"], queryFn: () => api.graph(120) });
+  const graph = useQuery({ queryKey: ["graph", showFindings], queryFn: () => api.graph(120), enabled: showFindings });
   const patterns = useQuery({
     queryKey: ["patterns", userId],
     queryFn: api.patterns,
@@ -57,10 +57,11 @@ export function Headspace() {
 
   /* Everything in the map, built once from all four sources. */
   const whorls = useMemo<Whorl[]>(() => {
-    const busiest = Math.max(1, ...(patterns.data ?? []).map((p) => p.occurrences));
+    const findings = showFindings;
+    const busiest = Math.max(1, ...(findings ? patterns.data ?? [] : []).map((p) => p.occurrences));
     const todayIds = new Set((today.data?.inferred ?? []).map((i) => i.id));
 
-    const asPattern: Whorl[] = (patterns.data ?? []).map((p) => ({
+    const asPattern: Whorl[] = (findings ? patterns.data ?? [] : []).map((p) => ({
       id: p.id,
       label: p.label,
       // The datum the whorl is shaped by, etched along its contours.
@@ -79,9 +80,9 @@ export function Headspace() {
     }));
 
     const asReading: Whorl[] = readingsOn(
-      graph.data?.nodes ?? [],
+      findings ? graph.data?.nodes ?? [] : [],
       todayIds,
-      (patterns.data ?? []).length,
+      findings ? (patterns.data ?? []).length : 0,
     ).map((n) => ({
         id: n.id,
         label: n.label,
@@ -99,7 +100,7 @@ export function Headspace() {
     // Today is one whorl, not one per reading. The map is a landscape of what
     // the record holds; today is a single place on it, and scattering four
     // hillocks across the plain made the day look like four unrelated things.
-    const todays = today.data?.inferred ?? [];
+    const todays = findings ? today.data?.inferred ?? [] : [];
     const acts = today.data?.entry_count ?? 0;
     const asToday: Whorl[] = todays.length
       ? [
@@ -135,8 +136,8 @@ export function Headspace() {
       bar: 0,
     };
 
-    return [you, ...asPattern, ...asToday, ...asReading];
-  }, [patterns.data, graph.data, today.data]);
+    return findings ? [you, ...asPattern, ...asToday, ...asReading] : asToday;
+  }, [patterns.data, graph.data, today.data, showFindings]);
 
   /* One scene. Rebuilt only when the material itself changes. */
   useEffect(() => {
@@ -162,9 +163,9 @@ export function Headspace() {
 
   const counts: Record<Lens, number> = {
     today: whorls.filter((w) => w.group === "today").length,
-    everything: whorls.length - 1,
+    everything: showFindings ? whorls.length - 1 : whorls.length,
     recurring: whorls.filter((w) => w.group === "pattern").length,
-    changed: changes.data?.changes.length ?? 0,
+    changed: showFindings ? changes.data?.changes.length ?? 0 : 0,
   };
 
   const lenses = LENSES.filter((l) => showFindings || !l.finding);
@@ -233,8 +234,9 @@ export function Headspace() {
             </>
           ) : (
             <span className="rk">
-              Headspace · {counts.recurring}{" "}
-              {counts.recurring === 1 ? "pattern" : "patterns"} circling · hover a whorl
+              {showFindings
+                ? `Headspace · ${counts.recurring} ${counts.recurring === 1 ? "pattern" : "patterns"} circling · hover a whorl`
+                : "Headspace · your recorded day · hover a note"}
             </span>
           )}
         </p>

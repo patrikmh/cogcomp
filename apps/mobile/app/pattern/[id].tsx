@@ -10,6 +10,7 @@ import { DETECTOR_LABEL } from "@tlon/copy/detectors";
 
 import { api, type Occasion, type Ordering, type Pattern, type Written } from "@/lib/api";
 import { useSession } from "@/state/session";
+import { usePreferences } from "@/state/preferences";
 import { colors, fonts } from "@/theme";
 import { radii } from "@tlon/design";
 import { type as scale } from "@tlon/design";
@@ -32,11 +33,14 @@ export default function PatternOrderingScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const token = useSession((s) => s.token);
   const userId = useSession((s) => s.userId);
+  const showFindings = usePreferences((s) => s.findings);
+  const preferencesReady = usePreferences((s) => s.ready);
+  const findingsVisible = preferencesReady && showFindings;
 
   const ordering = useQuery({
     queryKey: ["ordering", id],
     queryFn: () => api.patternOrdering(token!, id!),
-    enabled: Boolean(token && id),
+    enabled: Boolean(token && id) && findingsVisible,
   });
   // The ordering endpoint carries the occasions and the gap between them, but
   // not how many days the finding rests on or which detector made it. Those
@@ -45,15 +49,19 @@ export default function PatternOrderingScreen() {
   const patterns = useQuery({
     queryKey: ["patterns", userId],
     queryFn: () => api.listPatterns(token!),
-    enabled: Boolean(token),
+    enabled: Boolean(token && userId) && findingsVisible,
   });
   const pattern = (patterns.data ?? []).find((p: Pattern) => p.id === id);
 
   if (!token) return null;
 
+  // Disabled findings must also hide an already-cached ordering response when
+  // this route is opened directly.
+  if (!findingsVisible) return <ErrorLens label="Patterns are turned off." />;
+
   if (ordering.isLoading) return <LoadingLens label="Reading the order…" />;
   if (ordering.isError || !ordering.data) {
-    return <ErrorLens label="This pattern has no ordered evidence." />;
+    return <ErrorLens label="This pattern has no ordered evidence." onRetry={() => void ordering.refetch()} />;
   }
 
   return <Body ordering={ordering.data} pattern={pattern} />;
