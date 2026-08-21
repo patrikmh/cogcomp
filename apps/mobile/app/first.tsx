@@ -1,12 +1,15 @@
 import { radii, type as scale } from "@tlon/design";
-import { detectorsWaiting } from "@tlon/ontology";
+import { detectorsWaiting, foundWaitingOf } from "@tlon/ontology";
 import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "expo-router";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Guide } from "@/components/Guide";
 import { Kicker, Rule } from "@/components/Marks";
+import { MotionSurface } from "@/components/MotionSurface";
 import { api, type ObservationResponse, type Pattern } from "@/lib/api";
 import { localToday, mondayOfWeek } from "@/lib/dates";
+import { patternDestination } from "@/lib/patterns";
 import { useSession } from "@/state/session";
 import { usePreferences } from "@/state/preferences";
 import { colors, fonts } from "@/theme";
@@ -28,6 +31,7 @@ import { colors, fonts } from "@/theme";
 export default function FirstScreen() {
   const token = useSession((s) => s.token);
   const userId = useSession((s) => s.userId);
+  const router = useRouter();
   const showFindings = usePreferences((s) => s.findings);
   const preferencesReady = usePreferences((s) => s.ready);
   const findingsVisible = preferencesReady && showFindings;
@@ -67,16 +71,34 @@ export default function FirstScreen() {
       </Text>
       <Rule />
 
-      {waiting.map((w) => (
+      {waiting.map((w) => {
         // Hollow until it can fire, which is the same signal the web uses and
         // the same one a tentative reading carries: dashed means not yet.
-        <View key={w.name} style={[styles.card, !w.ready && styles.hollow]}>
+        // Ready-from-day-count is still not a door — only a finding is.
+        const door = foundWaitingOf<Pattern>(
+          w.detector,
+          findingsVisible ? patterns.data ?? [] : [],
+        );
+        const Card = door ? MotionSurface : View;
+        return (
+        <Card
+          key={w.name}
+          style={[styles.card, !w.ready && styles.hollow]}
+          {...(door
+            ? {
+                onPress: () => router.push(patternDestination(door).href),
+                accessibilityRole: "button" as const,
+                accessibilityLabel: `${w.name} — ${door.label}, open this finding`,
+              }
+            : {})}
+        >
           <Kicker tone={w.ready ? colors.cyan : colors.warning}>
-            {w.name} · {w.standing}
+            {w.name} · {door ? "found" : w.standing}
           </Kicker>
-          <Text style={styles.needs}>{w.needs}</Text>
-        </View>
-      ))}
+          <Text style={styles.needs}>{door ? door.label : w.needs}</Text>
+        </Card>
+        );
+      })}
 
       <Text style={styles.footnote}>
         Today is {localToday()}. Nothing here is generated to fill the space — a detector

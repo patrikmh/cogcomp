@@ -54,7 +54,7 @@ export function Theme() {
 
   const region = theme.data;
   const status = region.epistemic_status;
-  const { inside, around } = themeMembersOf(region.members);
+  const { inside, holds, around } = themeMembersOf(region.members);
 
   return (
     <>
@@ -76,6 +76,20 @@ export function Theme() {
           </p>
           <div className="cards">
             {inside.map((member) => (
+              <MemberCard key={member.id} member={member} quote={quoteFor.get(member.id)} />
+            ))}
+          </div>
+        </>
+      )}
+
+      {holds.length > 0 && (
+        <>
+          <h2>{SECTIONS.holds.title}</h2>
+          <p className="mono" style={{ marginTop: -8 }}>
+            {SECTIONS.holds.aside} · in your words
+          </p>
+          <div className="cards">
+            {holds.map((member) => (
               <MemberCard key={member.id} member={member} quote={quoteFor.get(member.id)} />
             ))}
           </div>

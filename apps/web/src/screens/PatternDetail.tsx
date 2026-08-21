@@ -4,7 +4,7 @@ import { Link, useParams } from "react-router-dom";
 import { Meter } from "@/components/Meter";
 import { Empty, Failed, Loading } from "@/components/States";
 import { api, type GraphNode } from "@/lib/api";
-import { apartSidesOf, weekdayShapeOf } from "@/lib/drawn-from";
+import { apartSidesOf, arcsOf, weekdayShapeOf } from "@/lib/drawn-from";
 import { DETECTOR_LABEL, fmt, stampOf } from "@/lib/format";
 import { Seal } from "@/lib/seal";
 import { Guide } from "@/components/Guide";
@@ -43,6 +43,11 @@ export function PatternDetail() {
     queryFn: () => api.explain(id),
     enabled: Boolean(pattern) && !ordered,
   });
+  const experiments = useQuery({
+    queryKey: ["experiments", true],
+    queryFn: () => api.experiments(true),
+    enabled: Boolean(pattern),
+  });
 
   if (patterns.isLoading) return <Loading label="Reading the finding…" />;
   if (!pattern) return <Failed label="No such finding." />;
@@ -61,6 +66,7 @@ export function PatternDetail() {
   const sides =
     pattern.detector === "stated-vs-recorded" ? apartSidesOf(neighbours) : { named: [], done: [] };
   const split = sides.named.length > 0 || sides.done.length > 0;
+  const wondered = arcsOf(id, experiments.data?.experiments ?? []);
 
   return (
     <>
@@ -186,6 +192,23 @@ export function PatternDetail() {
               <Act key={e.id} id={e.id} content={e.content} at={e.captured_at} />
             ))
           )}
+        </>
+      )}
+
+      {wondered.length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.wondered.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("wondered")}</span>
+          </div>
+          {wondered.map((trial) => (
+            <Link key={trial.id} className="t-circle" to={`/experiment/${trial.id}`}>
+              <b>{trial.title}</b>
+              <span className="mono">{trial.state}</span>
+              <span className="mono go">the trial →</span>
+            </Link>
+          ))}
         </>
       )}
 

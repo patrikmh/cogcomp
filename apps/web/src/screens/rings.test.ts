@@ -60,6 +60,15 @@ describe("ringsFor", () => {
     expect(rings[0]?.id).toBe("rest");
   });
 
+  it("puts a faint kept need ahead of sure kept moods", () => {
+    const moods = Array.from({ length: 7 }, (_, i) =>
+      kept(`wired-${i}`, 0.95, { kind: "Emotion" }),
+    );
+    const rings = ringsFor([kept("rest", 0.3, { kind: "Need" }), ...moods], [], []);
+
+    expect(rings[0]?.id).toBe("rest");
+  });
+
   it("draws no more than seven, plus one tombstone", () => {
     const many = Array.from({ length: 20 }, (_, i) => offered(`o-${i}`, 0.5));
     const rings = ringsFor([], many, [node({ id: "gone", status: "removed" })]);

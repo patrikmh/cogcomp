@@ -55,7 +55,7 @@ export default function ThemeScreen() {
 function Body({ theme }: { theme: ThemeDetail }) {
   const router = useRouter();
   const held = new Date(theme.first_seen_at).toLocaleDateString();
-  const { inside, around } = themeMembersOf(theme.members);
+  const { inside, holds, around } = themeMembersOf(theme.members);
 
   return (
     <AtmosphericShell variant="secondary">
@@ -85,6 +85,15 @@ function Body({ theme }: { theme: ThemeDetail }) {
             <Text style={styles.sectionTitle}>{SECTIONS.inside.title}</Text>
             <Text style={styles.sectionAside}>{SECTIONS.inside.aside} · in your words</Text>
             {inside.map((member) => (
+              <Member key={member.id} member={member} onOpen={() => router.push(`/node/${member.id}`)} />
+            ))}
+          </>
+        )}
+        {holds.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>{SECTIONS.holds.title}</Text>
+            <Text style={styles.sectionAside}>{SECTIONS.holds.aside} · in your words</Text>
+            {holds.map((member) => (
               <Member key={member.id} member={member} onOpen={() => router.push(`/node/${member.id}`)} />
             ))}
           </>

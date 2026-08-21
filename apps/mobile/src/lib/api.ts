@@ -118,6 +118,8 @@ export interface GraphNode {
   id: string;
   kind: NodeKind;
   label: string;
+  /** How many entries this reading rests on. */
+  cites_entries?: number;
   created_at: string;
   confidence: number | null;
   epistemic_status: EpistemicStatus | null;

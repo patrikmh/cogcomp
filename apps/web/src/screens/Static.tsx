@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
 import { DISCLOSURES, DISCLOSURE_HEADING } from "@tlon/copy";
-import { detectorsWaiting } from "@tlon/ontology";
+import { detectorsWaiting, foundWaitingOf } from "@tlon/ontology";
 
 import { api } from "@/lib/api";
 import { localDay, mondayOf } from "@/lib/format";
@@ -88,17 +88,38 @@ export function First() {
 
       {findingsVisible ? (
       <div className="cards">
-        {waiting.map((w) => (
-          <div className={`card${w.ready ? "" : " hollow"}`} key={w.name}>
-            <div className="row" style={{ justifyContent: "space-between" }}>
-              <b>{w.name}</b>
-              <span className="mono">{w.ready ? "ready" : w.standing}</span>
+        {waiting.map((w) => {
+          const door = foundWaitingOf(w.detector, found);
+          const href = door
+            ? door.detector === "lag" || door.detector === "same-day-order"
+              ? `/pattern/${door.id}`
+              : `/node/${door.id}`
+            : undefined;
+          const body = (
+            <>
+              <div className="row" style={{ justifyContent: "space-between" }}>
+                <b>{w.name}</b>
+                <span className="mono">{door ? "found" : w.ready ? "ready" : w.standing}</span>
+              </div>
+              {door ? (
+                <p style={{ margin: "8px 0 0" }}>{door.label}</p>
+              ) : (
+                <p className="mono" style={{ margin: "8px 0 0" }}>
+                  needs {w.needs}
+                </p>
+              )}
+            </>
+          );
+          return href ? (
+            <Link className={`card${w.ready ? "" : " hollow"}`} key={w.name} to={href}>
+              {body}
+            </Link>
+          ) : (
+            <div className={`card${w.ready ? "" : " hollow"}`} key={w.name}>
+              {body}
             </div>
-            <p className="mono" style={{ margin: "8px 0 0" }}>
-              needs {w.needs}
-            </p>
-          </div>
-        ))}
+          );
+        })}
       </div>
       ) : (
         <div className="card">

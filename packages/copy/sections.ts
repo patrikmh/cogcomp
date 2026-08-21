@@ -30,8 +30,12 @@ export const SECTIONS = {
    *  diagnosed, and kept apart from people, places, and activities so that
    *  world can be walked on its own. */
   inside: { title: "Felt and thought", aside: "named, not a verdict" },
+  /** Need, value, belief — kept apart from the day's weather. */
+  holds: { title: "What you hold", aside: "not a mood" },
   /** Inner readings that returned in this window. A count, never a diagnosis. */
   cameBack: { title: "Came back", aside: "more than once, not a diagnosis" },
+  /** People, places, acts, events that returned in this window. */
+  again: { title: "Came up more than once", aside: "a count, not a verdict" },
   /** A search term the record also used as a name for something felt. */
   named: { title: "Also named", aside: "the record's word, not yours" },
   /** People, places, and acts — the outer room of a composition or a region. */
@@ -42,6 +46,14 @@ export const SECTIONS = {
   circling: { title: "Circling" },
   /** A cluster of associations, not a pair and not a diagnosis. */
   regions: { title: "Regions", aside: "groups, not pairs" },
+  /** Inner names no region lists. Only when some names are in a region. */
+  alone: { title: "Not in a region", aside: "alone, not lost" },
+  /** Written days this window did not name inside. Only when both exist. */
+  unsaid: { title: "Days the record left unnamed", aside: "written, nothing inner" },
+  /** Written days that named a need or value and left no act. Only when a paired day exists. */
+  asked: { title: "Named, no act written", aside: "the record, not the day" },
+  /** Identity holds this window did not name. Only when some holds were named. */
+  quiet: { title: "Quiet this week", aside: "held, not written" },
   /** The week's shape. The design's aside mentions hovering, which a phone
    *  cannot do, so touch clients say only what is true of a tap. */
   rhythm: {
@@ -83,8 +95,18 @@ export const SECTIONS = {
   against: { title: "Sits against", aside: "tension, not a verdict" },
   /** On that belief or pattern: the thoughts that sit against it. */
   againstThis: { title: "Sat against by", aside: "tension, not a verdict" },
+  /** On a thought: a belief it holds up. */
+  holdsUp: { title: "Holds up", aside: "evidence, not proof" },
+  /** On that belief: the thoughts that hold it up. */
+  heldUp: { title: "Held up by", aside: "evidence, not proof" },
+  /** Beliefs the record both holds up and sits against. */
+  pulled: { title: "Pulled both ways", aside: "both in the record" },
+  /** Beliefs the record holds and never argues. */
+  unargued: { title: "Never argued", aside: "held, not tested" },
   /** Experiments. */
   arcs: { title: "Your arcs", aside: "active first" },
+  /** On a reading: the trials already set against it. */
+  wondered: { title: "You wondered", aside: "yours, not proposed" },
   reason: { title: "Why you started it" },
   checkins: { title: "Check-ins", aside: "ordinary entries · most recent" },
   finish: { title: "Finish", aside: "yours to call" },

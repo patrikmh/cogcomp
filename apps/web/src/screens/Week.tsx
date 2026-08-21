@@ -9,9 +9,15 @@ import {
   circlingOf,
   circlingThemesOf,
   feltReadingOf,
-  innerReadingsOf,
+  feltThoughtOf,
+  heldReadingsOf,
+  namedRecurrenceOf,
   outerReadingsOf,
   returningInnerOf,
+  namedOnlyDaysOf,
+  quietHoldsOf,
+  unplacedReadingsOf,
+  unnamedDaysOf,
   VOCABULARY_LOOKBACK_WEEKS,
   vocabularyMarks,
 } from "@/lib/drawn-from";
@@ -57,6 +63,11 @@ export function Week() {
     queryFn: () => api.vocabulary(monday, tz, VOCABULARY_LOOKBACK_WEEKS),
     enabled: showFindings,
   });
+  const identity = useQuery({
+    queryKey: ["identity"],
+    queryFn: () => api.identity(),
+    enabled: showFindings,
+  });
 
   if (week.isLoading) return <Loading />;
   if (week.isError || !week.data) return <Failed onRetry={() => void week.refetch()} />;
@@ -85,10 +96,23 @@ export function Week() {
   const weekReadings = showFindings
     ? (week.data.inferred ?? []).filter((item) => item.kind !== "Pattern" && item.kind !== "Theme")
     : [];
-  const inside = innerReadingsOf(weekReadings).filter((item) => !item.tentative);
+  const inside = feltThoughtOf(weekReadings).filter((item) => !item.tentative);
+  const held = heldReadingsOf(weekReadings).filter((item) => !item.tentative);
   const cameBack = returningInnerOf(weekReadings);
   const leftBehind = outerReadingsOf(weekReadings).filter((item) => !item.tentative);
   const formingReadings = weekReadings.filter((item) => item.tentative);
+  const unsaid = showFindings
+    ? unnamedDaysOf(days, week.data.inferred ?? [])
+    : [];
+  const asked = showFindings
+    ? namedOnlyDaysOf(days, week.data.inferred ?? [])
+    : [];
+  const quiet = showFindings
+    ? quietHoldsOf(identity.data?.nodes ?? [], week.data.inferred ?? [])
+    : [];
+  const alone = showFindings
+    ? unplacedReadingsOf(weekReadings, themes.data ?? [])
+    : [];
 
   return (
     <div className="scr">
@@ -179,6 +203,58 @@ export function Week() {
           "Hover a written day to preview it — click to open its record. Empty days stay visible: a quiet week is not a lapse."}
       </p>
 
+      {unsaid.length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.unsaid.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("unsaid")}</span>
+          </div>
+          {unsaid.map((day) => (
+            <Link key={day.date} className="t-circle" to={`/today?date=${day.date}`}>
+              <b>
+                {new Date(`${day.date}T12:00:00`).toLocaleDateString([], {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "short",
+                })}
+              </b>
+              <span className="mono">
+                {day.observations.length}{" "}
+                {day.observations.length === 1 ? "act" : "acts"}
+              </span>
+              <span className="mono go">that day →</span>
+            </Link>
+          ))}
+        </>
+      )}
+
+      {asked.length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.asked.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("asked")}</span>
+          </div>
+          {asked.map((day) => (
+            <Link key={day.date} className="t-circle" to={`/today?date=${day.date}`}>
+              <b>
+                {new Date(`${day.date}T12:00:00`).toLocaleDateString([], {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "short",
+                })}
+              </b>
+              <span className="mono">
+                {day.observations.length}{" "}
+                {day.observations.length === 1 ? "act" : "acts"}
+              </span>
+              <span className="mono go">that day →</span>
+            </Link>
+          ))}
+        </>
+      )}
+
       {inside.length > 0 && (
         <>
           <div className="t-sec">
@@ -188,6 +264,35 @@ export function Week() {
           </div>
           {inside.map((reading) => (
             <WeekReading key={reading.id} reading={reading} />
+          ))}
+        </>
+      )}
+
+      {held.length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.holds.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("holds")}</span>
+          </div>
+          {held.map((reading) => (
+            <WeekReading key={reading.id} reading={reading} />
+          ))}
+        </>
+      )}
+
+      {quiet.length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.quiet.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("quiet")}</span>
+          </div>
+          {quiet.map((reading) => (
+            <Link key={reading.id} className="t-circle" to={`/node/${reading.id}`}>
+              <b>{reading.label}</b>
+              <span className="mono">{reading.kind.toLowerCase()}</span>
+            </Link>
           ))}
         </>
       )}
@@ -215,6 +320,37 @@ export function Week() {
           {leftBehind.map((reading) => (
             <WeekReading key={reading.id} reading={reading} />
           ))}
+        </>
+      )}
+
+      {(week.data.recurring ?? []).length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.again.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("again")}</span>
+          </div>
+          {week.data.recurring.map((item) => {
+            const door = namedRecurrenceOf(item, weekReadings);
+            const body = (
+              <span className="t-main">
+                <b>{item.label}</b>
+                <span className="mono">
+                  {item.kind.toLowerCase()} · {item.entries} {item.entries === 1 ? "entry" : "entries"} · {item.days}{" "}
+                  {item.days === 1 ? "day" : "days"}
+                </span>
+              </span>
+            );
+            return door ? (
+              <Link key={`${item.kind}:${item.label}`} className="t-read" to={`/node/${door.id}`}>
+                {body}
+              </Link>
+            ) : (
+              <div className="t-read" key={`${item.kind}:${item.label}`}>
+                {body}
+              </div>
+            );
+          })}
         </>
       )}
 
@@ -260,6 +396,19 @@ export function Week() {
               <span className="mono">{theme.member_count} things</span>
               <span className="mono go">the region →</span>
             </Link>
+          ))}
+        </>
+      )}
+
+      {alone.length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.alone.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("alone")}</span>
+          </div>
+          {alone.map((reading) => (
+            <WeekReading key={reading.id} reading={reading} />
           ))}
         </>
       )}

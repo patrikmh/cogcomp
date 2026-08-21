@@ -4,7 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { Meter } from "@/components/Meter";
 import { Failed, Loading } from "@/components/States";
 import { api, type Inference } from "@/lib/api";
-import { circlingOf, circlingThemesOf, innerReadingsOf, outerReadingsOf, returningInnerOf, useDrawnFrom } from "@/lib/drawn-from";
+import { circlingOf, circlingThemesOf, feltThoughtOf, heldReadingsOf, namedRecurrenceOf, outerReadingsOf, returningInnerOf, unplacedReadingsOf, useDrawnFrom } from "@/lib/drawn-from";
 import { clockOf, dayFromRoute, deviceTimezone, fmt, localDay, shiftDay } from "@/lib/format";
 import { Seal } from "@/lib/seal";
 import { Guide } from "@/components/Guide";
@@ -61,12 +61,14 @@ export function Today() {
   const inferred = showFindings ? summary.data?.inferred ?? [] : [];
   const readings = inferred.filter((item) => item.kind !== "Pattern" && item.kind !== "Theme");
   const bySurety = (a: Inference, b: Inference) => b.confidence - a.confidence;
-  const inside = innerReadingsOf(readings).filter((i) => !i.tentative).sort(bySurety);
+  const inside = feltThoughtOf(readings).filter((i) => !i.tentative).sort(bySurety);
+  const held = heldReadingsOf(readings).filter((i) => !i.tentative).sort(bySurety);
   const cameBack = returningInnerOf(readings);
   const kept = outerReadingsOf(readings).filter((i) => !i.tentative).sort(bySurety);
   const faint = readings.filter((i) => i.tentative).sort(bySurety);
   const circlingList = showFindings ? circlingOf(inferred, patterns.data ?? []) : [];
   const regionList = showFindings ? circlingThemesOf(inferred, themes.data ?? []) : [];
+  const alone = showFindings ? unplacedReadingsOf(readings, themes.data ?? []) : [];
 
   return (
     <div className="scr">
@@ -187,6 +189,19 @@ export function Today() {
             </>
           )}
 
+          {held.length > 0 && (
+            <>
+              <div className="t-sec">
+                <span className="kicker">{SECTIONS.holds.title}</span>
+                <span className="rule" />
+                <span className="mono">{asideOf("holds")}</span>
+              </div>
+              {held.map((r) => (
+                <Reading key={r.id} reading={r} />
+              ))}
+            </>
+          )}
+
           {cameBack.length > 0 && (
             <>
               <div className="t-sec">
@@ -229,19 +244,30 @@ export function Today() {
           {summary.data!.recurring.length > 0 && (
             <>
               <div className="t-sec">
-                <span className="kicker">Came up more than once</span>
+                <span className="kicker">{SECTIONS.again.title}</span>
                 <span className="rule" />
+                <span className="mono">{asideOf("again")}</span>
               </div>
-              {summary.data!.recurring.map((r) => (
-                <div className="t-read" key={`${r.kind}:${r.label}`}>
+              {summary.data!.recurring.map((r) => {
+                const door = namedRecurrenceOf(r, readings);
+                const body = (
                   <span className="t-main">
                     <b>{r.label}</b>
                     <span className="mono">
                       {r.kind.toLowerCase()} · {r.entries} times today
                     </span>
                   </span>
-                </div>
-              ))}
+                );
+                return door ? (
+                  <Link key={`${r.kind}:${r.label}`} className="t-read" to={`/node/${door.id}`}>
+                    {body}
+                  </Link>
+                ) : (
+                  <div className="t-read" key={`${r.kind}:${r.label}`}>
+                    {body}
+                  </div>
+                );
+              })}
             </>
           )}
 
@@ -277,6 +303,19 @@ export function Today() {
                   <span className="mono">{theme.member_count} things</span>
                   <span className="mono go">the region →</span>
                 </Link>
+              ))}
+            </>
+          )}
+
+          {alone.length > 0 && (
+            <>
+              <div className="t-sec">
+                <span className="kicker">{SECTIONS.alone.title}</span>
+                <span className="rule" />
+                <span className="mono">{asideOf("alone")}</span>
+              </div>
+              {alone.map((r) => (
+                <Reading key={r.id} reading={r} />
               ))}
             </>
           )}

@@ -16,14 +16,20 @@ import { ErrorLens } from "@/components/SpatialField";
 import { MotionSurface } from "@/components/MotionSurface";
 import { Seal } from "@/components/Seal";
 import { WeekChart } from "@/components/WeekChart";
-import { api, type Pattern, type Theme, type WeeklySummary } from "@/lib/api";
+import { api, type IdentityNode, type Pattern, type Theme, type WeeklySummary } from "@/lib/api";
 import {
   circlingOf,
   circlingThemesOf,
   feltReadingOf,
-  innerReadingsOf,
+  feltThoughtOf,
+  heldReadingsOf,
+  namedRecurrenceOf,
   outerReadingsOf,
+  namedOnlyDaysOf,
+  quietHoldsOf,
   returningInnerOf,
+  unplacedReadingsOf,
+  unnamedDaysOf,
   VOCABULARY_LOOKBACK_WEEKS,
   vocabularyMarks,
 } from "@/lib/drawnFrom";
@@ -91,6 +97,11 @@ export default function WeekScreen() {
     queryFn: () => api.listThemes(token!),
     enabled: Boolean(token && userId) && findingsVisible,
   });
+  const identity = useQuery({
+    queryKey: ["identity", userId],
+    queryFn: () => api.identity(token!),
+    enabled: Boolean(token && userId) && findingsVisible,
+  });
 
   if (!token) return null;
 
@@ -146,6 +157,22 @@ export default function WeekScreen() {
                 ? circlingThemesOf(query.data.inferred ?? [], themes.data ?? [])
                 : []
             }
+            quietList={
+              findingsVisible
+                ? quietHoldsOf(identity.data?.nodes ?? [], query.data.inferred ?? [])
+                : []
+            }
+            aloneList={
+              findingsVisible
+                ? unplacedReadingsOf(
+                    (query.data.inferred ?? []).filter(
+                      (item: WeeklySummary["inferred"][number]) =>
+                        item.kind !== "Pattern" && item.kind !== "Theme",
+                    ),
+                    themes.data ?? [],
+                  )
+                : []
+            }
           />
           {/* The words themselves, not a tally of them. This client fetched
               the vocabulary and printed only its description — "13 different
@@ -193,6 +220,8 @@ function Body({
   findingsVisible,
   circlingList,
   regionList,
+  quietList,
+  aloneList,
 }: {
   summary: WeeklySummary;
   /** Acts in the week before this one, for the comparison. */
@@ -201,6 +230,8 @@ function Body({
   findingsVisible: boolean;
   circlingList: Pattern[];
   regionList: Theme[];
+  quietList: IdentityNode[];
+  aloneList: WeeklySummary["inferred"];
 }) {
   const router = useRouter();
 
@@ -213,6 +244,8 @@ function Body({
   const inferred = findingsVisible
     ? summary.inferred.filter((item) => item.kind !== "Pattern" && item.kind !== "Theme")
     : [];
+  const unsaid = findingsVisible ? unnamedDaysOf(summary.days, summary.inferred) : [];
+  const asked = findingsVisible ? namedOnlyDaysOf(summary.days, summary.inferred) : [];
   const vs =
     acts === other
       ? "as many acts as the week before"
@@ -261,6 +294,58 @@ function Body({
         Written days open. Empty days stay visible: a quiet week is not a lapse.
       </Text>
 
+      {unsaid.length > 0 && (
+        <Section title={SECTIONS.unsaid.title} aside={asideOf("unsaid", true)}>
+          {unsaid.map((day) => (
+            <MotionSurface
+              key={day.date}
+              style={styles.wrote}
+              onPress={() => router.push(`/today?date=${day.date}`)}
+              accessibilityRole="button"
+              accessibilityLabel={`${day.date} — open this day`}
+            >
+              <Text style={styles.body}>
+                {new Date(`${day.date}T12:00:00`).toLocaleDateString([], {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "short",
+                })}
+              </Text>
+              <Text style={styles.meta}>
+                {day.observations.length}{" "}
+                {day.observations.length === 1 ? "act" : "acts"} · written, nothing inner
+              </Text>
+            </MotionSurface>
+          ))}
+        </Section>
+      )}
+
+      {asked.length > 0 && (
+        <Section title={SECTIONS.asked.title} aside={asideOf("asked", true)}>
+          {asked.map((day) => (
+            <MotionSurface
+              key={day.date}
+              style={styles.wrote}
+              onPress={() => router.push(`/today?date=${day.date}`)}
+              accessibilityRole="button"
+              accessibilityLabel={`${day.date} — named, no act written, open this day`}
+            >
+              <Text style={styles.body}>
+                {new Date(`${day.date}T12:00:00`).toLocaleDateString([], {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "short",
+                })}
+              </Text>
+              <Text style={styles.meta}>
+                {day.observations.length}{" "}
+                {day.observations.length === 1 ? "act" : "acts"} · the record, not the day
+              </Text>
+            </MotionSurface>
+          ))}
+        </Section>
+      )}
+
       {summary.entry_count === 0 ? (
         // Stated plainly, with no nudge to write. A week with nothing in it is a
         // fact about the week, not a failure to be corrected.
@@ -288,12 +373,27 @@ function Body({
           </Section>
 
           {recurring.length > 0 && (
-            <Section title={SECTIONS.returning.title} aside={asideOf("returning", true)}>
-              {recurring.map((item) => (
-                <Text key={`${item.kind}-${item.label}`} style={styles.body}>
-                  {item.label} <Text style={styles.meta}>in {item.entries} entries</Text>
-                </Text>
-              ))}
+            <Section title={SECTIONS.again.title} aside={asideOf("again", true)}>
+              {recurring.map((item) => {
+                const door = namedRecurrenceOf(item, inferred);
+                return (
+                  <MotionSurface
+                    key={`${item.kind}-${item.label}`}
+                    style={styles.wrote}
+                    onPress={door ? () => router.push(`/node/${door.id}`) : undefined}
+                    accessibilityRole={door ? "button" : undefined}
+                    accessibilityLabel={`${item.label} — in ${item.entries} entries`}
+                  >
+                    <Text style={styles.body}>
+                      {item.label}{" "}
+                      <Text style={styles.meta}>
+                        {item.kind.toLowerCase()} · {item.entries} entries · {item.days}{" "}
+                        {item.days === 1 ? "day" : "days"}
+                      </Text>
+                    </Text>
+                  </MotionSurface>
+                );
+              })}
             </Section>
           )}
 
@@ -334,12 +434,38 @@ function Body({
               ))}
             </Section>
           )}
+          <Inferences
+            title={SECTIONS.alone.title}
+            aside={asideOf("alone", true)}
+            items={aloneList}
+          />
 
           <Inferences
             title={SECTIONS.inside.title}
             aside={asideOf("inside", true)}
-            items={innerReadingsOf(inferred).filter((x) => !x.tentative)}
+            items={feltThoughtOf(inferred).filter((x) => !x.tentative)}
           />
+          <Inferences
+            title={SECTIONS.holds.title}
+            aside={asideOf("holds", true)}
+            items={heldReadingsOf(inferred).filter((x) => !x.tentative)}
+          />
+          {quietList.length > 0 && (
+            <Section title={SECTIONS.quiet.title} aside={asideOf("quiet", true)}>
+              {quietList.map((reading) => (
+                <MotionSurface
+                  key={reading.id}
+                  style={styles.circle}
+                  onPress={() => router.push(`/node/${reading.id}`)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${reading.label} — held, not written this week, open this reading`}
+                >
+                  <Text style={styles.circleLabel}>{reading.label}</Text>
+                  <Text style={styles.circleMeta}>{reading.kind.toLowerCase()}</Text>
+                </MotionSurface>
+              ))}
+            </Section>
+          )}
           <Inferences
             title={SECTIONS.cameBack.title}
             aside={asideOf("cameBack", true)}

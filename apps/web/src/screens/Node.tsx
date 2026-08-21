@@ -4,7 +4,7 @@ import { Link, useParams } from "react-router-dom";
 import { Meter } from "@/components/Meter";
 import { Failed, Loading } from "@/components/States";
 import { api } from "@/lib/api";
-import { aboutOf, amongReadingsOf, contradictsOf, feltTowardOf, indicatesOf, regionsOfReading, travelsWithOf } from "@/lib/drawn-from";
+import { aboutOf, amongReadingsOf, arcsOf, contradictsOf, feltTowardOf, indicatesOf, regionsOfReading, supportsOf, travelsWithOf } from "@/lib/drawn-from";
 import { usePreferences } from "@/state/preferences";
 import { fmt, stampOf } from "@/lib/format";
 import { Guide } from "@/components/Guide";
@@ -47,6 +47,11 @@ export function Node() {
   const themes = useQuery({
     queryKey: ["themes"],
     queryFn: api.themes,
+    enabled: showFindings,
+  });
+  const experiments = useQuery({
+    queryKey: ["experiments", showFindings],
+    queryFn: () => api.experiments(showFindings),
     enabled: showFindings,
   });
 
@@ -126,6 +131,8 @@ export function Node() {
   const spoken = aboutOf(id, neighbours.data?.neighbours ?? [], neighbours.data?.edges ?? []);
   const hinted = indicatesOf(id, neighbours.data?.neighbours ?? [], neighbours.data?.edges ?? []);
   const tension = contradictsOf(id, neighbours.data?.neighbours ?? [], neighbours.data?.edges ?? []);
+  const backing = supportsOf(id, neighbours.data?.neighbours ?? [], neighbours.data?.edges ?? []);
+  const wondered = arcsOf(id, experiments.data?.experiments ?? []);
 
   return (
     <>
@@ -326,6 +333,38 @@ export function Node() {
         </>
       )}
 
+      {backing.holdsUp.length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.holdsUp.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("holdsUp")}</span>
+          </div>
+          {backing.holdsUp.map((reading) => (
+            <Link key={reading.id} className="t-circle" to={`/node/${reading.id}`}>
+              <b>{reading.label}</b>
+              <span className="mono">{reading.kind.toLowerCase()}</span>
+            </Link>
+          ))}
+        </>
+      )}
+
+      {backing.heldUp.length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.heldUp.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("heldUp")}</span>
+          </div>
+          {backing.heldUp.map((reading) => (
+            <Link key={reading.id} className="t-circle" to={`/node/${reading.id}`}>
+              <b>{reading.label}</b>
+              <span className="mono">{reading.kind.toLowerCase()}</span>
+            </Link>
+          ))}
+        </>
+      )}
+
       {among.length > 0 && (
         <>
           <div className="t-sec">
@@ -371,6 +410,23 @@ export function Node() {
               <b>{theme.label}</b>
               <span className="mono">{theme.member_count} things</span>
               <span className="mono go">the region →</span>
+            </Link>
+          ))}
+        </>
+      )}
+
+      {wondered.length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.wondered.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("wondered")}</span>
+          </div>
+          {wondered.map((trial) => (
+            <Link key={trial.id} className="t-circle" to={`/experiment/${trial.id}`}>
+              <b>{trial.title}</b>
+              <span className="mono">{trial.state}</span>
+              <span className="mono go">the trial →</span>
             </Link>
           ))}
         </>

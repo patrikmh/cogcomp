@@ -5,9 +5,11 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { Meter } from "@/components/Meter";
 import { Empty, Failed, Loading } from "@/components/States";
 import { api, type Experiment } from "@/lib/api";
+import { eligibleHeld } from "@/lib/drawn-from";
 import { deviceTimezone, localDay, stampOf } from "@/lib/format";
 import { Seal, seed } from "@/lib/seal";
 import { usePreferences } from "@/state/preferences";
+import { asideOf } from "@tlon/copy/sections";
 
 /**
  * Experiments: trials someone writes for themselves.
@@ -225,6 +227,16 @@ export function ExperimentDetail() {
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
   });
+  const graph = useQuery({
+    queryKey: ["graph"],
+    queryFn: () => api.graph(200),
+    enabled: findingsVisible && detail.data?.state === "draft",
+  });
+  const patterns = useQuery({
+    queryKey: ["patterns"],
+    queryFn: api.patterns,
+    enabled: findingsVisible && detail.data?.state === "draft",
+  });
 
   const took = (updated: Experiment) => {
     // The transition answers with the whole experiment, so the cache takes it
@@ -248,6 +260,11 @@ export function ExperimentDetail() {
       void client.invalidateQueries({ queryKey: ["experiments"] });
       navigate("/experiments");
     },
+  });
+  const link = useMutation({
+    mutationFn: (nodeId: string) =>
+      api.linkExperiment(id, nodeId, detail.data!.revision, findingsVisible),
+    onSuccess: took,
   });
 
   if (detail.isLoading) return <Loading />;
@@ -380,17 +397,27 @@ export function ExperimentDetail() {
             <span className="rule" />
             <span className="mono">the readings this was set against</span>
           </div>
-          {x.links!.map((link) => (
-            <Link className="t-read" key={link.node_id} to={`/node/${link.node_id}`}>
+          {x.links!.map((linked) => (
+            <Link className="t-read" key={linked.node_id} to={`/node/${linked.node_id}`}>
               <span className="t-main">
-                <b>{link.label ?? "a reading that is no longer here"}</b>
+                <b>{linked.label ?? "a reading that is no longer here"}</b>
                 <span className="mono">
-                  {link.availability ? (link.kind ?? "").toLowerCase() : "removed since"}
+                  {linked.availability ? (linked.kind ?? "").toLowerCase() : "removed since"}
                 </span>
               </span>
             </Link>
           ))}
         </>
+      )}
+
+      {findingsVisible && x.state === "draft" && (
+        <Against
+          already={new Set((x.links ?? []).map((linked) => linked.node_id))}
+          held={(graph.data?.nodes ?? []).filter(eligibleHeld)}
+          patterns={(patterns.data ?? []).filter((pattern) => !pattern.tentative)}
+          busy={link.isPending}
+          onLink={(nodeId) => link.mutate(nodeId)}
+        />
       )}
 
       {x.state === "active" && (
@@ -453,6 +480,64 @@ export function ExperimentDetail() {
             Final check-in selected by you. No score, no interpretation.
           </span>
         </div>
+      )}
+    </>
+  );
+}
+
+function Against({
+  already,
+  held,
+  patterns,
+  busy,
+  onLink,
+}: {
+  already: Set<string>;
+  held: { id: string; kind: string; label: string }[];
+  patterns: { id: string; label: string }[];
+  busy: boolean;
+  onLink: (nodeId: string) => void;
+}) {
+  const readings = held.filter((reading) => !already.has(reading.id));
+  const live = patterns.filter((pattern) => !already.has(pattern.id));
+  return (
+    <>
+      <div className="t-sec">
+        <span className="kicker">Set it against</span>
+        <span className="rule" />
+        <span className="mono">{asideOf("wondered")}</span>
+      </div>
+      <p className="t-sum">A reading you hold, or a live pattern. The app does not propose one.</p>
+      {readings.map((reading) => (
+        <button
+          key={reading.id}
+          className="t-read"
+          type="button"
+          disabled={busy}
+          onClick={() => onLink(reading.id)}
+        >
+          <span className="t-main">
+            <b>{reading.label}</b>
+            <span className="mono">{reading.kind.toLowerCase()} · you hold this</span>
+          </span>
+        </button>
+      ))}
+      {live.map((pattern) => (
+        <button
+          key={pattern.id}
+          className="t-read"
+          type="button"
+          disabled={busy}
+          onClick={() => onLink(pattern.id)}
+        >
+          <span className="t-main">
+            <b>{pattern.label}</b>
+            <span className="mono">live pattern</span>
+          </span>
+        </button>
+      ))}
+      {readings.length === 0 && live.length === 0 && (
+        <p className="mono">Nothing live to set this against yet.</p>
       )}
     </>
   );

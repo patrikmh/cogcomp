@@ -19,7 +19,7 @@ import { api, type DailySummary, type Pattern, type Theme } from "@/lib/api";
 import { dayForRoute, deviceTimezone, isLocalDate, localToday, shiftDay } from "@/lib/dates";
 import { useDrawnFrom } from "@/lib/drawnFrom";
 import { patternDestination } from "@/lib/patterns";
-import { circlingOf, circlingThemesOf, innerReadingsOf, outerReadingsOf, returningInnerOf } from "@tlon/ontology";
+import { circlingOf, circlingThemesOf, feltThoughtOf, heldReadingsOf, namedRecurrenceOf, outerReadingsOf, returningInnerOf, unplacedReadingsOf } from "@tlon/ontology";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
@@ -177,6 +177,7 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
     : [];
   const foundThemes: Theme[] = themes.data ?? [];
   const regionList: Theme[] = findingsVisible ? circlingThemesOf(inferred, foundThemes) : [];
+  const alone = findingsVisible ? unplacedReadingsOf(readings, foundThemes) : [];
 
   if (summary.entry_count === 0) {
     // Stated plainly, with no nudge to write. A day with nothing in it is a fact
@@ -184,7 +185,8 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
     return <Text style={styles.empty}>{EMPTY_COPY.day}</Text>;
   }
 
-  const inside = innerReadingsOf(readings).filter((i) => !i.tentative);
+  const inside = feltThoughtOf(readings).filter((i) => !i.tentative);
+  const held = heldReadingsOf(readings).filter((i) => !i.tentative);
   const cameBack = returningInnerOf(readings);
   const confident = outerReadingsOf(readings).filter((i) => !i.tentative);
   const tentative = readings.filter((i) => i.tentative);
@@ -269,6 +271,14 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
         </Section>
       )}
 
+      {held.length > 0 && (
+        <Section title={SECTIONS.holds.title} aside={asideOf("holds", true)}>
+          {held.map((item) => (
+            <Inference key={item.id} item={item} />
+          ))}
+        </Section>
+      )}
+
       {cameBack.length > 0 && (
         <Section title={SECTIONS.cameBack.title} aside={asideOf("cameBack", true)}>
           {cameBack.map((item) => (
@@ -296,10 +306,29 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
         </Section>
       )}
 
-      {/* What today's material is part of, and the way to it. This was a list
-          of labels under "Came up more than once" with no route out: you could
-          see that something had come up twice and had nowhere to go with it.
-          The design ends the day here, on a link to the recurrence. */}
+      {findingsVisible && summary.recurring.length > 0 && (
+        <Section title={SECTIONS.again.title} aside={asideOf("again", true)}>
+          {summary.recurring.map((item) => {
+            const door = namedRecurrenceOf(item, readings);
+            return (
+              <MotionSurface
+                key={`${item.kind}:${item.label}`}
+                style={styles.reading}
+                onPress={door ? () => router.push(`/node/${door.id}`) : undefined}
+                accessibilityRole={door ? "button" : undefined}
+                accessibilityLabel={`${item.label} — ${item.entries} times today`}
+              >
+                <Text style={styles.readingLabel}>{item.label}</Text>
+                <Text style={styles.readingMeta}>
+                  {item.kind.toLowerCase()} · {item.entries} times today
+                </Text>
+              </MotionSurface>
+            );
+          })}
+        </Section>
+      )}
+
+      {/* What today's material is part of, and the way to it. */}
       {circlingList.length > 0 && (
         <Section title={SECTIONS.circling.title} aside="this day belongs to">
           {circlingList.map((pattern) => (
@@ -338,12 +367,20 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
         </Section>
       )}
 
+      {alone.length > 0 && (
+        <Section title={SECTIONS.alone.title} aside={asideOf("alone", true)}>
+          {alone.map((item) => (
+            <Inference key={item.id} item={item} />
+          ))}
+        </Section>
+      )}
+
       {/* Only where there is something for it to be about. A note explaining
           two sections that are not on the screen describes a screen the person
           is not looking at. */}
       {readings.length > 0 && (
         <Text style={styles.footnote}>
-          Everything under “{SECTIONS.inside.title}”, “{SECTIONS.kept.title}” and “{SECTIONS.lessSure.title}” is a guess drawn from your
+          Everything under “{SECTIONS.inside.title}”, “{SECTIONS.holds.title}”, “{SECTIONS.kept.title}” and “{SECTIONS.lessSure.title}” is a guess drawn from your
           entries, not a conclusion about you. Tap one to see which words it came
           from.
         </Text>

@@ -481,6 +481,15 @@ export const api = {
     }),
   deleteExperiment: (id: string, revision: number) =>
     request<void>(`/v1/experiments/${id}?revision=${revision}`, { method: "DELETE" }),
+  linkExperiment: (id: string, nodeId: string, revision: number, includeLinks = true) =>
+    request<Experiment>(`/v1/experiments/${id}/links`, {
+      method: "POST",
+      body: JSON.stringify({
+        node_id: nodeId,
+        revision,
+        ...(includeLinks ? {} : { include_links: false }),
+      }),
+    }),
 
   /* talking */
   listConversations: () =>
@@ -693,7 +702,7 @@ export const api = {
       "/v1/graph/summary",
     ),
   graph: (limit = 200) =>
-    request<{ nodes: GraphNode[]; edges: { from_id: string; to_id: string }[]; total_nodes: number }>(
+    request<{ nodes: GraphNode[]; edges: { from_id: string; to_id: string; kind: string }[]; total_nodes: number }>(
       `/v1/graph?limit=${limit}`,
     ),
 };

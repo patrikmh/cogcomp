@@ -8,13 +8,16 @@ import { MotionSurface } from "@/components/MotionSurface";
 import { ErrorLens, LoadingLens } from "@/components/SpatialField";
 import { DETECTOR_LABEL } from "@tlon/copy/detectors";
 
-import { api, type Occasion, type Ordering, type Pattern, type Written } from "@/lib/api";
+import { api, type Experiment, type Occasion, type Ordering, type Pattern, type Written } from "@/lib/api";
+import { arcsOf } from "@/lib/drawnFrom";
+import { experimentQueryKeys } from "@/lib/experiment";
 import { useSession } from "@/state/session";
 import { usePreferences } from "@/state/preferences";
 import { colors, fonts } from "@/theme";
 import { radii } from "@tlon/design";
 import { type as scale } from "@tlon/design";
 import { Guide } from "@/components/Guide";
+import { SECTIONS, asideOf } from "@tlon/copy/sections";
 
 /**
  * "You wrote this, and then a day later you wrote that."
@@ -52,6 +55,12 @@ export default function PatternOrderingScreen() {
     enabled: Boolean(token && userId) && findingsVisible,
   });
   const pattern = (patterns.data ?? []).find((p: Pattern) => p.id === id);
+  const experiments = useQuery({
+    queryKey: [...experimentQueryKeys.all(userId!), findingsVisible],
+    queryFn: () => api.listExperiments(token!, findingsVisible),
+    enabled: Boolean(token && userId) && findingsVisible,
+  });
+  const wondered: Experiment[] = arcsOf(id ?? "", experiments.data?.experiments ?? []);
 
   if (!token) return null;
 
@@ -64,10 +73,18 @@ export default function PatternOrderingScreen() {
     return <ErrorLens label="This pattern has no ordered evidence." onRetry={() => void ordering.refetch()} />;
   }
 
-  return <Body ordering={ordering.data} pattern={pattern} />;
+  return <Body ordering={ordering.data} pattern={pattern} wondered={wondered} />;
 }
 
-function Body({ ordering, pattern }: { ordering: Ordering; pattern?: Pattern }) {
+function Body({
+  ordering,
+  pattern,
+  wondered,
+}: {
+  ordering: Ordering;
+  pattern?: Pattern;
+  wondered: Experiment[];
+}) {
   const router = useRouter();
   const { lag_days, occasions } = ordering;
   const gap = `${lag_days} ${lag_days === 1 ? "day" : "days"}`;
@@ -115,6 +132,24 @@ function Body({ ordering, pattern }: { ordering: Ordering; pattern?: Pattern }) 
         {occasions.map((occasion) => (
           <Occurrence key={occasion.source_day} occasion={occasion} gap={gap} />
         ))}
+
+        {wondered.length > 0 && (
+          <>
+            <Text style={styles.kicker}>{SECTIONS.wondered.title}</Text>
+            <Text style={styles.footnote}>{asideOf("wondered", true)}</Text>
+            {wondered.map((trial) => (
+              <MotionSurface
+                key={trial.id}
+                onPress={() => router.push(`/experiment/${trial.id}`)}
+                accessibilityRole="button"
+                accessibilityLabel={`${trial.title} — open this trial`}
+              >
+                <Text style={styles.openLabel}>{trial.title}</Text>
+                <Text style={styles.footnote}>{trial.state}</Text>
+              </MotionSurface>
+            ))}
+          </>
+        )}
 
         {ordering.utc_fallback && (
           // Shown only when it is true. Repeating a caveat under evidence that

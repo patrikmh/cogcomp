@@ -21,7 +21,7 @@ import { Kicker } from "@/components/Marks";
 import { Seal } from "@/components/Seal";
 import { HEADINGS } from "@tlon/copy/headings";
 import { EMPTY as EMPTY_COPY } from "@tlon/copy/empty";
-import { innerFirst } from "@/lib/drawnFrom";
+import { heldFirst } from "@/lib/drawnFrom";
 
 /**
  * Identity, as something you assemble rather than something you are told.
@@ -235,11 +235,11 @@ function ringsForComposition(
   // back is "removed" there, which is not the same field as the epistemic
   // status the extractor set.
   const removed = (n: IdentityNode) => n.status === "removed";
-  const mine = kept.filter((n) => keptIds.has(n.id)).sort(innerFirst);
-  const theirs = offered.filter((n) => !keptIds.has(n.id) && !removed(n)).sort(innerFirst);
+  const mine = kept.filter((n) => keptIds.has(n.id)).sort(heldFirst);
+  const theirs = offered.filter((n) => !keptIds.has(n.id) && !removed(n)).sort(heldFirst);
   // The tombstones go last and outside the budget of seven: they are the
   // record of something taken back, and dropping them to make room for a
   // live reading would lose exactly what the summary says is never lost.
-  const tombs = [...kept, ...offered].filter(removed).sort(innerFirst).slice(0, 2);
+  const tombs = [...kept, ...offered].filter(removed).sort(heldFirst).slice(0, 2);
   return [...[...mine, ...theirs].slice(0, 7), ...tombs];
 }

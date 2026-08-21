@@ -3,10 +3,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { readingBudget } from "@tlon/design/marks";
-import { changesOf, innerFirst, namedReadingOf } from "@/lib/drawn-from";
+import { changesOf, conflictedOf, feltThoughtOf, heldReadingsOf, innerFirst, namedReadingOf, outerReadingsOf, returningInnerOf, returningOuterOf, untestedOf } from "@/lib/drawn-from";
 
 import { mountHeadspace, type Stage, type Whorl } from "@tlon/headspace";
-import { api, type GraphNode, type TemporalChanges } from "@/lib/api";
+import { api, type GraphNode, type Inference, type TemporalChanges } from "@/lib/api";
 import { DETECTOR_LABEL, deviceTimezone, fmt, localDay } from "@/lib/format";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
@@ -246,10 +246,21 @@ export function Headspace() {
 
       {/* The contextual way onward, exactly where the design puts it. */}
       <div id="lensAction">
-        {active === "recurring" && counts.recurring > 0 && (
-          <Link className="btn ghost" to="/patterns">
-            OPEN PATTERNS
-          </Link>
+        {active === "everything" && (
+          <ConflictedRooms
+            nodes={showFindings ? graph.data?.nodes ?? [] : []}
+            edges={showFindings ? graph.data?.edges ?? [] : []}
+          />
+        )}
+        {active === "recurring" && (
+          <>
+            {counts.recurring > 0 && (
+              <Link className="btn ghost" to="/patterns">
+                OPEN PATTERNS
+              </Link>
+            )}
+            <RecurringRooms nodes={showFindings ? graph.data?.nodes ?? [] : []} />
+          </>
         )}
         {active === "changed" && (
           <ChangedRooms
@@ -257,11 +268,14 @@ export function Headspace() {
             nodes={showFindings ? graph.data?.nodes ?? [] : []}
           />
         )}
-        {active === "today" && counts.today === 0 && (
-          <Link className="btn ghost" to="/journal">
-            WRITE SOMETHING
-          </Link>
-        )}
+        {active === "today" &&
+          (counts.today === 0 ? (
+            <Link className="btn ghost" to="/journal">
+              WRITE SOMETHING
+            </Link>
+          ) : (
+            <TodayRooms readings={showFindings ? today.data?.inferred ?? [] : []} />
+          ))}
       </div>
     </div>
   );
@@ -288,6 +302,109 @@ const VISIBLE: Record<Lens, Whorl["group"][]> = {
   recurring: ["you", "pattern"],
   changed: ["you"],
 };
+
+function ConflictedRooms({
+  nodes,
+  edges,
+}: {
+  nodes: GraphNode[];
+  edges: { from_id: string; to_id: string; kind: string }[];
+}) {
+  const pulled = conflictedOf(nodes, edges);
+  const unargued = untestedOf(nodes, edges);
+  if (pulled.length === 0 && unargued.length === 0) return null;
+  return (
+    <div className="moved">
+      <BeliefRoom name="pulled" items={pulled} />
+      <BeliefRoom name="unargued" items={unargued} />
+    </div>
+  );
+}
+
+function BeliefRoom({
+  name,
+  items,
+}: {
+  name: "pulled" | "unargued";
+  items: GraphNode[];
+}) {
+  if (items.length === 0) return null;
+  return (
+    <>
+      <div className="t-sec">
+        <span className="kicker">{SECTIONS[name].title}</span>
+        <span className="rule" />
+        <span className="mono">{asideOf(name)}</span>
+      </div>
+      {items.map((reading) => (
+        <Link key={reading.id} className="p-comp" to={`/node/${reading.id}`}>
+          <span className="ln">
+            <b>{reading.label}</b>
+            <span className="k">{reading.kind.toLowerCase()}</span>
+          </span>
+        </Link>
+      ))}
+    </>
+  );
+}
+
+function TodayRooms({ readings }: { readings: Inference[] }) {
+  const felt = feltThoughtOf(readings);
+  const holds = heldReadingsOf(readings);
+  const around = outerReadingsOf(readings);
+  if (felt.length === 0 && holds.length === 0 && around.length === 0) return null;
+  return (
+    <div className="moved">
+      <RecurringRoom name="inside" items={felt} />
+      <RecurringRoom name="holds" items={holds} />
+      <RecurringRoom name="around" items={around} />
+    </div>
+  );
+}
+
+function RecurringRooms({ nodes }: { nodes: GraphNode[] }) {
+  const cameBack = returningInnerOf(nodes);
+  const again = returningOuterOf(nodes);
+  if (cameBack.length === 0 && again.length === 0) return null;
+  return (
+    <div className="moved">
+      <RecurringRoom name="cameBack" items={cameBack} />
+      <RecurringRoom name="again" items={again} />
+    </div>
+  );
+}
+
+function RecurringRoom({
+  name,
+  items,
+}: {
+  name: Extract<SectionName, "cameBack" | "again" | "inside" | "holds" | "around">;
+  items: { id: string; kind: string; label: string; cites_entries?: number }[];
+}) {
+  if (items.length === 0) return null;
+  return (
+    <>
+      <div className="t-sec">
+        <span className="kicker">{SECTIONS[name].title}</span>
+        <span className="rule" />
+        <span className="mono">{asideOf(name)}</span>
+      </div>
+      {items.map((reading) => (
+        <Link key={reading.id} className="p-comp" to={`/node/${reading.id}`}>
+          <span className="ln">
+            <b>{reading.label}</b>
+            <span className="k">
+              {reading.kind.toLowerCase()}
+              {reading.cites_entries
+                ? ` · ${reading.cites_entries} ${reading.cites_entries === 1 ? "entry" : "entries"}`
+                : ""}
+            </span>
+          </span>
+        </Link>
+      ))}
+    </>
+  );
+}
 
 type Moved = TemporalChanges["changes"][number];
 

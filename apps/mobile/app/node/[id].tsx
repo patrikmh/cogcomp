@@ -14,8 +14,9 @@ import { Kicker, Meter, Rule } from "@/components/Marks";
 import { Seal } from "@/components/Seal";
 import { EvidenceRail, FieldFrame, LoadingLens, ErrorLens, ObservablePearl } from "@/components/SpatialField";
 import { MotionSurface } from "@/components/MotionSurface";
-import { api, type Explanation, type GraphNode, type Judgement, type ObservationResponse, type Pattern, type Theme } from "@/lib/api";
-import { aboutOf, amongReadingsOf, apartSidesOf, contradictsOf, feltTowardOf, indicatesOf, regionsOfReading, travelsWithOf, weekdayShapeOf } from "@/lib/drawnFrom";
+import { api, type Experiment, type Explanation, type GraphNode, type Judgement, type ObservationResponse, type Pattern, type Theme } from "@/lib/api";
+import { aboutOf, amongReadingsOf, apartSidesOf, arcsOf, contradictsOf, feltTowardOf, indicatesOf, regionsOfReading, supportsOf, travelsWithOf, weekdayShapeOf } from "@/lib/drawnFrom";
+import { experimentQueryKeys } from "@/lib/experiment";
 import { patternDestination } from "@/lib/patterns";
 import { useSession } from "@/state/session";
 import { usePreferences } from "@/state/preferences";
@@ -66,6 +67,11 @@ export default function NodeScreen() {
     queryFn: () => api.listThemes(token!),
     enabled: Boolean(token && userId && showFindings),
   });
+  const experiments = useQuery({
+    queryKey: [...experimentQueryKeys.all(userId!), showFindings],
+    queryFn: () => api.listExperiments(token!, showFindings),
+    enabled: Boolean(token && userId && showFindings),
+  });
 
   useFocusEffect(
     useCallback(() => {
@@ -94,6 +100,7 @@ export default function NodeScreen() {
   const spoken = aboutOf(id!, foundNeighbours, neighbours.data?.edges ?? []);
   const hinted = indicatesOf(id!, foundNeighbours, neighbours.data?.edges ?? []);
   const tension = contradictsOf(id!, foundNeighbours, neighbours.data?.edges ?? []);
+  const backing = supportsOf(id!, foundNeighbours, neighbours.data?.edges ?? []);
   const foundThemes: Theme[] = themes.data ?? [];
   const regions = regionsOfReading(explanation.data.node.label, foundThemes);
   const opened = foundPatterns.find((pattern) => pattern.id === id);
@@ -105,6 +112,7 @@ export default function NodeScreen() {
     opened?.detector === "stated-vs-recorded"
       ? apartSidesOf(foundNeighbours)
       : { named: [] as GraphNode[], done: [] as GraphNode[] };
+  const wondered: Experiment[] = arcsOf(id!, experiments.data?.experiments ?? []);
   return (
     <Body
       explanation={explanation.data}
@@ -118,6 +126,8 @@ export default function NodeScreen() {
       spoken={spoken}
       hinted={hinted}
       tension={tension}
+      backing={backing}
+      wondered={wondered}
     />
   );
 }
@@ -259,6 +269,8 @@ function Body({
   spoken,
   hinted,
   tension,
+  backing,
+  wondered,
 }: {
   explanation: Explanation;
   nodeId: string;
@@ -271,6 +283,8 @@ function Body({
   spoken: { about: GraphNode[]; aboutThis: GraphNode[] };
   hinted: { hints: GraphNode[]; hinted: GraphNode[] };
   tension: { against: GraphNode[]; againstThis: GraphNode[] };
+  backing: { holdsUp: GraphNode[]; heldUp: GraphNode[] };
+  wondered: Experiment[];
 }) {
   const { node, derived_from, is_observed } = explanation;
 
@@ -625,6 +639,52 @@ function Body({
         </>
       )}
 
+      {backing.holdsUp.length > 0 && (
+        <>
+          <View style={styles.sectionRow}>
+            <Kicker heading>{SECTIONS.holdsUp.title}</Kicker>
+            <View style={styles.ruleFill}>
+              <Rule />
+            </View>
+            <Text style={styles.meta}>{asideOf("holdsUp", true)}</Text>
+          </View>
+          {backing.holdsUp.map((reading) => (
+            <MotionSurface
+              key={reading.id}
+              onPress={() => router.push(`/node/${reading.id}`)}
+              accessibilityRole="button"
+              accessibilityLabel={`${reading.label} — holds this up, open this reading`}
+            >
+              <Text style={styles.sourceText}>{reading.label}</Text>
+              <Text style={styles.meta}>{reading.kind.toLowerCase()} · evidence, not proof</Text>
+            </MotionSurface>
+          ))}
+        </>
+      )}
+
+      {backing.heldUp.length > 0 && (
+        <>
+          <View style={styles.sectionRow}>
+            <Kicker heading>{SECTIONS.heldUp.title}</Kicker>
+            <View style={styles.ruleFill}>
+              <Rule />
+            </View>
+            <Text style={styles.meta}>{asideOf("heldUp", true)}</Text>
+          </View>
+          {backing.heldUp.map((reading) => (
+            <MotionSurface
+              key={reading.id}
+              onPress={() => router.push(`/node/${reading.id}`)}
+              accessibilityRole="button"
+              accessibilityLabel={`${reading.label} — holds this belief up, open this reading`}
+            >
+              <Text style={styles.sourceText}>{reading.label}</Text>
+              <Text style={styles.meta}>{reading.kind.toLowerCase()} · evidence, not proof</Text>
+            </MotionSurface>
+          ))}
+        </>
+      )}
+
       {among.length > 0 && (
         <>
           <View style={styles.sectionRow}>
@@ -689,6 +749,29 @@ function Body({
             >
               <Text style={styles.sourceText}>{theme.label}</Text>
               <Text style={styles.meta}>{theme.member_count} things · the region →</Text>
+            </MotionSurface>
+          ))}
+        </>
+      )}
+
+      {wondered.length > 0 && (
+        <>
+          <View style={styles.sectionRow}>
+            <Kicker heading>{SECTIONS.wondered.title}</Kicker>
+            <View style={styles.ruleFill}>
+              <Rule />
+            </View>
+            <Text style={styles.meta}>{asideOf("wondered", true)}</Text>
+          </View>
+          {wondered.map((trial) => (
+            <MotionSurface
+              key={trial.id}
+              onPress={() => router.push(`/experiment/${trial.id}`)}
+              accessibilityRole="button"
+              accessibilityLabel={`${trial.title} — open this trial`}
+            >
+              <Text style={styles.sourceText}>{trial.title}</Text>
+              <Text style={styles.meta}>{trial.state} · yours, not proposed</Text>
             </MotionSurface>
           ))}
         </>

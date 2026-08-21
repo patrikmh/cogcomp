@@ -11,7 +11,7 @@ import { Guide } from "@/components/Guide";
 import { Kicker } from "@/components/Marks";
 import { MotionSurface } from "@/components/MotionSurface";
 import { Observatory, Readout } from "@/components/Observatory";
-import { api, type GraphEdge, type GraphNode } from "@/lib/api";
+import { api, type DailySummary, type GraphEdge, type GraphNode } from "@/lib/api";
 import { deviceTimezone, localToday } from "@/lib/dates";
 import { type Lens, lensesFor, resolveLens } from "@/lib/lenses";
 import { usePreferences } from "@/state/preferences";
@@ -20,7 +20,8 @@ import { colors, fonts } from "@/theme";
 import { type as scale } from "@tlon/design";
 import { HEADINGS } from "@tlon/copy/headings";
 import { EMPTY as EMPTY_COPY } from "@tlon/copy/empty";
-import { changesOf, innerFirst, namedReadingOf } from "@/lib/drawnFrom";
+import { changesOf, conflictedOf, feltThoughtOf, heldReadingsOf, innerFirst, isInnerKind, namedReadingOf, outerReadingsOf, returningInnerOf, returningOuterOf, untestedOf } from "@/lib/drawnFrom";
+import { SECTIONS, asideOf } from "@tlon/copy/sections";
 
 /**
  * Headspace — where things stand.
@@ -119,6 +120,17 @@ export default function HeadspaceScreen() {
   const circling = visiblePatterns?.length ?? 0;
   const whorls = whorlsFor(lens, points);
   const current = points.find((p) => p.id === selected) ?? null;
+  const graphNodes = visibleGraph?.nodes ?? [];
+  const graphEdges = visibleGraph?.edges ?? [];
+  const pulled: GraphNode[] =
+    findingsVisible && lens === "all" ? conflictedOf(graphNodes, graphEdges) : [];
+  const unargued: GraphNode[] =
+    findingsVisible && lens === "all" ? untestedOf(graphNodes, graphEdges) : [];
+  const dayReadings: DailySummary["inferred"] =
+    findingsVisible && lens === "today" ? visibleToday?.inferred ?? [] : [];
+  const dayFelt = feltThoughtOf(dayReadings);
+  const dayHolds = heldReadingsOf(dayReadings);
+  const dayAround = outerReadingsOf(dayReadings);
   const loading =
     (lens === "today" && today.isLoading) ||
     (lens === "all" && graph.isLoading) ||
@@ -287,6 +299,46 @@ export default function HeadspaceScreen() {
         }
       />
 
+      {lens === "today" && (dayFelt.length > 0 || dayHolds.length > 0 || dayAround.length > 0) && (
+        <View style={styles.pulled}>
+          <BeliefList
+            name="inside"
+            items={dayFelt}
+            meta="named, not a verdict"
+            onOpen={(id) => router.push(`/node/${id}`)}
+          />
+          <BeliefList
+            name="holds"
+            items={dayHolds}
+            meta="not a mood"
+            onOpen={(id) => router.push(`/node/${id}`)}
+          />
+          <BeliefList
+            name="around"
+            items={dayAround}
+            meta="what the days did"
+            onOpen={(id) => router.push(`/node/${id}`)}
+          />
+        </View>
+      )}
+
+      {(pulled.length > 0 || unargued.length > 0) && (
+        <View style={styles.pulled}>
+          <BeliefList
+            name="pulled"
+            items={pulled}
+            meta="both in the record"
+            onOpen={(id) => router.push(`/node/${id}`)}
+          />
+          <BeliefList
+            name="unargued"
+            items={unargued}
+            meta="held, not tested"
+            onOpen={(id) => router.push(`/node/${id}`)}
+          />
+        </View>
+      )}
+
       {/* What you are looking at, when, and what is moving in it — the design's
           one-line rail under the map. */}
       <Text style={styles.rail}>
@@ -365,6 +417,13 @@ function hintFor(lens: Lens, count: number, drawn: number, points: Point[]): str
     return `${rooms.inside.length} felt and thought · ${rooms.around.length} around you. Counts only — what it means is yours.`;
   }
   if (lens === "patterns") {
+    const cameBack = points.filter((point) => isInnerKind(point.tone)).length;
+    const again = points.filter(
+      (point) => point.tone !== "Pattern" && !isInnerKind(point.tone),
+    ).length;
+    if (cameBack || again) {
+      return `${cameBack} came back · ${again} more than once · ${count - cameBack - again} patterns. Counts, not verdicts.`;
+    }
     return `${count} ${count === 1 ? "thing" : "things"} recurred. Bigger means more often.`;
   }
   if (lens === "all") {
@@ -397,10 +456,10 @@ function whorlsFor(lens: Lens, points: Point[]): Whorl[] {
   // thirty-nine readings drawn in full is not a survey of anything — the camera
   // frames the lot, every whorl shrinks, and the massifs that are the point of
   // the map stop reading as massifs. Patterns are never dropped.
-  const patterns = points.filter((p) => lens === "patterns" || p.kind === "Pattern");
-  const rest = points.filter((p) => !patterns.includes(p));
+  const patterns = points.filter((p) => p.tone === "Pattern");
+  const rest = points.filter((p) => p.tone !== "Pattern");
   const placed =
-    lens === "all" || lens === "changed"
+    lens === "all" || lens === "changed" || lens === "patterns"
       ? [...rest].sort((left, right) =>
           innerFirst(
             { kind: left.tone, confidence: left.weight },
@@ -479,7 +538,7 @@ function pointsFor(
   if (lens === "patterns") {
     if (!patterns) return [];
     const busiest = Math.max(...patterns.map((p) => p.occurrences), 1);
-    return patterns.map((pattern) => ({
+    const found = patterns.map((pattern) => ({
       id: pattern.id,
       label: pattern.label,
       kind: "pattern",
@@ -490,6 +549,19 @@ function pointsFor(
       tone: "Pattern",
       tentative: pattern.tentative,
     }));
+    const nodes = graph?.nodes ?? [];
+    const returned = [...returningInnerOf(nodes), ...returningOuterOf(nodes)].map((node) => ({
+      id: node.id,
+      label: node.label,
+      kind: node.kind.toLowerCase(),
+      meta: node.cites_entries
+        ? `${node.cites_entries} ${node.cites_entries === 1 ? "entry" : "entries"}`
+        : undefined,
+      weight: node.confidence ?? 0.5,
+      tone: node.kind,
+      tentative: Boolean(node.tentative),
+    }));
+    return [...found, ...returned];
   }
 
   if (!graph) return [];
@@ -506,6 +578,39 @@ function pointsFor(
     tentative: Boolean(node.tentative),
     status: node.epistemic_status,
   }));
+}
+
+function BeliefList({
+  name,
+  items,
+  meta,
+  onOpen,
+}: {
+  name: "pulled" | "unargued" | "inside" | "holds" | "around";
+  items: { id: string; kind: string; label: string }[];
+  meta: string;
+  onOpen: (id: string) => void;
+}) {
+  if (items.length === 0) return null;
+  return (
+    <>
+      <Kicker heading>{SECTIONS[name].title}</Kicker>
+      <Text style={styles.pulledAside}>{asideOf(name, true)}</Text>
+      {items.map((reading) => (
+        <MotionSurface
+          key={reading.id}
+          onPress={() => onOpen(reading.id)}
+          accessibilityRole="button"
+          accessibilityLabel={`${reading.label} — ${meta}, open this reading`}
+        >
+          <Text style={styles.pulledLabel}>{reading.label}</Text>
+          <Text style={styles.pulledMeta}>
+            {reading.kind.toLowerCase()} · {meta}
+          </Text>
+        </MotionSurface>
+      ))}
+    </>
+  );
 }
 
 function edgesOf(graph: Awaited<ReturnType<typeof api.graph>> | undefined) {
@@ -581,4 +686,8 @@ const styles = StyleSheet.create({
     lineHeight: 14,
   },
   lensLabelOn: { color: colors.ink },
+  pulled: { paddingHorizontal: 20, paddingBottom: 10, gap: 6, maxHeight: 200 },
+  pulledAside: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: 10, letterSpacing: 0.8 },
+  pulledLabel: { color: colors.ink, fontFamily: fonts.sansMedium, fontSize: 14, lineHeight: 20 },
+  pulledMeta: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: 11 },
 });
