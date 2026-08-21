@@ -15,9 +15,10 @@ import { MotionSurface } from "@/components/MotionSurface";
 import { Seal } from "@/components/Seal";
 import Svg, { Path } from "react-native-svg";
 import { RecordButton } from "@/components/RecordButton";
-import { ApiError, api, type ObservationResponse } from "@/lib/api";
+import { ApiError, api, type ObservationResponse, type Pattern } from "@/lib/api";
 import { deviceTimezone } from "@/lib/dates";
-import { useDrawnFrom } from "@/lib/drawnFrom";
+import { useAmong, useDrawnFrom } from "@/lib/drawnFrom";
+import { patternDestination } from "@/lib/patterns";
 import { uuidv7 } from "@/lib/ids";
 import { useSession } from "@/state/session";
 import { forgetCapture, pendingCaptures, rememberCapture, type PendingCapture } from "@/state/pendingCapture";
@@ -83,6 +84,13 @@ export default function JournalScreen() {
   // React Query cache while findings are hidden. Observations remain raw journal
   // content and continue to render normally.
   const drawnFrom = useDrawnFrom(token, userId, 4, findingsVisible);
+  const patterns = useQuery({
+    queryKey: ["patterns", userId],
+    queryFn: () => api.listPatterns(token!),
+    enabled: Boolean(token && userId) && findingsVisible,
+  });
+  const foundPatterns: Pattern[] = patterns.data ?? [];
+  const among = useAmong(token, userId, foundPatterns, 4, findingsVisible);
 
   const capture = useMutation({
     mutationFn: async ({ content, id }: { content: string; id: string }) => {
@@ -222,6 +230,22 @@ export default function JournalScreen() {
                       ) : findingsVisible ? (
                         <Text style={styles.readoutOpen}>nothing drawn from this yet</Text>
                       ) : null}
+                      {findingsVisible && (among.get(entry.id)?.length ?? 0) > 0 && (
+                        <View style={styles.chipRow}>
+                          <Kicker>This act is among</Kicker>
+                          <View style={styles.chips}>
+                            {among.get(entry.id)!.slice(0, 3).map((pattern) => (
+                              <Chip
+                                key={pattern.id}
+                                label={pattern.label.split(" · ")[0] ?? pattern.label}
+                                confidence={pattern.confidence}
+                                tentative={pattern.tentative}
+                                onPress={() => router.push(patternDestination(pattern).href)}
+                              />
+                            ))}
+                          </View>
+                        </View>
+                      )}
                     </View>
                   </View>
                 </View>

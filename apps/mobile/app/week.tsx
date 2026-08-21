@@ -16,7 +16,17 @@ import { ErrorLens } from "@/components/SpatialField";
 import { MotionSurface } from "@/components/MotionSurface";
 import { Seal } from "@/components/Seal";
 import { WeekChart } from "@/components/WeekChart";
-import { api, type WeeklySummary } from "@/lib/api";
+import { api, type Pattern, type Theme, type WeeklySummary } from "@/lib/api";
+import {
+  circlingOf,
+  circlingThemesOf,
+  feltReadingOf,
+  innerReadingsOf,
+  outerReadingsOf,
+  VOCABULARY_LOOKBACK_WEEKS,
+  vocabularyMarks,
+} from "@/lib/drawnFrom";
+import { patternDestination } from "@/lib/patterns";
 import { deviceTimezone, localToday, mondayOfWeek, shiftWeek } from "@/lib/dates";
 import { useSession } from "@/state/session";
 import { usePreferences } from "@/state/preferences";
@@ -41,6 +51,8 @@ import { Rising } from "@/components/Rise";
  */
 export default function WeekScreen() {
   const token = useSession((s) => s.token);
+  const userId = useSession((s) => s.userId);
+  const router = useRouter();
   const tz = deviceTimezone();
   const [week, setWeek] = useState(() => mondayOfWeek(localToday()));
   const current = week === mondayOfWeek(localToday());
@@ -64,9 +76,19 @@ export default function WeekScreen() {
   // Not a finding: these are the person's own words counted back to them, the
   // way the entry count is. It stays when patterns are switched off.
   const words = useQuery({
-    queryKey: ["vocabulary", week, tz],
-    queryFn: () => api.vocabulary(token!, week, tz, 1),
+    queryKey: ["vocabulary", week, tz, VOCABULARY_LOOKBACK_WEEKS],
+    queryFn: () => api.vocabulary(token!, week, tz, VOCABULARY_LOOKBACK_WEEKS),
     enabled: Boolean(token) && findingsVisible,
+  });
+  const patterns = useQuery({
+    queryKey: ["patterns", userId],
+    queryFn: () => api.listPatterns(token!),
+    enabled: Boolean(token && userId) && findingsVisible,
+  });
+  const themes = useQuery({
+    queryKey: ["themes", userId],
+    queryFn: () => api.listThemes(token!),
+    enabled: Boolean(token && userId) && findingsVisible,
   });
 
   if (!token) return null;
@@ -113,6 +135,16 @@ export default function WeekScreen() {
             other={other.data?.entry_count ?? 0}
             current={current}
             findingsVisible={findingsVisible}
+            circlingList={
+              findingsVisible
+                ? circlingOf(query.data.inferred ?? [], patterns.data ?? [])
+                : []
+            }
+            regionList={
+              findingsVisible
+                ? circlingThemesOf(query.data.inferred ?? [], themes.data ?? [])
+                : []
+            }
           />
           {/* The words themselves, not a tally of them. This client fetched
               the vocabulary and printed only its description — "13 different
@@ -123,11 +155,25 @@ export default function WeekScreen() {
           {findingsVisible && (words.data?.weeks.at(-1)?.words ?? []).length > 0 && (
             <Section title={SECTIONS.words.title} aside={asideOf("words", true)}>
               <View style={styles.words}>
-                {words.data!.weeks.at(-1)!.words.map((word: string) => (
-                  <Text key={word} style={styles.word}>
-                    {word}
-                  </Text>
-                ))}
+                {vocabularyMarks(words.data!.weeks.at(-1)!).map((mark) => {
+                  const reading = feltReadingOf(mark.word, query.data.inferred ?? []);
+                  const label = `${mark.word}${mark.firstTime ? " · first time" : ""}`;
+                  return reading ? (
+                    <MotionSurface
+                      key={mark.word}
+                      style={styles.word}
+                      onPress={() => router.push(`/node/${reading.id}`)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${label} — where this word was drawn from`}
+                    >
+                      <Text style={styles.wordLabel}>{label}</Text>
+                    </MotionSurface>
+                  ) : (
+                    <Text key={mark.word} style={styles.word}>
+                      {label}
+                    </Text>
+                  );
+                })}
               </View>
               <Text style={styles.vocabulary}>{words.data!.weeks.at(-1)!.description}</Text>
             </Section>
@@ -144,12 +190,16 @@ function Body({
   other,
   current,
   findingsVisible,
+  circlingList,
+  regionList,
 }: {
   summary: WeeklySummary;
   /** Acts in the week before this one, for the comparison. */
   other: number;
   current: boolean;
   findingsVisible: boolean;
+  circlingList: Pattern[];
+  regionList: Theme[];
 }) {
   const router = useRouter();
 
@@ -159,7 +209,9 @@ function Body({
   // Summary responses contain both the person's observations and derived
   // readings. Keep the former available while hiding cached/current findings.
   const recurring = findingsVisible ? summary.recurring : [];
-  const inferred = findingsVisible ? summary.inferred : [];
+  const inferred = findingsVisible
+    ? summary.inferred.filter((item) => item.kind !== "Pattern" && item.kind !== "Theme")
+    : [];
   const vs =
     acts === other
       ? "as many acts as the week before"
@@ -244,10 +296,53 @@ function Body({
             </Section>
           )}
 
+          {circlingList.length > 0 && (
+            <Section title={SECTIONS.circling.title} aside="this week belongs to">
+              {circlingList.map((pattern) => (
+                <MotionSurface
+                  key={pattern.id}
+                  style={styles.circle}
+                  onPress={() => router.push(patternDestination(pattern).href)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${pattern.label} — open this pattern`}
+                >
+                  <Text style={styles.circleLabel}>{pattern.label}</Text>
+                  <Text style={styles.circleMeta}>
+                    {pattern.distinct_days} of {pattern.occurrences} days
+                  </Text>
+                  <Text style={styles.circleGo}>the pattern →</Text>
+                </MotionSurface>
+              ))}
+            </Section>
+          )}
+
+          {regionList.length > 0 && (
+            <Section title={SECTIONS.regions.title} aside={asideOf("regions", true)}>
+              {regionList.map((theme) => (
+                <MotionSurface
+                  key={theme.id}
+                  style={styles.circle}
+                  onPress={() => router.push(`/theme/${theme.id}`)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${theme.label} — open this region`}
+                >
+                  <Text style={styles.circleLabel}>{theme.label}</Text>
+                  <Text style={styles.circleMeta}>{theme.member_count} things</Text>
+                  <Text style={styles.circleGo}>the region →</Text>
+                </MotionSurface>
+              ))}
+            </Section>
+          )}
+
+          <Inferences
+            title={SECTIONS.inside.title}
+            aside={asideOf("inside", true)}
+            items={innerReadingsOf(inferred).filter((x) => !x.tentative)}
+          />
           <Inferences
             title={SECTIONS.kept.title}
             aside={asideOf("kept", true)}
-            items={inferred.filter((x) => !x.tentative)}
+            items={outerReadingsOf(inferred).filter((x) => !x.tentative)}
           />
           {/* Kept in its own section rather than mixed in and greyed out: a
               low-confidence guess beside a confident one reads as equally true
@@ -334,6 +429,11 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     paddingVertical: 5,
     paddingHorizontal: 8,
+  },
+  wordLabel: {
+    color: colors.inkSoft,
+    fontFamily: fonts.mono,
+    fontSize: scale.meta.size,
   },
   pagers: { flexDirection: "row", gap: 8 },
   /** Ghosted: paging is not what the screen is for. */
@@ -436,6 +536,15 @@ const styles = StyleSheet.create({
   readoutText: { color: colors.ink, fontFamily: fonts.sans, fontSize: 16, lineHeight: 23 },
   wrote: { flexDirection: "row", gap: 10, alignItems: "flex-start", paddingVertical: 4 },
   wroteText: { flex: 1 },
+  circle: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 12,
+    paddingVertical: 10,
+  },
+  circleLabel: { color: colors.ink, fontFamily: fonts.sans, fontSize: 15, flexShrink: 1 },
+  circleMeta: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: scale.meta.size },
+  circleGo: { marginLeft: "auto", color: colors.cyan, fontFamily: fonts.mono, fontSize: scale.meta.size },
   section: { gap: 6, paddingTop: 14 },
   heading: {
     color: colors.cyan,

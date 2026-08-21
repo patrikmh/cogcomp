@@ -4,10 +4,12 @@ import { Link, useParams } from "react-router-dom";
 import { Meter } from "@/components/Meter";
 import { Failed, Loading } from "@/components/States";
 import { api } from "@/lib/api";
+import { amongReadingsOf } from "@/lib/drawn-from";
 import { usePreferences } from "@/state/preferences";
 import { fmt, stampOf } from "@/lib/format";
 import { Guide } from "@/components/Guide";
 import { HEADINGS } from "@tlon/copy/headings";
+import { SECTIONS, asideOf } from "@tlon/copy/sections";
 
 /**
  * Where this came from.
@@ -31,6 +33,16 @@ export function Node() {
     refetchOnMount: "always",
     refetchOnWindowFocus: "always",
     enabled: showFindings,
+  });
+  const patterns = useQuery({
+    queryKey: ["patterns"],
+    queryFn: api.patterns,
+    enabled: showFindings,
+  });
+  const neighbours = useQuery({
+    queryKey: ["neighbours", id],
+    queryFn: () => api.neighbours(id),
+    enabled: showFindings && Boolean(id),
   });
 
   const judge = useMutation({
@@ -98,6 +110,7 @@ export function Node() {
   const confidence = node.confidence ?? 0;
   const status = node.epistemic_status ?? "hypothesis";
   const tentative = confidence < 0.5;
+  const among = amongReadingsOf(neighbours.data?.neighbours ?? [], patterns.data ?? []);
 
   return (
     <>
@@ -165,6 +178,22 @@ export function Node() {
           </div>
         ))}
       </div>
+
+      {among.length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.among.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("among")}</span>
+          </div>
+          {among.map((pattern) => (
+            <Link key={pattern.id} className="t-circle" to={`/pattern/${pattern.id}`}>
+              <b>{pattern.label.split(" · ")[0]}</b>
+              <span className="mono go">the pattern →</span>
+            </Link>
+          ))}
+        </>
+      )}
 
       <div className="row" style={{ marginTop: 18 }}>
         <span className="mono">extracted by {node.extractor ?? "unknown"}</span>

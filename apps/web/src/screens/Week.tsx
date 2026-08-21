@@ -5,7 +5,16 @@ import { Link, useNavigate } from "react-router-dom";
 import { Meter } from "@/components/Meter";
 import { Failed, Loading } from "@/components/States";
 import { api } from "@/lib/api";
-import { DETECTOR_LABEL, deviceTimezone, localDay, mondayOf, shiftDay } from "@/lib/format";
+import {
+  circlingOf,
+  circlingThemesOf,
+  feltReadingOf,
+  innerReadingsOf,
+  outerReadingsOf,
+  VOCABULARY_LOOKBACK_WEEKS,
+  vocabularyMarks,
+} from "@/lib/drawn-from";
+import { DETECTOR_LABEL, deviceTimezone, fmt, localDay, mondayOf, shiftDay } from "@/lib/format";
 import { Seal } from "@/lib/seal";
 import { SECTIONS, asideOf } from "@tlon/copy/sections";
 import { usePreferences } from "@/state/preferences";
@@ -41,9 +50,10 @@ export function Week() {
     queryFn: () => api.weekly(otherMonday, tz, showFindings),
   });
   const patterns = useQuery({ queryKey: ["patterns"], queryFn: api.patterns, enabled: showFindings });
+  const themes = useQuery({ queryKey: ["themes"], queryFn: api.themes, enabled: showFindings });
   const words = useQuery({
-    queryKey: ["vocabulary", monday, tz],
-    queryFn: () => api.vocabulary(monday, tz, 1),
+    queryKey: ["vocabulary", monday, tz, VOCABULARY_LOOKBACK_WEEKS],
+    queryFn: () => api.vocabulary(monday, tz, VOCABULARY_LOOKBACK_WEEKS),
     enabled: showFindings,
   });
 
@@ -63,8 +73,20 @@ export function Week() {
       ? `as many acts as ${otherName}`
       : `${Math.abs(acts - otherActs)} ${acts > otherActs ? "more" : "fewer"} than ${otherName}`;
 
-  const kept = showFindings ? (patterns.data ?? []).filter((p) => !p.tentative) : [];
-  const forming = showFindings ? (patterns.data ?? []).filter((p) => p.tentative) : [];
+  // Provenance, not the whole record: a finding that does not cite this week
+  // is not returning in it. Same rule as Today's circling.
+  const weekPatterns = showFindings
+    ? circlingOf(week.data.inferred ?? [], patterns.data ?? [])
+    : [];
+  const kept = weekPatterns.filter((p) => !p.tentative);
+  const forming = weekPatterns.filter((p) => p.tentative);
+  const regionList = showFindings ? circlingThemesOf(week.data.inferred ?? [], themes.data ?? []) : [];
+  const weekReadings = showFindings
+    ? (week.data.inferred ?? []).filter((item) => item.kind !== "Pattern" && item.kind !== "Theme")
+    : [];
+  const inside = innerReadingsOf(weekReadings).filter((item) => !item.tentative);
+  const leftBehind = outerReadingsOf(weekReadings).filter((item) => !item.tentative);
+  const formingReadings = weekReadings.filter((item) => item.tentative);
 
   return (
     <div className="scr">
@@ -138,7 +160,7 @@ export function Week() {
               title={`Open ${day.date}`}
               onMouseEnter={() => setPeek(preview)}
               onMouseLeave={() => setPeek(null)}
-              onClick={() => navigate("/today")}
+              onClick={() => navigate(`/today?date=${day.date}`)}
             >
               {inner}
             </button>
@@ -155,6 +177,32 @@ export function Week() {
           "Hover a written day to preview it — click to open its record. Empty days stay visible: a quiet week is not a lapse."}
       </p>
 
+      {inside.length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.inside.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("inside")}</span>
+          </div>
+          {inside.map((reading) => (
+            <WeekReading key={reading.id} reading={reading} />
+          ))}
+        </>
+      )}
+
+      {leftBehind.length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.kept.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("kept")}</span>
+          </div>
+          {leftBehind.map((reading) => (
+            <WeekReading key={reading.id} reading={reading} />
+          ))}
+        </>
+      )}
+
       {kept.length > 0 && (
         <>
           <div className="t-sec">
@@ -168,15 +216,35 @@ export function Week() {
         </>
       )}
 
-      {forming.length > 0 && (
+      {(forming.length > 0 || formingReadings.length > 0) && (
         <>
           <div className="t-sec">
             <span className="kicker">{SECTIONS.forming.title}</span>
             <span className="rule" />
             <span className="mono">{asideOf("forming")}</span>
           </div>
+          {formingReadings.map((reading) => (
+            <WeekReading key={reading.id} reading={reading} />
+          ))}
           {forming.map((p) => (
             <PatternRow key={p.id} pattern={p} />
+          ))}
+        </>
+      )}
+
+      {regionList.length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.regions.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("regions")}</span>
+          </div>
+          {regionList.map((theme) => (
+            <Link key={theme.id} className="t-circle" to={`/theme/${theme.id}`}>
+              <b>{theme.label}</b>
+              <span className="mono">{theme.member_count} things</span>
+              <span className="mono go">the region →</span>
+            </Link>
           ))}
         </>
       )}
@@ -198,16 +266,59 @@ export function Week() {
             <span className="mono">{asideOf("words")}</span>
           </div>
           <div className="p-comp">
-            {words.data!.weeks.at(-1)!.words.map((word) => (
-              <span className="c" key={word}>
-                {word}
-              </span>
-            ))}
+            {vocabularyMarks(words.data!.weeks.at(-1)!).map((mark) => {
+              const reading = feltReadingOf(mark.word, week.data.inferred ?? []);
+              const label = (
+                <>
+                  {mark.word}
+                  {mark.firstTime ? <span className="mono"> · first time</span> : null}
+                </>
+              );
+              return reading ? (
+                <Link
+                  className="c"
+                  key={mark.word}
+                  to={`/node/${reading.id}`}
+                  title="Where this word was drawn from"
+                >
+                  {label}
+                </Link>
+              ) : (
+                <span className="c" key={mark.word}>
+                  {label}
+                </span>
+              );
+            })}
           </div>
           <p className="rest mono">{words.data!.weeks.at(-1)!.description}</p>
         </>
       )}
     </div>
+  );
+}
+
+function WeekReading({
+  reading,
+}: {
+  reading: NonNullable<Awaited<ReturnType<typeof api.weekly>>>["inferred"][number];
+}) {
+  return (
+    <Link className={`t-read${reading.tentative ? " ghost" : ""}`} to={`/node/${reading.id}`}>
+      <span className="t-seal">
+        <Seal id={reading.id} className="j-seal" />
+      </span>
+      <span className="t-main">
+        <b>{reading.label}</b>
+        <span className="mono">
+          {reading.kind.toLowerCase()} · {reading.cites_days}{" "}
+          {reading.cites_days === 1 ? "day" : "days"}
+        </span>
+      </span>
+      <span className="t-side">
+        <Meter confidence={reading.confidence} />
+        <span className="mono">{fmt(reading.confidence)}</span>
+      </span>
+    </Link>
   );
 }
 

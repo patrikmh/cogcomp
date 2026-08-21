@@ -13,6 +13,20 @@ export { DETECTOR_LABEL } from "@tlon/copy/detectors";
 
 /** Local ISO date, not toISOString — that converts to UTC and returns
  *  yesterday for anyone west of Greenwich in the evening. */
+export function isLocalDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, date] = value.split("-").map(Number);
+  const parsed = new Date(year!, month! - 1, date!, 12);
+  return parsed.getFullYear() === year && parsed.getMonth() === month! - 1 && parsed.getDate() === date;
+}
+
+/** The day a Today route asked for. Future and unreadable dates fall back to
+ *  today — this screen pages backward through the record, never into tomorrow. */
+export function dayFromRoute(value: string | null | undefined, today = localDay()): string {
+  if (!value || !isLocalDate(value) || value > today) return today;
+  return value;
+}
+
 export function localDay(now = new Date()): string {
   const y = now.getFullYear();
   const m = String(now.getMonth() + 1).padStart(2, "0");

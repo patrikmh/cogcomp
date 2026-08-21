@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { useState } from "react";
 
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { radii, type as scale } from "@tlon/design";
@@ -42,7 +41,6 @@ export default function PatternsScreen() {
   const userId = useSession((s) => s.userId);
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [selected, setSelected] = useState<string | null>(null);
   const showFindings = usePreferences((s) => s.findings);
   const setFindings = usePreferences((s) => s.setFindings);
 
@@ -94,14 +92,14 @@ export default function PatternsScreen() {
   if (patterns.isError) return <ErrorLens label="Could not load patterns." onRetry={() => void patterns.refetch()} />;
 
   const found: Pattern[] = patterns.data ?? [];
-  const busiest = Math.max(...found.map((p) => p.occurrences), 1);
+  const held = found.filter((p) => !p.tentative).sort((a, b) => b.distinct_days - a.distinct_days);
+  const forming = found.filter((p) => p.tentative);
   // Days against the fortnight, which is what the design divides by: its
   // fixtures all read `busiest: 14`, and 14 is the same window the strip under
   // each finding draws. Sizing against the busiest finding instead would make
   // the strongest one always full, which says nothing — every record has a
   // strongest. Sizing against occurrences would compare days to mentions.
   const fortnight = STRIP_CELLS;
-  const current = found.find((p) => p.id === selected) ?? null;
 
   return (
     // The web's list, not a cloud of points. A finding is a claim with a shape:
@@ -119,62 +117,49 @@ export default function PatternsScreen() {
       <Text style={styles.title}>{HEADINGS.patterns.title}</Text>
       <Text style={styles.sub}>
         {found.length === 0
-          ? EMPTY_COPY.patterns
-          : `${found.length} ${found.length === 1 ? "finding" : "findings"}. Counts, not verdicts — each one opens to the entries it counted.`}
+          ? EMPTY_COPY.patternsWaiting
+          : `${held.length} held. Counts, not verdicts — each one opens to the entries it counted.`}
       </Text>
 
       {/* Named and ruled, as Today and Week name their sections and as the
           design names this one. The rule was here on its own, which drew the
           line without saying what it divided or that the findings below it are
           ordered. The copy for it was written and never wired up. */}
-      <View style={styles.sectionRow}>
-        <Kicker heading>{SECTIONS.returning.title}</Kicker>
-        <View style={styles.ruleFill}>
-          <Rule />
-        </View>
-        <Text style={styles.aside}>{asideOf("returning", true)}</Text>
-      </View>
-
-      {found.map((pattern, i) => (
-        <Rise key={pattern.id} index={i}>
-          <View style={styles.row}>
-            {/* The card is a layout container, not a button. Keeping only its
-                header interactive avoids putting the independently clickable
-                Composition links inside another pressable on web. */}
-            <View
-              style={[
-                styles.power,
-                { width: `${Math.round(Math.min(pattern.distinct_days / fortnight, 1) * 100)}%` },
-              ]}
-              pointerEvents="none"
-            />
-            <MotionSurface
-              style={styles.header}
-              onPress={() => router.push(patternDestination(pattern).href)}
-              accessibilityRole="button"
-              accessibilityLabel={pattern.label}
-            >
-              <View style={styles.top}>
-                <Seal id={pattern.id} size={40} stamp />
-                <View style={styles.rowBody}>
-                  <Text style={styles.label}>{pattern.label}</Text>
-                  <Kicker>{patternMeta(pattern)}</Kicker>
-                </View>
-                <View style={styles.met}>
-                  <Meter confidence={pattern.confidence} tentative={pattern.tentative} />
-                  <Text style={styles.metCount}>
-                    {daysOfFortnight(pattern.distinct_days).replace(" of ", " / ")}
-                  </Text>
-                </View>
-              </View>
-            </MotionSurface>
-            {/* The strip and its legend are card content, not nested controls. */}
-            <Strip pattern={pattern} />
-            <StripLegend pattern={pattern} />
-            <Composition token={token!} patternId={pattern.id} />
+      {held.length > 0 && (
+        <>
+          <View style={styles.sectionRow}>
+            <Kicker heading>{SECTIONS.returning.title}</Kicker>
+            <View style={styles.ruleFill}>
+              <Rule />
+            </View>
+            <Text style={styles.aside}>{asideOf("returning", true)}</Text>
           </View>
-        </Rise>
-      ))}
+          {held.map((pattern, i) => (
+            <Finding key={pattern.id} pattern={pattern} index={i} token={token!} fortnight={fortnight} />
+          ))}
+        </>
+      )}
+
+      {forming.length > 0 && (
+        <>
+          <View style={styles.sectionRow}>
+            <Kicker heading>{SECTIONS.forming.title}</Kicker>
+            <View style={styles.ruleFill}>
+              <Rule />
+            </View>
+            <Text style={styles.aside}>{asideOf("forming", true)}</Text>
+          </View>
+          {forming.map((pattern, i) => (
+            <Finding
+              key={pattern.id}
+              pattern={pattern}
+              index={held.length + i}
+              token={token!}
+              fortnight={fortnight}
+            />
+          ))}
+        </>
+      )}
 
       {/* Regions, where the web and the design both put them: beside the other
           findings rather than behind a lens of their own. A region is a group
@@ -231,6 +216,59 @@ export default function PatternsScreen() {
         </MotionSurface>
       </View>
     </ScrollView>
+  );
+}
+
+function Finding({
+  pattern,
+  index,
+  token,
+  fortnight,
+}: {
+  pattern: Pattern;
+  index: number;
+  token: string;
+  fortnight: number;
+}) {
+  const router = useRouter();
+  return (
+    <Rise index={index}>
+      <View style={styles.row}>
+        {/* The card is a layout container, not a button. Keeping only its
+            header interactive avoids putting the independently clickable
+            Composition links inside another pressable on web. */}
+        <View
+          style={[
+            styles.power,
+            { width: `${Math.round(Math.min(pattern.distinct_days / fortnight, 1) * 100)}%` },
+          ]}
+          pointerEvents="none"
+        />
+        <MotionSurface
+          style={styles.header}
+          onPress={() => router.push(patternDestination(pattern).href)}
+          accessibilityRole="button"
+          accessibilityLabel={pattern.label}
+        >
+          <View style={styles.top}>
+            <Seal id={pattern.id} size={40} stamp />
+            <View style={styles.rowBody}>
+              <Text style={styles.label}>{pattern.label}</Text>
+              <Kicker>{patternMeta(pattern)}</Kicker>
+            </View>
+            <View style={styles.met}>
+              <Meter confidence={pattern.confidence} tentative={pattern.tentative} />
+              <Text style={styles.metCount}>
+                {daysOfFortnight(pattern.distinct_days).replace(" of ", " / ")}
+              </Text>
+            </View>
+          </View>
+        </MotionSurface>
+        <Strip pattern={pattern} />
+        <StripLegend pattern={pattern} />
+        <Composition token={token} patternId={pattern.id} />
+      </View>
+    </Rise>
   );
 }
 

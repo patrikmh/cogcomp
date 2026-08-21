@@ -26,10 +26,16 @@ export const SECTIONS = {
   acts: { title: "The acts", aside: "kept verbatim" },
   /** What the extractor drew and the record stands behind. */
   kept: { title: "What they left behind", aside: "surest first" },
+  /** The inner week: felt, needed, valued, believed, thought. Named, never
+   *  diagnosed, and kept apart from people, places, and activities so that
+   *  world can be walked on its own. */
+  inside: { title: "Felt and thought", aside: "named, not a verdict" },
   /** What it is not sure of. Its own section, never mixed in and greyed. */
   lessSure: { title: "Less sure", aside: "unobserved, they grow vague" },
   /** The recurrence a day belongs to. */
   circling: { title: "Circling" },
+  /** A cluster of associations, not a pair and not a diagnosis. */
+  regions: { title: "Regions", aside: "groups, not pairs" },
   /** The week's shape. The design's aside mentions hovering, which a phone
    *  cannot do, so touch clients say only what is true of a tap. */
   rhythm: {
@@ -45,6 +51,8 @@ export const SECTIONS = {
   words: { title: "Your own words for it", aside: "counted, never interpreted" },
   /** On a reading: the entries it was drawn from. */
   evidence: { title: "The acts behind it" },
+  /** On a reading: the recurrences it supports. Membership, not origin. */
+  among: { title: "This reading is among", aside: "it supports these" },
   /** Experiments. */
   arcs: { title: "Your arcs", aside: "active first" },
   reason: { title: "Why you started it" },

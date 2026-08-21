@@ -15,9 +15,11 @@ import { ErrorLens } from "@/components/SpatialField";
 import { MotionSurface } from "@/components/MotionSurface";
 import { Rise, Rising } from "@/components/Rise";
 import { Seal } from "@/components/Seal";
-import { api, type DailySummary } from "@/lib/api";
+import { api, type DailySummary, type Pattern, type Theme } from "@/lib/api";
 import { dayForRoute, deviceTimezone, isLocalDate, localToday, shiftDay } from "@/lib/dates";
 import { useDrawnFrom } from "@/lib/drawnFrom";
+import { patternDestination } from "@/lib/patterns";
+import { circlingOf, circlingThemesOf, innerReadingsOf, outerReadingsOf } from "@tlon/ontology";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
@@ -151,18 +153,30 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
   const findingsVisible = preferencesReady && showFindings;
   const drawnFrom = useDrawnFrom(token, userId, 4, findingsVisible);
 
-  // The recurrences today's material belongs to. The count goes in the line
-  // under the heading — "three patterns circling" is a fact about the day, not
-  // a separate topic — and the first one gets the link at the end of the day.
+  // The recurrences today's material belongs to. Provenance, not the strongest
+  // pattern in the whole record: a finding that does not cite this day is not
+  // circling it. The count goes in the line under the heading, and each one
+  // opens to the finding itself.
   const patterns = useQuery({
     queryKey: ["patterns", userId],
     queryFn: () => api.listPatterns(token!),
     enabled: Boolean(token) && findingsVisible,
   });
+  const themes = useQuery({
+    queryKey: ["themes", userId],
+    queryFn: () => api.listThemes(token!),
+    enabled: Boolean(token) && findingsVisible,
+  });
   // React Query deliberately keeps findings in memory when a screen is revisited.
   // A preference switch must hide that cache too, not only stop the next request.
-  const circlingList = findingsVisible ? patterns.data ?? [] : [];
-  const circling = circlingList[0];
+  const inferred = findingsVisible ? summary.inferred : [];
+  const readings = inferred.filter((item) => item.kind !== "Pattern" && item.kind !== "Theme");
+  const foundPatterns: Pattern[] = patterns.data ?? [];
+  const circlingList: Pattern[] = findingsVisible
+    ? circlingOf(inferred, foundPatterns)
+    : [];
+  const foundThemes: Theme[] = themes.data ?? [];
+  const regionList: Theme[] = findingsVisible ? circlingThemesOf(inferred, foundThemes) : [];
 
   if (summary.entry_count === 0) {
     // Stated plainly, with no nudge to write. A day with nothing in it is a fact
@@ -170,9 +184,9 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
     return <Text style={styles.empty}>{EMPTY_COPY.day}</Text>;
   }
 
-  const inferred = findingsVisible ? summary.inferred : [];
-  const confident = inferred.filter((i) => !i.tentative);
-  const tentative = inferred.filter((i) => i.tentative);
+  const inside = innerReadingsOf(readings).filter((i) => !i.tentative);
+  const confident = outerReadingsOf(readings).filter((i) => !i.tentative);
+  const tentative = readings.filter((i) => i.tentative);
 
   return (
     <>
@@ -181,9 +195,13 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
       <Text style={styles.tally}>
         {`${summary.entry_count} ${summary.entry_count === 1 ? "act" : "acts"}${
           findingsVisible
-            ? ` · ${inferred.length} ${inferred.length === 1 ? "reading" : "readings"} drawn${
+            ? ` · ${readings.length} ${readings.length === 1 ? "reading" : "readings"} drawn${
                 circlingList.length > 0
                   ? ` · ${circlingList.length} ${circlingList.length === 1 ? "pattern" : "patterns"} circling`
+                  : ""
+              }${
+                regionList.length > 0
+                  ? ` · ${regionList.length} ${regionList.length === 1 ? "region" : "regions"}`
                   : ""
               }`
             : ""
@@ -242,6 +260,14 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
         );
       })}
 
+      {inside.length > 0 && (
+        <Section title={SECTIONS.inside.title} aside={asideOf("inside", true)}>
+          {inside.map((item) => (
+            <Inference key={item.id} item={item} />
+          ))}
+        </Section>
+      )}
+
       {confident.length > 0 && (
         <Section title={SECTIONS.kept.title} aside={asideOf("kept", true)}>
           {confident.map((item) => (
@@ -265,29 +291,50 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
           of labels under "Came up more than once" with no route out: you could
           see that something had come up twice and had nowhere to go with it.
           The design ends the day here, on a link to the recurrence. */}
-      {circling && (
-        <Section title={SECTIONS.circling.title}>
-          <MotionSurface
-            style={styles.circle}
-            onPress={() => router.push("/patterns")}
-            accessibilityRole="button"
-            accessibilityLabel={`${circling.label} — open patterns`}
-          >
-            <Text style={styles.circleLabel}>{circling.label}</Text>
-            <Text style={styles.circleMeta}>
-              {circling.distinct_days} of {circling.occurrences} days
-            </Text>
-            <Text style={styles.circleGo}>the pattern →</Text>
-          </MotionSurface>
+      {circlingList.length > 0 && (
+        <Section title={SECTIONS.circling.title} aside="this day belongs to">
+          {circlingList.map((pattern) => (
+            <MotionSurface
+              key={pattern.id}
+              style={styles.circle}
+              onPress={() => router.push(patternDestination(pattern).href)}
+              accessibilityRole="button"
+              accessibilityLabel={`${pattern.label} — open this pattern`}
+            >
+              <Text style={styles.circleLabel}>{pattern.label}</Text>
+              <Text style={styles.circleMeta}>
+                {pattern.distinct_days} of {pattern.occurrences} days
+              </Text>
+              <Text style={styles.circleGo}>the pattern →</Text>
+            </MotionSurface>
+          ))}
+        </Section>
+      )}
+
+      {regionList.length > 0 && (
+        <Section title={SECTIONS.regions.title} aside={asideOf("regions", true)}>
+          {regionList.map((theme) => (
+            <MotionSurface
+              key={theme.id}
+              style={styles.circle}
+              onPress={() => router.push(`/theme/${theme.id}`)}
+              accessibilityRole="button"
+              accessibilityLabel={`${theme.label} — open this region`}
+            >
+              <Text style={styles.circleLabel}>{theme.label}</Text>
+              <Text style={styles.circleMeta}>{theme.member_count} things</Text>
+              <Text style={styles.circleGo}>the region →</Text>
+            </MotionSurface>
+          ))}
         </Section>
       )}
 
       {/* Only where there is something for it to be about. A note explaining
           two sections that are not on the screen describes a screen the person
           is not looking at. */}
-      {inferred.length > 0 && (
+      {readings.length > 0 && (
         <Text style={styles.footnote}>
-          Everything under “{SECTIONS.kept.title}” and “{SECTIONS.lessSure.title}” is a guess drawn from your
+          Everything under “{SECTIONS.inside.title}”, “{SECTIONS.kept.title}” and “{SECTIONS.lessSure.title}” is a guess drawn from your
           entries, not a conclusion about you. Tap one to see which words it came
           from.
         </Text>

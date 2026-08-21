@@ -1,5 +1,5 @@
 import { useQueries } from "@tanstack/react-query";
-import { foldDrawnFrom } from "@tlon/ontology";
+import { amongOf, foldDrawnFrom } from "@tlon/ontology";
 
 import { api } from "@/lib/api";
 import { deviceTimezone, localToday, mondayOfWeek, shiftWeek } from "@/lib/dates";
@@ -39,3 +39,39 @@ export function useDrawnFrom(
   // cache into a derived view after findings are hidden.
   return enabled ? foldDrawnFrom(weeks.map((week) => week.data?.inferred ?? [])) : foldDrawnFrom([]);
 }
+
+/** Recurrences each act is among. Same weeks as useDrawnFrom, so the request
+ *  is not made twice. Empty when findings are hidden, including cached weeks. */
+export function useAmong<T extends { id: string }>(
+  token: string | null,
+  userId: string | null,
+  patterns: readonly T[],
+  weeksBack = 4,
+  enabled = true,
+) {
+  const tz = deviceTimezone();
+  const weeks = useQueries({
+    queries: Array.from({ length: weeksBack }, (_, back) => {
+      const monday = shiftWeek(mondayOfWeek(localToday()), -back);
+      return {
+        queryKey: ["summary", "week", monday, tz, userId],
+        queryFn: () => api.weeklySummary(token!, monday, tz),
+        enabled: Boolean(token && userId && enabled),
+      };
+    }),
+  });
+
+  return enabled ? amongOf(weeks.map((week) => week.data?.inferred ?? []), patterns) : amongOf([], []);
+}
+
+export {
+  amongOf,
+  amongReadingsOf,
+  circlingOf,
+  circlingThemesOf,
+  feltReadingOf,
+  innerReadingsOf,
+  outerReadingsOf,
+  vocabularyMarks,
+  VOCABULARY_LOOKBACK_WEEKS,
+} from "@tlon/ontology";

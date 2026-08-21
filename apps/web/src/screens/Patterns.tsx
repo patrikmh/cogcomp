@@ -12,6 +12,7 @@ import { Seal } from "@/lib/seal";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
 import { HEADINGS } from "@tlon/copy/headings";
+import { EMPTY as EMPTY_COPY } from "@tlon/copy/empty";
 import { STRIP_CELLS, daysOfFortnight } from "@tlon/design/marks";
 
 /**
@@ -85,12 +86,7 @@ export function Patterns() {
       <h1>{HEADINGS.patterns.title}</h1>
       <p className="t-sum">
         {found.length === 0
-          ? // True, and on its own it leaves someone guessing whether they have
-            // written too little or the app is broken. What it needs is knowable
-            // and small, so it says it: the same thing three times across two
-            // days for a recurrence, and about a month before the calendar and
-            // ordering findings will speak at all.
-            "Nothing has come back often enough to call a pattern yet — that means the same thing written on at least two different days. The findings about calendar shape and ordering need around four weeks of writing before they will say anything."
+          ? EMPTY_COPY.patternsWaiting
           : `${held.length} held${
               strongest
                 ? ` · strongest is “${strongest.label}” on ${strongest.distinct_days} of ${strongest.occurrences} — sized against your own record, no absolute scale.`

@@ -22,6 +22,10 @@ export const EMPTY = {
   /** No recurrence has met the thresholds. Never "no patterns found": the
    *  detectors have a stated bar and the sentence says so. */
   patterns: "Nothing has come back often enough to call recurring.",
+  /** The Patterns screen, where the short fact is not enough: without the bar,
+   *  an empty list reads as a broken machine or a verdict about the person. */
+  patternsWaiting:
+    "Nothing has come back often enough to call a pattern yet — that means the same thing written on at least two different days. The findings about calendar shape and ordering need around four weeks of writing before they will say anything.",
   /** No background run has happened. Distinct from a run that found nothing. */
   agents: "Nothing has run yet.",
   /** The identity composition, before anything is suggested. */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { dateOf, localDay, mondayOf, shiftDay, stampOf } from "./format";
+import { dateOf, dayFromRoute, isLocalDate, localDay, mondayOf, shiftDay, stampOf } from "./format";
 
 /**
  * Dates, in the timezone the person is standing in.
@@ -20,6 +20,22 @@ describe("localDay", () => {
 
   it("pads single-digit months and days", () => {
     expect(localDay(new Date(2026, 0, 5, 12))).toBe("2026-01-05");
+  });
+});
+
+describe("dayFromRoute", () => {
+  it("opens the day that was asked for", () => {
+    expect(dayFromRoute("2026-03-12", "2026-03-16")).toBe("2026-03-12");
+  });
+
+  it("falls back to today when the date is missing or not a calendar day", () => {
+    expect(dayFromRoute(null, "2026-03-16")).toBe("2026-03-16");
+    expect(dayFromRoute("16-03-2026", "2026-03-16")).toBe("2026-03-16");
+    expect(isLocalDate("2026-02-30")).toBe(false);
+  });
+
+  it("does not open tomorrow", () => {
+    expect(dayFromRoute("2026-03-17", "2026-03-16")).toBe("2026-03-16");
   });
 });
 

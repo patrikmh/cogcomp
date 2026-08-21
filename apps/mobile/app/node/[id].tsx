@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import {
   ActivityIndicator,
   ScrollView,
@@ -14,7 +14,9 @@ import { Kicker, Meter, Rule } from "@/components/Marks";
 import { Seal } from "@/components/Seal";
 import { EvidenceRail, FieldFrame, LoadingLens, ErrorLens, ObservablePearl } from "@/components/SpatialField";
 import { MotionSurface } from "@/components/MotionSurface";
-import { api, type Explanation, type Judgement, type ObservationResponse } from "@/lib/api";
+import { api, type Explanation, type Judgement, type ObservationResponse, type Pattern } from "@/lib/api";
+import { amongReadingsOf } from "@/lib/drawnFrom";
+import { patternDestination } from "@/lib/patterns";
 import { useSession } from "@/state/session";
 import { usePreferences } from "@/state/preferences";
 import { colors, fonts } from "@/theme";
@@ -22,7 +24,7 @@ import { radii } from "@tlon/design";
 import { type as scale } from "@tlon/design";
 import { Guide } from "@/components/Guide";
 import { HEADINGS } from "@tlon/copy/headings";
-import { SECTIONS } from "@tlon/copy/sections";
+import { SECTIONS, asideOf } from "@tlon/copy/sections";
 
 /**
  * "Why do you think this?"
@@ -34,6 +36,7 @@ import { SECTIONS } from "@tlon/copy/sections";
 export default function NodeScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const token = useSession((s) => s.token);
+  const userId = useSession((s) => s.userId);
   const showFindings = usePreferences((s) => s.findings);
 
   const explanation = useQuery({
@@ -47,6 +50,16 @@ export default function NodeScreen() {
     queryKey: ["observation", id],
     queryFn: () => api.getObservation(token!, id!),
     enabled: Boolean(token && id && !showFindings),
+  });
+  const patterns = useQuery({
+    queryKey: ["patterns", userId],
+    queryFn: () => api.listPatterns(token!),
+    enabled: Boolean(token && userId && showFindings),
+  });
+  const neighbours = useQuery({
+    queryKey: ["neighbours", id],
+    queryFn: () => api.neighbours(token!, id!),
+    enabled: Boolean(token && id && showFindings),
   });
 
   useFocusEffect(
@@ -68,7 +81,9 @@ export default function NodeScreen() {
     return <ErrorLens label="Could not load this." onRetry={() => void explanation.refetch()} />;
   }
 
-  return <Body explanation={explanation.data} nodeId={id!} />;
+  const foundPatterns: Pattern[] = patterns.data ?? [];
+  const among = amongReadingsOf(neighbours.data?.neighbours ?? [], foundPatterns);
+  return <Body explanation={explanation.data} nodeId={id!} among={among} />;
 }
 
 /**
@@ -199,9 +214,11 @@ function RawObservation({ observation }: { observation: ObservationResponse }) {
 function Body({
   explanation,
   nodeId,
+  among,
 }: {
   explanation: Explanation;
   nodeId: string;
+  among: Pattern[];
 }) {
   const { node, derived_from, is_observed } = explanation;
 
@@ -234,6 +251,7 @@ function Body({
     );
   }
 
+  const router = useRouter();
   const confidence = node.confidence ?? 0;
   const tentative = confidence < 0.5;
 
@@ -313,6 +331,29 @@ function Body({
         ))
       )}
       </EvidenceRail>
+
+      {among.length > 0 && (
+        <>
+          <View style={styles.sectionRow}>
+            <Kicker heading>{SECTIONS.among.title}</Kicker>
+            <View style={styles.ruleFill}>
+              <Rule />
+            </View>
+            <Text style={styles.meta}>{asideOf("among", true)}</Text>
+          </View>
+          {among.map((pattern) => (
+            <MotionSurface
+              key={pattern.id}
+              onPress={() => router.push(patternDestination(pattern).href)}
+              accessibilityRole="button"
+              accessibilityLabel={`${pattern.label} — open this pattern`}
+            >
+              <Text style={styles.sourceText}>{pattern.label.split(" · ")[0] ?? pattern.label}</Text>
+              <Text style={styles.meta}>{patternDestination(pattern).label}</Text>
+            </MotionSurface>
+          ))}
+        </>
+      )}
 
       <View style={styles.provenance}>
         <Text style={styles.provenanceTitle}>How this was produced</Text>

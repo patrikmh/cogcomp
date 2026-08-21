@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { Empty, Failed, Loading } from "@/components/States";
 import { Seal } from "@/lib/seal";
 import { api, type Observation } from "@/lib/api";
-import { useDrawnFrom } from "@/lib/drawn-from";
+import { useAmong, useDrawnFrom } from "@/lib/drawn-from";
 import { clockOf, dayLabelOf, fmt } from "@/lib/format";
 import { useSession } from "@/state/session";
 import { usePreferences } from "@/state/preferences";
@@ -79,6 +79,12 @@ export function Journal() {
   });
 
   const drawnFrom = useDrawnFrom(4, showFindings);
+  const patterns = useQuery({
+    queryKey: ["patterns", userId],
+    queryFn: api.patterns,
+    enabled: showFindings,
+  });
+  const among = useAmong(patterns.data ?? [], 4, showFindings);
 
   const save = useMutation({
     mutationFn: async (envelope: Envelope) => {
@@ -258,6 +264,20 @@ export function Journal() {
                             </Link>
                           </div>
                         )
+                      )}
+                      {showFindings && (among.get(entry.id)?.length ?? 0) > 0 && (
+                        <div className="j-meta">
+                          <span className="j-from">this act is among</span>
+                          {among.get(entry.id)!.map((pattern) => (
+                            <Link
+                              key={pattern.id}
+                              className={`j-chip${pattern.tentative ? " ghost" : ""}`}
+                              to={`/pattern/${pattern.id}`}
+                            >
+                              {pattern.label.split(" · ")[0]}
+                            </Link>
+                          ))}
+                        </div>
                       )}
                     </div>
                   </div>

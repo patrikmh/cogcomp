@@ -152,6 +152,158 @@ export function foldDrawnFrom(
 }
 
 /**
+ * The recurrences an act is among, keyed by the act.
+ *
+ * This is the other half of foldDrawnFrom. A pattern must never appear under
+ * "drawn from this" — it is not a reading of one entry. It can appear under
+ * "this act is among", because that is a claim about membership, not origin.
+ * Order follows the caller's pattern list, so strongest-among-these stays first.
+ */
+export function amongOf<T extends { id: string }>(
+  weeks: { id: string; kind: string; source_observation_ids: string[] }[][],
+  patterns: readonly T[],
+): Map<string, T[]> {
+  const cited = new Map<string, Set<string>>();
+  for (const readings of weeks) {
+    for (const reading of readings) {
+      if (reading.kind !== "Pattern") continue;
+      for (const source of reading.source_observation_ids) {
+        const ids = cited.get(source) ?? new Set();
+        ids.add(reading.id);
+        cited.set(source, ids);
+      }
+    }
+  }
+  const index = new Map<string, T[]>();
+  for (const [source, ids] of cited) {
+    const found = patterns.filter((pattern) => ids.has(pattern.id));
+    if (found.length > 0) index.set(source, found);
+  }
+  return index;
+}
+
+/**
+ * The recurrences a day's material actually belongs to.
+ *
+ * A pattern listed because it is the strongest in the whole record is not
+ * circling this day. Circling is provenance: the pattern cites one of today's
+ * observations. The returned list keeps the caller's order — strongest first
+ * when the patterns list is already sorted that way.
+ */
+/** How many prior weeks a first-time word is judged against. A window of one
+ *  week makes every word "first time", which names nothing. Matches the API
+ *  default on `GET /v1/vocabulary/{week_start}`. */
+export const VOCABULARY_LOOKBACK_WEEKS = 8;
+
+/** One word from a week's vocabulary, with whether it is new in the lookback. */
+export interface VocabularyMark {
+  word: string;
+  firstTime: boolean;
+}
+
+/**
+ * The person's own words for how they felt, with first-time ones named.
+ *
+ * The vocabulary module's contract is that new words are named, not scored.
+ * A count of "3 of them for the first time" withholds the only part someone
+ * could go and read. Order follows `words`; labels in `first_time` that are
+ * not on that list are ignored, because the list on screen is the checkable one.
+ */
+export function vocabularyMarks(week: {
+  words: readonly string[];
+  first_time: readonly string[];
+}): VocabularyMark[] {
+  const named = new Set(week.first_time);
+  return week.words.map((word) => ({ word, firstTime: named.has(word) }));
+}
+
+/** Kinds that count as a word for a state. Matches `tlon.vocabulary.FELT_KINDS`:
+ *  emotions and needs name what is felt or wanted; thoughts and beliefs are
+ *  what someone is thinking about. */
+export const FELT_KINDS = ["Emotion", "Need"] as const;
+
+/** The inner record: what was felt, needed, valued, believed, or thought.
+ *  Distinct from people, places, and activities, which are what a day did. */
+export const INNER_KINDS = ["Thought", "Emotion", "Need", "Value", "Belief"] as const;
+
+export function isInnerKind(kind: string): boolean {
+  return (INNER_KINDS as readonly string[]).includes(kind);
+}
+
+/** Readings of the inner week. Patterns stay out: they are recurrences, not a
+ *  state someone was in. */
+export function innerReadingsOf<T extends { kind: string }>(readings: readonly T[]): T[] {
+  return readings.filter((reading) => isInnerKind(reading.kind));
+}
+
+/** Readings of the outer week: who, where, what was done. Not patterns. */
+export function outerReadingsOf<T extends { kind: string }>(readings: readonly T[]): T[] {
+  return readings.filter(
+    (reading) => reading.kind !== "Pattern" && reading.kind !== "Theme" && !isInnerKind(reading.kind),
+  );
+}
+
+/**
+ * The reading a vocabulary word opens, if this week drew one.
+ *
+ * A word with no door is a count nobody can check. Only Emotion and Need
+ * match — an Activity that happens to share the label is a different claim.
+ * When two felt readings share a label, the surer one is the one to open.
+ */
+export function feltReadingOf<T extends { id: string; kind: string; label: string; confidence?: number | null }>(
+  word: string,
+  readings: readonly T[],
+): T | undefined {
+  const needle = word.trim().toLowerCase();
+  const felt = new Set<string>(FELT_KINDS);
+  let match: T | undefined;
+  for (const reading of readings) {
+    if (!felt.has(reading.kind)) continue;
+    if (reading.label.trim().toLowerCase() !== needle) continue;
+    if (!match || (reading.confidence ?? 0) > (match.confidence ?? 0)) match = reading;
+  }
+  return match;
+}
+
+export function circlingOf<T extends { id: string }>(
+  inferred: readonly { id: string; kind: string }[],
+  patterns: readonly T[],
+): T[] {
+  const ids = new Set(
+    inferred.filter((reading) => reading.kind === "Pattern").map((reading) => reading.id),
+  );
+  return patterns.filter((pattern) => ids.has(pattern.id));
+}
+
+/** Recurrences a reading is among.
+ *
+ *  SUPPORTS runs from the reading to the pattern, so the pattern appears as a
+ *  neighbour rather than as something "drawn from" the reading. Same matching
+ *  as circlingOf; a different claim — membership, not a day's provenance. */
+export function amongReadingsOf<T extends { id: string }>(
+  neighbours: readonly { id: string; kind: string }[],
+  patterns: readonly T[],
+): T[] {
+  return circlingOf(neighbours, patterns);
+}
+
+/** The regions a day's or week's material actually sits in.
+ *
+ *  Same provenance rule as circlingOf: a theme listed because it is in the
+ *  whole record is not this period's region. Theme nodes inherit the entries
+ *  their members cite, so they appear on the inferred list only when those
+ *  members do. */
+export function circlingThemesOf<T extends { id: string }>(
+  inferred: readonly { id: string; kind: string }[],
+  themes: readonly T[],
+): T[] {
+  const ids = new Set(
+    inferred.filter((reading) => reading.kind === "Theme").map((reading) => reading.id),
+  );
+  return themes.filter((theme) => ids.has(theme.id));
+}
+
+/**
  * What each detector is waiting for, before it can find anything.
  *
  * These numbers are the backend's thresholds, not round ones chosen to look

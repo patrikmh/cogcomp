@@ -1,12 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
 import { Meter } from "@/components/Meter";
 import { Failed, Loading } from "@/components/States";
 import { api, type Inference } from "@/lib/api";
-import { useDrawnFrom } from "@/lib/drawn-from";
-import { clockOf, deviceTimezone, fmt, localDay, shiftDay } from "@/lib/format";
+import { circlingOf, circlingThemesOf, innerReadingsOf, outerReadingsOf, useDrawnFrom } from "@/lib/drawn-from";
+import { clockOf, dayFromRoute, deviceTimezone, fmt, localDay, shiftDay } from "@/lib/format";
 import { Seal } from "@/lib/seal";
 import { Guide } from "@/components/Guide";
 import { SECTIONS, asideOf } from "@tlon/copy/sections";
@@ -28,8 +27,14 @@ import { usePreferences } from "@/state/preferences";
 export function Today() {
   const tz = deviceTimezone();
   const showFindings = usePreferences((s) => s.findings);
-  const [offset, setOffset] = useState(0);
-  const day = shiftDay(localDay(), offset);
+  const [params, setParams] = useSearchParams();
+  const today = localDay();
+  const day = dayFromRoute(params.get("date"), today);
+  const openDay = (next: string) => {
+    const resolved = dayFromRoute(next, today);
+    if (resolved >= today) setParams({}, { replace: true });
+    else setParams({ date: resolved }, { replace: true });
+  };
 
   const summary = useQuery({
     queryKey: ["summary", day, tz, showFindings],
@@ -45,11 +50,22 @@ export function Today() {
     refetchOnMount: "always",
     refetchOnWindowFocus: "always",
   });
+  const themes = useQuery({
+    queryKey: ["themes"],
+    queryFn: api.themes,
+    enabled: showFindings,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
+  });
 
   const inferred = showFindings ? summary.data?.inferred ?? [] : [];
-  const kept = inferred.filter((i) => !i.tentative).sort((a, b) => b.confidence - a.confidence);
-  const faint = inferred.filter((i) => i.tentative).sort((a, b) => b.confidence - a.confidence);
-  const circling = showFindings ? (patterns.data ?? [])[0] : undefined;
+  const readings = inferred.filter((item) => item.kind !== "Pattern" && item.kind !== "Theme");
+  const bySurety = (a: Inference, b: Inference) => b.confidence - a.confidence;
+  const inside = innerReadingsOf(readings).filter((i) => !i.tentative).sort(bySurety);
+  const kept = outerReadingsOf(readings).filter((i) => !i.tentative).sort(bySurety);
+  const faint = readings.filter((i) => i.tentative).sort(bySurety);
+  const circlingList = showFindings ? circlingOf(inferred, patterns.data ?? []) : [];
+  const regionList = showFindings ? circlingThemesOf(inferred, themes.data ?? []) : [];
 
   return (
     <div className="scr">
@@ -62,8 +78,8 @@ export function Today() {
             screen has no heading of its own, because the day names itself. */}
         <span className="row" style={{ gap: 10 }}>
         <span className="kicker">
-          {offset === 0 ? "Today" : offset === -1 ? "Yesterday" : null}
-          {offset >= -1 ? " · " : ""}
+          {day === today ? "Today" : day === shiftDay(today, -1) ? "Yesterday" : null}
+          {day >= shiftDay(today, -1) ? " · " : ""}
           {new Date(`${day}T12:00:00`).toLocaleDateString([], {
             weekday: "short",
             day: "numeric",
@@ -77,13 +93,13 @@ export function Today() {
             goes, so moving through the week never needs a mental subtraction.
             Ghosted, because navigation is not the point of the screen. */}
         <span className="row">
-          <button className="btn ghost" onClick={() => setOffset((o) => o - 1)}>
+          <button className="btn ghost" onClick={() => openDay(shiftDay(day, -1))}>
             ← {weekdayOf(shiftDay(day, -1))}
           </button>
           <button
             className="btn ghost"
-            disabled={offset >= 0}
-            onClick={() => setOffset((o) => Math.min(0, o + 1))}
+            disabled={day >= today}
+            onClick={() => openDay(shiftDay(day, 1))}
           >
             {weekdayOf(shiftDay(day, 1))} →
           </button>
@@ -97,7 +113,7 @@ export function Today() {
       ) : summary.data!.entry_count === 0 ? (
         <>
           <p className="sub">
-            {offset > 0 ? "Tomorrow." : new Date(`${day}T12:00:00`).toLocaleDateString([], { weekday: "long" })}.
+            {new Date(`${day}T12:00:00`).toLocaleDateString([], { weekday: "long" })}.
           </p>
           <div className="empty">{EMPTY_COPY.day}</div>
         </>
@@ -114,8 +130,9 @@ export function Today() {
             {summary.data!.entry_count} {summary.data!.entry_count === 1 ? "act" : "acts"}
             {showFindings && (
               <>
-                {" · "}{inferred.length} {inferred.length === 1 ? "reading" : "readings"} drawn
-                {circling ? ` · ${(patterns.data ?? []).length} circling` : ""}
+                {" · "}{readings.length} {readings.length === 1 ? "reading" : "readings"} drawn
+                {circlingList.length > 0 ? ` · ${circlingList.length} circling` : ""}
+                {regionList.length > 0 ? ` · ${regionList.length} ${regionList.length === 1 ? "region" : "regions"}` : ""}
               </>
             )}
           </div>
@@ -155,6 +172,19 @@ export function Today() {
               </div>
             </div>
           ))}
+
+          {inside.length > 0 && (
+            <>
+              <div className="t-sec">
+                <span className="kicker">{SECTIONS.inside.title}</span>
+                <span className="rule" />
+                <span className="mono">{asideOf("inside")}</span>
+              </div>
+              {inside.map((r) => (
+                <Reading key={r.id} reading={r} />
+              ))}
+            </>
+          )}
 
           {kept.length > 0 && (
             <>
@@ -201,19 +231,39 @@ export function Today() {
             </>
           )}
 
-          {circling && (
+          {circlingList.length > 0 && (
             <>
               <div className="t-sec">
                 <span className="kicker">{SECTIONS.circling.title}</span>
                 <span className="rule" />
+                <span className="mono">this day belongs to</span>
               </div>
-              <Link className="t-circle" to="/patterns">
-                <b>{circling.label}</b>
-                <span className="mono">
-                  {circling.distinct_days} of {circling.occurrences} days
-                </span>
-                <span className="mono go">the pattern →</span>
-              </Link>
+              {circlingList.map((pattern) => (
+                <Link key={pattern.id} className="t-circle" to={`/pattern/${pattern.id}`}>
+                  <b>{pattern.label}</b>
+                  <span className="mono">
+                    {pattern.distinct_days} of {pattern.occurrences} days
+                  </span>
+                  <span className="mono go">the pattern →</span>
+                </Link>
+              ))}
+            </>
+          )}
+
+          {regionList.length > 0 && (
+            <>
+              <div className="t-sec">
+                <span className="kicker">{SECTIONS.regions.title}</span>
+                <span className="rule" />
+                <span className="mono">{asideOf("regions")}</span>
+              </div>
+              {regionList.map((theme) => (
+                <Link key={theme.id} className="t-circle" to={`/theme/${theme.id}`}>
+                  <b>{theme.label}</b>
+                  <span className="mono">{theme.member_count} things</span>
+                  <span className="mono go">the region →</span>
+                </Link>
+              ))}
             </>
           )}
         </>
