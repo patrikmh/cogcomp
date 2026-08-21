@@ -358,6 +358,8 @@
   .talk-stage{position:relative;flex:1;min-height:calc(100vh - 140px);display:flex;flex-direction:column;align-items:center;justify-content:center}
   #avatar{width:min(58vh,520px);height:min(58vh,520px)}
   .talk-caption{margin-top:18px;max-width:52ch;text-align:center;color:var(--muted);font-size:14px;letter-spacing:.04em;min-height:1.6em;transition:opacity .6s}
+  .talk-left{margin:10px auto 0;max-width:52ch;display:flex;flex-direction:column;align-items:center;gap:8px}
+  .talk-left .j-meta{justify-content:center}
   .talk-caption.you{color:var(--ink)}
   /* The avatar as a control: a button that is only its own contents, so the
      shape is what you press and nothing is drawn around it. */
@@ -509,6 +511,7 @@ body.guide-open #guide-backdrop{opacity:1;visibility:visible;pointer-events:auto
   .headspace .tabs{gap:12px;margin-bottom:8px;max-width:100%}
   .headspace .tabs button{padding:8px 0 7px}
   #lensAction{margin-top:0}
+  .headspace .moved{max-height:22vh;overflow:auto}
 
   /* ---------- phone adjustments ---------- */
   h1{font-size:22px;line-height:26px}

@@ -30,6 +30,12 @@ export const SECTIONS = {
    *  diagnosed, and kept apart from people, places, and activities so that
    *  world can be walked on its own. */
   inside: { title: "Felt and thought", aside: "named, not a verdict" },
+  /** Inner readings that returned in this window. A count, never a diagnosis. */
+  cameBack: { title: "Came back", aside: "more than once, not a diagnosis" },
+  /** A search term the record also used as a name for something felt. */
+  named: { title: "Also named", aside: "the record's word, not yours" },
+  /** People, places, and acts — the outer room of a composition or a region. */
+  around: { title: "People, places, acts", aside: "what the days did" },
   /** What it is not sure of. Its own section, never mixed in and greyed. */
   lessSure: { title: "Less sure", aside: "unobserved, they grow vague" },
   /** The recurrence a day belongs to. */
@@ -53,6 +59,30 @@ export const SECTIONS = {
   evidence: { title: "The acts behind it" },
   /** On a reading: the recurrences it supports. Membership, not origin. */
   among: { title: "This reading is among", aside: "it supports these" },
+  /** On a reading: what keeps arriving in the same entries. Adjacency only. */
+  travels: { title: "Travels with", aside: "together, not because" },
+  /** On a reading: the regions that list it. Membership, not a heading. */
+  inRegion: { title: "This reading is in", aside: "a region, not a pair" },
+  /** On a weekday finding: the week as a shape, not a reason. */
+  calendar: { title: "The calendar", aside: "shape, not a reason" },
+  /** On a stated-vs-recorded finding: the two sides that stayed apart. */
+  apart: { title: "What stayed apart", aside: "a gap, not a verdict" },
+  /** On a feeling: who or what it is aimed at. */
+  toward: { title: "Felt toward", aside: "a direction, not a reason" },
+  /** On a person, place, or act: feelings aimed at it. */
+  towardThis: { title: "Felt toward this", aside: "a direction, not a reason" },
+  /** On a thought or feeling: the person, place, or act it names. */
+  about: { title: "About", aside: "subject, not a verdict" },
+  /** On that subject: the thoughts and feelings that name it. */
+  aboutThis: { title: "About this", aside: "subject, not a verdict" },
+  /** On a thought or feeling: a need or value it may be naming. */
+  hints: { title: "Hints at", aside: "a hint, not a cause" },
+  /** On that need or value: the thoughts and feelings that name it. */
+  hinted: { title: "Hinted at by", aside: "a hint, not a cause" },
+  /** On a thought: a belief or pattern it sits against. */
+  against: { title: "Sits against", aside: "tension, not a verdict" },
+  /** On that belief or pattern: the thoughts that sit against it. */
+  againstThis: { title: "Sat against by", aside: "tension, not a verdict" },
   /** Experiments. */
   arcs: { title: "Your arcs", aside: "active first" },
   reason: { title: "Why you started it" },

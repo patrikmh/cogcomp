@@ -3,8 +3,10 @@ import { Link, useParams } from "react-router-dom";
 
 import { Failed, Loading } from "@/components/States";
 import { api } from "@/lib/api";
+import { themeMembersOf } from "@/lib/drawn-from";
 import { dateOf, fmt } from "@/lib/format";
 import { Guide } from "@/components/Guide";
+import { SECTIONS } from "@tlon/copy/sections";
 
 /**
  * A region of a life, opened.
@@ -52,6 +54,7 @@ export function Theme() {
 
   const region = theme.data;
   const status = region.epistemic_status;
+  const { inside, around } = themeMembersOf(region.members);
 
   return (
     <>
@@ -65,22 +68,33 @@ export function Theme() {
         diagnosis, and it has no name until you give it one.
       </p>
 
-      <h2>Members, in your words</h2>
-      <div className="cards">
-        {region.members.map((member) => (
-          <Link className={`card${member.confidence < 0.5 ? " hollow" : ""}`} key={member.id} to={`/node/${member.id}`}>
-            <b>{member.label}</b>
-            <p className="quote" style={{ margin: "10px 0 0" }}>
-              {quoteFor.get(member.id) ??
-                `${member.kind.toLowerCase()} · ${fmt(member.confidence)}`}
-            </p>
-            <span className="mono" style={{ display: "block", marginTop: 8 }}>
-              {member.kind.toLowerCase()} · {fmt(member.confidence)}
-              {member.epistemic_status === "user_rejected" ? " · you rejected this" : ""}
-            </span>
-          </Link>
-        ))}
-      </div>
+      {inside.length > 0 && (
+        <>
+          <h2>{SECTIONS.inside.title}</h2>
+          <p className="mono" style={{ marginTop: -8 }}>
+            {SECTIONS.inside.aside} · in your words
+          </p>
+          <div className="cards">
+            {inside.map((member) => (
+              <MemberCard key={member.id} member={member} quote={quoteFor.get(member.id)} />
+            ))}
+          </div>
+        </>
+      )}
+
+      {around.length > 0 && (
+        <>
+          <h2>{SECTIONS.kept.title}</h2>
+          <p className="mono" style={{ marginTop: -8 }}>
+            people, places, acts · in your words
+          </p>
+          <div className="cards">
+            {around.map((member) => (
+              <MemberCard key={member.id} member={member} quote={quoteFor.get(member.id)} />
+            ))}
+          </div>
+        </>
+      )}
 
       <h2>How the region formed</h2>
       <div className="card">
@@ -117,5 +131,26 @@ export function Theme() {
         and no claim about which of them came first.
       </p>
     </>
+  );
+}
+
+function MemberCard({
+  member,
+  quote,
+}: {
+  member: { id: string; kind: string; label: string; confidence: number; epistemic_status: string };
+  quote?: string;
+}) {
+  return (
+    <Link className={`card${member.confidence < 0.5 ? " hollow" : ""}`} to={`/node/${member.id}`}>
+      <b>{member.label}</b>
+      <p className="quote" style={{ margin: "10px 0 0" }}>
+        {quote ?? `${member.kind.toLowerCase()} · ${fmt(member.confidence)}`}
+      </p>
+      <span className="mono" style={{ display: "block", marginTop: 8 }}>
+        {member.kind.toLowerCase()} · {fmt(member.confidence)}
+        {member.epistemic_status === "user_rejected" ? " · you rejected this" : ""}
+      </span>
+    </Link>
   );
 }

@@ -52,6 +52,14 @@ describe("ringsFor", () => {
     expect(rings.map((r) => r.id)).toEqual(["high", "low", "a", "b"]);
   });
 
+  it("puts a faint kept feeling ahead of sure kept activities", () => {
+    const stairs = Array.from({ length: 7 }, (_, i) => kept(`stairs-${i}`, 0.95));
+    const rings = ringsFor([kept("rest", 0.4, { kind: "Need" }), ...stairs], [], []);
+
+    expect(rings.map((r) => r.id).slice(0, 7)).toContain("rest");
+    expect(rings[0]?.id).toBe("rest");
+  });
+
   it("draws no more than seven, plus one tombstone", () => {
     const many = Array.from({ length: 20 }, (_, i) => offered(`o-${i}`, 0.5));
     const rings = ringsFor([], many, [node({ id: "gone", status: "removed" })]);

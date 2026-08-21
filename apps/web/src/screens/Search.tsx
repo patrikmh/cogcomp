@@ -3,7 +3,7 @@ import { useState, type ReactElement } from "react";
 import { Link } from "react-router-dom";
 
 import { api } from "@/lib/api";
-import { useDrawnFrom } from "@/lib/drawn-from";
+import { namedInnerOf, useDrawnFrom } from "@/lib/drawn-from";
 import { usePreferences } from "@/state/preferences";
 import { dayLabelOf } from "@/lib/format";
 import { Seal } from "@/lib/seal";
@@ -11,6 +11,7 @@ import { useSession } from "@/state/session";
 import { Guide } from "@/components/Guide";
 import { Failed } from "@/components/States";
 import { HEADINGS } from "@tlon/copy/headings";
+import { SECTIONS, asideOf } from "@tlon/copy/sections";
 
 /**
  * Find an entry.
@@ -29,12 +30,18 @@ export function Search() {
   });
   const findingsVisible = usePreferences((s) => s.findings);
   const drawnFrom = useDrawnFrom(4, findingsVisible);
+  const graph = useQuery({
+    queryKey: ["graph", "search", userId],
+    queryFn: () => api.graph(200),
+    enabled: findingsVisible,
+  });
 
   if (entries.isError) return <Failed onRetry={() => void entries.refetch()} />;
 
   const all = entries.data?.observations ?? [];
   const needle = term.trim().toLowerCase();
   const hits = needle ? all.filter((e) => e.content.toLowerCase().includes(needle)) : [];
+  const named = findingsVisible ? namedInnerOf(needle, graph.data?.nodes ?? []) : [];
 
   return (
     <div className="scr">
@@ -75,6 +82,24 @@ export function Search() {
                 ? `${hits.length} of ${all.length} ${hits.length === 1 ? "act contains" : "acts contain"} “${term.trim()}”.`
                 : `No act contains “${term.trim()}”. Nothing was ranked or guessed.`}
         </div>
+
+        {named.length > 0 && (
+          <>
+            <div className="t-sec">
+              <span className="kicker">{SECTIONS.named.title}</span>
+              <span className="rule" />
+              <span className="mono">{asideOf("named")}</span>
+            </div>
+            {named.map((reading) => (
+              <Link key={reading.id} className="t-read" to={`/node/${reading.id}`}>
+                <span className="t-main">
+                  <b>{reading.label}</b>
+                  <span className="mono">{reading.kind.toLowerCase()}</span>
+                </span>
+              </Link>
+            ))}
+          </>
+        )}
 
         <div className="f-res">
           {hits.map((hit) => (

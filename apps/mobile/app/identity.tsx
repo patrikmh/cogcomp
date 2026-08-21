@@ -21,6 +21,7 @@ import { Kicker } from "@/components/Marks";
 import { Seal } from "@/components/Seal";
 import { HEADINGS } from "@tlon/copy/headings";
 import { EMPTY as EMPTY_COPY } from "@tlon/copy/empty";
+import { innerFirst } from "@/lib/drawnFrom";
 
 /**
  * Identity, as something you assemble rather than something you are told.
@@ -230,17 +231,15 @@ function ringsForComposition(
   offered: IdentityNode[],
   keptIds: Set<unknown>,
 ): IdentityNode[] {
-  const surestFirst = (a: IdentityNode, b: IdentityNode) =>
-    (b.confidence ?? 0) - (a.confidence ?? 0);
   // The projection's own status, as the web reads it: a reading you took
   // back is "removed" there, which is not the same field as the epistemic
   // status the extractor set.
   const removed = (n: IdentityNode) => n.status === "removed";
-  const mine = kept.filter((n) => keptIds.has(n.id)).sort(surestFirst);
-  const theirs = offered.filter((n) => !keptIds.has(n.id) && !removed(n)).sort(surestFirst);
+  const mine = kept.filter((n) => keptIds.has(n.id)).sort(innerFirst);
+  const theirs = offered.filter((n) => !keptIds.has(n.id) && !removed(n)).sort(innerFirst);
   // The tombstones go last and outside the budget of seven: they are the
   // record of something taken back, and dropping them to make room for a
   // live reading would lose exactly what the summary says is never lost.
-  const tombs = [...kept, ...offered].filter(removed).sort(surestFirst).slice(0, 2);
+  const tombs = [...kept, ...offered].filter(removed).sort(innerFirst).slice(0, 2);
   return [...[...mine, ...theirs].slice(0, 7), ...tombs];
 }

@@ -3,14 +3,16 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { readingBudget } from "@tlon/design/marks";
+import { changesOf, innerFirst, namedReadingOf } from "@/lib/drawn-from";
 
 import { mountHeadspace, type Stage, type Whorl } from "@tlon/headspace";
-import { api } from "@/lib/api";
+import { api, type GraphNode, type TemporalChanges } from "@/lib/api";
 import { DETECTOR_LABEL, deviceTimezone, fmt, localDay } from "@/lib/format";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
 import { Guide } from "@/components/Guide";
 import { HEADINGS } from "@tlon/copy/headings";
+import { SECTIONS, asideOf, type SectionName } from "@tlon/copy/sections";
 
 /**
  * Headspace — a contour map of the record.
@@ -250,9 +252,10 @@ export function Headspace() {
           </Link>
         )}
         {active === "changed" && (
-          <p className="mono" style={{ margin: 0 }}>
-            {counts.changed === 0 ? "Nothing to open yet." : "Counts only — what it means is yours."}
-          </p>
+          <ChangedRooms
+            changes={showFindings ? changes.data?.changes ?? [] : []}
+            nodes={showFindings ? graph.data?.nodes ?? [] : []}
+          />
         )}
         {active === "today" && counts.today === 0 && (
           <Link className="btn ghost" to="/journal">
@@ -286,6 +289,64 @@ const VISIBLE: Record<Lens, Whorl["group"][]> = {
   changed: ["you"],
 };
 
+type Moved = TemporalChanges["changes"][number];
+
+function ChangedRooms({ changes, nodes }: { changes: Moved[]; nodes: GraphNode[] }) {
+  const rooms = changesOf(changes);
+  if (rooms.inside.length === 0 && rooms.around.length === 0) {
+    return (
+      <p className="mono" style={{ margin: 0 }}>
+        Nothing to open yet.
+      </p>
+    );
+  }
+  return (
+    <div className="moved">
+      <ChangedRoom name="inside" items={rooms.inside} nodes={nodes} />
+      <ChangedRoom name="around" items={rooms.around} nodes={nodes} />
+    </div>
+  );
+}
+
+function ChangedRoom({
+  name,
+  items,
+  nodes,
+}: {
+  name: Extract<SectionName, "inside" | "around">;
+  items: Moved[];
+  nodes: GraphNode[];
+}) {
+  if (items.length === 0) return null;
+  return (
+    <>
+      <div className="t-sec">
+        <span className="kicker">{SECTIONS[name].title}</span>
+        <span className="rule" />
+        <span className="mono">{asideOf(name)}</span>
+      </div>
+      {items.map((change) => {
+        const door = namedReadingOf(change.kind, change.label, nodes);
+        const line = (
+          <span className="ln">
+            <b>{change.label}</b>
+            <span className="k">{change.shift}</span>
+          </span>
+        );
+        return door ? (
+          <Link key={`${change.kind}:${change.label}:${change.shift}`} className="p-comp" to={`/node/${door.id}`}>
+            {line}
+          </Link>
+        ) : (
+          <p key={`${change.kind}:${change.label}:${change.shift}`} className="p-comp">
+            {line}
+          </p>
+        );
+      })}
+    </>
+  );
+}
+
 function noteFor(lens: Lens, counts: Record<Lens, number>, tz: string, thin: boolean) {
   if (lens === "today") {
     return counts.today === 0
@@ -313,11 +374,9 @@ function noteFor(lens: Lens, counts: Record<Lens, number>, tz: string, thin: boo
  * becoming a fog. Shared with the rail so the count beside "Headspace" is the
  * number of things actually on it.
  */
-export function readingsOn<T extends { id: string; kind: string }>(
-  nodes: T[],
-  todayIds: Set<string>,
-  patternCount = 0,
-) {
+export function readingsOn<
+  T extends { id: string; kind: string; confidence?: number | null },
+>(nodes: T[], todayIds: Set<string>, patternCount = 0) {
   const eligible = nodes.filter(
     (n) => n.kind !== "Observation" && n.kind !== "Pattern" && !todayIds.has(n.id),
   );
@@ -326,8 +385,10 @@ export function readingsOn<T extends { id: string; kind: string }>(
   // the others: at twenty-six readings the patterns stop reading as massifs and
   // the survey labels stop being legible, which is the map losing the two things
   // it exists to show. Patterns are never dropped — they are the point — so the
-  // readings give way to them.
-  return eligible.slice(0, readingBudget(patternCount));
+  // readings give way to them. Felt and thought take the remaining seats first:
+  // extraction fills the graph with coffee, and a survey of the record that
+  // drew only that would hide the inner world the map exists to walk.
+  return [...eligible].sort(innerFirst).slice(0, readingBudget(patternCount));
 }
 
 /** How many whorls the map holds: you, the patterns, today, and the readings. */

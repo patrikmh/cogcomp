@@ -5,10 +5,12 @@ import { Link } from "react-router-dom";
 import { IdentityComposition, type Ring } from "@/components/IdentityComposition";
 import { Failed, Loading } from "@/components/States";
 import { api, type IdentityNode } from "@/lib/api";
+import { innerFirst, innerReadingsOf, outerReadingsOf } from "@/lib/drawn-from";
 import { fmt } from "@/lib/format";
 import { useSession } from "@/state/session";
 import { Guide } from "@/components/Guide";
 import { HEADINGS } from "@tlon/copy/headings";
+import { SECTIONS, asideOf } from "@tlon/copy/sections";
 
 /**
  * Identity, as a composition.
@@ -24,8 +26,9 @@ import { HEADINGS } from "@tlon/copy/headings";
  */
 /** The rings the composition draws, in the order it draws them.
  *
- *  Kept readings come first, then offered ones, each surest-first inside its own
- *  group. Sorting the two together by confidence alone put the picture badly at
+ *  Kept readings come first, then offered ones; felt and thought before people,
+ *  places, and acts; surest-first inside each room. Sorting the two together by
+ *  confidence alone put the picture badly at
  *  odds with the heading above it: on a real account, thirty-nine offered
  *  readings outranked the one thing the person had actually kept, so a screen
  *  titled "Drawn from everything you kept" drew none of it, and filled all seven
@@ -38,11 +41,8 @@ export function ringsFor(
   candidates: IdentityNode[],
   removed: IdentityNode[],
 ): Ring[] {
-  const surestFirst = (a: IdentityNode, b: IdentityNode) =>
-    (b.confidence ?? 0) - (a.confidence ?? 0);
-
   return [
-    ...[...selected].sort(surestFirst).concat([...candidates].sort(surestFirst))
+    ...[...selected].sort(innerFirst).concat([...candidates].sort(innerFirst))
       // The composition is a picture of the record, not its inventory — the
       // lists below hold every reading. Beyond seven or so rings the loops stop
       // reading as nested contours and become a scribble, which says less than
@@ -144,36 +144,78 @@ export function Identity() {
         <Count n={removed.length} label="REMOVED" tent />
       </div>
 
-      {candidates.length > 0 && (
-        <>
-          <div className="t-sec">
-            <span className="kicker">Offered, not claimed</span>
-            <span className="rule" />
-            <span className="mono">keeping one is yours to do</span>
-          </div>
-          {candidates.map((node) => (
-            <Row key={node.id} node={node} action="KEEP" onAction={() => keep.mutate(node.id)} />
-          ))}
-        </>
-      )}
-
-      {selected.length > 0 && (
-        <>
-          <div className="t-sec">
-            <span className="kicker">Kept</span>
-            <span className="rule" />
-            <span className="mono">protected from consolidation</span>
-          </div>
-          {selected.map((node) => (
-            <Row key={node.id} node={node} action="REMOVE" onAction={() => unkeep.mutate(node.id)} />
-          ))}
-        </>
-      )}
+      <Room
+        title="Offered, not claimed"
+        aside="keeping one is yours to do"
+        inside={innerReadingsOf(candidates)}
+        around={outerReadingsOf(candidates)}
+        action="KEEP"
+        onAction={(id) => keep.mutate(id)}
+      />
+      <Room
+        title="Kept"
+        aside="protected from consolidation"
+        inside={innerReadingsOf(selected)}
+        around={outerReadingsOf(selected)}
+        action="REMOVE"
+        onAction={(id) => unkeep.mutate(id)}
+      />
 
       <p className="mono" style={{ margin: "22px auto 0", maxWidth: "60ch", textAlign: "center" }}>
         Kept readings are protected from consolidation — they will not be absorbed into another
         node. Removed ones stay as a tombstone, so the record that they were removed is never lost.
       </p>
+    </>
+  );
+}
+
+function Room({
+  title,
+  aside,
+  inside,
+  around,
+  action,
+  onAction,
+}: {
+  title: string;
+  aside: string;
+  inside: IdentityNode[];
+  around: IdentityNode[];
+  action: string;
+  onAction: (id: string) => void;
+}) {
+  if (inside.length === 0 && around.length === 0) return null;
+  return (
+    <>
+      <div className="t-sec">
+        <span className="kicker">{title}</span>
+        <span className="rule" />
+        <span className="mono">{aside}</span>
+      </div>
+      {inside.length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.inside.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("inside")}</span>
+          </div>
+          {[...inside].sort(innerFirst).map((node) => (
+            <Row key={node.id} node={node} action={action} onAction={() => onAction(node.id)} />
+          ))}
+        </>
+      )}
+      {around.length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.around.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("around")}</span>
+          </div>
+          {[...around].sort(innerFirst).map((node) => (
+            <Row key={node.id} node={node} action={action} onAction={() => onAction(node.id)} />
+          ))}
+        </>
+      )}
     </>
   );
 }

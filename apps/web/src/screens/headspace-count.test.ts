@@ -43,6 +43,13 @@ describe("readingsOn", () => {
     const nodes = Array.from({ length: 60 }, (_, i) => node(`n${i}`, "Value"));
     expect(readingsOn(nodes, new Set(), 40)).toHaveLength(6);
   });
+
+  it("keeps a feeling when the graph is full of acts", () => {
+    const stairs = Array.from({ length: 20 }, (_, i) => node(`stairs-${i}`, "Activity"));
+    expect(readingsOn([...stairs, node("rest", "Need")], new Set()).map((n) => n.id)).toContain(
+      "rest",
+    );
+  });
 });
 
 describe("headspaceCount", () => {

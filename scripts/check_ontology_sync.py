@@ -189,6 +189,7 @@ def main() -> int:
         "recurrenceDays": (ROOT / "apps/backend/tlon/patterns.py", r"MIN_DISTINCT_DAYS = (\d+)"),
         "calendarWeeks": (ROOT / "apps/backend/tlon/periodicity.py", r"MIN_DISTINCT_WEEKS = (\d+)"),
         "orderingWeeks": (ROOT / "apps/backend/tlon/lag.py", r"MIN_MATCH_WEEKS = (\d+)"),
+        "sameDayWeeks": (ROOT / "apps/backend/tlon/sameday.py", r"MIN_MATCH_WEEKS = (\d+)"),
         "tensionDays": (ROOT / "apps/backend/tlon/tension.py", r"MIN_OBSERVED_DAYS = (\d+)"),
     }
     for key, (path, pattern) in sources.items():

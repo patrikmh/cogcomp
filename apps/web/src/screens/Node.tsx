@@ -4,7 +4,7 @@ import { Link, useParams } from "react-router-dom";
 import { Meter } from "@/components/Meter";
 import { Failed, Loading } from "@/components/States";
 import { api } from "@/lib/api";
-import { amongReadingsOf } from "@/lib/drawn-from";
+import { aboutOf, amongReadingsOf, contradictsOf, feltTowardOf, indicatesOf, regionsOfReading, travelsWithOf } from "@/lib/drawn-from";
 import { usePreferences } from "@/state/preferences";
 import { fmt, stampOf } from "@/lib/format";
 import { Guide } from "@/components/Guide";
@@ -43,6 +43,11 @@ export function Node() {
     queryKey: ["neighbours", id],
     queryFn: () => api.neighbours(id),
     enabled: showFindings && Boolean(id),
+  });
+  const themes = useQuery({
+    queryKey: ["themes"],
+    queryFn: api.themes,
+    enabled: showFindings,
   });
 
   const judge = useMutation({
@@ -111,6 +116,16 @@ export function Node() {
   const status = node.epistemic_status ?? "hypothesis";
   const tentative = confidence < 0.5;
   const among = amongReadingsOf(neighbours.data?.neighbours ?? [], patterns.data ?? []);
+  const company = travelsWithOf(
+    id,
+    neighbours.data?.neighbours ?? [],
+    neighbours.data?.edges ?? [],
+  );
+  const regions = regionsOfReading(node.label, themes.data ?? []);
+  const aimed = feltTowardOf(id, neighbours.data?.neighbours ?? [], neighbours.data?.edges ?? []);
+  const spoken = aboutOf(id, neighbours.data?.neighbours ?? [], neighbours.data?.edges ?? []);
+  const hinted = indicatesOf(id, neighbours.data?.neighbours ?? [], neighbours.data?.edges ?? []);
+  const tension = contradictsOf(id, neighbours.data?.neighbours ?? [], neighbours.data?.edges ?? []);
 
   return (
     <>
@@ -179,6 +194,138 @@ export function Node() {
         ))}
       </div>
 
+      {aimed.toward.length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.toward.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("toward")}</span>
+          </div>
+          {aimed.toward.map((reading) => (
+            <Link key={reading.id} className="t-circle" to={`/node/${reading.id}`}>
+              <b>{reading.label}</b>
+              <span className="mono">{reading.kind.toLowerCase()}</span>
+            </Link>
+          ))}
+        </>
+      )}
+
+      {aimed.from.length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.towardThis.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("towardThis")}</span>
+          </div>
+          {aimed.from.map((reading) => (
+            <Link key={reading.id} className="t-circle" to={`/node/${reading.id}`}>
+              <b>{reading.label}</b>
+              <span className="mono">{reading.kind.toLowerCase()}</span>
+            </Link>
+          ))}
+        </>
+      )}
+
+      {spoken.about.length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.about.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("about")}</span>
+          </div>
+          {spoken.about.map((reading) => (
+            <Link key={reading.id} className="t-circle" to={`/node/${reading.id}`}>
+              <b>{reading.label}</b>
+              <span className="mono">{reading.kind.toLowerCase()}</span>
+            </Link>
+          ))}
+        </>
+      )}
+
+      {spoken.aboutThis.length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.aboutThis.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("aboutThis")}</span>
+          </div>
+          {spoken.aboutThis.map((reading) => (
+            <Link key={reading.id} className="t-circle" to={`/node/${reading.id}`}>
+              <b>{reading.label}</b>
+              <span className="mono">{reading.kind.toLowerCase()}</span>
+            </Link>
+          ))}
+        </>
+      )}
+
+      {hinted.hints.length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.hints.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("hints")}</span>
+          </div>
+          {hinted.hints.map((reading) => (
+            <Link key={reading.id} className="t-circle" to={`/node/${reading.id}`}>
+              <b>{reading.label}</b>
+              <span className="mono">{reading.kind.toLowerCase()}</span>
+            </Link>
+          ))}
+        </>
+      )}
+
+      {hinted.hinted.length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.hinted.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("hinted")}</span>
+          </div>
+          {hinted.hinted.map((reading) => (
+            <Link key={reading.id} className="t-circle" to={`/node/${reading.id}`}>
+              <b>{reading.label}</b>
+              <span className="mono">{reading.kind.toLowerCase()}</span>
+            </Link>
+          ))}
+        </>
+      )}
+
+      {tension.against.length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.against.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("against")}</span>
+          </div>
+          {tension.against.map((reading) => (
+            <Link
+              key={reading.id}
+              className="t-circle"
+              to={reading.kind === "Pattern" ? `/pattern/${reading.id}` : `/node/${reading.id}`}
+            >
+              <b>{reading.label}</b>
+              <span className="mono">{reading.kind.toLowerCase()}</span>
+            </Link>
+          ))}
+        </>
+      )}
+
+      {tension.againstThis.length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.againstThis.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("againstThis")}</span>
+          </div>
+          {tension.againstThis.map((reading) => (
+            <Link key={reading.id} className="t-circle" to={`/node/${reading.id}`}>
+              <b>{reading.label}</b>
+              <span className="mono">{reading.kind.toLowerCase()}</span>
+            </Link>
+          ))}
+        </>
+      )}
+
       {among.length > 0 && (
         <>
           <div className="t-sec">
@@ -190,6 +337,40 @@ export function Node() {
             <Link key={pattern.id} className="t-circle" to={`/pattern/${pattern.id}`}>
               <b>{pattern.label.split(" · ")[0]}</b>
               <span className="mono go">the pattern →</span>
+            </Link>
+          ))}
+        </>
+      )}
+
+      {company.length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.travels.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("travels")}</span>
+          </div>
+          {company.map((reading) => (
+            <Link key={reading.id} className="t-circle" to={`/node/${reading.id}`}>
+              <b>{reading.label}</b>
+              <span className="mono">{reading.kind.toLowerCase()}</span>
+              <span className="mono go">the reading →</span>
+            </Link>
+          ))}
+        </>
+      )}
+
+      {regions.length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.inRegion.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("inRegion")}</span>
+          </div>
+          {regions.map((theme) => (
+            <Link key={theme.id} className="t-circle" to={`/theme/${theme.id}`}>
+              <b>{theme.label}</b>
+              <span className="mono">{theme.member_count} things</span>
+              <span className="mono go">the region →</span>
             </Link>
           ))}
         </>

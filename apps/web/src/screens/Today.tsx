@@ -4,7 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { Meter } from "@/components/Meter";
 import { Failed, Loading } from "@/components/States";
 import { api, type Inference } from "@/lib/api";
-import { circlingOf, circlingThemesOf, innerReadingsOf, outerReadingsOf, useDrawnFrom } from "@/lib/drawn-from";
+import { circlingOf, circlingThemesOf, innerReadingsOf, outerReadingsOf, returningInnerOf, useDrawnFrom } from "@/lib/drawn-from";
 import { clockOf, dayFromRoute, deviceTimezone, fmt, localDay, shiftDay } from "@/lib/format";
 import { Seal } from "@/lib/seal";
 import { Guide } from "@/components/Guide";
@@ -62,6 +62,7 @@ export function Today() {
   const readings = inferred.filter((item) => item.kind !== "Pattern" && item.kind !== "Theme");
   const bySurety = (a: Inference, b: Inference) => b.confidence - a.confidence;
   const inside = innerReadingsOf(readings).filter((i) => !i.tentative).sort(bySurety);
+  const cameBack = returningInnerOf(readings);
   const kept = outerReadingsOf(readings).filter((i) => !i.tentative).sort(bySurety);
   const faint = readings.filter((i) => i.tentative).sort(bySurety);
   const circlingList = showFindings ? circlingOf(inferred, patterns.data ?? []) : [];
@@ -181,6 +182,19 @@ export function Today() {
                 <span className="mono">{asideOf("inside")}</span>
               </div>
               {inside.map((r) => (
+                <Reading key={r.id} reading={r} />
+              ))}
+            </>
+          )}
+
+          {cameBack.length > 0 && (
+            <>
+              <div className="t-sec">
+                <span className="kicker">{SECTIONS.cameBack.title}</span>
+                <span className="rule" />
+                <span className="mono">{asideOf("cameBack")}</span>
+              </div>
+              {cameBack.map((r) => (
                 <Reading key={r.id} reading={r} />
               ))}
             </>

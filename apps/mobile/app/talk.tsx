@@ -24,7 +24,10 @@ import { MotionSurface } from "@/components/MotionSurface";
 import { useReducedMotion } from "@/lib/motion";
 import { Haptics, selectHaptic, tapHaptic } from "@/lib/haptics";
 import { RecordButton, type RecordState } from "@/components/RecordButton";
-import { api, type Conversation } from "@/lib/api";
+import { Chip, Kicker } from "@/components/Marks";
+import { api, type Conversation, type Pattern, type Theme } from "@/lib/api";
+import { gatheredOf, useAmong, useAmongThemes, useDrawnFrom } from "@/lib/drawnFrom";
+import { patternDestination } from "@/lib/patterns";
 import type { BlobState } from "@/lib/blobShape";
 import { lazySkia } from "@/lib/lazySkia";
 import { useContinuousVoice } from "@/lib/useContinuousVoice";
@@ -93,6 +96,7 @@ export default function TalkScreen() {
   const [streamed, setStreamed] = useState("");
   const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
   const [closeReceipt, setCloseReceipt] = useState<number | null>(null);
+  const [closeObservations, setCloseObservations] = useState<string[]>([]);
   const stoppedGeneration = useRef(0);
   const requestGeneration = useRef(0);
   const requestIdentities = useRef(new Map<string, { generation: number; userId: string; token: string; conversationId: string }>());
@@ -115,6 +119,25 @@ export default function TalkScreen() {
   // unconfigured, or fails, the reply is still on screen to read.
   const voiceOn = usePreferences((s) => s.voice);
   const findingsVisible = usePreferences((s) => s.ready && s.findings);
+  const receiptOpen = findingsVisible && closeObservations.length > 0;
+  const drawnFrom = useDrawnFrom(token, userId, 4, receiptOpen);
+  const patterns = useQuery({
+    queryKey: ["patterns", userId],
+    queryFn: () => api.listPatterns(token!),
+    enabled: Boolean(token && userId) && receiptOpen,
+  });
+  const themes = useQuery({
+    queryKey: ["themes", userId],
+    queryFn: () => api.listThemes(token!),
+    enabled: Boolean(token && userId) && receiptOpen,
+  });
+  const foundPatterns: Pattern[] = patterns.data ?? [];
+  const foundThemes: Theme[] = themes.data ?? [];
+  const among = useAmong(token, userId, foundPatterns, 4, receiptOpen);
+  const amongThemes = useAmongThemes(token, userId, foundThemes, 4, receiptOpen);
+  const drawn = gatheredOf(closeObservations, drawnFrom).slice(0, 5);
+  const amongPatterns = gatheredOf(closeObservations, among).slice(0, 5);
+  const amongRegions = gatheredOf(closeObservations, amongThemes).slice(0, 5);
   const setVoice = usePreferences((s) => s.setVoice);
   const voice = useSpokenReply(token, voiceOn);
 
@@ -141,6 +164,8 @@ export default function TalkScreen() {
     voiceTurnIds.current.clear();
     queryClient.removeQueries({ queryKey: ["conversation"] });
     setConversationId(null);
+    setCloseReceipt(null);
+    setCloseObservations([]);
     setStreamed("");
     setVoiceTranscript(null);
     setCrisis(null);
@@ -448,6 +473,7 @@ export default function TalkScreen() {
       void queryClient.invalidateQueries({ queryKey: ["observations"] });
       void queryClient.invalidateQueries({ queryKey: ["summary"] });
       setCloseReceipt(receipt.turns_converted);
+      setCloseObservations(findingsVisible ? receipt.observations : []);
     },
     onError: () => {
       // Keep the conversation visible so a failed close can be retried and is
@@ -681,6 +707,54 @@ export default function TalkScreen() {
           <View style={styles.receipt} accessibilityRole="alert">
             <Text style={styles.receiptTitle}>Conversation closed</Text>
             <Text style={styles.receiptBody}>{closeReceipt} {closeReceipt === 1 ? "turn" : "turns"} converted to Journal entries.</Text>
+            {drawn.length > 0 && (
+              <View style={styles.receiptRow}>
+                <Kicker>Drawn from this</Kicker>
+                <View style={styles.receiptChips}>
+                  {drawn.map((reading) => (
+                    <Chip
+                      key={reading.id}
+                      label={reading.label}
+                      confidence={reading.confidence}
+                      tentative={reading.tentative}
+                      onPress={() => router.push(`/node/${reading.id}`)}
+                    />
+                  ))}
+                </View>
+              </View>
+            )}
+            {amongPatterns.length > 0 && (
+              <View style={styles.receiptRow}>
+                <Kicker>This conversation is among</Kicker>
+                <View style={styles.receiptChips}>
+                  {amongPatterns.map((pattern) => (
+                    <Chip
+                      key={pattern.id}
+                      label={pattern.label.split(" · ")[0] ?? pattern.label}
+                      confidence={pattern.confidence}
+                      tentative={pattern.tentative}
+                      onPress={() => router.push(patternDestination(pattern).href)}
+                    />
+                  ))}
+                </View>
+              </View>
+            )}
+            {amongRegions.length > 0 && (
+              <View style={styles.receiptRow}>
+                <Kicker>This conversation is in</Kicker>
+                <View style={styles.receiptChips}>
+                  {amongRegions.map((theme) => (
+                    <Chip
+                      key={theme.id}
+                      label={theme.label}
+                      confidence={theme.confidence}
+                      tentative={theme.tentative}
+                      onPress={() => router.push(`/theme/${theme.id}`)}
+                    />
+                  ))}
+                </View>
+              </View>
+            )}
             <MotionSurface onPress={() => router.replace("/")} accessibilityRole="button" accessibilityLabel="Return to Journal" style={styles.returnAction}>
               <Text style={styles.returnLabel}>Return to Journal →</Text>
             </MotionSurface>
@@ -1024,6 +1098,8 @@ const styles = StyleSheet.create({
   receipt: { marginHorizontal: 16, borderWidth: 1, borderColor: colors.cyan, borderRadius: radii.surface, padding: 12, gap: 6, marginBottom: 8 },
   receiptTitle: { fontFamily: fonts.sans, fontWeight: "700", color: colors.ink },
   receiptBody: { fontFamily: fonts.sans, color: colors.ink, lineHeight: 21 },
+  receiptRow: { gap: 6, paddingTop: 4 },
+  receiptChips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   returnAction: { paddingVertical: 6 },
   returnLabel: { color: colors.cyan, fontFamily: fonts.sans, fontWeight: "700" },
 

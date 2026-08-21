@@ -15,9 +15,9 @@ import { MotionSurface } from "@/components/MotionSurface";
 import { Seal } from "@/components/Seal";
 import Svg, { Path } from "react-native-svg";
 import { RecordButton } from "@/components/RecordButton";
-import { ApiError, api, type ObservationResponse, type Pattern } from "@/lib/api";
+import { ApiError, api, type ObservationResponse, type Pattern, type Theme } from "@/lib/api";
 import { deviceTimezone } from "@/lib/dates";
-import { useAmong, useDrawnFrom } from "@/lib/drawnFrom";
+import { useAmong, useAmongThemes, useDrawnFrom } from "@/lib/drawnFrom";
 import { patternDestination } from "@/lib/patterns";
 import { uuidv7 } from "@/lib/ids";
 import { useSession } from "@/state/session";
@@ -91,6 +91,13 @@ export default function JournalScreen() {
   });
   const foundPatterns: Pattern[] = patterns.data ?? [];
   const among = useAmong(token, userId, foundPatterns, 4, findingsVisible);
+  const themes = useQuery({
+    queryKey: ["themes", userId],
+    queryFn: () => api.listThemes(token!),
+    enabled: Boolean(token && userId) && findingsVisible,
+  });
+  const foundThemes: Theme[] = themes.data ?? [];
+  const amongThemes = useAmongThemes(token, userId, foundThemes, 4, findingsVisible);
 
   const capture = useMutation({
     mutationFn: async ({ content, id }: { content: string; id: string }) => {
@@ -241,6 +248,22 @@ export default function JournalScreen() {
                                 confidence={pattern.confidence}
                                 tentative={pattern.tentative}
                                 onPress={() => router.push(patternDestination(pattern).href)}
+                              />
+                            ))}
+                          </View>
+                        </View>
+                      )}
+                      {findingsVisible && (amongThemes.get(entry.id)?.length ?? 0) > 0 && (
+                        <View style={styles.chipRow}>
+                          <Kicker>This act is in</Kicker>
+                          <View style={styles.chips}>
+                            {amongThemes.get(entry.id)!.slice(0, 3).map((theme) => (
+                              <Chip
+                                key={theme.id}
+                                label={theme.label}
+                                confidence={theme.confidence}
+                                tentative={theme.tentative}
+                                onPress={() => router.push(`/theme/${theme.id}`)}
                               />
                             ))}
                           </View>

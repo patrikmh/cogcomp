@@ -23,6 +23,7 @@ import {
   feltReadingOf,
   innerReadingsOf,
   outerReadingsOf,
+  returningInnerOf,
   VOCABULARY_LOOKBACK_WEEKS,
   vocabularyMarks,
 } from "@/lib/drawnFrom";
@@ -338,6 +339,11 @@ function Body({
             title={SECTIONS.inside.title}
             aside={asideOf("inside", true)}
             items={innerReadingsOf(inferred).filter((x) => !x.tentative)}
+          />
+          <Inferences
+            title={SECTIONS.cameBack.title}
+            aside={asideOf("cameBack", true)}
+            items={returningInnerOf(inferred)}
           />
           <Inferences
             title={SECTIONS.kept.title}

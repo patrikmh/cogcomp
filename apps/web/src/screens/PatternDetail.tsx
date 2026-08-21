@@ -3,10 +3,12 @@ import { Link, useParams } from "react-router-dom";
 
 import { Meter } from "@/components/Meter";
 import { Empty, Failed, Loading } from "@/components/States";
-import { api } from "@/lib/api";
+import { api, type GraphNode } from "@/lib/api";
+import { apartSidesOf, weekdayShapeOf } from "@/lib/drawn-from";
 import { DETECTOR_LABEL, fmt, stampOf } from "@/lib/format";
 import { Seal } from "@/lib/seal";
 import { Guide } from "@/components/Guide";
+import { SECTIONS, asideOf } from "@tlon/copy/sections";
 
 /**
  * What came first.
@@ -50,6 +52,15 @@ export function PatternDetail() {
   const gap = ordering.data
     ? `${ordering.data.lag_days} ${ordering.data.lag_days === 1 ? "day" : "days"}`
     : "";
+  const calendar =
+    pattern.detector === "weekday"
+      ? weekdayShapeOf((evidence.data?.derived_from ?? []).map((entry) => entry.captured_at))
+      : [];
+  const peaked = Math.max(0, ...calendar.map((day) => day.count));
+  const neighbours = composition.data?.neighbours ?? [];
+  const sides =
+    pattern.detector === "stated-vs-recorded" ? apartSidesOf(neighbours) : { named: [], done: [] };
+  const split = sides.named.length > 0 || sides.done.length > 0;
 
   return (
     <>
@@ -72,41 +83,50 @@ export function PatternDetail() {
         absolute scale
       </div>
 
-      {(composition.data?.neighbours ?? []).length > 0 && (
+      {peaked > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.calendar.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("calendar")}</span>
+          </div>
+          <div className="t-sum" style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            {calendar.map((day) => (
+              <span key={day.weekday} className="mono" style={{ opacity: day.count === peaked ? 1 : 0.55 }}>
+                {day.weekday} {day.count}
+              </span>
+            ))}
+          </div>
+        </>
+      )}
+
+      {split && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.apart.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("apart")}</span>
+          </div>
+          {sides.named.map((reading) => (
+            <Neighbour key={reading.id} reading={reading} role="named" />
+          ))}
+          {sides.done.map((reading) => (
+            <Neighbour key={reading.id} reading={reading} role="recorded" />
+          ))}
+        </>
+      )}
+
+      {!split && neighbours.length > 0 && (
         <>
           <div className="t-sec">
             <span className="kicker">What it is made of</span>
             <span className="rule" />
             <span className="mono">
-              {composition.data!.neighbours.length}{" "}
-              {composition.data!.neighbours.length === 1 ? "reading" : "readings"}
+              {neighbours.length} {neighbours.length === 1 ? "reading" : "readings"}
             </span>
           </div>
-          {composition.data!.neighbours.map((r) => (
-            <Link
-              key={r.id}
-              className={`t-read${r.tentative ? " ghost" : ""}`}
-              to={`/node/${r.id}`}
-            >
-              <span className="t-seal">
-                <Seal id={r.id} className="j-seal" />
-              </span>
-              <span className="t-main">
-                <b>{r.label}</b>
-                <span className="mono">
-                  {r.kind.toLowerCase()} · {r.tentative ? "less sure" : "kept"}
-                  {/* What it rests on, as the design has it — the parts of a
-                      finding are worth weighing against each other. */}
-                  {r.cites_entries
-                    ? ` · drawn from ${r.cites_entries} ${r.cites_entries === 1 ? "entry" : "entries"}`
-                    : ""}
-                </span>
-              </span>
-              <span className="t-side">
-                <Meter confidence={r.confidence ?? 0} />
-                <span className="mono">{fmt(r.confidence ?? 0)}</span>
-              </span>
-            </Link>
+          {neighbours.map((reading) => (
+            <Neighbour key={reading.id} reading={reading} />
           ))}
         </>
       )}
@@ -201,6 +221,41 @@ const INTRO: Record<string, (days: number, all: number) => string> = {
   "stated-vs-recorded": () =>
     "You named this on more days than the record saw it, and the two rarely met. It stays a gap, not a verdict.",
 };
+
+function Neighbour({
+  reading,
+  role,
+}: {
+  reading: GraphNode & { cites_entries?: number };
+  role?: "named" | "recorded";
+}) {
+  return (
+    <Link
+      className={`t-read${reading.tentative ? " ghost" : ""}`}
+      to={`/node/${reading.id}`}
+    >
+      <span className="t-seal">
+        <Seal id={reading.id} className="j-seal" />
+      </span>
+      <span className="t-main">
+        <b>{reading.label}</b>
+        <span className="mono">
+          {role ? `${role} · ` : ""}
+          {reading.kind.toLowerCase()} · {reading.tentative ? "less sure" : "kept"}
+          {reading.cites_entries
+            ? ` · drawn from ${reading.cites_entries} ${
+                reading.cites_entries === 1 ? "entry" : "entries"
+              }`
+            : ""}
+        </span>
+      </span>
+      <span className="t-side">
+        <Meter confidence={reading.confidence ?? 0} />
+        <span className="mono">{fmt(reading.confidence ?? 0)}</span>
+      </span>
+    </Link>
+  );
+}
 
 /** One entry behind the finding, in the stream's own language. */
 function Act({

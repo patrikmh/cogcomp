@@ -412,7 +412,7 @@ export const api = {
       /** Each carries how many entries it rests on, which the finding's
        *  composition shows beside it. */
       neighbours: (GraphNode & { cites_entries?: number })[];
-      edges: { from_id: string; to_id: string }[];
+      edges: { from_id: string; to_id: string; kind: string }[];
     }>(
       `/v1/graph/nodes/${id}/neighbours`,
     ),

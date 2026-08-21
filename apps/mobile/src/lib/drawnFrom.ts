@@ -1,5 +1,5 @@
 import { useQueries } from "@tanstack/react-query";
-import { amongOf, foldDrawnFrom } from "@tlon/ontology";
+import { amongOf, amongThemesOf, foldDrawnFrom } from "@tlon/ontology";
 
 import { api } from "@/lib/api";
 import { deviceTimezone, localToday, mondayOfWeek, shiftWeek } from "@/lib/dates";
@@ -64,14 +64,55 @@ export function useAmong<T extends { id: string }>(
   return enabled ? amongOf(weeks.map((week) => week.data?.inferred ?? []), patterns) : amongOf([], []);
 }
 
+/** Regions each act sits in. Same weeks as useAmong; empty when findings are hidden. */
+export function useAmongThemes<T extends { id: string }>(
+  token: string | null,
+  userId: string | null,
+  themes: readonly T[],
+  weeksBack = 4,
+  enabled = true,
+) {
+  const tz = deviceTimezone();
+  const weeks = useQueries({
+    queries: Array.from({ length: weeksBack }, (_, back) => {
+      const monday = shiftWeek(mondayOfWeek(localToday()), -back);
+      return {
+        queryKey: ["summary", "week", monday, tz, userId],
+        queryFn: () => api.weeklySummary(token!, monday, tz),
+        enabled: Boolean(token && userId && enabled),
+      };
+    }),
+  });
+
+  return enabled
+    ? amongThemesOf(weeks.map((week) => week.data?.inferred ?? []), themes)
+    : amongThemesOf([], []);
+}
+
 export {
   amongOf,
   amongReadingsOf,
+  aboutOf,
+  amongThemesOf,
+  apartSidesOf,
+  changesOf,
   circlingOf,
+  contradictsOf,
   circlingThemesOf,
+  feltTowardOf,
+  indicatesOf,
+  regionsOfReading,
+  themeMembersOf,
+  travelsWithOf,
+  weekdayShapeOf,
   feltReadingOf,
+  gatheredOf,
+  namedInnerOf,
+  namedReadingOf,
+  innerFirst,
   innerReadingsOf,
   outerReadingsOf,
+  returningInnerOf,
   vocabularyMarks,
   VOCABULARY_LOOKBACK_WEEKS,
 } from "@tlon/ontology";

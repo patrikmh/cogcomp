@@ -20,6 +20,7 @@ import { colors, fonts } from "@/theme";
 import { type as scale } from "@tlon/design";
 import { HEADINGS } from "@tlon/copy/headings";
 import { EMPTY as EMPTY_COPY } from "@tlon/copy/empty";
+import { changesOf, innerFirst, namedReadingOf } from "@/lib/drawnFrom";
 
 /**
  * Headspace — where things stand.
@@ -247,7 +248,7 @@ export default function HeadspaceScreen() {
               EMPTY_COPY.notEnough
             : EMPTY[lens]
         }
-        hint={hintFor(lens, points.length, whorls.length)}
+        hint={hintFor(lens, points.length, whorls.length, points)}
         secondaryAction={
           // Only under the lens it belongs to. The Patterns screen says more
           // about a recurrence than a point can — how many entries and days it
@@ -267,9 +268,19 @@ export default function HeadspaceScreen() {
               meta={current.meta}
               tentative={current.tentative}
               onOpen={
-                // A change has no node to open: it is derived from two windows
-                // rather than stored, and the readout is the whole of it.
-                lens === "changed" ? undefined : () => router.push(`/node/${current.id}`)
+                // A change is derived and has no id. Open the stored reading
+                // it names, when the graph still holds one — otherwise the
+                // readout is the whole of it.
+                lens === "changed"
+                  ? (() => {
+                      const door = namedReadingOf(
+                        current.tone,
+                        current.label,
+                        visibleGraph?.nodes ?? [],
+                      );
+                      return door ? () => router.push(`/node/${door.id}`) : undefined;
+                    })()
+                  : () => router.push(`/node/${current.id}`)
               }
             />
           )
@@ -347,10 +358,11 @@ const EMPTY: Record<Lens, string> = {
   changed: EMPTY_COPY.changed,
 };
 
-function hintFor(lens: Lens, count: number, drawn: number): string {
+function hintFor(lens: Lens, count: number, drawn: number, points: Point[]): string {
   if (count === 0) return "";
   if (lens === "changed") {
-    return `${count} ${count === 1 ? "thing" : "things"} moved since last week. Counts only — what it means is yours.`;
+    const rooms = changesOf(points.map((point) => ({ kind: point.tone })));
+    return `${rooms.inside.length} felt and thought · ${rooms.around.length} around you. Counts only — what it means is yours.`;
   }
   if (lens === "patterns") {
     return `${count} ${count === 1 ? "thing" : "things"} recurred. Bigger means more often.`;
@@ -386,12 +398,19 @@ function whorlsFor(lens: Lens, points: Point[]): Whorl[] {
   // frames the lot, every whorl shrinks, and the massifs that are the point of
   // the map stop reading as massifs. Patterns are never dropped.
   const patterns = points.filter((p) => lens === "patterns" || p.kind === "Pattern");
-  const rest = points
-    .filter((p) => !patterns.includes(p))
-    .slice(0, readingBudget(patterns.length));
+  const rest = points.filter((p) => !patterns.includes(p));
+  const placed =
+    lens === "all" || lens === "changed"
+      ? [...rest].sort((left, right) =>
+          innerFirst(
+            { kind: left.tone, confidence: left.weight },
+            { kind: right.tone, confidence: right.weight },
+          ),
+        )
+      : rest;
   return [
     ...you,
-    ...[...patterns, ...rest].map((point) => ({
+    ...[...patterns, ...placed.slice(0, readingBudget(patterns.length))].map((point) => ({
       id: point.id,
       label: point.label,
       group: (lens === "patterns" || point.kind === "Pattern"

@@ -11,6 +11,7 @@ import {
   feltReadingOf,
   innerReadingsOf,
   outerReadingsOf,
+  returningInnerOf,
   VOCABULARY_LOOKBACK_WEEKS,
   vocabularyMarks,
 } from "@/lib/drawn-from";
@@ -85,6 +86,7 @@ export function Week() {
     ? (week.data.inferred ?? []).filter((item) => item.kind !== "Pattern" && item.kind !== "Theme")
     : [];
   const inside = innerReadingsOf(weekReadings).filter((item) => !item.tentative);
+  const cameBack = returningInnerOf(weekReadings);
   const leftBehind = outerReadingsOf(weekReadings).filter((item) => !item.tentative);
   const formingReadings = weekReadings.filter((item) => item.tentative);
 
@@ -185,6 +187,19 @@ export function Week() {
             <span className="mono">{asideOf("inside")}</span>
           </div>
           {inside.map((reading) => (
+            <WeekReading key={reading.id} reading={reading} />
+          ))}
+        </>
+      )}
+
+      {cameBack.length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.cameBack.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("cameBack")}</span>
+          </div>
+          {cameBack.map((reading) => (
             <WeekReading key={reading.id} reading={reading} />
           ))}
         </>

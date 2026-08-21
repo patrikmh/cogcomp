@@ -843,7 +843,7 @@ export const api = {
     return request<{
       node: GraphNode;
       neighbours: (GraphNode & { cites_entries?: number })[];
-      edges: { from_id: string; to_id: string }[];
+      edges: { from_id: string; to_id: string; kind: string }[];
     }>(`/v1/graph/nodes/${nodeId}/neighbours`, token);
   },
 

@@ -19,7 +19,7 @@ import { api, type DailySummary, type Pattern, type Theme } from "@/lib/api";
 import { dayForRoute, deviceTimezone, isLocalDate, localToday, shiftDay } from "@/lib/dates";
 import { useDrawnFrom } from "@/lib/drawnFrom";
 import { patternDestination } from "@/lib/patterns";
-import { circlingOf, circlingThemesOf, innerReadingsOf, outerReadingsOf } from "@tlon/ontology";
+import { circlingOf, circlingThemesOf, innerReadingsOf, outerReadingsOf, returningInnerOf } from "@tlon/ontology";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
 import { colors, fonts } from "@/theme";
@@ -185,6 +185,7 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
   }
 
   const inside = innerReadingsOf(readings).filter((i) => !i.tentative);
+  const cameBack = returningInnerOf(readings);
   const confident = outerReadingsOf(readings).filter((i) => !i.tentative);
   const tentative = readings.filter((i) => i.tentative);
 
@@ -263,6 +264,14 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
       {inside.length > 0 && (
         <Section title={SECTIONS.inside.title} aside={asideOf("inside", true)}>
           {inside.map((item) => (
+            <Inference key={item.id} item={item} />
+          ))}
+        </Section>
+      )}
+
+      {cameBack.length > 0 && (
+        <Section title={SECTIONS.cameBack.title} aside={asideOf("cameBack", true)}>
+          {cameBack.map((item) => (
             <Inference key={item.id} item={item} />
           ))}
         </Section>

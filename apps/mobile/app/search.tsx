@@ -10,13 +10,14 @@ import { MotionSurface } from "@/components/MotionSurface";
 import { ErrorLens } from "@/components/SpatialField";
 import { Seal } from "@/components/Seal";
 import { api, type ObservationResponse } from "@/lib/api";
-import { useDrawnFrom } from "@/lib/drawnFrom";
+import { namedInnerOf, useDrawnFrom } from "@/lib/drawnFrom";
 import { useSession } from "@/state/session";
 import { usePreferences } from "@/state/preferences";
 import { colors, fonts } from "@/theme";
 import { Rise, Rising } from "@/components/Rise";
 import { useReducedMotion } from "@/lib/motion";
 import { HEADINGS } from "@tlon/copy/headings";
+import { SECTIONS, asideOf } from "@tlon/copy/sections";
 
 /**
  * Find an entry.
@@ -46,6 +47,11 @@ export default function SearchScreen() {
   const showFindings = usePreferences((s) => s.findings);
   const findingsVisible = preferencesReady && showFindings;
   const drawnFrom = useDrawnFrom(token, userId, 4, findingsVisible);
+  const graph = useQuery({
+    queryKey: ["graph", "search", userId],
+    queryFn: () => api.graph(token!, { limit: 200 }),
+    enabled: Boolean(token && userId) && findingsVisible,
+  });
 
   if (!token) return null;
   if (entries.isError) {
@@ -55,6 +61,7 @@ export default function SearchScreen() {
   const all: ObservationResponse[] = entries.data?.observations ?? [];
   const needle = term.trim().toLowerCase();
   const hits = needle ? all.filter((e) => e.content.toLowerCase().includes(needle)) : [];
+  const named = findingsVisible ? namedInnerOf(needle, graph.data?.nodes ?? []) : [];
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -97,6 +104,24 @@ export default function SearchScreen() {
               : `No act contains “${term.trim()}”. Nothing was ranked or guessed.`}
       </Text>
       <Rule />
+
+      {named.length > 0 && (
+        <View style={styles.named}>
+          <View style={styles.namedHead}>
+            <Kicker heading>{SECTIONS.named.title}</Kicker>
+            <Text style={styles.namedAside}>{asideOf("named", true)}</Text>
+          </View>
+          {named.map((reading) => (
+            <Chip
+              key={reading.id}
+              label={`${reading.label} · ${reading.kind.toLowerCase()}`}
+              confidence={reading.confidence ?? 0}
+              tentative={Boolean(reading.tentative)}
+              onPress={() => router.push(`/node/${reading.id}`)}
+            />
+          ))}
+        </View>
+      )}
 
       {hits.map((hit, i) => {
         const drawn = drawnFrom.get(hit.id) ?? [];
@@ -264,4 +289,7 @@ const styles = StyleSheet.create({
     textDecorationColor: "rgba(122,220,200,0.45)",
   },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  named: { gap: 8, paddingTop: 4 },
+  namedHead: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: 10 },
+  namedAside: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: scale.meta.size },
 });

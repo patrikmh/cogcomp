@@ -1,11 +1,14 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { SpokenStream } from "@tlon/speech/stream";
 import { initial, step } from "@tlon/speech/vad";
 import { TALK_DISCLOSURE } from "@tlon/copy";
 
+import { Link } from "react-router-dom";
+
 import { ApiError, api } from "@/lib/api";
+import { gatheredOf, useAmong, useAmongThemes, useDrawnFrom } from "@/lib/drawn-from";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
 import { deletePendingVoice, listPendingVoice, putPendingVoice, type PendingVoiceEnvelope } from "@/lib/pendingVoice";
@@ -59,6 +62,24 @@ export function Talk() {
   const [speechError, setSpeechError] = useState(false);
   const speakAloud = usePreferences((s) => s.voice);
   const findingsVisible = usePreferences((s) => s.findings);
+  const [leftBehind, setLeftBehind] = useState<string[]>([]);
+  const receiptOpen = findingsVisible && leftBehind.length > 0;
+  const drawnFrom = useDrawnFrom(4, receiptOpen);
+  const patterns = useQuery({
+    queryKey: ["patterns"],
+    queryFn: api.patterns,
+    enabled: receiptOpen,
+  });
+  const themes = useQuery({
+    queryKey: ["themes"],
+    queryFn: api.themes,
+    enabled: receiptOpen,
+  });
+  const among = useAmong(patterns.data ?? [], 4, receiptOpen);
+  const amongThemes = useAmongThemes(themes.data ?? [], 4, receiptOpen);
+  const drawn = gatheredOf(leftBehind, drawnFrom).slice(0, 5);
+  const amongPatterns = gatheredOf(leftBehind, among).slice(0, 5);
+  const amongRegions = gatheredOf(leftBehind, amongThemes).slice(0, 5);
   const canvas = useRef<HTMLCanvasElement>(null);
   const envelope = useRef<Envelope | null>(null);
   const audio = useRef<HTMLAudioElement | null>(null);
@@ -133,6 +154,7 @@ export function Talk() {
       setTalkError(null);
       // The last conversation's receipt belongs to the last conversation.
       setKept(null);
+      setLeftBehind([]);
       setCrisis(null);
       setConversation(started.id);
     },
@@ -597,6 +619,8 @@ export function Talk() {
       setMode("idle");
       // Only the person's turns became entries; the journal has to be told.
       void client.invalidateQueries({ queryKey: ["observations"] });
+      void client.invalidateQueries({ queryKey: ["summary"] });
+      setLeftBehind(findingsVisible ? result.observations : []);
       // Said on the page, not in a system dialog. An `alert` is unstyled, seizes
       // the window and has to be dismissed before anything else can happen —
       // an interruption, where this is a receipt for something the person
@@ -662,6 +686,49 @@ export function Talk() {
                 ? "Stopped asking. Nothing more will be asked of you."
                 : "Listening."}
       </p>
+
+      {kept && findingsVisible && (
+        <div className="talk-left">
+          {drawn.length > 0 && (
+            <p className="j-meta">
+              <span className="j-from">drawn from this</span>
+              {drawn.map((reading) => (
+                <Link
+                  key={reading.id}
+                  className={`j-chip${reading.tentative ? " ghost" : ""}`}
+                  to={`/node/${reading.id}`}
+                >
+                  {reading.label}
+                </Link>
+              ))}
+            </p>
+          )}
+          {amongPatterns.length > 0 && (
+            <p className="j-meta">
+              <span className="j-from">this conversation is among</span>
+              {amongPatterns.map((pattern) => (
+                <Link
+                  key={pattern.id}
+                  className={`j-chip${pattern.tentative ? " ghost" : ""}`}
+                  to={`/pattern/${pattern.id}`}
+                >
+                  {pattern.label.split(" · ")[0]}
+                </Link>
+              ))}
+            </p>
+          )}
+          {amongRegions.length > 0 && (
+            <p className="j-meta">
+              <span className="j-from">this conversation is in</span>
+              {amongRegions.map((theme) => (
+                <Link key={theme.id} className="j-chip" to={`/theme/${theme.id}`}>
+                  {theme.label}
+                </Link>
+              ))}
+            </p>
+          )}
+        </div>
+      )}
 
       <p className="mono talk-disclosure" aria-label={`${TALK_DISCLOSURE.heading}. ${TALK_DISCLOSURE.body}`}>
         {TALK_DISCLOSURE.heading}: {TALK_DISCLOSURE.body}

@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { Empty, Failed, Loading } from "@/components/States";
 import { Seal } from "@/lib/seal";
 import { api, type Observation } from "@/lib/api";
-import { useAmong, useDrawnFrom } from "@/lib/drawn-from";
+import { useAmong, useAmongThemes, useDrawnFrom } from "@/lib/drawn-from";
 import { clockOf, dayLabelOf, fmt } from "@/lib/format";
 import { useSession } from "@/state/session";
 import { usePreferences } from "@/state/preferences";
@@ -84,7 +84,13 @@ export function Journal() {
     queryFn: api.patterns,
     enabled: showFindings,
   });
+  const themes = useQuery({
+    queryKey: ["themes", userId],
+    queryFn: api.themes,
+    enabled: showFindings,
+  });
   const among = useAmong(patterns.data ?? [], 4, showFindings);
+  const amongThemes = useAmongThemes(themes.data ?? [], 4, showFindings);
 
   const save = useMutation({
     mutationFn: async (envelope: Envelope) => {
@@ -275,6 +281,20 @@ export function Journal() {
                               to={`/pattern/${pattern.id}`}
                             >
                               {pattern.label.split(" · ")[0]}
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+                      {showFindings && (amongThemes.get(entry.id)?.length ?? 0) > 0 && (
+                        <div className="j-meta">
+                          <span className="j-from">this act is in</span>
+                          {amongThemes.get(entry.id)!.map((theme) => (
+                            <Link
+                              key={theme.id}
+                              className={`j-chip${theme.tentative ? " ghost" : ""}`}
+                              to={`/theme/${theme.id}`}
+                            >
+                              {theme.label}
                             </Link>
                           ))}
                         </div>

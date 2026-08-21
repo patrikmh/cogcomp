@@ -6,6 +6,8 @@ import { AtmosphericShell } from "@/components/Atmospheric";
 import { MotionSurface } from "@/components/MotionSurface";
 import { ErrorLens, LoadingLens } from "@/components/SpatialField";
 import { api, type ThemeDetail, type ThemeMember } from "@/lib/api";
+import { themeMembersOf } from "@/lib/drawnFrom";
+import { SECTIONS } from "@tlon/copy/sections";
 import { useSession } from "@/state/session";
 import { usePreferences } from "@/state/preferences";
 import { colors, fonts } from "@/theme";
@@ -53,6 +55,7 @@ export default function ThemeScreen() {
 function Body({ theme }: { theme: ThemeDetail }) {
   const router = useRouter();
   const held = new Date(theme.first_seen_at).toLocaleDateString();
+  const { inside, around } = themeMembersOf(theme.members);
 
   return (
     <AtmosphericShell variant="secondary">
@@ -77,10 +80,24 @@ function Body({ theme }: { theme: ThemeDetail }) {
           app has decided something about.
         </Text>
 
-        <Text style={styles.sectionTitle}>What is in it</Text>
-        {theme.members.map((member) => (
-          <Member key={member.id} member={member} onOpen={() => router.push(`/node/${member.id}`)} />
-        ))}
+        {inside.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>{SECTIONS.inside.title}</Text>
+            <Text style={styles.sectionAside}>{SECTIONS.inside.aside} · in your words</Text>
+            {inside.map((member) => (
+              <Member key={member.id} member={member} onOpen={() => router.push(`/node/${member.id}`)} />
+            ))}
+          </>
+        )}
+        {around.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>{SECTIONS.kept.title}</Text>
+            <Text style={styles.sectionAside}>people, places, acts · in your words</Text>
+            {around.map((member) => (
+              <Member key={member.id} member={member} onOpen={() => router.push(`/node/${member.id}`)} />
+            ))}
+          </>
+        )}
 
         <View style={styles.provenance}>
           <Text style={styles.provenanceTitle}>How this was formed</Text>
@@ -156,6 +173,7 @@ const styles = StyleSheet.create({
     color: colors.inkMuted,
     marginTop: 14,
   },
+  sectionAside: { fontFamily: fonts.mono, fontSize: 11, color: colors.inkMuted, marginTop: -6 },
   member: {
     flexDirection: "row",
     alignItems: "center",

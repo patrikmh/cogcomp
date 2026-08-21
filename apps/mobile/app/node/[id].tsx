@@ -14,8 +14,8 @@ import { Kicker, Meter, Rule } from "@/components/Marks";
 import { Seal } from "@/components/Seal";
 import { EvidenceRail, FieldFrame, LoadingLens, ErrorLens, ObservablePearl } from "@/components/SpatialField";
 import { MotionSurface } from "@/components/MotionSurface";
-import { api, type Explanation, type Judgement, type ObservationResponse, type Pattern } from "@/lib/api";
-import { amongReadingsOf } from "@/lib/drawnFrom";
+import { api, type Explanation, type GraphNode, type Judgement, type ObservationResponse, type Pattern, type Theme } from "@/lib/api";
+import { aboutOf, amongReadingsOf, apartSidesOf, contradictsOf, feltTowardOf, indicatesOf, regionsOfReading, travelsWithOf, weekdayShapeOf } from "@/lib/drawnFrom";
 import { patternDestination } from "@/lib/patterns";
 import { useSession } from "@/state/session";
 import { usePreferences } from "@/state/preferences";
@@ -61,6 +61,11 @@ export default function NodeScreen() {
     queryFn: () => api.neighbours(token!, id!),
     enabled: Boolean(token && id && showFindings),
   });
+  const themes = useQuery({
+    queryKey: ["themes", userId],
+    queryFn: () => api.listThemes(token!),
+    enabled: Boolean(token && userId && showFindings),
+  });
 
   useFocusEffect(
     useCallback(() => {
@@ -82,8 +87,39 @@ export default function NodeScreen() {
   }
 
   const foundPatterns: Pattern[] = patterns.data ?? [];
-  const among = amongReadingsOf(neighbours.data?.neighbours ?? [], foundPatterns);
-  return <Body explanation={explanation.data} nodeId={id!} among={among} />;
+  const foundNeighbours: GraphNode[] = neighbours.data?.neighbours ?? [];
+  const among = amongReadingsOf(foundNeighbours, foundPatterns);
+  const company: GraphNode[] = travelsWithOf(id!, foundNeighbours, neighbours.data?.edges ?? []);
+  const aimed = feltTowardOf(id!, foundNeighbours, neighbours.data?.edges ?? []);
+  const spoken = aboutOf(id!, foundNeighbours, neighbours.data?.edges ?? []);
+  const hinted = indicatesOf(id!, foundNeighbours, neighbours.data?.edges ?? []);
+  const tension = contradictsOf(id!, foundNeighbours, neighbours.data?.edges ?? []);
+  const foundThemes: Theme[] = themes.data ?? [];
+  const regions = regionsOfReading(explanation.data.node.label, foundThemes);
+  const opened = foundPatterns.find((pattern) => pattern.id === id);
+  const instants: string[] = explanation.data.derived_from.map(
+    (entry: { captured_at: string }) => entry.captured_at,
+  );
+  const calendar = opened?.detector === "weekday" ? weekdayShapeOf(instants) : [];
+  const apart =
+    opened?.detector === "stated-vs-recorded"
+      ? apartSidesOf(foundNeighbours)
+      : { named: [] as GraphNode[], done: [] as GraphNode[] };
+  return (
+    <Body
+      explanation={explanation.data}
+      nodeId={id!}
+      among={among}
+      company={company}
+      regions={regions}
+      calendar={calendar}
+      apart={apart}
+      aimed={aimed}
+      spoken={spoken}
+      hinted={hinted}
+      tension={tension}
+    />
+  );
 }
 
 /**
@@ -215,10 +251,26 @@ function Body({
   explanation,
   nodeId,
   among,
+  company,
+  regions,
+  calendar,
+  apart,
+  aimed,
+  spoken,
+  hinted,
+  tension,
 }: {
   explanation: Explanation;
   nodeId: string;
   among: Pattern[];
+  company: GraphNode[];
+  regions: Theme[];
+  calendar: { weekday: string; count: number }[];
+  apart: { named: GraphNode[]; done: GraphNode[] };
+  aimed: { toward: GraphNode[]; from: GraphNode[] };
+  spoken: { about: GraphNode[]; aboutThis: GraphNode[] };
+  hinted: { hints: GraphNode[]; hinted: GraphNode[] };
+  tension: { against: GraphNode[]; againstThis: GraphNode[] };
 }) {
   const { node, derived_from, is_observed } = explanation;
 
@@ -254,6 +306,7 @@ function Body({
   const router = useRouter();
   const confidence = node.confidence ?? 0;
   const tentative = confidence < 0.5;
+  const peaked = Math.max(0, ...calendar.map((day) => day.count));
 
   return (
     <AtmosphericShell variant="secondary">
@@ -292,6 +345,62 @@ function Body({
         This is a hypothesis drawn from your own words, not a conclusion about
         you. It came from:
       </Text>
+
+      {(apart.named.length > 0 || apart.done.length > 0) && (
+        <>
+          <View style={styles.sectionRow}>
+            <Kicker heading>{SECTIONS.apart.title}</Kicker>
+            <View style={styles.ruleFill}>
+              <Rule />
+            </View>
+            <Text style={styles.meta}>{asideOf("apart", true)}</Text>
+          </View>
+          {apart.named.map((reading) => (
+            <MotionSurface
+              key={reading.id}
+              onPress={() => router.push(`/node/${reading.id}`)}
+              accessibilityRole="button"
+              accessibilityLabel={`${reading.label} — named, open this reading`}
+            >
+              <Text style={styles.sourceText}>{reading.label}</Text>
+              <Text style={styles.meta}>{reading.kind.toLowerCase()} · named</Text>
+            </MotionSurface>
+          ))}
+          {apart.done.map((reading) => (
+            <MotionSurface
+              key={reading.id}
+              onPress={() => router.push(`/node/${reading.id}`)}
+              accessibilityRole="button"
+              accessibilityLabel={`${reading.label} — recorded, open this reading`}
+            >
+              <Text style={styles.sourceText}>{reading.label}</Text>
+              <Text style={styles.meta}>{reading.kind.toLowerCase()} · recorded</Text>
+            </MotionSurface>
+          ))}
+        </>
+      )}
+
+      {peaked > 0 && (
+        <>
+          <View style={styles.sectionRow}>
+            <Kicker heading>{SECTIONS.calendar.title}</Kicker>
+            <View style={styles.ruleFill}>
+              <Rule />
+            </View>
+            <Text style={styles.meta}>{asideOf("calendar", true)}</Text>
+          </View>
+          <View style={styles.calendar}>
+            {calendar.map((day) => (
+              <Text
+                key={day.weekday}
+                style={[styles.calendarDay, day.count === peaked && styles.calendarPeak]}
+              >
+                {day.weekday} {day.count}
+              </Text>
+            ))}
+          </View>
+        </>
+      )}
 
       {/* The design heads the evidence rather than letting it follow a
           sentence: "The acts behind it" names what the list is, so the entries
@@ -332,6 +441,190 @@ function Body({
       )}
       </EvidenceRail>
 
+      {aimed.toward.length > 0 && (
+        <>
+          <View style={styles.sectionRow}>
+            <Kicker heading>{SECTIONS.toward.title}</Kicker>
+            <View style={styles.ruleFill}>
+              <Rule />
+            </View>
+            <Text style={styles.meta}>{asideOf("toward", true)}</Text>
+          </View>
+          {aimed.toward.map((reading) => (
+            <MotionSurface
+              key={reading.id}
+              onPress={() => router.push(`/node/${reading.id}`)}
+              accessibilityRole="button"
+              accessibilityLabel={`${reading.label} — felt toward, open this reading`}
+            >
+              <Text style={styles.sourceText}>{reading.label}</Text>
+              <Text style={styles.meta}>{reading.kind.toLowerCase()} · a direction, not a reason</Text>
+            </MotionSurface>
+          ))}
+        </>
+      )}
+
+      {aimed.from.length > 0 && (
+        <>
+          <View style={styles.sectionRow}>
+            <Kicker heading>{SECTIONS.towardThis.title}</Kicker>
+            <View style={styles.ruleFill}>
+              <Rule />
+            </View>
+            <Text style={styles.meta}>{asideOf("towardThis", true)}</Text>
+          </View>
+          {aimed.from.map((reading) => (
+            <MotionSurface
+              key={reading.id}
+              onPress={() => router.push(`/node/${reading.id}`)}
+              accessibilityRole="button"
+              accessibilityLabel={`${reading.label} — felt toward this, open this reading`}
+            >
+              <Text style={styles.sourceText}>{reading.label}</Text>
+              <Text style={styles.meta}>{reading.kind.toLowerCase()} · a direction, not a reason</Text>
+            </MotionSurface>
+          ))}
+        </>
+      )}
+
+      {spoken.about.length > 0 && (
+        <>
+          <View style={styles.sectionRow}>
+            <Kicker heading>{SECTIONS.about.title}</Kicker>
+            <View style={styles.ruleFill}>
+              <Rule />
+            </View>
+            <Text style={styles.meta}>{asideOf("about", true)}</Text>
+          </View>
+          {spoken.about.map((reading) => (
+            <MotionSurface
+              key={reading.id}
+              onPress={() => router.push(`/node/${reading.id}`)}
+              accessibilityRole="button"
+              accessibilityLabel={`${reading.label} — about, open this reading`}
+            >
+              <Text style={styles.sourceText}>{reading.label}</Text>
+              <Text style={styles.meta}>{reading.kind.toLowerCase()} · subject, not a verdict</Text>
+            </MotionSurface>
+          ))}
+        </>
+      )}
+
+      {spoken.aboutThis.length > 0 && (
+        <>
+          <View style={styles.sectionRow}>
+            <Kicker heading>{SECTIONS.aboutThis.title}</Kicker>
+            <View style={styles.ruleFill}>
+              <Rule />
+            </View>
+            <Text style={styles.meta}>{asideOf("aboutThis", true)}</Text>
+          </View>
+          {spoken.aboutThis.map((reading) => (
+            <MotionSurface
+              key={reading.id}
+              onPress={() => router.push(`/node/${reading.id}`)}
+              accessibilityRole="button"
+              accessibilityLabel={`${reading.label} — about this, open this reading`}
+            >
+              <Text style={styles.sourceText}>{reading.label}</Text>
+              <Text style={styles.meta}>{reading.kind.toLowerCase()} · subject, not a verdict</Text>
+            </MotionSurface>
+          ))}
+        </>
+      )}
+
+      {hinted.hints.length > 0 && (
+        <>
+          <View style={styles.sectionRow}>
+            <Kicker heading>{SECTIONS.hints.title}</Kicker>
+            <View style={styles.ruleFill}>
+              <Rule />
+            </View>
+            <Text style={styles.meta}>{asideOf("hints", true)}</Text>
+          </View>
+          {hinted.hints.map((reading) => (
+            <MotionSurface
+              key={reading.id}
+              onPress={() => router.push(`/node/${reading.id}`)}
+              accessibilityRole="button"
+              accessibilityLabel={`${reading.label} — hinted at, open this reading`}
+            >
+              <Text style={styles.sourceText}>{reading.label}</Text>
+              <Text style={styles.meta}>{reading.kind.toLowerCase()} · a hint, not a cause</Text>
+            </MotionSurface>
+          ))}
+        </>
+      )}
+
+      {hinted.hinted.length > 0 && (
+        <>
+          <View style={styles.sectionRow}>
+            <Kicker heading>{SECTIONS.hinted.title}</Kicker>
+            <View style={styles.ruleFill}>
+              <Rule />
+            </View>
+            <Text style={styles.meta}>{asideOf("hinted", true)}</Text>
+          </View>
+          {hinted.hinted.map((reading) => (
+            <MotionSurface
+              key={reading.id}
+              onPress={() => router.push(`/node/${reading.id}`)}
+              accessibilityRole="button"
+              accessibilityLabel={`${reading.label} — hints at this, open this reading`}
+            >
+              <Text style={styles.sourceText}>{reading.label}</Text>
+              <Text style={styles.meta}>{reading.kind.toLowerCase()} · a hint, not a cause</Text>
+            </MotionSurface>
+          ))}
+        </>
+      )}
+
+      {tension.against.length > 0 && (
+        <>
+          <View style={styles.sectionRow}>
+            <Kicker heading>{SECTIONS.against.title}</Kicker>
+            <View style={styles.ruleFill}>
+              <Rule />
+            </View>
+            <Text style={styles.meta}>{asideOf("against", true)}</Text>
+          </View>
+          {tension.against.map((reading) => (
+            <MotionSurface
+              key={reading.id}
+              onPress={() => router.push(`/node/${reading.id}`)}
+              accessibilityRole="button"
+              accessibilityLabel={`${reading.label} — sits against, open this reading`}
+            >
+              <Text style={styles.sourceText}>{reading.label}</Text>
+              <Text style={styles.meta}>{reading.kind.toLowerCase()} · tension, not a verdict</Text>
+            </MotionSurface>
+          ))}
+        </>
+      )}
+
+      {tension.againstThis.length > 0 && (
+        <>
+          <View style={styles.sectionRow}>
+            <Kicker heading>{SECTIONS.againstThis.title}</Kicker>
+            <View style={styles.ruleFill}>
+              <Rule />
+            </View>
+            <Text style={styles.meta}>{asideOf("againstThis", true)}</Text>
+          </View>
+          {tension.againstThis.map((reading) => (
+            <MotionSurface
+              key={reading.id}
+              onPress={() => router.push(`/node/${reading.id}`)}
+              accessibilityRole="button"
+              accessibilityLabel={`${reading.label} — sits against this, open this reading`}
+            >
+              <Text style={styles.sourceText}>{reading.label}</Text>
+              <Text style={styles.meta}>{reading.kind.toLowerCase()} · tension, not a verdict</Text>
+            </MotionSurface>
+          ))}
+        </>
+      )}
+
       {among.length > 0 && (
         <>
           <View style={styles.sectionRow}>
@@ -350,6 +643,52 @@ function Body({
             >
               <Text style={styles.sourceText}>{pattern.label.split(" · ")[0] ?? pattern.label}</Text>
               <Text style={styles.meta}>{patternDestination(pattern).label}</Text>
+            </MotionSurface>
+          ))}
+        </>
+      )}
+
+      {company.length > 0 && (
+        <>
+          <View style={styles.sectionRow}>
+            <Kicker heading>{SECTIONS.travels.title}</Kicker>
+            <View style={styles.ruleFill}>
+              <Rule />
+            </View>
+            <Text style={styles.meta}>{asideOf("travels", true)}</Text>
+          </View>
+          {company.map((reading) => (
+            <MotionSurface
+              key={reading.id}
+              onPress={() => router.push(`/node/${reading.id}`)}
+              accessibilityRole="button"
+              accessibilityLabel={`${reading.label} — open this reading`}
+            >
+              <Text style={styles.sourceText}>{reading.label}</Text>
+              <Text style={styles.meta}>{reading.kind.toLowerCase()} · together, not because</Text>
+            </MotionSurface>
+          ))}
+        </>
+      )}
+
+      {regions.length > 0 && (
+        <>
+          <View style={styles.sectionRow}>
+            <Kicker heading>{SECTIONS.inRegion.title}</Kicker>
+            <View style={styles.ruleFill}>
+              <Rule />
+            </View>
+            <Text style={styles.meta}>{asideOf("inRegion", true)}</Text>
+          </View>
+          {regions.map((theme) => (
+            <MotionSurface
+              key={theme.id}
+              onPress={() => router.push(`/theme/${theme.id}`)}
+              accessibilityRole="button"
+              accessibilityLabel={`${theme.label} — open this region`}
+            >
+              <Text style={styles.sourceText}>{theme.label}</Text>
+              <Text style={styles.meta}>{theme.member_count} things · the region →</Text>
             </MotionSurface>
           ))}
         </>
@@ -388,6 +727,9 @@ const styles = StyleSheet.create({
   pills: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 12 },
   sectionRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 22 },
   ruleFill: { flex: 1 },
+  calendar: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 8 },
+  calendarDay: { fontFamily: fonts.mono, fontSize: 12, color: colors.inkMuted },
+  calendarPeak: { color: colors.ink },
   pill: {
     color: colors.inkSoft,
     fontFamily: fonts.mono,
