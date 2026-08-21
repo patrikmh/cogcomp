@@ -99,10 +99,18 @@ export const SECTIONS = {
   holdsUp: { title: "Holds up", aside: "evidence, not proof" },
   /** On that belief: the thoughts that hold it up. */
   heldUp: { title: "Held up by", aside: "evidence, not proof" },
+  /** On a feeling or thought: what the record wondered came after. */
+  maybeAfter: { title: "After, maybe", aside: "a hypothesis, not a cause" },
+  /** On that activity, event, or thought: what the record wondered this came before. */
+  maybeBefore: { title: "Before this, maybe", aside: "a hypothesis, not a cause" },
   /** Beliefs the record both holds up and sits against. */
   pulled: { title: "Pulled both ways", aside: "both in the record" },
   /** Beliefs the record holds and never argues. */
   unargued: { title: "Never argued", aside: "held, not tested" },
+  /** Emotions the record names and never aims. */
+  untargeted: { title: "Felt, toward nothing", aside: "a feeling, not a direction" },
+  /** Thoughts the record names and never points at a subject. */
+  untitled: { title: "Thought, about nothing", aside: "a thought, not a topic" },
   /** Experiments. */
   arcs: { title: "Your arcs", aside: "active first" },
   /** On a reading: the trials already set against it. */

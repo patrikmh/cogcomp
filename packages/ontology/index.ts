@@ -874,6 +874,63 @@ export function untestedOf<
   return quiet.length > 0 && tested ? quiet : [];
 }
 
+/** Emotions the record names and never aims.
+ *
+ *  Only a FELT_TOWARD edge at a person, place, activity, or event counts as a
+ *  direction. A pattern is a recurrence, a cause is not a target, and a need
+ *  is not a feeling. Shown only when the window also has an aimed feeling, so
+ *  a record that never points is not a verdict. Order is the caller's. */
+export function untargetedFeltOf<
+  T extends { id: string; kind: string },
+>(
+  nodes: readonly T[],
+  edges: readonly { from_id: string; to_id: string; kind: string }[],
+): T[] {
+  const byId = new Map(nodes.map((node) => [node.id, node]));
+  const aimed = new Set<string>();
+  for (const edge of edges) {
+    if (edge.kind !== "FELT_TOWARD") continue;
+    const from = byId.get(edge.from_id);
+    if (!from || from.kind !== "Emotion") continue;
+    const to = byId.get(edge.to_id);
+    if (to && (to.kind === "Pattern" || to.kind === "Theme" || to.kind === "Observation")) {
+      continue;
+    }
+    aimed.add(from.id);
+  }
+  const quiet = nodes.filter((node) => node.kind === "Emotion" && !aimed.has(node.id));
+  return quiet.length > 0 && aimed.size > 0 ? quiet : [];
+}
+
+/** Thoughts the record names and never points at a subject.
+ *
+ *  Only an ABOUT edge at a person, place, activity, or event counts as a
+ *  topic. A feeling is a direction, a pattern is a recurrence, and an emotion
+ *  is not this claim. Shown only when the window also has a thought that names
+ *  a subject, so a record that never names one is not a verdict. Order is the
+ *  caller's. */
+export function untitledThoughtOf<
+  T extends { id: string; kind: string },
+>(
+  nodes: readonly T[],
+  edges: readonly { from_id: string; to_id: string; kind: string }[],
+): T[] {
+  const byId = new Map(nodes.map((node) => [node.id, node]));
+  const named = new Set<string>();
+  for (const edge of edges) {
+    if (edge.kind !== "ABOUT") continue;
+    const from = byId.get(edge.from_id);
+    if (!from || from.kind !== "Thought") continue;
+    const to = byId.get(edge.to_id);
+    if (to && (to.kind === "Pattern" || to.kind === "Theme" || to.kind === "Observation")) {
+      continue;
+    }
+    named.add(from.id);
+  }
+  const quiet = nodes.filter((node) => node.kind === "Thought" && !named.has(node.id));
+  return quiet.length > 0 && named.size > 0 ? quiet : [];
+}
+
 export function supportsOf<T extends { id: string; kind: string }>(
   nodeId: string,
   neighbours: readonly T[],
@@ -894,6 +951,40 @@ export function supportsOf<T extends { id: string; kind: string }>(
     ),
     heldUp: neighbours.filter(
       (neighbour) => heldUpIds.has(neighbour.id) && supporting.has(neighbour.kind),
+    ),
+  };
+}
+
+/** Matches extractable `TRIGGERED_BY`: a feeling or thought may name an antecedent. */
+export const TRIGGERING_KINDS = ["Emotion", "Thought"] as const;
+export const TRIGGER_KINDS = ["Event", "Activity", "Thought"] as const;
+
+/** What the record wondered came after, and what it wondered this came before.
+ *
+ *  Only `TRIGGERED_BY`, and only the kinds that edge is allowed to join. This
+ *  is a hypothesized antecedent, never a cause. Co-occurrence is companionship.
+ *  A subject is ABOUT. A direction of feeling is FELT_TOWARD. Patterns, themes,
+ *  and observations stay out. Order is the neighbour list's. */
+export function maybeAfterOf<T extends { id: string; kind: string }>(
+  nodeId: string,
+  neighbours: readonly T[],
+  edges: readonly { from_id: string; to_id: string; kind: string }[],
+): { after: T[]; beforeThis: T[] } {
+  const afterIds = new Set<string>();
+  const beforeThisIds = new Set<string>();
+  for (const edge of edges) {
+    if (edge.kind !== "TRIGGERED_BY") continue;
+    if (edge.from_id === nodeId) afterIds.add(edge.to_id);
+    if (edge.to_id === nodeId) beforeThisIds.add(edge.from_id);
+  }
+  const antecedents = new Set<string>(TRIGGER_KINDS);
+  const consequents = new Set<string>(TRIGGERING_KINDS);
+  return {
+    after: neighbours.filter(
+      (neighbour) => afterIds.has(neighbour.id) && antecedents.has(neighbour.kind),
+    ),
+    beforeThis: neighbours.filter(
+      (neighbour) => beforeThisIds.has(neighbour.id) && consequents.has(neighbour.kind),
     ),
   };
 }

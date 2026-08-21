@@ -190,6 +190,9 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
   const cameBack = returningInnerOf(readings);
   const confident = outerReadingsOf(readings).filter((i) => !i.tentative);
   const tentative = readings.filter((i) => i.tentative);
+  const tentativeFelt = feltThoughtOf(tentative);
+  const tentativeHolds = heldReadingsOf(tentative);
+  const tentativeAround = outerReadingsOf(tentative);
 
   return (
     <>
@@ -297,12 +300,31 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
 
       {tentative.length > 0 && (
         <Section title={SECTIONS.lessSure.title} aside={asideOf("lessSure", true)}>
-          {/* A separate section rather than mixed in and greyed out. A
-              low-confidence guess sitting next to a confident one reads as
-              equally true no matter how it is styled. */}
-          {tentative.map((item) => (
-            <Inference key={item.id} item={item} tentative />
-          ))}
+          {/* Rooms stay under Less sure so a faint guess is never read as kept. */}
+          {tentativeFelt.length > 0 && (
+            <>
+              <Kicker>{SECTIONS.inside.title}</Kicker>
+              {tentativeFelt.map((item) => (
+                <Inference key={item.id} item={item} tentative />
+              ))}
+            </>
+          )}
+          {tentativeHolds.length > 0 && (
+            <>
+              <Kicker>{SECTIONS.holds.title}</Kicker>
+              {tentativeHolds.map((item) => (
+                <Inference key={item.id} item={item} tentative />
+              ))}
+            </>
+          )}
+          {tentativeAround.length > 0 && (
+            <>
+              <Kicker>{SECTIONS.around.title}</Kicker>
+              {tentativeAround.map((item) => (
+                <Inference key={item.id} item={item} tentative />
+              ))}
+            </>
+          )}
         </Section>
       )}
 

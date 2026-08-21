@@ -13,6 +13,9 @@ import {
   contradictsOf,
   conflictedOf,
   untestedOf,
+  untargetedFeltOf,
+  untitledThoughtOf,
+  maybeAfterOf,
   supportsOf,
   detectorsWaiting,
   foundWaitingOf,
@@ -546,6 +549,51 @@ describe("supportsOf", () => {
   });
 });
 
+describe("maybeAfterOf", () => {
+  const wired = { id: "e-wired", kind: "Emotion", label: "wired" };
+  const skip = { id: "a-skip", kind: "Activity", label: "skipping dinner" };
+  const mess = { id: "t-mess", kind: "Thought", label: "I will mess this up" };
+  const sara = { id: "p-sara", kind: "Person", label: "Sara" };
+  const loop = { id: "p-loop", kind: "Pattern", label: "wired came up on 4 days" };
+
+  it("keeps the act a feeling wondered came after", () => {
+    expect(
+      maybeAfterOf(
+        "e-wired",
+        [skip, mess, sara],
+        [
+          { from_id: "e-wired", to_id: "a-skip", kind: "TRIGGERED_BY" },
+          { from_id: "e-wired", to_id: "t-mess", kind: "TRIGGERED_BY" },
+        ],
+      ).after.map((item) => item.id),
+    ).toEqual(["a-skip", "t-mess"]);
+  });
+
+  it("keeps the feeling the record wondered this came before", () => {
+    expect(
+      maybeAfterOf(
+        "a-skip",
+        [wired, mess],
+        [{ from_id: "e-wired", to_id: "a-skip", kind: "TRIGGERED_BY" }],
+      ).beforeThis.map((item) => item.id),
+    ).toEqual(["e-wired"]);
+  });
+
+  it("does not treat a person, a pattern, or companionship as this hypothesis", () => {
+    expect(
+      maybeAfterOf(
+        "e-wired",
+        [sara, loop, skip],
+        [
+          { from_id: "e-wired", to_id: "p-sara", kind: "TRIGGERED_BY" },
+          { from_id: "e-wired", to_id: "p-loop", kind: "TRIGGERED_BY" },
+          { from_id: "e-wired", to_id: "a-skip", kind: "CO_OCCURS_WITH" },
+        ],
+      ),
+    ).toEqual({ after: [], beforeThis: [] });
+  });
+});
+
 describe("conflictedOf", () => {
   const capable = { id: "b-capable", kind: "Belief", label: "I am capable" };
   const other = { id: "b-other", kind: "Belief", label: "I should rest" };
@@ -599,6 +647,58 @@ describe("untestedOf", () => {
       untestedOf(
         [rest, restBelief, capable],
         [{ from_id: "n-rest", to_id: "b-rest", kind: "SUPPORTS" }],
+      ),
+    ).toEqual([]);
+  });
+});
+
+describe("untargetedFeltOf", () => {
+  const wired = { id: "e-wired", kind: "Emotion", label: "wired" };
+  const dread = { id: "e-dread", kind: "Emotion", label: "dread" };
+  const office = { id: "pl-office", kind: "Place", label: "office" };
+  const rest = { id: "n-rest", kind: "Need", label: "rest" };
+  const loop = { id: "p-loop", kind: "Pattern", label: "wired came up on 4 days" };
+
+  it("keeps a feeling that never aims, when another does", () => {
+    expect(
+      untargetedFeltOf(
+        [rest, wired, dread, office],
+        [{ from_id: "e-dread", to_id: "pl-office", kind: "FELT_TOWARD" }],
+      ).map((item) => item.id),
+    ).toEqual(["e-wired"]);
+  });
+
+  it("does not treat a need, a pattern, or a record that never aims, as this gap", () => {
+    expect(
+      untargetedFeltOf(
+        [rest, wired, dread, loop],
+        [{ from_id: "e-wired", to_id: "p-loop", kind: "FELT_TOWARD" }],
+      ),
+    ).toEqual([]);
+  });
+});
+
+describe("untitledThoughtOf", () => {
+  const call = { id: "t-call", kind: "Thought", label: "I should call" };
+  const mess = { id: "t-mess", kind: "Thought", label: "I will mess this up" };
+  const sara = { id: "p-sara", kind: "Person", label: "Sara" };
+  const wired = { id: "e-wired", kind: "Emotion", label: "wired" };
+  const loop = { id: "p-loop", kind: "Pattern", label: "wired came up on 4 days" };
+
+  it("keeps a thought that never names a subject, when another does", () => {
+    expect(
+      untitledThoughtOf(
+        [wired, mess, call, sara],
+        [{ from_id: "t-call", to_id: "p-sara", kind: "ABOUT" }],
+      ).map((item) => item.id),
+    ).toEqual(["t-mess"]);
+  });
+
+  it("does not treat a feeling, a pattern, or a record that never names, as this gap", () => {
+    expect(
+      untitledThoughtOf(
+        [wired, mess, call, loop],
+        [{ from_id: "t-call", to_id: "p-loop", kind: "ABOUT" }],
       ),
     ).toEqual([]);
   });

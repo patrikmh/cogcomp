@@ -15,7 +15,7 @@ import { Seal } from "@/components/Seal";
 import { EvidenceRail, FieldFrame, LoadingLens, ErrorLens, ObservablePearl } from "@/components/SpatialField";
 import { MotionSurface } from "@/components/MotionSurface";
 import { api, type Experiment, type Explanation, type GraphNode, type Judgement, type ObservationResponse, type Pattern, type Theme } from "@/lib/api";
-import { aboutOf, amongReadingsOf, apartSidesOf, arcsOf, contradictsOf, feltTowardOf, indicatesOf, regionsOfReading, supportsOf, travelsWithOf, weekdayShapeOf } from "@/lib/drawnFrom";
+import { aboutOf, amongReadingsOf, apartSidesOf, arcsOf, contradictsOf, feltTowardOf, indicatesOf, maybeAfterOf, regionsOfReading, supportsOf, travelsWithOf, weekdayShapeOf } from "@/lib/drawnFrom";
 import { experimentQueryKeys } from "@/lib/experiment";
 import { patternDestination } from "@/lib/patterns";
 import { useSession } from "@/state/session";
@@ -101,6 +101,7 @@ export default function NodeScreen() {
   const hinted = indicatesOf(id!, foundNeighbours, neighbours.data?.edges ?? []);
   const tension = contradictsOf(id!, foundNeighbours, neighbours.data?.edges ?? []);
   const backing = supportsOf(id!, foundNeighbours, neighbours.data?.edges ?? []);
+  const maybe = maybeAfterOf(id!, foundNeighbours, neighbours.data?.edges ?? []);
   const foundThemes: Theme[] = themes.data ?? [];
   const regions = regionsOfReading(explanation.data.node.label, foundThemes);
   const opened = foundPatterns.find((pattern) => pattern.id === id);
@@ -127,6 +128,7 @@ export default function NodeScreen() {
       hinted={hinted}
       tension={tension}
       backing={backing}
+      maybe={maybe}
       wondered={wondered}
     />
   );
@@ -270,6 +272,7 @@ function Body({
   hinted,
   tension,
   backing,
+  maybe,
   wondered,
 }: {
   explanation: Explanation;
@@ -284,6 +287,7 @@ function Body({
   hinted: { hints: GraphNode[]; hinted: GraphNode[] };
   tension: { against: GraphNode[]; againstThis: GraphNode[] };
   backing: { holdsUp: GraphNode[]; heldUp: GraphNode[] };
+  maybe: { after: GraphNode[]; beforeThis: GraphNode[] };
   wondered: Experiment[];
 }) {
   const { node, derived_from, is_observed } = explanation;
@@ -680,6 +684,52 @@ function Body({
             >
               <Text style={styles.sourceText}>{reading.label}</Text>
               <Text style={styles.meta}>{reading.kind.toLowerCase()} · evidence, not proof</Text>
+            </MotionSurface>
+          ))}
+        </>
+      )}
+
+      {maybe.after.length > 0 && (
+        <>
+          <View style={styles.sectionRow}>
+            <Kicker heading>{SECTIONS.maybeAfter.title}</Kicker>
+            <View style={styles.ruleFill}>
+              <Rule />
+            </View>
+            <Text style={styles.meta}>{asideOf("maybeAfter", true)}</Text>
+          </View>
+          {maybe.after.map((reading) => (
+            <MotionSurface
+              key={reading.id}
+              onPress={() => router.push(`/node/${reading.id}`)}
+              accessibilityRole="button"
+              accessibilityLabel={`${reading.label} — after, maybe, open this reading`}
+            >
+              <Text style={styles.sourceText}>{reading.label}</Text>
+              <Text style={styles.meta}>{reading.kind.toLowerCase()} · a hypothesis, not a cause</Text>
+            </MotionSurface>
+          ))}
+        </>
+      )}
+
+      {maybe.beforeThis.length > 0 && (
+        <>
+          <View style={styles.sectionRow}>
+            <Kicker heading>{SECTIONS.maybeBefore.title}</Kicker>
+            <View style={styles.ruleFill}>
+              <Rule />
+            </View>
+            <Text style={styles.meta}>{asideOf("maybeBefore", true)}</Text>
+          </View>
+          {maybe.beforeThis.map((reading) => (
+            <MotionSurface
+              key={reading.id}
+              onPress={() => router.push(`/node/${reading.id}`)}
+              accessibilityRole="button"
+              accessibilityLabel={`${reading.label} — before this, maybe, open this reading`}
+            >
+              <Text style={styles.sourceText}>{reading.label}</Text>
+              <Text style={styles.meta}>{reading.kind.toLowerCase()} · a hypothesis, not a cause</Text>
             </MotionSurface>
           ))}
         </>

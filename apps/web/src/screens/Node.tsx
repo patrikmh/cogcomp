@@ -4,7 +4,7 @@ import { Link, useParams } from "react-router-dom";
 import { Meter } from "@/components/Meter";
 import { Failed, Loading } from "@/components/States";
 import { api } from "@/lib/api";
-import { aboutOf, amongReadingsOf, arcsOf, contradictsOf, feltTowardOf, indicatesOf, regionsOfReading, supportsOf, travelsWithOf } from "@/lib/drawn-from";
+import { aboutOf, amongReadingsOf, arcsOf, contradictsOf, feltTowardOf, indicatesOf, maybeAfterOf, regionsOfReading, supportsOf, travelsWithOf } from "@/lib/drawn-from";
 import { usePreferences } from "@/state/preferences";
 import { fmt, stampOf } from "@/lib/format";
 import { Guide } from "@/components/Guide";
@@ -132,6 +132,7 @@ export function Node() {
   const hinted = indicatesOf(id, neighbours.data?.neighbours ?? [], neighbours.data?.edges ?? []);
   const tension = contradictsOf(id, neighbours.data?.neighbours ?? [], neighbours.data?.edges ?? []);
   const backing = supportsOf(id, neighbours.data?.neighbours ?? [], neighbours.data?.edges ?? []);
+  const maybe = maybeAfterOf(id, neighbours.data?.neighbours ?? [], neighbours.data?.edges ?? []);
   const wondered = arcsOf(id, experiments.data?.experiments ?? []);
 
   return (
@@ -357,6 +358,38 @@ export function Node() {
             <span className="mono">{asideOf("heldUp")}</span>
           </div>
           {backing.heldUp.map((reading) => (
+            <Link key={reading.id} className="t-circle" to={`/node/${reading.id}`}>
+              <b>{reading.label}</b>
+              <span className="mono">{reading.kind.toLowerCase()}</span>
+            </Link>
+          ))}
+        </>
+      )}
+
+      {maybe.after.length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.maybeAfter.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("maybeAfter")}</span>
+          </div>
+          {maybe.after.map((reading) => (
+            <Link key={reading.id} className="t-circle" to={`/node/${reading.id}`}>
+              <b>{reading.label}</b>
+              <span className="mono">{reading.kind.toLowerCase()}</span>
+            </Link>
+          ))}
+        </>
+      )}
+
+      {maybe.beforeThis.length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.maybeBefore.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("maybeBefore")}</span>
+          </div>
+          {maybe.beforeThis.map((reading) => (
             <Link key={reading.id} className="t-circle" to={`/node/${reading.id}`}>
               <b>{reading.label}</b>
               <span className="mono">{reading.kind.toLowerCase()}</span>

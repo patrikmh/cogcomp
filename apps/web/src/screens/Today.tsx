@@ -66,6 +66,9 @@ export function Today() {
   const cameBack = returningInnerOf(readings);
   const kept = outerReadingsOf(readings).filter((i) => !i.tentative).sort(bySurety);
   const faint = readings.filter((i) => i.tentative).sort(bySurety);
+  const faintFelt = feltThoughtOf(faint);
+  const faintHolds = heldReadingsOf(faint);
+  const faintAround = outerReadingsOf(faint);
   const circlingList = showFindings ? circlingOf(inferred, patterns.data ?? []) : [];
   const regionList = showFindings ? circlingThemesOf(inferred, themes.data ?? []) : [];
   const alone = showFindings ? unplacedReadingsOf(readings, themes.data ?? []) : [];
@@ -235,9 +238,42 @@ export function Today() {
                 <span className="rule" />
                 <span className="mono">{asideOf("lessSure")}</span>
               </div>
-              {faint.map((r) => (
-                <Reading key={r.id} reading={r} />
-              ))}
+              {faintFelt.length > 0 && (
+                <>
+                  <div className="t-sec">
+                    <span className="kicker">{SECTIONS.inside.title}</span>
+                    <span className="rule" />
+                    <span className="mono">{asideOf("inside")}</span>
+                  </div>
+                  {faintFelt.map((r) => (
+                    <Reading key={r.id} reading={r} />
+                  ))}
+                </>
+              )}
+              {faintHolds.length > 0 && (
+                <>
+                  <div className="t-sec">
+                    <span className="kicker">{SECTIONS.holds.title}</span>
+                    <span className="rule" />
+                    <span className="mono">{asideOf("holds")}</span>
+                  </div>
+                  {faintHolds.map((r) => (
+                    <Reading key={r.id} reading={r} />
+                  ))}
+                </>
+              )}
+              {faintAround.length > 0 && (
+                <>
+                  <div className="t-sec">
+                    <span className="kicker">{SECTIONS.around.title}</span>
+                    <span className="rule" />
+                    <span className="mono">{asideOf("around")}</span>
+                  </div>
+                  {faintAround.map((r) => (
+                    <Reading key={r.id} reading={r} />
+                  ))}
+                </>
+              )}
             </>
           )}
 

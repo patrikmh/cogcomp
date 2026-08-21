@@ -20,7 +20,7 @@ import { colors, fonts } from "@/theme";
 import { type as scale } from "@tlon/design";
 import { HEADINGS } from "@tlon/copy/headings";
 import { EMPTY as EMPTY_COPY } from "@tlon/copy/empty";
-import { changesOf, conflictedOf, feltThoughtOf, heldReadingsOf, innerFirst, isInnerKind, namedReadingOf, outerReadingsOf, returningInnerOf, returningOuterOf, untestedOf } from "@/lib/drawnFrom";
+import { changesOf, conflictedOf, feltThoughtOf, heldReadingsOf, innerFirst, isInnerKind, namedReadingOf, outerReadingsOf, returningInnerOf, returningOuterOf, untargetedFeltOf, untitledThoughtOf, untestedOf } from "@/lib/drawnFrom";
 import { SECTIONS, asideOf } from "@tlon/copy/sections";
 
 /**
@@ -126,11 +126,17 @@ export default function HeadspaceScreen() {
     findingsVisible && lens === "all" ? conflictedOf(graphNodes, graphEdges) : [];
   const unargued: GraphNode[] =
     findingsVisible && lens === "all" ? untestedOf(graphNodes, graphEdges) : [];
+  const untargeted: GraphNode[] =
+    findingsVisible && lens === "all" ? untargetedFeltOf(graphNodes, graphEdges) : [];
+  const untitled: GraphNode[] =
+    findingsVisible && lens === "all" ? untitledThoughtOf(graphNodes, graphEdges) : [];
   const dayReadings: DailySummary["inferred"] =
     findingsVisible && lens === "today" ? visibleToday?.inferred ?? [] : [];
   const dayFelt = feltThoughtOf(dayReadings);
   const dayHolds = heldReadingsOf(dayReadings);
   const dayAround = outerReadingsOf(dayReadings);
+  const dayUntargeted = untargetedFeltOf(dayReadings, graphEdges);
+  const dayUntitled = untitledThoughtOf(dayReadings, graphEdges);
   const loading =
     (lens === "today" && today.isLoading) ||
     (lens === "all" && graph.isLoading) ||
@@ -299,7 +305,12 @@ export default function HeadspaceScreen() {
         }
       />
 
-      {lens === "today" && (dayFelt.length > 0 || dayHolds.length > 0 || dayAround.length > 0) && (
+      {lens === "today" &&
+        (dayFelt.length > 0 ||
+          dayHolds.length > 0 ||
+          dayAround.length > 0 ||
+          dayUntargeted.length > 0 ||
+          dayUntitled.length > 0) && (
         <View style={styles.pulled}>
           <BeliefList
             name="inside"
@@ -319,10 +330,22 @@ export default function HeadspaceScreen() {
             meta="what the days did"
             onOpen={(id) => router.push(`/node/${id}`)}
           />
+          <BeliefList
+            name="untargeted"
+            items={dayUntargeted}
+            meta="a feeling, not a direction"
+            onOpen={(id) => router.push(`/node/${id}`)}
+          />
+          <BeliefList
+            name="untitled"
+            items={dayUntitled}
+            meta="a thought, not a topic"
+            onOpen={(id) => router.push(`/node/${id}`)}
+          />
         </View>
       )}
 
-      {(pulled.length > 0 || unargued.length > 0) && (
+      {(pulled.length > 0 || unargued.length > 0 || untargeted.length > 0 || untitled.length > 0) && (
         <View style={styles.pulled}>
           <BeliefList
             name="pulled"
@@ -334,6 +357,18 @@ export default function HeadspaceScreen() {
             name="unargued"
             items={unargued}
             meta="held, not tested"
+            onOpen={(id) => router.push(`/node/${id}`)}
+          />
+          <BeliefList
+            name="untargeted"
+            items={untargeted}
+            meta="a feeling, not a direction"
+            onOpen={(id) => router.push(`/node/${id}`)}
+          />
+          <BeliefList
+            name="untitled"
+            items={untitled}
+            meta="a thought, not a topic"
             onOpen={(id) => router.push(`/node/${id}`)}
           />
         </View>
@@ -586,7 +621,7 @@ function BeliefList({
   meta,
   onOpen,
 }: {
-  name: "pulled" | "unargued" | "inside" | "holds" | "around";
+  name: "pulled" | "unargued" | "untargeted" | "untitled" | "inside" | "holds" | "around";
   items: { id: string; kind: string; label: string }[];
   meta: string;
   onOpen: (id: string) => void;

@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { readingBudget } from "@tlon/design/marks";
-import { changesOf, conflictedOf, feltThoughtOf, heldReadingsOf, innerFirst, namedReadingOf, outerReadingsOf, returningInnerOf, returningOuterOf, untestedOf } from "@/lib/drawn-from";
+import { changesOf, conflictedOf, feltThoughtOf, heldReadingsOf, innerFirst, namedReadingOf, outerReadingsOf, returningInnerOf, returningOuterOf, untargetedFeltOf, untitledThoughtOf, untestedOf } from "@/lib/drawn-from";
 
 import { mountHeadspace, type Stage, type Whorl } from "@tlon/headspace";
 import { api, type GraphNode, type Inference, type TemporalChanges } from "@/lib/api";
@@ -274,7 +274,10 @@ export function Headspace() {
               WRITE SOMETHING
             </Link>
           ) : (
-            <TodayRooms readings={showFindings ? today.data?.inferred ?? [] : []} />
+            <TodayRooms
+              readings={showFindings ? today.data?.inferred ?? [] : []}
+              edges={showFindings ? graph.data?.edges ?? [] : []}
+            />
           ))}
       </div>
     </div>
@@ -312,11 +315,17 @@ function ConflictedRooms({
 }) {
   const pulled = conflictedOf(nodes, edges);
   const unargued = untestedOf(nodes, edges);
-  if (pulled.length === 0 && unargued.length === 0) return null;
+  const untargeted = untargetedFeltOf(nodes, edges);
+  const untitled = untitledThoughtOf(nodes, edges);
+  if (pulled.length === 0 && unargued.length === 0 && untargeted.length === 0 && untitled.length === 0) {
+    return null;
+  }
   return (
     <div className="moved">
       <BeliefRoom name="pulled" items={pulled} />
       <BeliefRoom name="unargued" items={unargued} />
+      <BeliefRoom name="untargeted" items={untargeted} />
+      <BeliefRoom name="untitled" items={untitled} />
     </div>
   );
 }
@@ -325,7 +334,7 @@ function BeliefRoom({
   name,
   items,
 }: {
-  name: "pulled" | "unargued";
+  name: "pulled" | "unargued" | "untargeted" | "untitled";
   items: GraphNode[];
 }) {
   if (items.length === 0) return null;
@@ -348,16 +357,34 @@ function BeliefRoom({
   );
 }
 
-function TodayRooms({ readings }: { readings: Inference[] }) {
+function TodayRooms({
+  readings,
+  edges,
+}: {
+  readings: Inference[];
+  edges: { from_id: string; to_id: string; kind: string }[];
+}) {
   const felt = feltThoughtOf(readings);
   const holds = heldReadingsOf(readings);
   const around = outerReadingsOf(readings);
-  if (felt.length === 0 && holds.length === 0 && around.length === 0) return null;
+  const untargeted = untargetedFeltOf(readings, edges);
+  const untitled = untitledThoughtOf(readings, edges);
+  if (
+    felt.length === 0 &&
+    holds.length === 0 &&
+    around.length === 0 &&
+    untargeted.length === 0 &&
+    untitled.length === 0
+  ) {
+    return null;
+  }
   return (
     <div className="moved">
       <RecurringRoom name="inside" items={felt} />
       <RecurringRoom name="holds" items={holds} />
       <RecurringRoom name="around" items={around} />
+      <RecurringRoom name="untargeted" items={untargeted} />
+      <RecurringRoom name="untitled" items={untitled} />
     </div>
   );
 }
@@ -378,7 +405,7 @@ function RecurringRoom({
   name,
   items,
 }: {
-  name: Extract<SectionName, "cameBack" | "again" | "inside" | "holds" | "around">;
+  name: Extract<SectionName, "cameBack" | "again" | "inside" | "holds" | "around" | "untargeted" | "untitled">;
   items: { id: string; kind: string; label: string; cites_entries?: number }[];
 }) {
   if (items.length === 0) return null;

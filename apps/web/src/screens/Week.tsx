@@ -101,6 +101,9 @@ export function Week() {
   const cameBack = returningInnerOf(weekReadings);
   const leftBehind = outerReadingsOf(weekReadings).filter((item) => !item.tentative);
   const formingReadings = weekReadings.filter((item) => item.tentative);
+  const formingFelt = feltThoughtOf(formingReadings);
+  const formingHolds = heldReadingsOf(formingReadings);
+  const formingAround = outerReadingsOf(formingReadings);
   const unsaid = showFindings
     ? unnamedDaysOf(days, week.data.inferred ?? [])
     : [];
@@ -374,9 +377,42 @@ export function Week() {
             <span className="rule" />
             <span className="mono">{asideOf("forming")}</span>
           </div>
-          {formingReadings.map((reading) => (
-            <WeekReading key={reading.id} reading={reading} />
-          ))}
+          {formingFelt.length > 0 && (
+            <>
+              <div className="t-sec">
+                <span className="kicker">{SECTIONS.inside.title}</span>
+                <span className="rule" />
+                <span className="mono">{asideOf("inside")}</span>
+              </div>
+              {formingFelt.map((reading) => (
+                <WeekReading key={reading.id} reading={reading} />
+              ))}
+            </>
+          )}
+          {formingHolds.length > 0 && (
+            <>
+              <div className="t-sec">
+                <span className="kicker">{SECTIONS.holds.title}</span>
+                <span className="rule" />
+                <span className="mono">{asideOf("holds")}</span>
+              </div>
+              {formingHolds.map((reading) => (
+                <WeekReading key={reading.id} reading={reading} />
+              ))}
+            </>
+          )}
+          {formingAround.length > 0 && (
+            <>
+              <div className="t-sec">
+                <span className="kicker">{SECTIONS.around.title}</span>
+                <span className="rule" />
+                <span className="mono">{asideOf("around")}</span>
+              </div>
+              {formingAround.map((reading) => (
+                <WeekReading key={reading.id} reading={reading} />
+              ))}
+            </>
+          )}
           {forming.map((p) => (
             <PatternRow key={p.id} pattern={p} />
           ))}

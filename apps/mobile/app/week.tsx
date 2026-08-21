@@ -476,14 +476,26 @@ function Body({
             aside={asideOf("kept", true)}
             items={outerReadingsOf(inferred).filter((x) => !x.tentative)}
           />
-          {/* Kept in its own section rather than mixed in and greyed out: a
-              low-confidence guess beside a confident one reads as equally true
-              however it is styled. */}
-          <Inferences
-            title={SECTIONS.forming.title}
-            aside={asideOf("forming", true)}
-            items={inferred.filter((x) => x.tentative)}
-          />
+          {/* Rooms stay under Still forming so a faint guess is never read as kept. */}
+          {inferred.some((item) => item.tentative) && (
+            <Section title={SECTIONS.forming.title} aside={asideOf("forming", true)}>
+              <Inferences
+                title={SECTIONS.inside.title}
+                aside={asideOf("inside", true)}
+                items={feltThoughtOf(inferred).filter((item) => item.tentative)}
+              />
+              <Inferences
+                title={SECTIONS.holds.title}
+                aside={asideOf("holds", true)}
+                items={heldReadingsOf(inferred).filter((item) => item.tentative)}
+              />
+              <Inferences
+                title={SECTIONS.around.title}
+                aside={asideOf("around", true)}
+                items={outerReadingsOf(inferred).filter((item) => item.tentative)}
+              />
+            </Section>
+          )}
 
           {findingsVisible && (
             <Text style={styles.footnote}>
