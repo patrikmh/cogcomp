@@ -59,7 +59,9 @@ services:
     # `__file__` (tlon/db/engine.py), so a normal install puts the package in
     # site-packages, resolves the migrations path somewhere else entirely, and
     # every migration fails on first boot.
-    buildCommand: pip install -e .
+    # The embeddings extra carries the local ONNX embedder (ADR-0007); it is
+    # inert until EMBEDDING_PROVIDER=local is set below.
+    buildCommand: pip install -e ".[embeddings]"
     startCommand: uvicorn tlon.main:app --host 0.0.0.0 --port $PORT
     # One. The agent scheduler runs inside this process, so a second instance is
     # a second scheduler rewriting the same graph underneath the first.
@@ -82,6 +84,12 @@ services:
       # Refuse to boot rather than serve invented readings. See build_extractor.
       - key: REQUIRE_REAL_MODEL
         value: true
+      # Semantic search (ADR-0007). Left 'deterministic' until this deployment
+      # chooses to opt in: flipping it to 'local' turns on meaning-based search
+      # on the next deploy, loading ~100MB of ONNX weights inside the instance.
+      # Until then GET /v1/search/semantic answers 503 honestly.
+      - key: EMBEDDING_PROVIDER
+        value: deterministic
       - key: AGENTS_ENABLED
         value: true
       - key: LOG_LEVEL
