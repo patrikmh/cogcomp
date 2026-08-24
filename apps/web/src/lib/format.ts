@@ -133,3 +133,43 @@ export function stampOf(iso: string) {
 export function dateOf(iso: string) {
   return new Date(iso).toLocaleDateString([], { day: "numeric", month: "short" });
 }
+
+/**
+ * How many weekly summaries the journal must fold so every listed entry can
+ * show what was drawn from it. Summaries are anchored to Mondays, so what
+ * matters is how many calendar weeks back the oldest act lives — an entry
+ * 23 days old can still sit in a fifth week of summaries. A window shorter
+ * than that list made older acts claim "nothing drawn from this yet" about
+ * readings that exist.
+ */
+export function weeksBackForOldest(
+  oldestCapturedAt: string | null | undefined,
+  today: string,
+  cap = 26,
+): number {
+  const weeks = weekDistance(today, oldestCapturedAt);
+  if (weeks === null) return 4;
+  return Math.min(cap, Math.max(4, weeks + 1));
+}
+
+/** Whether an act falls inside the calendar weeks of summaries actually
+ *  fetched. Acts older than the window say nothing rather than something
+ *  untrue. */
+export function withinReadingsWindow(
+  capturedAt: string | null | undefined,
+  today: string,
+  weeksBack: number,
+): boolean {
+  const weeks = weekDistance(today, capturedAt);
+  return weeks === null ? true : weeks >= 0 && weeks < weeksBack;
+}
+
+/** Whole calendar weeks between the Monday of `today` and the Monday of
+ *  `earlierIso`. Null when either date cannot be understood. */
+function weekDistance(today: string, earlierIso: string | null | undefined): number | null {
+  if (!earlierIso || !/^\d{4}-\d{2}-\d{2}/.test(earlierIso)) return null;
+  const a = Date.parse(`${mondayOf(today)}T12:00:00`);
+  const b = Date.parse(`${mondayOf(earlierIso.slice(0, 10))}T12:00:00`);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+  return Math.round((a - b) / 604_800_000);
+}

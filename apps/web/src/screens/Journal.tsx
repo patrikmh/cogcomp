@@ -8,7 +8,7 @@ import { Seal } from "@/lib/seal";
 import { api, type Observation } from "@/lib/api";
 import { useAmong, useAmongThemes, useDrawnFrom } from "@/lib/drawn-from";
 import { patternDestination } from "@/lib/patterns";
-import { clockOf, dayLabelOf } from "@/lib/format";
+import { clockOf, dayLabelOf, localDay, weeksBackForOldest, withinReadingsWindow } from "@/lib/format";
 import { useSession } from "@/state/session";
 import { usePreferences } from "@/state/preferences";
 import { EMPTY as EMPTY_COPY } from "@tlon/copy/empty";
@@ -89,7 +89,10 @@ export function Journal() {
     queryFn: () => api.observations(60),
   });
 
-  const drawnFrom = useDrawnFrom(4, showFindings);
+  // The window of weekly summaries must cover the oldest kept act, or older
+  // entries would claim "nothing drawn" about readings that exist.
+  const weeksBack = weeksBackForOldest(entries.data?.observations.at(-1)?.captured_at, localDay());
+  const drawnFrom = useDrawnFrom(weeksBack, showFindings);
   const patterns = useQuery({
     queryKey: ["patterns", userId],
     queryFn: api.patterns,
@@ -100,8 +103,8 @@ export function Journal() {
     queryFn: api.themes,
     enabled: showFindings,
   });
-  const among = useAmong(patterns.data ?? [], 4, showFindings);
-  const amongThemes = useAmongThemes(themes.data ?? [], 4, showFindings);
+  const among = useAmong(patterns.data ?? [], weeksBack, showFindings);
+  const amongThemes = useAmongThemes(themes.data ?? [], weeksBack, showFindings);
 
   const save = useMutation({
     mutationFn: async (envelope: Envelope) => {
@@ -274,13 +277,13 @@ export function Journal() {
                       {showFindings && (
                         (drawnFrom.get(entry.id)?.length ?? 0) > 0 ? (
                           <DrawnMeta readings={drawnFrom.get(entry.id)!} confidence />
-                        ) : (
+                        ) : withinReadingsWindow(entry.captured_at, localDay(), weeksBack) ? (
                           <div className="j-meta">
                             <Link to={`/node/${entry.id}`} className="j-from">
                               nothing drawn from this yet →
                             </Link>
                           </div>
-                        )
+                        ) : null
                       )}
                       {showFindings && (among.get(entry.id)?.length ?? 0) > 0 && (
                         <div className="j-meta">

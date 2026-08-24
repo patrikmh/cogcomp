@@ -17,7 +17,7 @@ import { Seal } from "@/components/Seal";
 import Svg, { Path } from "react-native-svg";
 import { RecordButton } from "@/components/RecordButton";
 import { ApiError, api, type ObservationResponse, type Pattern, type Theme } from "@/lib/api";
-import { deviceTimezone } from "@/lib/dates";
+import { deviceTimezone, localToday, weeksBackForOldest, withinReadingsWindow } from "@/lib/dates";
 import { useAmong, useAmongThemes, useDrawnFrom } from "@/lib/drawnFrom";
 import { patternDestination } from "@/lib/patterns";
 import { uuidv7 } from "@/lib/ids";
@@ -84,21 +84,25 @@ export default function JournalScreen() {
   // Derived provenance is opt-in and must not be fetched or read from the
   // React Query cache while findings are hidden. Observations remain raw journal
   // content and continue to render normally.
-  const drawnFrom = useDrawnFrom(token, userId, 4, findingsVisible);
+  const kept = observations.data ?? [];
+  // The window of weekly summaries must cover the oldest kept act, or older
+  // entries would claim "nothing drawn" about readings that exist.
+  const weeksBack = weeksBackForOldest(kept.at(-1)?.captured_at, localToday());
+  const drawnFrom = useDrawnFrom(token, userId, weeksBack, findingsVisible);
   const patterns = useQuery({
     queryKey: ["patterns", userId],
     queryFn: () => api.listPatterns(token!),
     enabled: Boolean(token && userId) && findingsVisible,
   });
   const foundPatterns: Pattern[] = patterns.data ?? [];
-  const among = useAmong(token, userId, foundPatterns, 4, findingsVisible);
+  const among = useAmong(token, userId, foundPatterns, weeksBack, findingsVisible);
   const themes = useQuery({
     queryKey: ["themes", userId],
     queryFn: () => api.listThemes(token!),
     enabled: Boolean(token && userId) && findingsVisible,
   });
   const foundThemes: Theme[] = themes.data ?? [];
-  const amongThemes = useAmongThemes(token, userId, foundThemes, 4, findingsVisible);
+  const amongThemes = useAmongThemes(token, userId, foundThemes, weeksBack, findingsVisible);
 
   const capture = useMutation({
     mutationFn: async ({ content, id }: { content: string; id: string }) => {
@@ -239,7 +243,7 @@ export default function JournalScreen() {
                           readings={drawnFrom.get(entry.id)!}
                           ask={gi === 0 && i === 0}
                         />
-                      ) : findingsVisible ? (
+                      ) : findingsVisible && withinReadingsWindow(entry.captured_at, localToday(), weeksBack) ? (
                         <Text style={styles.readoutOpen}>nothing drawn from this yet</Text>
                       ) : null}
                       {findingsVisible && (among.get(entry.id)?.length ?? 0) > 0 && (
