@@ -84,10 +84,10 @@ export default function JournalScreen() {
   // Derived provenance is opt-in and must not be fetched or read from the
   // React Query cache while findings are hidden. Observations remain raw journal
   // content and continue to render normally.
-  const kept = observations.data ?? [];
+  const keptList: ObservationResponse[] = observations.data?.observations ?? [];
   // The window of weekly summaries must cover the oldest kept act, or older
   // entries would claim "nothing drawn" about readings that exist.
-  const weeksBack = weeksBackForOldest(kept.at(-1)?.captured_at, localToday());
+  const weeksBack = weeksBackForOldest(keptList[keptList.length - 1]?.captured_at, localToday());
   const drawnFrom = useDrawnFrom(token, userId, weeksBack, findingsVisible);
   const patterns = useQuery({
     queryKey: ["patterns", userId],

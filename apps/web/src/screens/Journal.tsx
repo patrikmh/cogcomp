@@ -91,7 +91,8 @@ export function Journal() {
 
   // The window of weekly summaries must cover the oldest kept act, or older
   // entries would claim "nothing drawn" about readings that exist.
-  const weeksBack = weeksBackForOldest(entries.data?.observations.at(-1)?.captured_at, localDay());
+  const entryList = entries.data?.observations ?? [];
+  const weeksBack = weeksBackForOldest(entryList[entryList.length - 1]?.captured_at, localDay());
   const drawnFrom = useDrawnFrom(weeksBack, showFindings);
   const patterns = useQuery({
     queryKey: ["patterns", userId],
