@@ -10,7 +10,8 @@ import {
   useWindowDimensions,
 } from "react-native";
 
-import { Chip, Kicker, Meter, Rule, Spine } from "@/components/Marks";
+import { Kicker, Meter, Rule, Spine } from "@/components/Marks";
+import { DrawnRooms } from "@/components/DrawnRooms";
 import { ErrorLens } from "@/components/SpatialField";
 import { MotionSurface } from "@/components/MotionSurface";
 import { Rise, Rising } from "@/components/Rise";
@@ -245,20 +246,7 @@ function SummaryBody({ summary, day }: { summary: DailySummary; day: string }) {
                   </View>
                 </MotionSurface>
                 {findingsVisible && drawn.length > 0 && (
-                  <View style={styles.chipRow}>
-                    <Kicker>Drawn from this</Kicker>
-                    <View style={styles.chips}>
-                      {drawn.slice(0, 4).map((r) => (
-                        <Chip
-                          key={r.id}
-                          label={r.label}
-                          confidence={r.confidence}
-                          tentative={r.tentative}
-                          onPress={() => router.push(`/node/${r.id}`)}
-                        />
-                      ))}
-                    </View>
-                  </View>
+                  <DrawnRooms readings={drawn} />
                 )}
               </View>
             </View>

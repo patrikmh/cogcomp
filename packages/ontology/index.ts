@@ -101,6 +101,7 @@ export function isTentative(inference: Inference): boolean {
 /** One reading, as it appears beside the act it was drawn from. */
 export interface Drawn {
   id: string;
+  kind: string;
   label: string;
   confidence: number;
   tentative: boolean;
@@ -139,6 +140,7 @@ export function foldDrawnFrom(
         if (!list.some((r) => r.id === reading.id)) {
           list.push({
             id: reading.id,
+            kind: reading.kind,
             label: reading.label,
             confidence: reading.confidence,
             tentative: reading.tentative,
@@ -363,6 +365,22 @@ export function outerReadingsOf<T extends { kind: string }>(readings: readonly T
   );
 }
 
+export type CompositionRoom = "inside" | "holds" | "around";
+
+/** Readings that belong in one composition room.
+ *
+ *  `all` is the caller's list unchanged. A named room is felt-and-thought,
+ *  what is held, or people-places-acts — never a mix. Order is that room's. */
+export function inRoomOf<T extends { kind: string }>(
+  readings: readonly T[],
+  room: CompositionRoom | "all",
+): T[] {
+  if (room === "inside") return feltThoughtOf(readings);
+  if (room === "holds") return heldReadingsOf(readings);
+  if (room === "around") return outerReadingsOf(readings);
+  return readings.slice();
+}
+
 /** How often a reading returned in this window. A week uses days; a day uses acts. */
 function returningCount(reading: { cites_days?: number; cites_entries?: number }): number {
   return reading.cites_days ?? reading.cites_entries ?? 0;
@@ -532,6 +550,28 @@ export function arcsOf<
     .sort(
       (left, right) => (ARC_ORDER[left.state ?? ""] ?? 9) - (ARC_ORDER[right.state ?? ""] ?? 9),
     );
+}
+
+/** Holds the person never set a trial against.
+ *
+ *  The hidden pattern is the hold they keep writing and never wonder about —
+ *  not that the app should invent a trial. Empty unless some eligible hold is
+ *  already linked, so a record that never tried anything is not a verdict.
+ *  Weather and guesses stay out. Order is the caller list's. */
+export function untriedOf<
+  T extends { id: string; kind: string; tentative?: boolean },
+  E extends { links?: { node_id: string }[] },
+>(readings: readonly T[], experiments: readonly E[]): T[] {
+  const linked = new Set<string>();
+  for (const experiment of experiments) {
+    for (const link of experiment.links ?? []) {
+      const id = link.node_id.trim();
+      if (id) linked.add(id);
+    }
+  }
+  const held = readings.filter((reading) => eligibleHeld(reading));
+  if (!held.some((hold) => linked.has(hold.id))) return [];
+  return held.filter((hold) => !linked.has(hold.id));
 }
 
 /**
@@ -874,6 +914,35 @@ export function untestedOf<
   return quiet.length > 0 && tested ? quiet : [];
 }
 
+/** Needs and values the record holds and never hints at.
+ *
+ *  A thought or feeling must INDICATE the hold for it to count as hinted.
+ *  Shown only when the graph also has a hinted hold, so a record that never
+ *  points is not a verdict. Beliefs are argued elsewhere. Order is the
+ *  candidate list's. */
+export function unhintedHoldsOf<
+  T extends { id: string; kind: string },
+>(
+  holds: readonly T[],
+  nodes: readonly { id: string; kind: string }[],
+  edges: readonly { from_id: string; to_id: string; kind: string }[],
+): T[] {
+  const byId = new Map(nodes.map((node) => [node.id, node]));
+  const indicated = new Set<string>(INDICATED_KINDS);
+  const indicating = new Set<string>(INDICATING_KINDS);
+  const hinted = new Set<string>();
+  for (const edge of edges) {
+    if (edge.kind !== "INDICATES") continue;
+    const from = byId.get(edge.from_id);
+    const to = byId.get(edge.to_id);
+    if (!from || !indicating.has(from.kind)) continue;
+    if (!to || !indicated.has(to.kind)) continue;
+    hinted.add(to.id);
+  }
+  const quiet = holds.filter((node) => indicated.has(node.kind) && !hinted.has(node.id));
+  return quiet.length > 0 && hinted.size > 0 ? quiet : [];
+}
+
 /** Emotions the record names and never aims.
  *
  *  Only a FELT_TOWARD edge at a person, place, activity, or event counts as a
@@ -1028,6 +1097,40 @@ export function travelsWithOf<T extends { id: string; kind: string }>(
   );
 }
 
+/** What the record linked here only by writing a note.
+ *
+ *  Only `RELATES_TO`, and only when that edge still carries the note the
+ *  ontology requires. Without the note this is an empty kind, not a door.
+ *  Patterns, themes, and observations stay out: those have their own rooms.
+ *  Order is the neighbour list's. The first note for a neighbour is kept. */
+export function relatesToOf<T extends { id: string; kind: string }>(
+  nodeId: string,
+  neighbours: readonly T[],
+  edges: readonly { from_id: string; to_id: string; kind: string; note?: string | null }[],
+): { neighbour: T; note: string }[] {
+  const notes = new Map<string, string>();
+  for (const edge of edges) {
+    if (edge.kind !== "RELATES_TO") continue;
+    const other =
+      edge.from_id === nodeId ? edge.to_id : edge.to_id === nodeId ? edge.from_id : "";
+    if (!other) continue;
+    const note = edge.note?.trim() ?? "";
+    if (!note || notes.has(other)) continue;
+    notes.set(other, note);
+  }
+  return neighbours.flatMap((neighbour) => {
+    if (
+      neighbour.kind === "Pattern" ||
+      neighbour.kind === "Theme" ||
+      neighbour.kind === "Observation"
+    ) {
+      return [];
+    }
+    const note = notes.get(neighbour.id);
+    return note ? [{ neighbour, note }] : [];
+  });
+}
+
 /** Regions a reading belongs to, by the member names the region is honest about.
  *
  *  The list endpoint does not send member ids, so this matches the reading's
@@ -1063,6 +1166,30 @@ function weekdayIndex(instant: string): number | null {
   const date = new Date(instant);
   if (Number.isNaN(date.getTime())) return null;
   return (date.getDay() + 6) % 7;
+}
+
+/** The distinct local days behind one reading, first seen first.
+ *
+ *  A hold that names many days is easier to trust when its spread can be
+ *  walked in context. This only lists the record's own writing days — never
+ *  an inferred one — and keeps the order the evidence arrived in. Days are
+ *  the viewer's local calendar, the same approximation every stamp uses. */
+export function daysBehindOf(instants: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const days: string[] = [];
+  for (const instant of instants) {
+    const date = new Date(instant);
+    if (Number.isNaN(date.getTime())) continue;
+    const day =
+      `${date.getFullYear()}-` +
+      `${String(date.getMonth() + 1).padStart(2, "0")}-` +
+      `${String(date.getDate()).padStart(2, "0")}`;
+    if (!seen.has(day)) {
+      seen.add(day);
+      days.push(day);
+    }
+  }
+  return days;
 }
 
 export function regionsOfReading<T extends { members: readonly string[] }>(

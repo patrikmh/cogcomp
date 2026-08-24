@@ -14,8 +14,8 @@ import { Kicker, Meter, Rule } from "@/components/Marks";
 import { Seal } from "@/components/Seal";
 import { EvidenceRail, FieldFrame, LoadingLens, ErrorLens, ObservablePearl } from "@/components/SpatialField";
 import { MotionSurface } from "@/components/MotionSurface";
-import { api, type Experiment, type Explanation, type GraphNode, type Judgement, type ObservationResponse, type Pattern, type Theme } from "@/lib/api";
-import { aboutOf, amongReadingsOf, apartSidesOf, arcsOf, contradictsOf, feltTowardOf, indicatesOf, maybeAfterOf, regionsOfReading, supportsOf, travelsWithOf, weekdayShapeOf } from "@/lib/drawnFrom";
+import { api, type Experiment, type Explanation, type GraphNode, type Judgement, type ObservationResponse, type Pattern, type PatternThread, type Theme, type ThreadMember } from "@/lib/api";
+import { aboutOf, amongReadingsOf, apartSidesOf, arcsOf, contradictsOf, daysBehindOf, feltThoughtOf, feltTowardOf, heldReadingsOf, indicatesOf, maybeAfterOf, outerReadingsOf, regionsOfReading, relatesToOf, supportsOf, travelsWithOf, weekdayShapeOf } from "@/lib/drawnFrom";
 import { experimentQueryKeys } from "@/lib/experiment";
 import { patternDestination } from "@/lib/patterns";
 import { useSession } from "@/state/session";
@@ -72,6 +72,13 @@ export default function NodeScreen() {
     queryFn: () => api.listExperiments(token!, showFindings),
     enabled: Boolean(token && userId && showFindings),
   });
+  // The thread this finding belongs to, if any. Same lookup the Patterns
+  // screen groups with; keyed on the user so it cannot fire unauthenticated.
+  const threads = useQuery({
+    queryKey: ["threads", userId],
+    queryFn: () => api.listThreads(token!),
+    enabled: Boolean(token && userId && showFindings),
+  });
 
   useFocusEffect(
     useCallback(() => {
@@ -100,8 +107,16 @@ export default function NodeScreen() {
   const spoken = aboutOf(id!, foundNeighbours, neighbours.data?.edges ?? []);
   const hinted = indicatesOf(id!, foundNeighbours, neighbours.data?.edges ?? []);
   const tension = contradictsOf(id!, foundNeighbours, neighbours.data?.edges ?? []);
+  // A contradicted pattern opens by its detector, not its kind alone: only
+  // lag can keep the ordering screen's promise, so the patterns list decides.
+  const patternRoute = (reading: { id: string; kind: string }) => {
+    if (reading.kind !== "Pattern") return `/node/${reading.id}`;
+    const found = foundPatterns.find((pattern) => pattern.id === reading.id);
+    return found ? patternDestination(found).href : `/node/${reading.id}`;
+  };
   const backing = supportsOf(id!, foundNeighbours, neighbours.data?.edges ?? []);
   const maybe = maybeAfterOf(id!, foundNeighbours, neighbours.data?.edges ?? []);
+  const related = relatesToOf(id!, foundNeighbours, neighbours.data?.edges ?? []);
   const foundThemes: Theme[] = themes.data ?? [];
   const regions = regionsOfReading(explanation.data.node.label, foundThemes);
   const opened = foundPatterns.find((pattern) => pattern.id === id);
@@ -113,7 +128,18 @@ export default function NodeScreen() {
     opened?.detector === "stated-vs-recorded"
       ? apartSidesOf(foundNeighbours)
       : { named: [] as GraphNode[], done: [] as GraphNode[] };
+  const parts =
+    opened && apart.named.length === 0 && apart.done.length === 0
+      ? {
+          felt: feltThoughtOf(foundNeighbours),
+          holds: heldReadingsOf(foundNeighbours),
+          around: outerReadingsOf(foundNeighbours),
+        }
+      : { felt: [] as GraphNode[], holds: [] as GraphNode[], around: [] as GraphNode[] };
   const wondered: Experiment[] = arcsOf(id!, experiments.data?.experiments ?? []);
+  const siblings = threads.data
+    ?.filter((t: PatternThread) => t.members.some((m: ThreadMember) => m.id === id))
+    .flatMap((t: PatternThread) => t.members.filter((m: ThreadMember) => m.id !== id));
   return (
     <Body
       explanation={explanation.data}
@@ -123,13 +149,17 @@ export default function NodeScreen() {
       regions={regions}
       calendar={calendar}
       apart={apart}
+      parts={parts}
       aimed={aimed}
       spoken={spoken}
       hinted={hinted}
       tension={tension}
+      patternRoute={patternRoute}
       backing={backing}
       maybe={maybe}
+      related={related}
       wondered={wondered}
+      siblings={siblings}
     />
   );
 }
@@ -267,13 +297,17 @@ function Body({
   regions,
   calendar,
   apart,
+  parts,
   aimed,
   spoken,
   hinted,
   tension,
+  patternRoute,
   backing,
   maybe,
+  related,
   wondered,
+  siblings,
 }: {
   explanation: Explanation;
   nodeId: string;
@@ -282,15 +316,24 @@ function Body({
   regions: Theme[];
   calendar: { weekday: string; count: number }[];
   apart: { named: GraphNode[]; done: GraphNode[] };
+  parts: { felt: GraphNode[]; holds: GraphNode[]; around: GraphNode[] };
   aimed: { toward: GraphNode[]; from: GraphNode[] };
   spoken: { about: GraphNode[]; aboutThis: GraphNode[] };
   hinted: { hints: GraphNode[]; hinted: GraphNode[] };
   tension: { against: GraphNode[]; againstThis: GraphNode[] };
+  patternRoute: (reading: { id: string; kind: string }) => string;
   backing: { holdsUp: GraphNode[]; heldUp: GraphNode[] };
   maybe: { after: GraphNode[]; beforeThis: GraphNode[] };
+  related: { neighbour: GraphNode; note: string }[];
   wondered: Experiment[];
+  siblings?: ThreadMember[];
 }) {
   const { node, derived_from, is_observed } = explanation;
+  // The distinct writing days behind the evidence, so a hold that names many
+  // days can be walked in context instead of trusted on a count alone.
+  const behind = daysBehindOf(
+    derived_from.map((entry: { captured_at: string }) => entry.captured_at),
+  );
 
   if (is_observed) {
     // An observation is what the user wrote. It is not a claim, has no
@@ -364,6 +407,31 @@ function Body({
         you. It came from:
       </Text>
 
+      {siblings && siblings.length > 0 && (
+        <>
+          <View style={styles.sectionRow}>
+            <Kicker heading>Same thread</Kicker>
+            <View style={styles.ruleFill}>
+              <Rule />
+            </View>
+            <Text style={styles.meta}>grouped by shared evidence words</Text>
+          </View>
+          {siblings.map((member) => (
+            <MotionSurface
+              key={member.id}
+              onPress={() => router.push(patternRoute({ id: member.id, kind: "Pattern" }))}
+              accessibilityRole="button"
+              accessibilityLabel={member.label}
+            >
+              <Text style={[styles.sourceText, member.tentative ? styles.ghost : null]}>
+                {member.label}
+              </Text>
+              <Text style={styles.meta}>{member.detector.replace(/-/g, " ")}</Text>
+            </MotionSurface>
+          ))}
+        </>
+      )}
+
       {(apart.named.length > 0 || apart.done.length > 0) && (
         <>
           <View style={styles.sectionRow}>
@@ -395,6 +463,48 @@ function Body({
               <Text style={styles.meta}>{reading.kind.toLowerCase()} · recorded</Text>
             </MotionSurface>
           ))}
+        </>
+      )}
+
+      {(parts.felt.length > 0 || parts.holds.length > 0 || parts.around.length > 0) && (
+        <>
+          <View style={styles.sectionRow}>
+            <Kicker heading>{SECTIONS.parts.title}</Kicker>
+            <View style={styles.ruleFill}>
+              <Rule />
+            </View>
+            <Text style={styles.meta}>{asideOf("parts", true)}</Text>
+          </View>
+          {(
+            [
+              { name: "inside" as const, items: parts.felt },
+              { name: "holds" as const, items: parts.holds },
+              { name: "around" as const, items: parts.around },
+            ] as const
+          )
+            .filter((room) => room.items.length > 0)
+            .map((room) => (
+              <View key={room.name}>
+                <View style={styles.sectionRow}>
+                  <Kicker heading>{SECTIONS[room.name].title}</Kicker>
+                  <View style={styles.ruleFill}>
+                    <Rule />
+                  </View>
+                  <Text style={styles.meta}>{asideOf(room.name, true)}</Text>
+                </View>
+                {room.items.map((reading) => (
+                  <MotionSurface
+                    key={reading.id}
+                    onPress={() => router.push(`/node/${reading.id}`)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${reading.label} — part of this finding, open this reading`}
+                  >
+                    <Text style={styles.sourceText}>{reading.label}</Text>
+                    <Text style={styles.meta}>{reading.kind.toLowerCase()}</Text>
+                  </MotionSurface>
+                ))}
+              </View>
+            ))}
         </>
       )}
 
@@ -458,6 +568,33 @@ function Body({
         ))
       )}
       </EvidenceRail>
+
+      {behind.length > 1 && (
+        <>
+          <View style={styles.sectionRow}>
+            <Kicker heading>{SECTIONS.behind.title}</Kicker>
+            <View style={styles.ruleFill}>
+              <Rule />
+            </View>
+            <Text style={styles.meta}>{asideOf("behind", true)}</Text>
+          </View>
+          {/* One day never earns this row: a single evidence entry is already
+              shown in full above, and a one-link list would only repeat it. */}
+          <View style={styles.behindRow}>
+            {behind.map((day) => (
+              <MotionSurface
+                key={day}
+                style={styles.behindDay}
+                onPress={() => router.push(`/today?date=${day}`)}
+                accessibilityRole="button"
+                accessibilityLabel={`Open ${day}`}
+              >
+                <Text style={styles.behindText}>{day}</Text>
+              </MotionSurface>
+            ))}
+          </View>
+        </>
+      )}
 
       {aimed.toward.length > 0 && (
         <>
@@ -609,7 +746,7 @@ function Body({
           {tension.against.map((reading) => (
             <MotionSurface
               key={reading.id}
-              onPress={() => router.push(`/node/${reading.id}`)}
+              onPress={() => router.push(patternRoute(reading))}
               accessibilityRole="button"
               accessibilityLabel={`${reading.label} — sits against, open this reading`}
             >
@@ -632,7 +769,7 @@ function Body({
           {tension.againstThis.map((reading) => (
             <MotionSurface
               key={reading.id}
-              onPress={() => router.push(`/node/${reading.id}`)}
+              onPress={() => router.push(patternRoute(reading))}
               accessibilityRole="button"
               accessibilityLabel={`${reading.label} — sits against this, open this reading`}
             >
@@ -730,6 +867,29 @@ function Body({
             >
               <Text style={styles.sourceText}>{reading.label}</Text>
               <Text style={styles.meta}>{reading.kind.toLowerCase()} · a hypothesis, not a cause</Text>
+            </MotionSurface>
+          ))}
+        </>
+      )}
+
+      {related.length > 0 && (
+        <>
+          <View style={styles.sectionRow}>
+            <Kicker heading>{SECTIONS.related.title}</Kicker>
+            <View style={styles.ruleFill}>
+              <Rule />
+            </View>
+            <Text style={styles.meta}>{asideOf("related", true)}</Text>
+          </View>
+          {related.map(({ neighbour, note }) => (
+            <MotionSurface
+              key={neighbour.id}
+              onPress={() => router.push(`/node/${neighbour.id}`)}
+              accessibilityRole="button"
+              accessibilityLabel={`${neighbour.label} — also related, ${note}, open this reading`}
+            >
+              <Text style={styles.sourceText}>{neighbour.label}</Text>
+              <Text style={styles.meta}>{neighbour.kind.toLowerCase()} · {note}</Text>
             </MotionSurface>
           ))}
         </>
@@ -939,6 +1099,14 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   sourceText: { fontFamily: fonts.sans, fontSize: 16, lineHeight: 23, color: colors.ink },
+  behindRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 },
+  behindDay: {
+    backgroundColor: colors.surface,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  behindText: { fontFamily: fonts.mono, fontSize: 13, color: colors.ink },
   rawContent: { fontFamily: fonts.sans, fontSize: 22, lineHeight: 31, color: colors.ink, marginTop: 16 },
   meta: { fontFamily: fonts.sans, fontSize: 12, color: colors.inkMuted },
   provenance: {
@@ -963,4 +1131,5 @@ const styles = StyleSheet.create({
   loader: { marginTop: 40 },
   error: { color: colors.danger, padding: 16 },
   footnote: { marginTop: 20, fontFamily: fonts.sans, fontSize: 12, lineHeight: 18, color: colors.inkMuted },
+  ghost: { opacity: 0.55 },
 });

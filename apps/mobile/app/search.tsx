@@ -1,16 +1,18 @@
 import { radii, type as scale } from "@tlon/design";
 import { useQuery } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { Guide } from "@/components/Guide";
+import { DrawnRooms } from "@/components/DrawnRooms";
 import { Chip, Kicker, Rule } from "@/components/Marks";
 import { MotionSurface } from "@/components/MotionSurface";
 import { ErrorLens } from "@/components/SpatialField";
 import { Seal } from "@/components/Seal";
-import { api, type ObservationResponse } from "@/lib/api";
-import { namedInnerOf, useDrawnFrom } from "@/lib/drawnFrom";
+import { ApiError, api, type ObservationResponse, type Pattern, type Theme } from "@/lib/api";
+import { feltThoughtOf, heldReadingsOf, namedInnerOf, useAmong, useAmongThemes, useDrawnFrom } from "@/lib/drawnFrom";
+import { patternDestination } from "@/lib/patterns";
 import { useSession } from "@/state/session";
 import { usePreferences } from "@/state/preferences";
 import { colors, fonts } from "@/theme";
@@ -35,7 +37,10 @@ export default function SearchScreen() {
   const token = useSession((s) => s.token);
   const userId = useSession((s) => s.userId);
   const router = useRouter();
-  const [term, setTerm] = useState("");
+  // A word handed over by another room — a first-time word on Week, say —
+  // opens the screen already asking its question.
+  const routeQuery = useLocalSearchParams<{ q?: string }>().q;
+  const [term, setTerm] = useState(typeof routeQuery === "string" ? routeQuery : "");
   const [focused, setFocused] = useState(false);
 
   const entries = useQuery({
@@ -52,6 +57,23 @@ export default function SearchScreen() {
     queryFn: () => api.graph(token!, { limit: 200 }),
     enabled: Boolean(token && userId) && findingsVisible,
   });
+  // A found act that sits inside a recurrence should say so here too: search
+  // is where a specific moment is revisited, and the pattern it belongs to is
+  // exactly the thing its writer could not see from inside one day.
+  const patterns = useQuery({
+    queryKey: ["patterns", userId],
+    queryFn: () => api.listPatterns(token!),
+    enabled: Boolean(token && userId) && findingsVisible,
+  });
+  const foundPatterns: Pattern[] = patterns.data ?? [];
+  const themes = useQuery({
+    queryKey: ["themes", userId],
+    queryFn: () => api.listThemes(token!),
+    enabled: Boolean(token && userId) && findingsVisible,
+  });
+  const foundThemes: Theme[] = themes.data ?? [];
+  const among = useAmong(token, userId, foundPatterns, 4, findingsVisible);
+  const amongThemes = useAmongThemes(token, userId, foundThemes, 4, findingsVisible);
 
   if (!token) return null;
   if (entries.isError) {
@@ -62,6 +84,8 @@ export default function SearchScreen() {
   const needle = term.trim().toLowerCase();
   const hits = needle ? all.filter((e) => e.content.toLowerCase().includes(needle)) : [];
   const named = findingsVisible ? namedInnerOf(needle, graph.data?.nodes ?? []) : [];
+  const namedFelt = feltThoughtOf(named);
+  const namedHolds = heldReadingsOf(named);
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -111,15 +135,40 @@ export default function SearchScreen() {
             <Kicker heading>{SECTIONS.named.title}</Kicker>
             <Text style={styles.namedAside}>{asideOf("named", true)}</Text>
           </View>
-          {named.map((reading) => (
-            <Chip
-              key={reading.id}
-              label={`${reading.label} · ${reading.kind.toLowerCase()}`}
-              confidence={reading.confidence ?? 0}
-              tentative={Boolean(reading.tentative)}
-              onPress={() => router.push(`/node/${reading.id}`)}
-            />
-          ))}
+          {namedFelt.length > 0 && (
+            <>
+              <View style={styles.namedHead}>
+                <Kicker heading>{SECTIONS.inside.title}</Kicker>
+                <Text style={styles.namedAside}>{asideOf("inside", true)}</Text>
+              </View>
+              {namedFelt.map((reading) => (
+                <Chip
+                  key={reading.id}
+                  label={`${reading.label} · ${reading.kind.toLowerCase()}`}
+                  confidence={reading.confidence ?? 0}
+                  tentative={Boolean(reading.tentative)}
+                  onPress={() => router.push(`/node/${reading.id}`)}
+                />
+              ))}
+            </>
+          )}
+          {namedHolds.length > 0 && (
+            <>
+              <View style={styles.namedHead}>
+                <Kicker heading>{SECTIONS.holds.title}</Kicker>
+                <Text style={styles.namedAside}>{asideOf("holds", true)}</Text>
+              </View>
+              {namedHolds.map((reading) => (
+                <Chip
+                  key={reading.id}
+                  label={`${reading.label} · ${reading.kind.toLowerCase()}`}
+                  confidence={reading.confidence ?? 0}
+                  tentative={Boolean(reading.tentative)}
+                  onPress={() => router.push(`/node/${reading.id}`)}
+                />
+              ))}
+            </>
+          )}
         </View>
       )}
 
@@ -151,16 +200,38 @@ export default function SearchScreen() {
               </View>
             </MotionSurface>
               {findingsVisible && drawn.length > 0 && (
-                <View style={styles.chips}>
-                  {drawn.slice(0, 3).map((r) => (
-                    <Chip
-                      key={r.id}
-                      label={r.label}
-                      confidence={r.confidence}
-                      tentative={r.tentative}
-                      onPress={() => router.push(`/node/${r.id}`)}
-                    />
-                  ))}
+                <DrawnRooms readings={drawn} />
+              )}
+              {findingsVisible && (among.get(hit.id)?.length ?? 0) > 0 && (
+                <View style={styles.chipRow}>
+                  <Kicker>This act is among</Kicker>
+                  <View style={styles.chips}>
+                    {among.get(hit.id)!.slice(0, 3).map((pattern) => (
+                      <Chip
+                        key={pattern.id}
+                        label={pattern.label.split(" · ")[0] ?? pattern.label}
+                        confidence={pattern.confidence}
+                        tentative={pattern.tentative}
+                        onPress={() => router.push(patternDestination(pattern).href)}
+                      />
+                    ))}
+                  </View>
+                </View>
+              )}
+              {findingsVisible && (amongThemes.get(hit.id)?.length ?? 0) > 0 && (
+                <View style={styles.chipRow}>
+                  <Kicker>This act is in</Kicker>
+                  <View style={styles.chips}>
+                    {amongThemes.get(hit.id)!.slice(0, 3).map((theme) => (
+                      <Chip
+                        key={theme.id}
+                        label={theme.label}
+                        confidence={theme.confidence}
+                        tentative={theme.tentative}
+                        onPress={() => router.push(`/theme/${theme.id}`)}
+                      />
+                    ))}
+                  </View>
                 </View>
               )}
           </View>
@@ -289,6 +360,7 @@ const styles = StyleSheet.create({
     textDecorationColor: "rgba(122,220,200,0.45)",
   },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  chipRow: { gap: 6 },
   named: { gap: 8, paddingTop: 4 },
   namedHead: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: 10 },
   namedAside: { color: colors.inkMuted, fontFamily: fonts.mono, fontSize: scale.meta.size },

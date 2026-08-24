@@ -1,6 +1,7 @@
 """Conversational journalling over HTTP, against a real database."""
 
 import asyncio
+import uuid
 from datetime import UTC
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -173,13 +174,30 @@ class TestOnlyUserTurnsBecomeObservations:
                 assistant_turn,
             )
 
-    async def test_each_turn_becomes_its_own_entry(self, client: AsyncClient, account: Account):
-        # Merging them would produce an entry the person never wrote.
+    async def test_a_conversation_becomes_one_entry(self, client: AsyncClient, account: Account):
+        # Closing joins the person's own turns verbatim, pauses kept, rather
+        # than scattering fragments across the journal that only made sense in
+        # the order they were said. Every word is still there.
         cid = await start(client, account)
         for text in ("one", "two", "three"):
             await say(client, account, cid, text)
         closed = await client.post(f"/v1/conversations/{cid}/close", headers=account.auth)
-        assert len(closed.json()["observations"]) == 3
+        body = closed.json()
+        assert body["turns_converted"] == 3
+        assert len(body["observations"]) == 1
+        listed = await client.get("/v1/observations", headers=account.auth)
+        entry = next(
+            o for o in listed.json()["observations"] if o["id"] == body["observations"][0]
+        )
+        assert entry["content"] == "one\n\ntwo\n\nthree"
+        pool = client._transport.app.state.pool
+        linked = await pool.fetchval(
+            "SELECT count(*) FROM conversation_turns WHERE conversation_id = $1 "
+            "AND observation_id = $2",
+            uuid.UUID(cid),
+            uuid.UUID(body["observations"][0]),
+        )
+        assert linked == 3
 
     async def test_converted_turns_link_to_their_observation(
         self, client: AsyncClient, account: Account

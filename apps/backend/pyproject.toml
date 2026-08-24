@@ -28,6 +28,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
+    "pytest-timeout>=2.3",
     "anyio>=4.6",
     "asgi-lifespan>=2.1",
     "ruff>=0.8",
@@ -51,6 +52,13 @@ ignore = ["B008"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# The full integration run has stalled twice with no failing test — every test
+# passes when the same files are run in chunks. A per-test timeout turns the
+# next stall into a named culprit instead of a silent 15-minute hang.
+timeout = 60
+# Thread method: a signal-based kill would take down the whole pytest process
+# mid-asyncio, losing which test hung; thread reports and moves on.
+timeout_method = "thread"
 # Integration tests need a live Postgres; unit tests do not. `-m "not integration"`
 # skips the ones that do.
 markers = [

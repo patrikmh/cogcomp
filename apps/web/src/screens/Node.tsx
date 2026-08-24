@@ -4,9 +4,11 @@ import { Link, useParams } from "react-router-dom";
 import { Meter } from "@/components/Meter";
 import { Failed, Loading } from "@/components/States";
 import { api } from "@/lib/api";
-import { aboutOf, amongReadingsOf, arcsOf, contradictsOf, feltTowardOf, indicatesOf, maybeAfterOf, regionsOfReading, supportsOf, travelsWithOf } from "@/lib/drawn-from";
+import { aboutOf, amongReadingsOf, arcsOf, contradictsOf, daysBehindOf, feltTowardOf, indicatesOf, maybeAfterOf, regionsOfReading, relatesToOf, supportsOf, travelsWithOf } from "@/lib/drawn-from";
+import { patternDestination } from "@/lib/patterns";
 import { usePreferences } from "@/state/preferences";
-import { fmt, stampOf } from "@/lib/format";
+import { useSession } from "@/state/session";
+import { fmt, stampOf, dateOf, DETECTOR_LABEL } from "@/lib/format";
 import { Guide } from "@/components/Guide";
 import { HEADINGS } from "@tlon/copy/headings";
 import { SECTIONS, asideOf } from "@tlon/copy/sections";
@@ -22,6 +24,7 @@ export function Node() {
   const { id = "" } = useParams();
   const client = useQueryClient();
   const showFindings = usePreferences((s) => s.findings);
+  const userId = useSession((s) => s.userId);
   const observations = useQuery({
     queryKey: ["observations", "node", id],
     queryFn: () => api.observations(500),
@@ -54,6 +57,17 @@ export function Node() {
     queryFn: () => api.experiments(showFindings),
     enabled: showFindings,
   });
+  // The thread this finding belongs to, if any — the same id-match the
+  // Patterns screen groups with, keyed on the user so it cannot fire
+  // unauthenticated and cache a failure as an answer.
+  const threads = useQuery({
+    queryKey: ["threads", userId],
+    queryFn: api.threads,
+    enabled: showFindings && Boolean(userId),
+  });
+  const siblings = threads.data
+    ?.filter((t) => t.members.some((m) => m.id === id))
+    .flatMap((t) => t.members.filter((m) => m.id !== id));
 
   const judge = useMutation({
     mutationFn: (status: "hypothesis" | "user_confirmed" | "user_rejected") =>
@@ -97,6 +111,9 @@ export function Node() {
   if (explanation.isError || !explanation.data) return <Failed onRetry={() => void explanation.refetch()} />;
 
   const { node, derived_from, is_observed } = explanation.data;
+  // The distinct writing days behind the evidence, so a hold that names many
+  // days can be walked in context instead of trusted on a count alone.
+  const behind = daysBehindOf(derived_from.map((source) => source.captured_at));
 
   if (is_observed) {
     return (
@@ -121,6 +138,13 @@ export function Node() {
   const status = node.epistemic_status ?? "hypothesis";
   const tentative = confidence < 0.5;
   const among = amongReadingsOf(neighbours.data?.neighbours ?? [], patterns.data ?? []);
+  // A contradicted pattern opens by its detector, not its kind alone: only
+  // lag can keep the ordering screen's promise, so the patterns list decides.
+  const patternRoute = (reading: { id: string; kind: string }) => {
+    if (reading.kind !== "Pattern") return `/node/${reading.id}`;
+    const found = (patterns.data ?? []).find((pattern) => pattern.id === reading.id);
+    return found ? patternDestination(found).href : `/node/${reading.id}`;
+  };
   const company = travelsWithOf(
     id,
     neighbours.data?.neighbours ?? [],
@@ -133,6 +157,7 @@ export function Node() {
   const tension = contradictsOf(id, neighbours.data?.neighbours ?? [], neighbours.data?.edges ?? []);
   const backing = supportsOf(id, neighbours.data?.neighbours ?? [], neighbours.data?.edges ?? []);
   const maybe = maybeAfterOf(id, neighbours.data?.neighbours ?? [], neighbours.data?.edges ?? []);
+  const related = relatesToOf(id, neighbours.data?.neighbours ?? [], neighbours.data?.edges ?? []);
   const wondered = arcsOf(id, experiments.data?.experiments ?? []);
 
   return (
@@ -184,6 +209,27 @@ export function Node() {
             : "Saying “not really” stops this feeding patterns, week comparisons and the graph. Tap again to withdraw."}
       </p>
 
+      {siblings && siblings.length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">Same thread</span>
+            <span className="rule" />
+            <span className="mono">grouped by shared evidence words</span>
+          </div>
+          <div className="row" style={{ gap: 12, flexWrap: "wrap" }}>
+            {siblings.map((member) => (
+              <Link
+                key={member.id}
+                className={`c${member.tentative ? " ghost" : ""}`}
+                to={patternDestination(member).href}
+              >
+                {DETECTOR_LABEL[member.detector] ?? member.detector}: {member.label}
+              </Link>
+            ))}
+          </div>
+        </>
+      )}
+
       <h2>Evidence · every citing entry</h2>
       <div className="cards">
         {derived_from.map((source) => (
@@ -201,6 +247,25 @@ export function Node() {
           </div>
         ))}
       </div>
+
+      {behind.length > 1 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.behind.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("behind")}</span>
+          </div>
+          {/* One day never earns this row: a single evidence entry is already
+              shown in full above, and a one-link list would only repeat it. */}
+          <div className="p-comp">
+            {behind.map((day) => (
+              <Link className="c" key={day} to={`/today?date=${day}`}>
+                {dateOf(`${day}T12:00:00`)}
+              </Link>
+            ))}
+          </div>
+        </>
+      )}
 
       {aimed.toward.length > 0 && (
         <>
@@ -309,7 +374,7 @@ export function Node() {
             <Link
               key={reading.id}
               className="t-circle"
-              to={reading.kind === "Pattern" ? `/pattern/${reading.id}` : `/node/${reading.id}`}
+              to={patternRoute(reading)}
             >
               <b>{reading.label}</b>
               <span className="mono">{reading.kind.toLowerCase()}</span>
@@ -326,7 +391,7 @@ export function Node() {
             <span className="mono">{asideOf("againstThis")}</span>
           </div>
           {tension.againstThis.map((reading) => (
-            <Link key={reading.id} className="t-circle" to={`/node/${reading.id}`}>
+            <Link key={reading.id} className="t-circle" to={patternRoute(reading)}>
               <b>{reading.label}</b>
               <span className="mono">{reading.kind.toLowerCase()}</span>
             </Link>
@@ -398,6 +463,22 @@ export function Node() {
         </>
       )}
 
+      {related.length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.related.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("related")}</span>
+          </div>
+          {related.map(({ neighbour, note }) => (
+            <Link key={neighbour.id} className="t-circle" to={`/node/${neighbour.id}`}>
+              <b>{neighbour.label}</b>
+              <span className="mono">{neighbour.kind.toLowerCase()} · {note}</span>
+            </Link>
+          ))}
+        </>
+      )}
+
       {among.length > 0 && (
         <>
           <div className="t-sec">
@@ -406,7 +487,7 @@ export function Node() {
             <span className="mono">{asideOf("among")}</span>
           </div>
           {among.map((pattern) => (
-            <Link key={pattern.id} className="t-circle" to={`/pattern/${pattern.id}`}>
+            <Link key={pattern.id} className="t-circle" to={patternDestination(pattern).href}>
               <b>{pattern.label.split(" · ")[0]}</b>
               <span className="mono go">the pattern →</span>
             </Link>

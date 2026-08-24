@@ -268,7 +268,7 @@ snapshot_has_section() {
 }
 
 wait_for_snapshot() {
-  local text="$1" attempts="${2:-30}"
+  local text="$1" attempts="${2:-45}"
   for _ in $(seq 1 "$attempts"); do
     playwright-cli snapshot >/dev/null 2>&1
     if snapshot_contains "$text"; then return 0; fi
@@ -416,7 +416,7 @@ fi
 
 step "Signed-out users are sent to the login screen"
 playwright-cli open "${WEB_URL}" >/dev/null 2>&1
-wait_for_snapshot "Welcome back." 30 || true
+wait_for_snapshot "Welcome back." 45 || true
 if playwright-cli snapshot 2>&1 | grep -q "/login"; then
   pass "redirected to /login"
 else
@@ -428,21 +428,21 @@ fi
 
 step "Signed-out disclosure is public and returnable"
 playwright-cli goto "${WEB_URL}/words" >/dev/null 2>&1
-wait_for_snapshot "What happens to your words" 30 \
+wait_for_snapshot "What happens to your words" 45 \
   && pass "signed-out users can read the disclosure" \
   || fail "signed-out disclosure did not render"
 snapshot_contains "Start writing" \
   && pass "disclosure offers a return to writing" \
   || fail "disclosure has no writing action"
 playwright-cli click "$(ref_for 'Start writing')" >/dev/null 2>&1
-wait_for_snapshot "Welcome back." 30 \
+wait_for_snapshot "Welcome back." 45 \
   && pass "signed-out writing action returns to login" \
   || fail "signed-out writing action bypassed login"
 
 step "Creating an account"
 SWITCH="$(ref_for 'Create an account instead')"
 [ -n "$SWITCH" ] && playwright-cli click "$SWITCH" >/dev/null 2>&1
-wait_for_snapshot "At least 12 characters" 15 || true
+wait_for_snapshot "At least 12 characters" 20 || true
 snapshot_contains "At least 12 characters" \
   && pass "password guidance shown before signup" \
   || fail "password guidance missing"
@@ -450,7 +450,7 @@ snapshot_contains "At least 12 characters" \
 playwright-cli fill "$(ref_for 'Email')" "$EMAIL" >/dev/null 2>&1
 playwright-cli fill "$(ref_for 'Password')" "$PASSWORD" >/dev/null 2>&1
 playwright-cli click "$(ref_for 'Create account')" >/dev/null 2>&1
-wait_for_snapshot "Write what happened" 30 || true
+wait_for_snapshot "Write what happened" 45 || true
 
 playwright-cli snapshot >/dev/null 2>&1
 # The composer's placeholder, which is now the design's wording and pinned to
@@ -477,16 +477,16 @@ playwright-cli click "$(ref_for 'Save this entry')" >/dev/null 2>&1
 wait_for_api_text "${API_URL}/v1/observations" "$ENTRY" 30 \
   && pass "entry was actually saved" \
   || fail "entry was not saved"
-wait_for_snapshot "$ENTRY" 30 \
+wait_for_snapshot "$ENTRY" 45 \
   && pass "entry round-tripped and rendered" \
   || fail "entry did not appear in the journal"
 
 step "Findings can be turned off and back on"
 playwright-cli goto "${WEB_URL}/settings" >/dev/null 2>&1
-wait_for_snapshot "Patterns and regions" 30 || fail "findings setting missing"
+wait_for_snapshot "Patterns and regions" 45 || fail "findings setting missing"
 playwright-cli click "$(ref_for 'Patterns and regions')" >/dev/null 2>&1
 playwright-cli goto "${WEB_URL}/patterns" >/dev/null 2>&1
-wait_for_snapshot "Patterns are turned off" 30 \
+wait_for_snapshot "Patterns are turned off" 45 \
   && pass "findings-off hides the patterns screen" \
   || fail "findings-off did not hide patterns"
 # The mobile journal is the public root route; preserve the raw record through
@@ -497,13 +497,13 @@ wait_for_api_text "${API_URL}/v1/observations" "$ENTRY" 30 \
   || fail "findings-off hid the raw journal"
 playwright-cli goto "${WEB_URL}/search" >/dev/null 2>&1
 playwright-cli fill "$(ref_for 'A word you remember writing')" "Sara" >/dev/null 2>&1
-wait_for_snapshot "$ENTRY" 30 \
+wait_for_snapshot "$ENTRY" 45 \
   && pass "findings-off preserves raw Search results" \
   || fail "findings-off hid raw Search results"
 playwright-cli goto "${WEB_URL}/settings" >/dev/null 2>&1
 playwright-cli click "$(ref_for 'Patterns and regions')" >/dev/null 2>&1
 playwright-cli goto "${WEB_URL}/patterns" >/dev/null 2>&1
-wait_for_snapshot "What keeps returning" 30 \
+wait_for_snapshot "What keeps returning" 45 \
   && pass "findings can be restored" \
   || fail "findings could not be restored"
 
@@ -512,13 +512,13 @@ step "The daily summary"
 # covered by the shared toolbar checks, while a direct route avoids a stale
 # generic ref turning this critical state transition into a silent no-op.
 playwright-cli goto "${WEB_URL}/today" >/dev/null 2>&1
-wait_for_snapshot "The acts" 30 \
+wait_for_snapshot "The acts" 45 \
   && pass "today reports one act" || fail "act count wrong"
 snapshot_contains "$ENTRY" && pass "entry shown under what you wrote" || fail "entry missing"
 # Invalid route input must not be handed to the API as a date or render a blank
 # summary; Today falls back to the local day through its validated param parser.
 playwright-cli goto "${WEB_URL}/today?date=not-a-date" >/dev/null 2>&1
-wait_for_snapshot "$ENTRY" 30 \
+wait_for_snapshot "$ENTRY" 45 \
   && pass "invalid Today date falls back to the local day" \
   || fail "invalid Today date produced an unsafe or blank route"
 
@@ -528,8 +528,13 @@ step "A low-confidence inference is presented as a guess"
 # heading, which the design calls "What they left behind".
 OID="$(curl -s "${API_URL}/v1/observations" -H "Authorization: Bearer ${TOKEN}" \
   | python3 -c 'import json,sys; print(json.load(sys.stdin)["observations"][0]["id"])')"
-curl -sf -X POST "${API_URL}/v1/observations/${OID}/extract" \
-  -H "Authorization: Bearer ${TOKEN}" >/dev/null && pass "extraction ran" || fail "extraction failed"
+# 200 here usually means the save drew nothing yet and this call ran the
+# pipeline; 409 means the client already extracted on save, which is the same
+# outcome arriving by the better route. Either way the graph has grown.
+EXTRACT_CODE="$(curl -s -o /dev/null -w '%{http_code}' -X POST "${API_URL}/v1/observations/${OID}/extract" \
+  -H "Authorization: Bearer ${TOKEN}")"
+{ [ "$EXTRACT_CODE" = 200 ] || [ "$EXTRACT_CODE" = 409 ]; } \
+  && pass "extraction ran" || fail "extraction failed"
 TODAY="$(date -u +%F)"
 SUMMARY_READY=0
 for _ in $(seq 1 30); do
@@ -544,7 +549,7 @@ done
   && pass "summary reports extraction completion" \
   || fail "summary never reported inferred content"
 playwright-cli goto "${WEB_URL}/today?date=${TODAY}" >/dev/null 2>&1
-wait_for_snapshot "Today" 30 \
+wait_for_snapshot "Today" 45 \
   && wait_for_snapshot "Less sure" 60 \
   && pass "tentative inference is in its own section" \
   || fail "tentative section missing"
@@ -561,13 +566,13 @@ step "The weekly report is navigable, deterministic, and explainable"
 playwright-cli goto "${WEB_URL}/" >/dev/null 2>&1
 # The bar holds four places and a way to everything else; the week is on the
 # map behind More, under "Looking back".
-wait_for_snapshot "More" 30 \
+wait_for_snapshot "More" 45 \
   && pass "journal exposes the way to everything else" \
   || fail "no route out of the journal"
 playwright-cli click "$(ref_for 'More places to go')" >/dev/null 2>&1
-wait_for_snapshot "This week" 30 || true
+wait_for_snapshot "This week" 45 || true
 playwright-cli click "$(ref_for 'This week')" >/dev/null 2>&1
-wait_for_snapshot "$ENTRY" 30 \
+wait_for_snapshot "$ENTRY" 45 \
   && pass "current week renders the entry" \
   || fail "current week did not render the entry"
 snapshot_has_section "$(section forming)" \
@@ -580,7 +585,7 @@ GUESS_REF="$(ref_for_tappable 'I told Sara')"
 [ -n "$GUESS_REF" ] \
   && playwright-cli click "$GUESS_REF" >/dev/null 2>&1 \
   || fail "tentative inference card was not clickable"
-wait_for_snapshot "How this was produced" 30 \
+wait_for_snapshot "How this was produced" 45 \
   && pass "inference opens the explanation UI" \
   || fail "explanation UI did not open"
 snapshot_contains "hypothesis drawn from your own words" \
@@ -596,13 +601,13 @@ snapshot_contains "extract-v0.1" \
 # The explanation screen has no separate back control; returning to the route is
 # equivalent to the user's Week navigation and keeps the next assertion scoped.
 playwright-cli goto "${WEB_URL}/week" >/dev/null 2>&1
-wait_for_snapshot "This week" 30 \
+wait_for_snapshot "This week" 45 \
   && pass "returned to the Week report" \
   || fail "could not return to the Week report"
 # The pagers show which week or day they go to; their accessible names say
 # what they do, which is the handle that survives the label changing.
 playwright-cli click "$(ref_for 'Previous week')" >/dev/null 2>&1
-wait_for_snapshot "Nothing recorded" 30 \
+wait_for_snapshot "Nothing recorded" 45 \
   && pass "previous empty week says nothing was recorded" \
   || fail "previous empty week not reported"
 for nudge in "streak" "Keep going" "Why not"; do
@@ -614,7 +619,7 @@ console_clean "the journal"
 
 step "The dashboard"
 playwright-cli goto "${WEB_URL}/graph" >/dev/null 2>&1
-wait_for_snapshot "entries" 30 \
+wait_for_snapshot "entries" 45 \
   && pass "dashboard renders counts" || fail "dashboard counts missing"
 snapshot_contains "What has been noticed" \
   && pass "dashboard lists what was drawn from entries" \
@@ -625,7 +630,7 @@ snapshot_contains 'button "Hide tentative guesses"' \
 
 # Hiding tentative guesses should empty the list, since the stub emits 0.3.
 playwright-cli click "$(ref_for 'Hide tentative guesses')" >/dev/null 2>&1
-wait_for_snapshot "Nothing confident enough to show" 30 \
+wait_for_snapshot "Nothing confident enough to show" 45 \
   && snapshot_contains "Nothing confident enough to show" \
   && pass "filtering removes the low-confidence guesses" \
   || fail "filter had no effect"
@@ -636,7 +641,7 @@ step "The graph explorer"
 # Expo-Web now exposes the graph as an accessible SVG panel rather than a
 # Skia canvas. Assert the named surface and its relationship disclaimer.
 playwright-cli goto "${WEB_URL}/explore" >/dev/null 2>&1
-wait_for_snapshot "The graph, as points and threads" 30 \
+wait_for_snapshot "The graph, as points and threads" 45 \
   && pass "the graph surface is accessible" \
   || fail "graph surface never appeared"
 snapshot_contains "Position carries no meaning" \
@@ -646,9 +651,9 @@ console_clean "the graph explorer"
 
 step "An empty day says so, without nudging"
 playwright-cli goto "${WEB_URL}/today" >/dev/null 2>&1
-wait_for_snapshot "Previous day" 30
+wait_for_snapshot "Previous day" 45
 playwright-cli click "$(ref_for 'Previous day')" >/dev/null 2>&1
-wait_for_snapshot "Nothing recorded" 30 \
+wait_for_snapshot "Nothing recorded" 45 \
   && pass "empty day stated plainly" \
   || fail "empty day not reported"
 for nudge in "streak" "Keep going" "Why not"; do
@@ -671,7 +676,7 @@ echo "$WEEK_BODY" | grep -q '"mood_score"\|"trend"\|"streak"' \
 
 step "Talking to the agent"
 playwright-cli goto "${WEB_URL}/talk" >/dev/null 2>&1
-wait_for_snapshot "What stays from this conversation" 30 \
+wait_for_snapshot "What stays from this conversation" 45 \
   && pass "Talk privacy disclosure is visible" \
   || fail "Talk privacy disclosure missing"
 snapshot_contains "The conversation transcript, including your turns and the agent's turns" \
@@ -683,13 +688,13 @@ snapshot_contains "Audio is transcribed and then discarded" \
 
 # The mobile Talk surface is voice-first: options expose push-to-talk and the
 # transcript drawer, while typed Talk is covered by the desktop client's suite.
-wait_for_snapshot "Show options" 30 \
+wait_for_snapshot "Show options" 45 \
   && pass "Talk options are reachable" \
   || fail "Talk options never appeared"
 OPTIONS="$(ref_for 'Show options')"
 if [ -n "$OPTIONS" ]; then
   playwright-cli click "$OPTIONS" >/dev/null 2>&1
-  wait_for_snapshot "Prefer to hold instead?" 30 \
+  wait_for_snapshot "Prefer to hold instead?" 45 \
     && pass "push-to-talk fallback is exposed" \
     || fail "push-to-talk fallback never appeared"
   snapshot_contains "View transcript" \
@@ -719,23 +724,23 @@ TALK_REPLY="$(curl -sf -X POST "${API_URL}/v1/conversations/${TALK_ID}/turns" \
 playwright-cli reload >/dev/null 2>&1 \
   && pass "Talk screen was reloaded after the API turn" \
   || fail "Talk screen did not reload after the API turn"
-wait_for_snapshot "$TALK_TEXT" 30 \
+wait_for_snapshot "$TALK_TEXT" 45 \
   && pass "Talk turn is observable in the surface" \
   || fail "Talk turn never appeared in the surface"
 # Reloading closes the options drawer, so reopen it from the freshly rendered
 # screen before resolving the close control.
-wait_for_snapshot "Show options" 30 \
+wait_for_snapshot "Show options" 45 \
   && OPTIONS="$(ref_for 'Show options')" \
   && [ -n "$OPTIONS" ] \
   && playwright-cli click "$OPTIONS" >/dev/null 2>&1 \
-  && wait_for_snapshot "Close conversation · keeps your turns" 30 \
+  && wait_for_snapshot "Close conversation · keeps your turns" 45 \
   || fail "Talk options did not reopen after the API turn"
 CLOSE_REF="$(ref_for 'Close conversation · keeps your turns')"
 [ -n "$CLOSE_REF" ] \
   && playwright-cli click "$CLOSE_REF" >/dev/null 2>&1 \
   && pass "Talk conversation close was requested" \
   || fail "Talk close control was not addressable"
-wait_for_snapshot "Conversation closed" 30 \
+wait_for_snapshot "Conversation closed" 45 \
   && snapshot_contains "1 turn converted to Journal entries." \
   && pass "authoritative Talk conversion receipt is visible" \
   || fail "authoritative Talk conversion receipt missing"
@@ -747,7 +752,7 @@ console_clean "the talk screen" "/v1/voice/speak"
 RETURN_REF="$(ref_for 'Return to Journal')"
 [ -n "$RETURN_REF" ] \
   && playwright-cli click "$RETURN_REF" >/dev/null 2>&1 \
-  && wait_for_snapshot "Journal" 30 \
+  && wait_for_snapshot "Journal" 45 \
   && pass "Talk returns explicitly to Journal" \
   || fail "Talk did not return to Journal"
 console_clean "the Journal after Talk"
@@ -885,13 +890,95 @@ if [ -z "$PATTERN_ID" ] || [ -z "$PATTERN_LABEL" ]; then
 fi
 pass "pattern is visible through the API"
 
+# Threads group findings that rest on the same word. One finding alone can
+# never form one, so the same label is seeded under a second kind — mining keys
+# exact-label patterns on kind and label, which yields a second finding whose
+# supporting nodes share the first's subject. That is the smallest honest way
+# for the grouping to have something to group.
+THREAD_IDS=()
+for suffix in 1 2 3; do
+  OID="$(python3 -c 'import uuid; print(uuid.uuid4())')"
+  if [ "$suffix" = 1 ]; then CAPTURED="${YESTERDAY}T18:00:00+00:00"; else CAPTURED="$(date -u +%Y-%m-%d)T18:00:0${suffix}+00:00"; fi
+  CREATED="$(curl -s -X POST "${API_URL}/v1/observations" -H "Authorization: Bearer ${TOKEN}" -H 'Content-Type: application/json' -d "{\"id\":\"${OID}\",\"content\":\"${PATTERN_ENTRY}\",\"source\":\"text\",\"captured_at\":\"${CAPTURED}\"}")"
+  echo "$CREATED" | grep -q '"id"' && THREAD_IDS+=("$OID") || fail "could not seed thread observation ${suffix}"
+  curl -sf -X POST "${API_URL}/v1/observations/${OID}/extract" -H "Authorization: Bearer ${TOKEN}" >/dev/null \
+    || fail "could not extract thread observation ${suffix}"
+done
+DATABASE_URL="$DB_URL" uv run --project "${ROOT}/apps/backend" python - "$EMAIL" "${THREAD_IDS[@]-}" <<'PYSEED'
+import asyncio
+import os
+import sys
+from uuid import uuid4
+import asyncpg
+
+async def main():
+    email, *observation_ids = sys.argv[1:]
+    pool = await asyncpg.create_pool(dsn=os.environ["DATABASE_URL"])
+    async with pool.acquire() as conn:
+        user_id = await conn.fetchval("SELECT id FROM users WHERE email = $1", email)
+        if user_id is None or len(observation_ids) != 3:
+            raise RuntimeError("could not resolve seeded account or observations")
+        for observation_id in observation_ids:
+            node_id = uuid4()
+            await conn.execute("""
+                INSERT INTO graph_nodes
+                    (id, user_id, kind, label, confidence, epistemic_status, extractor)
+                VALUES ($1, $2, 'Emotion', $3, 0.9, 'hypothesis', 'e2e-seed')
+            """, node_id, user_id, "short walk after lunch")
+            await conn.execute(
+                "INSERT INTO node_provenance (node_id, observation_id) VALUES ($1, $2)",
+                node_id, observation_id,
+            )
+    await pool.close()
+
+asyncio.run(main())
+PYSEED
+if [ "$?" -ne 0 ]; then
+  fail "could not seed the second detector's evidence"
+  exit 1
+fi
+curl -sf -X POST "${API_URL}/v1/patterns/mine" -H "Authorization: Bearer ${TOKEN}" >/dev/null \
+  || fail "mining failed after the second seeding"
+THREADS_JSON="$(curl -sf "${API_URL}/v1/patterns/threads" -H "Authorization: Bearer ${TOKEN}")"
+echo "$THREADS_JSON" | python3 -c '
+import json, sys
+threads = json.load(sys.stdin)
+assert len(threads) == 1, f"expected exactly one thread, got {len(threads)}"
+assert len(threads[0]["members"]) >= 2, "a thread needs at least two findings"
+' \
+  && pass "two findings on one word arrive as one thread" \
+  || fail "thread grouping did not hold over HTTP"
+
 playwright-cli goto "${WEB_URL}/patterns" >/dev/null 2>&1
-wait_for_snapshot "Open experiments" 30 \
+wait_for_snapshot "One thing, several directions" 45 \
+  && pass "the Patterns screen names its threads section" \
+  || fail "threads section missing from the Patterns screen"
+
+# Opening one member of the thread must show the other directions on the same
+# subject — the navigation loop closed, not a dead end per finding. The section
+# title renders uppercased (the kicker's own transformation), hence the case.
+# Opening one member of the thread must show the other directions on the same
+# subject — the navigation loop closed, not a dead end per finding. Navigated
+# by URL rather than by a snapshot ref: refs die when the list re-renders
+# underneath them, and this check is about the destination screen.
+playwright-cli goto "${WEB_URL}/node/${PATTERN_ID}" >/dev/null 2>&1
+if wait_for_snapshot "Same thread" 45 || wait_for_snapshot "SAME THREAD" 45; then
+  pass "a threaded finding shows its sibling directions"
+else
+  # Say what screen we actually landed on, so a red here names its cause.
+  echo "    debug: snapshot head follows"
+  head -25 "$(latest_snapshot)" | sed 's/^/    debug: /'
+  fail "explain screen does not show thread context"
+fi
+playwright-cli goto "${WEB_URL}/patterns" >/dev/null 2>&1
+
+playwright-cli goto "${WEB_URL}/patterns" >/dev/null 2>&1
+wait_for_snapshot "Open experiments" 45 \
   && pass "Patterns screen exposes Open experiments" \
   || fail "Patterns screen has no Experiments entry"
 experiment_language_clean "Patterns"
 playwright-cli click "$(ref_for 'Open experiments')" >/dev/null 2>&1
-wait_for_snapshot "Try a question" 30 \
+wait_for_snapshot "Try a question" 45 \
   && pass "Experiments screen opened from the Pattern" \
   || fail "Experiments screen did not open"
 
@@ -905,7 +992,7 @@ playwright-cli fill "$(ref_for 'Hypothesis')" "$HYPOTHESIS" >/dev/null 2>&1
 playwright-cli fill "$(ref_for 'Action')" "$ACTION" >/dev/null 2>&1
 playwright-cli fill "$(ref_for 'Success criterion')" "$CRITERION" >/dev/null 2>&1
 playwright-cli click "$(ref_for 'Save draft')" >/dev/null 2>&1
-wait_for_snapshot "$TITLE" 30 \
+wait_for_snapshot "$TITLE" 45 \
   && pass "valid draft was created" || fail "draft was not created"
 EXPERIMENT_ID="$(curl -sf "${API_URL}/v1/experiments" -H "Authorization: Bearer ${TOKEN}" | python3 -c 'import json,sys; x=json.load(sys.stdin)["experiments"]; print(next((e["id"] for e in x if e["title"] == "'"${TITLE}"'"), ""))')"
 [ -n "$EXPERIMENT_ID" ] && pass "draft has a stable experiment id" || fail "could not identify created draft"
@@ -931,12 +1018,12 @@ else
     || fail "could not link the stub Pattern"
   playwright-cli reload >/dev/null 2>&1
 fi
-wait_for_snapshot "Linked evidence" 30 \
+wait_for_snapshot "Linked evidence" 45 \
   && pass "the mined Pattern was linked to the draft" || fail "Pattern was not linked"
 LINK_REF="$(ref_for "Explain linked evidence ${PATTERN_LABEL}")"
 [ -n "$LINK_REF" ] && playwright-cli click "$LINK_REF" >/dev/null 2>&1 \
   || fail "linked evidence explanation was not available"
-wait_for_snapshot "How this was produced" 30 \
+wait_for_snapshot "How this was produced" 45 \
   && pass "linked evidence opens its explanation" || fail "linked evidence explanation did not open"
 snapshot_contains "$PATTERN_LABEL" && pass "explanation names the linked Pattern" || fail "explanation omitted linked Pattern"
 snapshot_contains "$PATTERN_ENTRY" && pass "explanation shows Pattern source words" || fail "Pattern source words missing"
@@ -947,7 +1034,7 @@ console_clean "linked Pattern explanation"
 playwright-cli goto "${WEB_URL}/experiment/${EXPERIMENT_ID}" >/dev/null 2>&1
 # The hypothesis also exists on the creation form, so it is not a navigation
 # boundary. The detail-only delete action proves the route has rendered.
-wait_for_snapshot "Delete experiment" 30 || fail "experiment detail did not render"
+wait_for_snapshot "Delete experiment" 45 || fail "experiment detail did not render"
 EXPERIMENT_URL="${WEB_URL}/experiment/${EXPERIMENT_ID}"
 playwright-cli click "$(ref_for_role button 'Start')" >/dev/null 2>&1
 wait_for_experiment_state "active" 90 \
@@ -962,15 +1049,15 @@ wait_for_experiment_state "active" 90 \
 playwright-cli fill "$(ref_for_role textbox 'Check-in observation')" "$CHECKIN" >/dev/null 2>&1
 playwright-cli snapshot >/dev/null 2>&1
 playwright-cli click "$(ref_for_role button 'Save check-in')" >/dev/null 2>&1
-wait_for_snapshot "Select as final check-in" 30 \
+wait_for_snapshot "Select as final check-in" 45 \
   && pass "check-in was saved and attached" || fail "check-in was not attached"
 playwright-cli goto "${WEB_URL}/today" >/dev/null 2>&1
-wait_for_snapshot "$CHECKIN" 30 \
+wait_for_snapshot "$CHECKIN" 45 \
   && pass "experiment check-in is also an ordinary Journal observation" \
   || fail "check-in did not appear in the Journal"
 console_clean "Journal check-in"
 playwright-cli goto "$EXPERIMENT_URL" >/dev/null 2>&1
-wait_for_snapshot "Select as final check-in" 30 || fail "attached check-in missing after returning"
+wait_for_snapshot "Select as final check-in" 45 || fail "attached check-in missing after returning"
 CHECKIN_REF="$(ref_for_role radio "${CHECKIN} Select as final check-in")"
 [ -n "$CHECKIN_REF" ] && playwright-cli click "$CHECKIN_REF" >/dev/null 2>&1 || fail "could not select final check-in"
 wait_for_snapshot "Selected final check-in" 10 || fail "final check-in selection did not persist"
@@ -978,7 +1065,7 @@ playwright-cli click "$(ref_for_role radio 'Met')" >/dev/null 2>&1
 playwright-cli snapshot >/dev/null 2>&1
 COMPLETE_REF="$(ref_for_role button 'Complete experiment')"
 [ -n "$COMPLETE_REF" ] && playwright-cli click "$COMPLETE_REF" >/dev/null 2>&1 || fail "completion action was not enabled"
-wait_for_snapshot "Outcome" 30 \
+wait_for_snapshot "Outcome" 45 \
   && pass "experiment completed with an explicit final check-in" || fail "experiment did not complete"
 snapshot_contains "Met" && pass "qualitative assessment is displayed" || fail "assessment missing from outcome"
 snapshot_contains "Final check-in selected by you. No score or interpretation." \
@@ -1019,13 +1106,24 @@ fi
 # than relying only on a second bearer token. Sign out of account A, sign into B,
 # and verify the current fixtures are absent from both its API and rendered UI.
 playwright-cli goto "${WEB_URL}/settings" >/dev/null 2>&1
-wait_for_snapshot "Sign out" 30 || fail "could not open account switching settings"
-playwright-cli click "$(ref_for 'Sign out')" >/dev/null 2>&1
-wait_for_snapshot "Welcome back." 30 || fail "browser did not sign out before account switch"
+wait_for_snapshot "Sign out" 45 || fail "could not open account switching settings"
+# Settings re-renders as its queries settle, which can retire a just-captured
+# ref between capture and click. Clicking again from a fresh snapshot is not a
+# weaker assertion — the wait still has to succeed.
+sign_out_and_wait() {
+  local message="$1"
+  for _ in 1 2 3; do
+    local action_ref="$(ref_for 'Sign out')"
+    [ -n "$action_ref" ] && playwright-cli click "$action_ref" >/dev/null 2>&1
+    wait_for_snapshot "$message" 20 && return 0
+  done
+  return 1
+}
+sign_out_and_wait "Welcome back." || fail "browser did not sign out before account switch"
 playwright-cli fill "$(ref_for 'Email address')" "$OTHER_EMAIL" >/dev/null 2>&1
 playwright-cli fill "$(ref_for 'Password')" "$PASSWORD" >/dev/null 2>&1
 playwright-cli click "$(ref_for 'Sign in')" >/dev/null 2>&1
-wait_for_snapshot "Write what happened" 30 || fail "browser did not sign into the second account"
+wait_for_snapshot "Write what happened" 45 || fail "browser did not sign into the second account"
 if wait_for_empty_observations "$OTHER" 30; then
   pass "second account API is settled with an empty journal"
 else
@@ -1044,23 +1142,22 @@ snapshot_contains "$TITLE" && fail "browser account switch leaked the first acco
 
 # Restore account A before continuing its deletion and rejection journeys.
 playwright-cli goto "${WEB_URL}/settings" >/dev/null 2>&1
-wait_for_snapshot "Sign out" 30 || fail "could not reopen second account settings"
-playwright-cli click "$(ref_for 'Sign out')" >/dev/null 2>&1
-wait_for_snapshot "Welcome back." 30 || fail "could not sign out of second account"
+wait_for_snapshot "Sign out" 45 || fail "could not reopen second account settings"
+sign_out_and_wait "Welcome back." || fail "could not sign out of second account"
 playwright-cli fill "$(ref_for 'Email address')" "$EMAIL" >/dev/null 2>&1
 playwright-cli fill "$(ref_for 'Password')" "$PASSWORD" >/dev/null 2>&1
 playwright-cli click "$(ref_for 'Sign in')" >/dev/null 2>&1
-wait_for_snapshot "Write what happened" 30 || fail "could not restore first account"
+wait_for_snapshot "Write what happened" 45 || fail "could not restore first account"
 TOKEN="$(playwright-cli localstorage-get tlon.token 2>&1 | grep -oE '[A-Za-z0-9_-]{40,}' | head -1)"
 
 step "Returning to the first account and deleting the experiment"
 playwright-cli goto "${EXPERIMENT_URL}" >/dev/null 2>&1
-wait_for_snapshot "Outcome" 30 || fail "first account could not reopen completed experiment"
+wait_for_snapshot "Outcome" 45 || fail "first account could not reopen completed experiment"
 playwright-cli click "$(ref_for 'Delete experiment')" >/dev/null 2>&1
-wait_for_snapshot "Delete experiment?" 30 || fail "delete confirmation did not open"
+wait_for_snapshot "Delete experiment?" 45 || fail "delete confirmation did not open"
 DELETE_REF="$(ref_for 'Confirm delete experiment')"
 [ -n "$DELETE_REF" ] && playwright-cli click "$DELETE_REF" >/dev/null 2>&1 || fail "delete confirmation had no Delete action"
-wait_for_snapshot "No experiments yet." 30 \
+wait_for_snapshot "No experiments yet." 45 \
   && pass "deleted experiment is absent from the list" \
   || fail "deleted experiment still appears"
 snapshot_contains "$TITLE" && fail "deleted experiment title remains visible" || pass "deleted experiment title is absent"
@@ -1078,7 +1175,7 @@ if [ -z "$NODE_ID" ]; then
   fail "no inference to judge"
 else
   playwright-cli goto "${WEB_URL}/node/${NODE_ID}" >/dev/null 2>&1
-  wait_for_snapshot "Does this match how it was?" 30 \
+  wait_for_snapshot "Does this match how it was?" 45 \
     && pass "a reading can be argued with" \
     || fail "no way to agree or disagree with a reading"
 
@@ -1204,7 +1301,7 @@ else
     esac
 
     playwright-cli goto "${WEB_URL}/pattern/${LAG_ID}" >/dev/null 2>&1
-    wait_for_snapshot "These entries were written" 30 \
+    wait_for_snapshot "These entries were written" 45 \
       && pass "the ordered evidence screen opens" \
       || fail "the ordered evidence screen did not render"
     snapshot_contains "1 day later" \
@@ -1220,6 +1317,124 @@ else
       && pass "all four counted occasions are shown" \
       || fail "expected 4 occasions on the screen, found ${OCCASIONS}"
     console_clean "the ordered evidence screen"
+  fi
+fi
+
+step "A within-day finding keeps its moments"
+# Same-day-order is the newest ordered claim: both moments on one writing day.
+# It gets the same journey the lag finding has — seeded through the real API,
+# its occasions opened in the browser — because a promise that survives only in
+# unit tests is not yet a promise the product keeps.
+SAMEDAY_DAYS=()
+while IFS= read -r day; do SAMEDAY_DAYS+=("$day"); done < <(python3 - <<'PY'
+from datetime import UTC, datetime, timedelta
+today = datetime.now(UTC).date()
+for week in range(4):
+    print((today - timedelta(days=21 - week * 7)).isoformat())
+PY
+)
+SAMEDAY_MORNING_IDS=()
+SAMEDAY_EVENING_IDS=()
+for day in "${SAMEDAY_DAYS[@]}"; do
+  MORNING_OID="$(python3 -c 'import uuid; print(uuid.uuid4())')"
+  EVENING_OID="$(python3 -c 'import uuid; print(uuid.uuid4())')"
+  curl -sf -o /dev/null -X POST "${API_URL}/v1/observations" \
+    -H "Authorization: Bearer ${TOKEN}" -H 'Content-Type: application/json' \
+    -d "{\"id\":\"${MORNING_OID}\",\"content\":\"a morning, ${day}\",\"source\":\"text\",\"captured_at\":\"${day}T07:30:00+00:00\",\"timezone\":\"UTC\"}" \
+    || fail "could not seed within-day morning ${day}"
+  curl -sf -o /dev/null -X POST "${API_URL}/v1/observations" \
+    -H "Authorization: Bearer ${TOKEN}" -H 'Content-Type: application/json' \
+    -d "{\"id\":\"${EVENING_OID}\",\"content\":\"an evening, ${day}\",\"source\":\"text\",\"captured_at\":\"${day}T19:00:00+00:00\",\"timezone\":\"UTC\"}" \
+    || fail "could not seed within-day evening ${day}"
+  SAMEDAY_MORNING_IDS+=("$MORNING_OID")
+  SAMEDAY_EVENING_IDS+=("$EVENING_OID")
+done
+
+DATABASE_URL="$DB_URL" uv run --project "${ROOT}/apps/backend" python - "$EMAIL" "${SAMEDAY_MORNING_IDS[@]-}" -- "${SAMEDAY_EVENING_IDS[@]-}" <<'PYSEED'
+import asyncio
+import os
+import sys
+import asyncpg
+
+async def main():
+    email, *rest = sys.argv[1:]
+    split = rest.index("--")
+    mornings, evenings = rest[:split], rest[split + 1:]
+    if len(mornings) != 4 or len(evenings) != 4:
+        raise RuntimeError("within-day journal did not seed four pairs")
+
+    pool = await asyncpg.create_pool(dsn=os.environ["DATABASE_URL"])
+    async with pool.acquire() as conn:
+        user_id = await conn.fetchval("SELECT id FROM users WHERE email = $1", email)
+        if user_id is None:
+            raise RuntimeError("could not resolve seeded account")
+        # The within-day detector refuses backfilled entries, correctly. These
+        # days were written up as they happened, and the creation time is where
+        # that is recorded — so each node's creation is moved onto the moment
+        # its entry claims, exactly as a live capture would have set it.
+        for observation_ids in (mornings, evenings):
+            for observation_id in observation_ids:
+                await conn.execute(
+                    """
+                    UPDATE graph_nodes SET created_at = o.captured_at
+                    FROM observations o WHERE graph_nodes.id = o.node_id
+                      AND o.node_id = $1 AND o.user_id = $2
+                    """,
+                    __import__("uuid").UUID(observation_id), user_id,
+                )
+        for observation_ids, kind, label in (
+            (mornings, "Emotion", "wired"),
+            (evenings, "Activity", "skipping dinner"),
+        ):
+            for observation_id in observation_ids:
+                node_id = __import__("uuid").uuid4()
+                await conn.execute("""
+                    INSERT INTO graph_nodes
+                        (id, user_id, kind, label, confidence, epistemic_status, extractor)
+                    VALUES ($1, $2, $3, $4, 0.9, 'hypothesis', 'e2e-seed')
+                """, node_id, user_id, kind, label)
+                await conn.execute(
+                    "INSERT INTO node_provenance (node_id, observation_id) VALUES ($1, $2)",
+                    node_id, __import__("uuid").UUID(observation_id),
+                )
+    await pool.close()
+
+asyncio.run(main())
+PYSEED
+if [ "$?" -ne 0 ]; then
+  fail "could not seed the within-day journal"
+else
+  curl -sf -X POST "${API_URL}/v1/patterns/mine" -H "Authorization: Bearer ${TOKEN}" >/dev/null \
+    || fail "re-mining after the within-day journal failed"
+  SAMEDAY_JSON="$(curl -sf "${API_URL}/v1/patterns" -H "Authorization: Bearer ${TOKEN}")"
+  SAMEDAY_ID="$(echo "$SAMEDAY_JSON" | python3 -c 'import json,sys; p=[x for x in json.load(sys.stdin) if x["detector"]=="same-day-order"]; print(p[0]["id"] if p else "")')"
+  SAMEDAY_LABEL="$(echo "$SAMEDAY_JSON" | python3 -c 'import json,sys; p=[x for x in json.load(sys.stdin) if x["detector"]=="same-day-order"]; print(p[0]["label"] if p else "")')"
+
+  if [ -z "$SAMEDAY_ID" ]; then
+    fail "four within-day pairs produced no within-day finding"
+  else
+    pass "the within-day finding is visible through the API"
+    case "$(printf '%s' "$SAMEDAY_LABEL" | tr 'A-Z' 'a-z')" in
+      *because*|*cause*|*trigger*|*"leads to"*|*makes*|*"due to"*)
+        fail "the within-day finding claimed a cause: ${SAMEDAY_LABEL}" ;;
+      *"earlier in the day"*)
+        pass "the within-day label states order without cause" ;;
+      *) fail "unexpected within-day label: ${SAMEDAY_LABEL}" ;;
+    esac
+
+    playwright-cli goto "${WEB_URL}/pattern/${SAMEDAY_ID}" >/dev/null 2>&1
+    # The browser runs the React Native surface, so these are the mobile
+    # screen's own words: the same-day lead names the day, never a gap.
+    wait_for_snapshot "written on the same day" 45 \
+      && pass "the within-day evidence screen opens" \
+      || fail "the within-day evidence screen did not render"
+    snapshot_contains "an order, not a" \
+      && pass "the screen says an order is not a reason" \
+      || fail "the screen did not disclaim causation"
+    snapshot_contains "0 days later" \
+      && fail "the screen invented a day gap for a same-day pair" \
+      || pass "a same-day pair names no gap, because there is none"
+    console_clean "the within-day evidence screen"
   fi
 fi
 

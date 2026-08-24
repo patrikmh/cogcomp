@@ -275,10 +275,10 @@ Both now carry the web client's wording, because two clients of one product
 should not describe the same handling differently, and the one that describes it
 less should not be the one a person reads first.
 
-Still missing on mobile: `/words`, `/first` and `/search` have no mobile route.
-`/words` is the page the whole disclosure hangs off — on web the login screen
-links to it, and it was worth unblocking the auth gate for. Adding a screen is
-not a sweep, so it is written down here rather than done.
+Once missing on mobile: `/words`, `/first` and `/search` had no mobile route.
+All three exist now — the words page the disclosure hangs off, the detector
+waiting room, and literal search with its named readings — so this paragraph
+records a gap that closed rather than one still open.
 
 The same comparison on `/talk` found the design's `urgent` control missing from
 mobile. The design has it — `<button class="talk-corner" id="crisis">urgent</button>`,

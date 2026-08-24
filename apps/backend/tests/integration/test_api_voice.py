@@ -78,11 +78,52 @@ class TestVoiceCapture:
         assert extraction.status_code == 200
         assert extraction.json()["nodes"] >= 1
 
-    async def test_a_repeated_id_is_a_conflict(self, client: AsyncClient, account: Account):
+    async def test_a_response_loss_retry_reconciles(self, client: AsyncClient, account: Account):
+        # The client mints the id, so a retry after a lost response must land
+        # on the observation it already made — never transcribe again and
+        # never store the same words twice.
         observation_id = str(uuid4())
         assert (await upload(client, account, observation_id=observation_id)).status_code == 201
         second = await upload(client, account, observation_id=observation_id)
-        assert second.status_code == 409
+        assert second.status_code == 201
+        assert second.json()["id"] == observation_id
+        listed = await client.get("/v1/observations", headers=account.auth)
+        ids = [o["id"] for o in listed.json()["observations"]]
+        assert ids.count(observation_id) == 1
+
+    async def test_a_repeated_id_from_another_source_is_a_conflict(
+        self, client: AsyncClient, account: Account
+    ):
+        text_id = str(uuid4())
+        await client.post(
+            "/v1/observations",
+            headers=account.auth,
+            json={"id": text_id, "content": "typed", "source": "text"},
+        )
+        assert (await upload(client, account, observation_id=text_id)).status_code == 409
+
+    async def test_a_retry_with_changed_metadata_is_a_conflict(
+        self, client: AsyncClient, account: Account
+    ):
+        observation_id = str(uuid4())
+        assert (
+            await upload(
+                client,
+                account,
+                observation_id=observation_id,
+                captured_at="2026-08-15T09:00:00+00:00",
+                timezone="Europe/Stockholm",
+            )
+        ).status_code == 201
+        assert (
+            await upload(
+                client,
+                account,
+                observation_id=observation_id,
+                captured_at="2026-08-15T11:00:00+00:00",
+                timezone="Europe/Stockholm",
+            )
+        ).status_code == 409
 
     async def test_captured_at_is_honoured(self, client: AsyncClient, account: Account):
         response = await upload(client, account, captured_at="2026-03-15T08:00:00+00:00")

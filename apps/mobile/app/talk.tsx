@@ -26,7 +26,7 @@ import { Haptics, selectHaptic, tapHaptic } from "@/lib/haptics";
 import { RecordButton, type RecordState } from "@/components/RecordButton";
 import { Chip, Kicker } from "@/components/Marks";
 import { api, type Conversation, type Pattern, type Theme } from "@/lib/api";
-import { gatheredOf, useAmong, useAmongThemes, useDrawnFrom } from "@/lib/drawnFrom";
+import { feltThoughtOf, gatheredOf, heldReadingsOf, outerReadingsOf, useAmong, useAmongThemes, useDrawnFrom } from "@/lib/drawnFrom";
 import { patternDestination } from "@/lib/patterns";
 import type { BlobState } from "@/lib/blobShape";
 import { lazySkia } from "@/lib/lazySkia";
@@ -39,6 +39,7 @@ import { colors, fonts } from "@/theme";
 import { radii, type as scale } from "@tlon/design";
 import { Pill } from "@/components/Marks";
 import { TALK_DISCLOSURE } from "@tlon/copy";
+import { SECTIONS } from "@tlon/copy/sections";
 
 const LazyBlob = lazySkia(() => import("@/components/TalkAvatar"));
 
@@ -135,7 +136,10 @@ export default function TalkScreen() {
   const foundThemes: Theme[] = themes.data ?? [];
   const among = useAmong(token, userId, foundPatterns, 4, receiptOpen);
   const amongThemes = useAmongThemes(token, userId, foundThemes, 4, receiptOpen);
-  const drawn = gatheredOf(closeObservations, drawnFrom).slice(0, 5);
+  const drawn = gatheredOf(closeObservations, drawnFrom);
+  const drawnFelt = feltThoughtOf(drawn).slice(0, 3);
+  const drawnHolds = heldReadingsOf(drawn).slice(0, 3);
+  const drawnAround = outerReadingsOf(drawn).slice(0, 3);
   const amongPatterns = gatheredOf(closeObservations, among).slice(0, 5);
   const amongRegions = gatheredOf(closeObservations, amongThemes).slice(0, 5);
   const setVoice = usePreferences((s) => s.setVoice);
@@ -707,11 +711,43 @@ export default function TalkScreen() {
           <View style={styles.receipt} accessibilityRole="alert">
             <Text style={styles.receiptTitle}>Conversation closed</Text>
             <Text style={styles.receiptBody}>{closeReceipt} {closeReceipt === 1 ? "turn" : "turns"} converted to Journal entries.</Text>
-            {drawn.length > 0 && (
+            {drawnFelt.length > 0 && (
               <View style={styles.receiptRow}>
-                <Kicker>Drawn from this</Kicker>
+                <Kicker>{SECTIONS.inside.title}</Kicker>
                 <View style={styles.receiptChips}>
-                  {drawn.map((reading) => (
+                  {drawnFelt.map((reading) => (
+                    <Chip
+                      key={reading.id}
+                      label={reading.label}
+                      confidence={reading.confidence}
+                      tentative={reading.tentative}
+                      onPress={() => router.push(`/node/${reading.id}`)}
+                    />
+                  ))}
+                </View>
+              </View>
+            )}
+            {drawnHolds.length > 0 && (
+              <View style={styles.receiptRow}>
+                <Kicker>{SECTIONS.holds.title}</Kicker>
+                <View style={styles.receiptChips}>
+                  {drawnHolds.map((reading) => (
+                    <Chip
+                      key={reading.id}
+                      label={reading.label}
+                      confidence={reading.confidence}
+                      tentative={reading.tentative}
+                      onPress={() => router.push(`/node/${reading.id}`)}
+                    />
+                  ))}
+                </View>
+              </View>
+            )}
+            {drawnAround.length > 0 && (
+              <View style={styles.receiptRow}>
+                <Kicker>{SECTIONS.around.title}</Kicker>
+                <View style={styles.receiptChips}>
+                  {drawnAround.map((reading) => (
                     <Chip
                       key={reading.id}
                       label={reading.label}

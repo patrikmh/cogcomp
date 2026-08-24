@@ -13,14 +13,18 @@ import {
   contradictsOf,
   conflictedOf,
   untestedOf,
+  unhintedHoldsOf,
   untargetedFeltOf,
   untitledThoughtOf,
+  untriedOf,
   maybeAfterOf,
+  relatesToOf,
   supportsOf,
   detectorsWaiting,
   foundWaitingOf,
   regionsOfReading,
   unplacedReadingsOf,
+  daysBehindOf,
   weekdayShapeOf,
   circlingThemesOf,
   themeMembersOf,
@@ -37,6 +41,7 @@ import {
   innerFirst,
   feltThoughtOf,
   heldReadingsOf,
+  inRoomOf,
   innerReadingsOf,
   outerReadingsOf,
   returningInnerOf,
@@ -115,6 +120,11 @@ describe("foldDrawnFrom", () => {
   it("carries tentativeness through, so a guess is still drawn as a guess", () => {
     const index = foldDrawnFrom([[reading({ tentative: true, confidence: 0.33 })]]);
     expect(index.get("e1")?.[0]).toMatchObject({ tentative: true, confidence: 0.33 });
+  });
+
+  it("carries the kind, so a hold is not later read as an act", () => {
+    const index = foldDrawnFrom([[reading()]]);
+    expect(index.get("e1")?.[0]).toMatchObject({ kind: "Need" });
   });
 
   it("is empty for an act nothing was drawn from", () => {
@@ -594,6 +604,57 @@ describe("maybeAfterOf", () => {
   });
 });
 
+describe("relatesToOf", () => {
+  const sleep = { id: "v-sleep", kind: "Value", label: "sleep" };
+  const skip = { id: "a-skip", kind: "Activity", label: "skipping dinner" };
+  const loop = { id: "p-loop", kind: "Pattern", label: "wired came up on 4 days" };
+
+  it("keeps the reading the record linked by writing why", () => {
+    expect(
+      relatesToOf(
+        "n-rest",
+        [sleep, skip],
+        [
+          {
+            from_id: "n-rest",
+            to_id: "v-sleep",
+            kind: "RELATES_TO",
+            note: "both about stopping",
+          },
+          {
+            from_id: "n-rest",
+            to_id: "a-skip",
+            kind: "RELATES_TO",
+            note: "named, then left undone",
+          },
+        ],
+      ).map((item) => [item.neighbour.id, item.note]),
+    ).toEqual([
+      ["v-sleep", "both about stopping"],
+      ["a-skip", "named, then left undone"],
+    ]);
+  });
+
+  it("does not treat a blank note, a pattern, or another kind as this door", () => {
+    expect(
+      relatesToOf(
+        "n-rest",
+        [sleep, loop, skip],
+        [
+          { from_id: "n-rest", to_id: "v-sleep", kind: "RELATES_TO", note: "   " },
+          {
+            from_id: "n-rest",
+            to_id: "p-loop",
+            kind: "RELATES_TO",
+            note: "the same days",
+          },
+          { from_id: "n-rest", to_id: "a-skip", kind: "SUPPORTS" },
+        ],
+      ),
+    ).toEqual([]);
+  });
+});
+
 describe("conflictedOf", () => {
   const capable = { id: "b-capable", kind: "Belief", label: "I am capable" };
   const other = { id: "b-other", kind: "Belief", label: "I should rest" };
@@ -647,6 +708,37 @@ describe("untestedOf", () => {
       untestedOf(
         [rest, restBelief, capable],
         [{ from_id: "n-rest", to_id: "b-rest", kind: "SUPPORTS" }],
+      ),
+    ).toEqual([]);
+  });
+});
+
+describe("unhintedHoldsOf", () => {
+  const rest = { id: "n-rest", kind: "Need", label: "rest" };
+  const sleep = { id: "v-sleep", kind: "Value", label: "sleep" };
+  const wired = { id: "e-wired", kind: "Emotion", label: "wired" };
+  const capable = { id: "b-capable", kind: "Belief", label: "I am capable" };
+  const sara = { id: "p-sara", kind: "Person", label: "Sara" };
+
+  it("keeps a need no thought hinted at, when another hold was hinted", () => {
+    expect(
+      unhintedHoldsOf(
+        [rest, sleep, capable],
+        [rest, sleep, wired, capable],
+        [{ from_id: "e-wired", to_id: "v-sleep", kind: "INDICATES" }],
+      ).map((item) => item.id),
+    ).toEqual(["n-rest"]);
+  });
+
+  it("does not treat a belief, a person, or a record that never hints, as this gap", () => {
+    expect(
+      unhintedHoldsOf(
+        [rest, capable],
+        [rest, capable, sara, wired],
+        [
+          { from_id: "e-wired", to_id: "p-sara", kind: "INDICATES" },
+          { from_id: "e-wired", to_id: "n-rest", kind: "SUPPORTS" },
+        ],
       ),
     ).toEqual([]);
   });
@@ -795,6 +887,23 @@ describe("weekdayShapeOf", () => {
   });
 });
 
+describe("daysBehindOf", () => {
+  it("keeps first-seen order and never repeats a day", () => {
+    expect(
+      daysBehindOf([
+        "2026-04-06T09:00:00Z",
+        "2026-04-08T10:00:00Z",
+        "2026-04-06T18:00:00Z",
+        "2026-04-07T08:00:00Z",
+      ]),
+    ).toEqual(["2026-04-06", "2026-04-08", "2026-04-07"]);
+  });
+
+  it("drops unreadable instants and stays empty for none", () => {
+    expect(daysBehindOf(["not-a-day", ""])).toEqual([]);
+  });
+});
+
 describe("detectorsWaiting", () => {
   it("names within-day ordering separately from day-apart ordering", () => {
     const waiting = detectorsWaiting({ days: 20, weeks: 4, found: ["lag"] });
@@ -903,6 +1012,28 @@ describe("heldFirst", () => {
       "rest",
       "wired",
       "took the stairs",
+    ]);
+  });
+});
+
+describe("inRoomOf", () => {
+  const rest = { kind: "Need", label: "rest" };
+  const wired = { kind: "Emotion", label: "wired" };
+  const stairs = { kind: "Activity", label: "took the stairs" };
+
+  it("keeps a need in holds, a mood inside, and an act around", () => {
+    const mixed = [stairs, wired, rest];
+    expect(inRoomOf(mixed, "holds").map((item) => item.label)).toEqual(["rest"]);
+    expect(inRoomOf(mixed, "inside").map((item) => item.label)).toEqual(["wired"]);
+    expect(inRoomOf(mixed, "around").map((item) => item.label)).toEqual(["took the stairs"]);
+  });
+
+  it("leaves the caller's order when the room is the whole record", () => {
+    const mixed = [stairs, wired, rest];
+    expect(inRoomOf(mixed, "all").map((item) => item.label)).toEqual([
+      "took the stairs",
+      "wired",
+      "rest",
     ]);
   });
 });
@@ -1121,6 +1252,30 @@ describe("eligibleHeld", () => {
     expect(eligibleHeld({ kind: "Need" })).toBe(true);
     expect(eligibleHeld({ kind: "Emotion" })).toBe(false);
     expect(eligibleHeld({ kind: "Need", tentative: true })).toBe(false);
+  });
+});
+
+describe("untriedOf", () => {
+  const rest = { id: "n-rest", kind: "Need", label: "rest" };
+  const sleep = { id: "v-sleep", kind: "Value", label: "sleep" };
+  const wired = { id: "e-wired", kind: "Emotion", label: "wired" };
+  const guess = { id: "n-guess", kind: "Need", label: "space", tentative: true };
+
+  it("keeps a hold never set against a trial, in caller order", () => {
+    expect(
+      untriedOf(
+        [wired, rest, sleep, guess],
+        [{ links: [{ node_id: "v-sleep" }] }],
+      ).map((item) => item.id),
+    ).toEqual(["n-rest"]);
+  });
+
+  it("stays empty when no hold has been tried, or when only weather is linked", () => {
+    expect(untriedOf([rest, sleep], [{ links: [{ node_id: "a-stairs" }] }])).toEqual([]);
+    expect(untriedOf([rest], [])).toEqual([]);
+    expect(
+      untriedOf([wired, rest], [{ links: [{ node_id: "e-wired" }] }]),
+    ).toEqual([]);
   });
 });
 

@@ -5,11 +5,11 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { Meter } from "@/components/Meter";
 import { Empty, Failed, Loading } from "@/components/States";
 import { api, type Experiment } from "@/lib/api";
-import { eligibleHeld } from "@/lib/drawn-from";
+import { eligibleHeld, untriedOf } from "@/lib/drawn-from";
 import { deviceTimezone, localDay, stampOf } from "@/lib/format";
 import { Seal, seed } from "@/lib/seal";
 import { usePreferences } from "@/state/preferences";
-import { asideOf } from "@tlon/copy/sections";
+import { SECTIONS, asideOf } from "@tlon/copy/sections";
 
 /**
  * Experiments: trials someone writes for themselves.
@@ -22,6 +22,11 @@ export function Experiments() {
   const client = useQueryClient();
   const navigate = useNavigate();
   const findingsVisible = usePreferences((s) => s.findings);
+  const graph = useQuery({
+    queryKey: ["graph", "experiments"],
+    queryFn: () => api.graph(200),
+    enabled: findingsVisible,
+  });
   const list = useQuery({
     queryKey: ["experiments", findingsVisible],
     queryFn: () => api.experiments(findingsVisible),
@@ -71,6 +76,9 @@ export function Experiments() {
   const sorted = [...all].sort((a, b) => (order[a.state] ?? 9) - (order[b.state] ?? 9));
   const running = all.filter((x) => x.state === "active").length;
   const done = all.filter((x) => x.state === "completed").length;
+  const untried = findingsVisible
+    ? untriedOf(graph.data?.nodes ?? [], all)
+    : [];
 
   return (
     <>
@@ -99,6 +107,24 @@ export function Experiments() {
               detailError={detailById.get(x.id)?.isError}
               onRetry={() => void detailById.get(x.id)?.refetch()}
             />
+          ))}
+        </>
+      )}
+
+      {untried.length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.untried.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("untried")}</span>
+          </div>
+          {untried.map((reading) => (
+            <Link key={reading.id} className="t-read" to={`/node/${reading.id}`}>
+              <span className="t-main">
+                <b>{reading.label}</b>
+                <span className="mono">{reading.kind.toLowerCase()}</span>
+              </span>
+            </Link>
           ))}
         </>
       )}

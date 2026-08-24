@@ -2,11 +2,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
+import { DrawnMeta } from "@/components/DrawnMeta";
 import { Empty, Failed, Loading } from "@/components/States";
 import { Seal } from "@/lib/seal";
 import { api, type Observation } from "@/lib/api";
 import { useAmong, useAmongThemes, useDrawnFrom } from "@/lib/drawn-from";
-import { clockOf, dayLabelOf, fmt } from "@/lib/format";
+import { patternDestination } from "@/lib/patterns";
+import { clockOf, dayLabelOf } from "@/lib/format";
 import { useSession } from "@/state/session";
 import { usePreferences } from "@/state/preferences";
 import { EMPTY as EMPTY_COPY } from "@tlon/copy/empty";
@@ -14,9 +16,18 @@ import { deletePendingVoice, listPendingVoice, putPendingVoice, type PendingVoic
 
 export async function extractIfFindingsEnabledAfterSave(
   save: Promise<Pick<Observation, "id">>,
+  refresh?: () => void,
 ) {
   const created = await save;
-  if (usePreferences.getState().findings) void api.extract(created.id).catch(() => undefined);
+  if (!usePreferences.getState().findings) return;
+  void api.extract(created.id)
+    .then(() => {
+      // Refetch when extraction RESOLVES, not alongside the save: refreshing
+      // before the pipeline finishes re-reads a graph without the readings
+      // and shows "nothing drawn" until some unrelated refetch happens by.
+      refresh?.();
+    })
+    .catch(() => undefined);
 }
 
 /**
@@ -100,7 +111,10 @@ export function Journal() {
       // Extraction is what turns an act into readings; the journal does not
       // wait for it, but it does ask. Read the store after the request: the
       // preference may have changed while the observation was being saved.
-      void extractIfFindingsEnabledAfterSave(save);
+      void extractIfFindingsEnabledAfterSave(save, () => {
+        void client.invalidateQueries({ queryKey: ["observations", userId] });
+        void client.invalidateQueries({ queryKey: ["summary"] });
+      });
       return created;
     },
     onSuccess: (created, envelope) => {
@@ -133,6 +147,11 @@ export function Journal() {
       voiceIds.current.delete(audio);
       setNote(`Recording kept on device · transcribed · ${created.content.length} characters`);
       void client.invalidateQueries({ queryKey: ["observations", userId] });
+      // A transcript is an entry like a typed one, so its readings grow the
+      // same way — behind the person's back, not in front of their patience.
+      // Without this, spoken entries stayed undrawn forever and could never
+      // feed a pattern.
+      if (usePreferences.getState().findings) void api.extract(created.id).catch(() => undefined);
     },
     onError: () => setNote("Could not transcribe that. Retry the recording or discard it."),
   });
@@ -144,6 +163,9 @@ export function Journal() {
       setPendingVoice((items) => items.filter((item) => item.id !== envelope.id));
       setNote(`Recording kept on device · transcribed · ${created.content.length} characters`);
       void client.invalidateQueries({ queryKey: ["observations", userId] });
+      // The retry path reaches the same place as the first save, readings
+      // included.
+      if (usePreferences.getState().findings) void api.extract(created.id).catch(() => undefined);
     } catch { setNote("Could not transcribe that. Retry the recording or discard it."); }
   };
 
@@ -251,18 +273,7 @@ export function Journal() {
                       <p>{entry.content}</p>
                       {showFindings && (
                         (drawnFrom.get(entry.id)?.length ?? 0) > 0 ? (
-                          <div className="j-meta">
-                            <span className="j-from">drawn from this</span>
-                            {drawnFrom.get(entry.id)!.map((r) => (
-                              <Link
-                                key={r.id}
-                                className={`j-chip${r.tentative ? " ghost" : ""}`}
-                                to={`/node/${r.id}`}
-                              >
-                                {r.label} · {fmt(r.confidence)}
-                              </Link>
-                            ))}
-                          </div>
+                          <DrawnMeta readings={drawnFrom.get(entry.id)!} confidence />
                         ) : (
                           <div className="j-meta">
                             <Link to={`/node/${entry.id}`} className="j-from">
@@ -278,7 +289,7 @@ export function Journal() {
                             <Link
                               key={pattern.id}
                               className={`j-chip${pattern.tentative ? " ghost" : ""}`}
-                              to={`/pattern/${pattern.id}`}
+                              to={patternDestination(pattern).href}
                             >
                               {pattern.label.split(" · ")[0]}
                             </Link>

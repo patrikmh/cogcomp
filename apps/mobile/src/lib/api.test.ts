@@ -347,3 +347,22 @@ describe("streaming a spoken turn", () => {
       .toBe("33333333-3333-4333-8333-333333333333");
   });
 });
+
+describe("extraction after save", () => {
+  const fetchMock = jest.fn();
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    global.fetch = fetchMock as unknown as typeof fetch;
+  });
+
+  it("posts to the observation's extract endpoint with the account token", async () => {
+    const result = { observation_id: "00000000-0000-0000-0000-000000000009", extractor: "stub-v0", nodes: 2, edges: 1 };
+    fetchMock.mockResolvedValue(jsonResponse(result));
+    await expect(api.extract("token", "00000000-0000-0000-0000-000000000009")).resolves.toEqual(result);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:8080/v1/observations/00000000-0000-0000-0000-000000000009/extract",
+      { headers: { "Content-Type": "application/json", Authorization: "Bearer token" }, method: "POST" },
+    );
+  });
+});

@@ -4,11 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { SpokenStream } from "@tlon/speech/stream";
 import { initial, step } from "@tlon/speech/vad";
 import { TALK_DISCLOSURE } from "@tlon/copy";
+import { SECTIONS } from "@tlon/copy/sections";
 
 import { Link } from "react-router-dom";
 
 import { ApiError, api } from "@/lib/api";
-import { gatheredOf, useAmong, useAmongThemes, useDrawnFrom } from "@/lib/drawn-from";
+import { feltThoughtOf, gatheredOf, heldReadingsOf, outerReadingsOf, useAmong, useAmongThemes, useDrawnFrom } from "@/lib/drawn-from";
+import { patternDestination } from "@/lib/patterns";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
 import { deletePendingVoice, listPendingVoice, putPendingVoice, type PendingVoiceEnvelope } from "@/lib/pendingVoice";
@@ -77,7 +79,10 @@ export function Talk() {
   });
   const among = useAmong(patterns.data ?? [], 4, receiptOpen);
   const amongThemes = useAmongThemes(themes.data ?? [], 4, receiptOpen);
-  const drawn = gatheredOf(leftBehind, drawnFrom).slice(0, 5);
+  const drawn = gatheredOf(leftBehind, drawnFrom);
+  const drawnFelt = feltThoughtOf(drawn).slice(0, 3);
+  const drawnHolds = heldReadingsOf(drawn).slice(0, 3);
+  const drawnAround = outerReadingsOf(drawn).slice(0, 3);
   const amongPatterns = gatheredOf(leftBehind, among).slice(0, 5);
   const amongRegions = gatheredOf(leftBehind, amongThemes).slice(0, 5);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -689,10 +694,38 @@ export function Talk() {
 
       {kept && findingsVisible && (
         <div className="talk-left">
-          {drawn.length > 0 && (
+          {drawnFelt.length > 0 && (
             <p className="j-meta">
-              <span className="j-from">drawn from this</span>
-              {drawn.map((reading) => (
+              <span className="j-from">{SECTIONS.inside.title.toLowerCase()}</span>
+              {drawnFelt.map((reading) => (
+                <Link
+                  key={reading.id}
+                  className={`j-chip${reading.tentative ? " ghost" : ""}`}
+                  to={`/node/${reading.id}`}
+                >
+                  {reading.label}
+                </Link>
+              ))}
+            </p>
+          )}
+          {drawnHolds.length > 0 && (
+            <p className="j-meta">
+              <span className="j-from">{SECTIONS.holds.title.toLowerCase()}</span>
+              {drawnHolds.map((reading) => (
+                <Link
+                  key={reading.id}
+                  className={`j-chip${reading.tentative ? " ghost" : ""}`}
+                  to={`/node/${reading.id}`}
+                >
+                  {reading.label}
+                </Link>
+              ))}
+            </p>
+          )}
+          {drawnAround.length > 0 && (
+            <p className="j-meta">
+              <span className="j-from">{SECTIONS.around.title.toLowerCase()}</span>
+              {drawnAround.map((reading) => (
                 <Link
                   key={reading.id}
                   className={`j-chip${reading.tentative ? " ghost" : ""}`}
@@ -710,7 +743,7 @@ export function Talk() {
                 <Link
                   key={pattern.id}
                   className={`j-chip${pattern.tentative ? " ghost" : ""}`}
-                  to={`/pattern/${pattern.id}`}
+                  to={patternDestination(pattern).href}
                 >
                   {pattern.label.split(" · ")[0]}
                 </Link>

@@ -26,11 +26,15 @@ honest label is the membership.
 
 from __future__ import annotations
 
+from collections import defaultdict
 from uuid import UUID, uuid4
 
 import asyncpg
 from graphiti_core import Graphiti
-from graphiti_core.utils.maintenance.community_operations import get_community_clusters
+from graphiti_core.driver.driver import GraphDriver
+from graphiti_core.helpers import semaphore_gather
+from graphiti_core.nodes import EntityNode
+from graphiti_core.utils.maintenance.community_operations import Neighbor
 
 from tlon.domain.inference import EpistemicStatus, derived_confidence
 from tlon.graph.projection import graphiti_uuid, group_id
@@ -52,6 +56,14 @@ MIN_MEMBERS = 3
 #: strict enough that two genuinely different regions never match.
 SAME_THEME_OVERLAP = 0.5
 
+#: Label propagation has no iteration cap upstream: graphiti's implementation
+#: loops until a full pass changes nothing, and on some graphs the boundary
+#: nodes oscillate between two communities forever. That was caught live as a
+#: test hang with a stack pointing at the candidate-count line. The algorithm
+#: is vendored here with a round cap so a region can never stall the agent —
+#: or a person's mining run — indefinitely.
+MAX_PROPAGATION_ROUNDS = 100
+
 
 def _overlap(left: set[UUID], right: set[UUID]) -> float:
     """Jaccard: shared members over total distinct members."""
@@ -72,6 +84,88 @@ def label_for(labels: list[str]) -> str:
     return f"{joined} and {remainder} more" if remainder else joined
 
 
+def _label_propagation(projection: dict[str, list[Neighbor]]) -> list[list[str]]:
+    """Graphiti's label propagation, bounded.
+
+    Identical rule for round in: each node joins the community most of its edge
+    weight points at, ties going to the larger community. The one difference is
+    the cap — upstream loops until nothing changes, which certain graphs never
+    reach because two boundary nodes keep trading communities. Capped, the run
+    ends with whatever regions have settled by then, which on a converging
+    graph is exactly the upstream answer.
+    """
+    community_map = {uuid: i for i, uuid in enumerate(projection.keys())}
+
+    for _ in range(MAX_PROPAGATION_ROUNDS):
+        no_change = True
+        new_community_map: dict[str, int] = {}
+
+        for uuid, neighbors in projection.items():
+            curr_community = community_map[uuid]
+
+            community_candidates: dict[int, int] = defaultdict(int)
+            for neighbor in neighbors:
+                community_candidates[community_map[neighbor.node_uuid]] += neighbor.edge_count
+            community_lst = [
+                (count, community) for community, count in community_candidates.items()
+            ]
+
+            community_lst.sort(reverse=True)
+            candidate_rank, community_candidate = (
+                community_lst[0] if community_lst else (0, -1)
+            )
+            if community_candidate != -1 and candidate_rank > 1:
+                new_community = community_candidate
+            else:
+                new_community = max(community_candidate, curr_community)
+
+            new_community_map[uuid] = new_community
+
+            if new_community != curr_community:
+                no_change = False
+
+        community_map = new_community_map
+        if no_change:
+            break
+
+    clusters: dict[int, list[str]] = defaultdict(list)
+    for uuid, community in community_map.items():
+        clusters[community].append(uuid)
+    return list(clusters.values())
+
+
+async def _bounded_community_clusters(
+    driver: GraphDriver, group_id_value: str
+) -> list[list[EntityNode]]:
+    """The projection-and-cluster path of graphiti's get_community_clusters,
+    with the bounded propagation above."""
+    projection: dict[str, list[Neighbor]] = {}
+    nodes = await EntityNode.get_by_group_ids(driver, [group_id_value])
+    for node in nodes:
+        records, _, _ = await driver.execute_query(
+            """
+            MATCH (n:Entity {group_id: $group_id, uuid: $uuid})-[e:RELATES_TO]-(m: Entity {group_id: $group_id})
+            WITH count(e) AS count, m.uuid AS uuid
+            RETURN
+                uuid,
+                count
+            """,
+            uuid=node.uuid,
+            group_id=group_id_value,
+        )
+        projection[node.uuid] = [
+            Neighbor(node_uuid=record["uuid"], edge_count=record["count"]) for record in records
+        ]
+
+    cluster_uuids = _label_propagation(projection)
+
+    gathered = await semaphore_gather(
+        *[EntityNode.get_by_uuids(driver, cluster) for cluster in cluster_uuids]
+    )
+    # Each gathered result is one cluster's nodes; the caller iterates clusters.
+    return [list(cluster) for cluster in gathered]
+
+
 async def cluster(graphiti: Graphiti, user_id: UUID, node_ids: list[UUID]) -> list[list[UUID]]:
     """Communities over the projected graph, as Tlön node ids.
 
@@ -81,7 +175,7 @@ async def cluster(graphiti: Graphiti, user_id: UUID, node_ids: list[UUID]) -> li
     """
     by_graphiti_uuid = {graphiti_uuid(node_id): node_id for node_id in node_ids}
 
-    clusters = await get_community_clusters(graphiti.driver, [group_id(user_id)])
+    clusters = await _bounded_community_clusters(graphiti.driver, group_id(user_id))
 
     found: list[list[UUID]] = []
     for community in clusters:

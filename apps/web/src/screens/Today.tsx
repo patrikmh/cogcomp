@@ -1,10 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 
+import { DrawnMeta } from "@/components/DrawnMeta";
 import { Meter } from "@/components/Meter";
 import { Failed, Loading } from "@/components/States";
 import { api, type Inference } from "@/lib/api";
 import { circlingOf, circlingThemesOf, feltThoughtOf, heldReadingsOf, namedRecurrenceOf, outerReadingsOf, returningInnerOf, unplacedReadingsOf, useDrawnFrom } from "@/lib/drawn-from";
+import { patternDestination } from "@/lib/patterns";
 import { clockOf, dayFromRoute, deviceTimezone, fmt, localDay, shiftDay } from "@/lib/format";
 import { Seal } from "@/lib/seal";
 import { Guide } from "@/components/Guide";
@@ -158,20 +160,12 @@ export function Today() {
                 <Seal id={o.id} />
                 <div>
                   <p>{o.content}</p>
-                  {showFindings && (
+                  {showFindings && (drawnFrom.get(o.id)?.length ?? 0) > 0 && (
+                    <DrawnMeta readings={drawnFrom.get(o.id)!} confidence />
+                  )}
+                  {showFindings && (drawnFrom.get(o.id)?.length ?? 0) === 0 && (
                     <div className="j-meta">
-                      <span className="j-from">
-                        {(drawnFrom.get(o.id)?.length ?? 0) > 0 ? "drawn from this" : "nothing drawn from this yet"}
-                      </span>
-                      {(drawnFrom.get(o.id) ?? []).map((r) => (
-                        <Link
-                          key={r.id}
-                          className={`j-chip${r.tentative ? " ghost" : ""}`}
-                          to={`/node/${r.id}`}
-                        >
-                          {r.label} · {fmt(r.confidence)}
-                        </Link>
-                      ))}
+                      <span className="j-from">nothing drawn from this yet</span>
                     </div>
                   )}
                 </div>
@@ -315,7 +309,7 @@ export function Today() {
                 <span className="mono">this day belongs to</span>
               </div>
               {circlingList.map((pattern) => (
-                <Link key={pattern.id} className="t-circle" to={`/pattern/${pattern.id}`}>
+                <Link key={pattern.id} className="t-circle" to={patternDestination(pattern).href}>
                   <b>{pattern.label}</b>
                   <span className="mono">
                     {pattern.distinct_days} of {pattern.occurrences} days

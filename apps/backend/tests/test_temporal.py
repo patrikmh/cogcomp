@@ -50,8 +50,10 @@ class TestWindows:
     def test_they_are_the_same_length(self):
         # Comparing a recent stretch against "everything before" is how you
         # manufacture a trend — a longer baseline dilutes the earlier rate.
+        def span(w) -> int:
+            return (w.end - w.start).days
+
         recent, earlier = windows(TODAY)
-        span = lambda w: (w.end - w.start).days
         assert span(recent) == span(earlier) == WINDOW_DAYS - 1
 
     def test_the_recent_window_ends_today(self):

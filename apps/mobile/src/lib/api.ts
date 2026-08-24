@@ -238,6 +238,28 @@ export type Detector =
   | "same-day-order"
   | "stated-vs-recorded";
 
+export interface ThreadMember {
+  id: string;
+  label: string;
+  detector: Detector;
+  confidence: number;
+  tentative: boolean;
+  occurrences: number;
+  distinct_days: number;
+}
+
+/**
+ * Findings that rest on the same thing, grouped for navigation.
+ *
+ * `subjects` are the exact labels — in their most-used phrasing — that the
+ * members' own evidence shares. Nothing summarised, nothing inferred: a thread
+ * is arithmetic over what mining already stored.
+ */
+export interface PatternThread {
+  subjects: string[];
+  members: ThreadMember[];
+}
+
 export interface Pattern {
   id: string;
   label: string;
@@ -617,6 +639,22 @@ export const api = {
     return uploadAudio<ObservationResponse>("/v1/observations/voice", token, form);
   },
 
+  /**
+   * Runs extraction over one kept entry.
+   *
+   * Fire-and-forget by the caller, like the desktop client: the words are
+   * already safe, and readings are something the graph grows into rather than
+   * something anyone waits for. The server skips what was already extracted,
+   * so a retry costs nothing but a request.
+   */
+  extract(token: string, observationId: string) {
+    return request<{ observation_id: string; extractor: string; nodes: number; edges: number }>(
+      `/v1/observations/${encodeURIComponent(observationId)}/extract`,
+      token,
+      { method: "POST" },
+    );
+  },
+
   /** Speak a turn instead of typing it. Takes the same path as a typed turn
    *  once transcribed. */
   async sayAloud(
@@ -845,7 +883,7 @@ export const api = {
     return request<{
       node: GraphNode;
       neighbours: (GraphNode & { cites_entries?: number })[];
-      edges: { from_id: string; to_id: string; kind: string }[];
+      edges: { from_id: string; to_id: string; kind: string; note?: string | null }[];
     }>(`/v1/graph/nodes/${nodeId}/neighbours`, token);
   },
 
@@ -900,6 +938,10 @@ export const api = {
 
   listPatterns(token: string) {
     return request<Pattern[]>("/v1/patterns", token);
+  },
+
+  listThreads(token: string) {
+    return request<PatternThread[]>("/v1/patterns/threads", token);
   },
 
   listThemes(token: string) {

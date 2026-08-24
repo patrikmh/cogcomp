@@ -322,6 +322,9 @@
   .id-kc .n{font:500 18px/1 "IBM Plex Sans",sans-serif;color:var(--ink)}
   .id-kc .k{font:400 10px/1.4 "IBM Plex Mono",monospace;color:var(--faint);letter-spacing:.06em;margin-top:4px}
   .id-kc.tent .n{color:var(--faint)}
+  .id-rooms{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:14px auto 0;max-width:560px;padding:0 20px}
+  .id-room{border:1px solid var(--line);background:transparent;color:var(--dim);font:400 12px/1.4 "IBM Plex Mono",monospace;padding:5px 8px;border-radius:2px;cursor:pointer}
+  .id-room.on{border-color:var(--ink);color:var(--ink)}
   @media(prefers-reduced-motion:reduce){
     .id-comp .id-ring{transition:none}
     .id-comp .id-ring:hover{transform:none}

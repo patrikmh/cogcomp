@@ -186,6 +186,28 @@ export type Detector =
   | "same-day-order"
   | "stated-vs-recorded";
 
+export interface ThreadMember {
+  id: string;
+  label: string;
+  detector: Detector;
+  confidence: number;
+  tentative: boolean;
+  occurrences: number;
+  distinct_days: number;
+}
+
+/**
+ * Findings that rest on the same thing, grouped for navigation.
+ *
+ * `subjects` are the exact labels (in their most-used phrasing) that connect
+ * the members' own evidence — nothing summarised, nothing inferred. A group is
+ * arithmetic over what mining already stored.
+ */
+export interface PatternThread {
+  subjects: string[];
+  members: ThreadMember[];
+}
+
 export interface Pattern {
   id: string;
   label: string;
@@ -295,17 +317,19 @@ export interface AgentRun {
   error: string | null;
 }
 
+export interface TemporalChange {
+  kind: string;
+  label: string;
+  shift: "new" | "more" | "less" | "absent";
+  recent_days: number;
+  earlier_days: number;
+  confidence: number;
+  description: string;
+}
+
 export interface TemporalChanges {
   window_days: number;
-  changes: {
-    kind: string;
-    label: string;
-    shift: "new" | "more" | "less" | "absent";
-    recent_days: number;
-    earlier_days: number;
-    confidence: number;
-    description: string;
-  }[];
+  changes: TemporalChange[];
   not_enough_material: boolean;
 }
 
@@ -394,6 +418,7 @@ export const api = {
 
   /* findings */
   patterns: () => request<Pattern[]>("/v1/patterns"),
+  threads: () => request<PatternThread[]>("/v1/patterns/threads"),
   minePatterns: () =>
     request<{ patterns: number; added: number; confirmed: number; considered: number }>(
       "/v1/patterns/mine",
@@ -412,7 +437,7 @@ export const api = {
       /** Each carries how many entries it rests on, which the finding's
        *  composition shows beside it. */
       neighbours: (GraphNode & { cites_entries?: number })[];
-      edges: { from_id: string; to_id: string; kind: string }[];
+      edges: { from_id: string; to_id: string; kind: string; note?: string | null }[];
     }>(
       `/v1/graph/nodes/${id}/neighbours`,
     ),
@@ -702,7 +727,7 @@ export const api = {
       "/v1/graph/summary",
     ),
   graph: (limit = 200) =>
-    request<{ nodes: GraphNode[]; edges: { from_id: string; to_id: string; kind: string }[]; total_nodes: number }>(
+    request<{ nodes: GraphNode[]; edges: { from_id: string; to_id: string; kind: string; note?: string | null }[]; total_nodes: number }>(
       `/v1/graph?limit=${limit}`,
     ),
 };

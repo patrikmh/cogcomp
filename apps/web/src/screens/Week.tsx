@@ -16,11 +16,13 @@ import {
   returningInnerOf,
   namedOnlyDaysOf,
   quietHoldsOf,
+  unhintedHoldsOf,
   unplacedReadingsOf,
   unnamedDaysOf,
   VOCABULARY_LOOKBACK_WEEKS,
   vocabularyMarks,
 } from "@/lib/drawn-from";
+import { patternDestination } from "@/lib/patterns";
 import { DETECTOR_LABEL, deviceTimezone, fmt, localDay, mondayOf, shiftDay } from "@/lib/format";
 import { Seal } from "@/lib/seal";
 import { SECTIONS, asideOf } from "@tlon/copy/sections";
@@ -68,6 +70,11 @@ export function Week() {
     queryFn: () => api.identity(),
     enabled: showFindings,
   });
+  const graph = useQuery({
+    queryKey: ["graph", showFindings],
+    queryFn: () => api.graph(200),
+    enabled: showFindings,
+  });
 
   if (week.isLoading) return <Loading />;
   if (week.isError || !week.data) return <Failed onRetry={() => void week.refetch()} />;
@@ -112,6 +119,9 @@ export function Week() {
     : [];
   const quiet = showFindings
     ? quietHoldsOf(identity.data?.nodes ?? [], week.data.inferred ?? [])
+    : [];
+  const unhinted = showFindings
+    ? unhintedHoldsOf(held, graph.data?.nodes ?? [], graph.data?.edges ?? [])
     : [];
   const alone = showFindings
     ? unplacedReadingsOf(weekReadings, themes.data ?? [])
@@ -300,6 +310,19 @@ export function Week() {
         </>
       )}
 
+      {unhinted.length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.unhinted.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("unhinted")}</span>
+          </div>
+          {unhinted.map((reading) => (
+            <WeekReading key={reading.id} reading={reading} />
+          ))}
+        </>
+      )}
+
       {cameBack.length > 0 && (
         <>
           <div className="t-sec">
@@ -484,9 +507,18 @@ export function Week() {
                   {label}
                 </Link>
               ) : (
-                <span className="c" key={mark.word}>
+                // A word without a reading still opens the record — the
+                // entries where the person actually wrote it. Search is
+                // literal, so this is a door to their own sentences, never
+                // to an interpretation.
+                <Link
+                  className="c"
+                  key={mark.word}
+                  to={`/search?q=${encodeURIComponent(mark.word)}`}
+                  title="Where you wrote it"
+                >
                   {label}
-                </span>
+                </Link>
               );
             })}
           </div>
@@ -525,7 +557,7 @@ function WeekReading({
 function PatternRow({ pattern }: { pattern: NonNullable<Awaited<ReturnType<typeof api.patterns>>>[number] }) {
   const strength = pattern.distinct_days / Math.max(1, pattern.occurrences);
   return (
-    <Link className={`t-read w-pat${pattern.tentative ? " ghost" : ""}`} to={`/pattern/${pattern.id}`}>
+    <Link className={`t-read w-pat${pattern.tentative ? " ghost" : ""}`} to={patternDestination(pattern).href}>
       <span className="w-pow" style={{ width: `${Math.round(strength * 100)}%` }} />
       <span className="t-seal">
         <Seal id={pattern.id} className="j-seal" />

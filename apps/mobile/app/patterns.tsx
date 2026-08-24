@@ -18,8 +18,8 @@ import { ErrorLens } from "@/components/SpatialField";
 import { Strip } from "@/components/Strip";
 import { StripLegend } from "@/components/StripLegend";
 import { colors, fonts } from "@/theme";
-import { api, type Pattern, type Theme } from "@/lib/api";
-import { patternDestination, patternMeta } from "@/lib/patterns";
+import { api, type Pattern, type PatternThread, type TemporalChange, type Theme } from "@/lib/api";
+import { normaliseLabel, patternDestination, patternMeta, shiftsForSubjects } from "@/lib/patterns";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
 import { HEADINGS } from "@tlon/copy/headings";
@@ -55,6 +55,19 @@ export default function PatternsScreen() {
     queryFn: () => api.listThemes(token!),
     // Same condition as the patterns above: with findings off, the app does not
     // ask the server for conclusions the person has said they do not want.
+    enabled: Boolean(token && userId) && showFindings,
+  });
+
+  const threads = useQuery({
+    queryKey: ["threads", userId],
+    queryFn: () => api.listThreads(token!),
+    // Same gate as the patterns and regions below: with findings off, the app
+    // does not ask the server for a view of conclusions it is not showing.
+    enabled: Boolean(token && userId) && showFindings,
+  });
+  const changes = useQuery({
+    queryKey: ["temporal", deviceTimezone()],
+    queryFn: () => api.temporalChanges(token!, deviceTimezone()),
     enabled: Boolean(token && userId) && showFindings,
   });
 
@@ -125,6 +138,73 @@ export default function PatternsScreen() {
           design names this one. The rule was here on its own, which drew the
           line without saying what it divided or that the findings below it are
           ordered. The copy for it was written and never wired up. */}
+      {/* Threads: findings that rest on the same thing, grouped. The grouping
+          is arithmetic — members share an evidence word — so each member keeps
+          its own claim and its own way in. Shown above the flat list because a
+          group of rows that all rest on one word reads as unrelated facts. */}
+      {(threads.data ?? []).length > 0 && (
+        <>
+          <View style={styles.sectionRow}>
+            <Kicker heading>One thing, several directions</Kicker>
+            <View style={styles.ruleFill}>
+              <Rule />
+            </View>
+            <Text style={styles.aside}>grouped only by shared evidence words</Text>
+          </View>
+          {(threads.data ?? []).map((thread: PatternThread, i: number) => {
+            const shifts = shiftsForSubjects(changes.data?.changes ?? [], thread.subjects);
+            return (
+              <Rise key={thread.subjects.join("\u0000")} index={i}>
+                <View style={styles.row}>
+                  <Text style={styles.label}>{thread.subjects.join(" · ")}</Text>
+                  <Kicker>{`${thread.members.filter((m) => !m.tentative).length} held of ${thread.members.length} findings`}</Kicker>
+                  <View style={styles.threadMembers}>
+                    {thread.members.map((member) => (
+                      <MotionSurface
+                        key={member.id}
+                        style={styles.threadMember}
+                        onPress={() => router.push(patternDestination(member).href)}
+                        accessibilityRole="button"
+                        accessibilityLabel={member.label}
+                      >
+                        <Text
+                          style={[
+                            styles.threadMemberLabel,
+                            member.tentative ? styles.ghost : null,
+                          ]}
+                        >
+                          {member.label}
+                        </Text>
+                        <Kicker>{patternMeta(member)}</Kicker>
+                      </MotionSurface>
+                    ))}
+                    {shifts.map((shift: TemporalChange) => (
+                      <MotionSurface
+                        key={`${shift.kind}:${shift.label}`}
+                        style={styles.threadMember}
+                        onPress={() => router.push("/week")}
+                        accessibilityRole="button"
+                        accessibilityLabel={shift.description}
+                      >
+                        <Text
+                          style={[
+                            styles.threadMemberLabel,
+                            shift.confidence < 0.5 ? styles.ghost : null,
+                          ]}
+                        >
+                          {shift.description}
+                        </Text>
+                        <Kicker>changed lately · this week vs last</Kicker>
+                      </MotionSurface>
+                    ))}
+                  </View>
+                </View>
+              </Rise>
+            );
+          })}
+        </>
+      )}
+
       {held.length > 0 && (
         <>
           <View style={styles.sectionRow}>
@@ -186,7 +266,7 @@ export default function PatternsScreen() {
                 <View style={styles.rowBody}>
                   <Text style={styles.label}>{theme.label}</Text>
                   <Kicker>
-                    {`${theme.member_count} things · held since ${new Date(theme.first_seen_at).toLocaleDateString()}`}
+                    {`${theme.member_count} things · held since ${new Date(theme.first_seen_at).toLocaleDateString()}${theme.epistemic_status === "user_rejected" ? " · you rejected this" : ""}`}
                   </Kicker>
                 </View>
               </MotionSurface>
@@ -319,4 +399,20 @@ const styles = StyleSheet.create({
   actions: { flexDirection: "row", gap: 8, flexWrap: "wrap", marginTop: 10 },
   action: { borderWidth: 1, borderColor: colors.line, borderRadius: radii.surface, paddingVertical: 12, paddingHorizontal: 16 },
   actionLabel: { color: colors.inkSoft, fontFamily: fonts.sans, fontSize: 15 },
+  threadMembers: { gap: 6 },
+  threadMember: {
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radii.surface,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    gap: 2,
+  },
+  threadMemberLabel: {
+    color: colors.inkSoft,
+    fontFamily: fonts.sans,
+    fontSize: scale.body.size,
+    lineHeight: scale.body.line,
+  },
+  ghost: { opacity: 0.55 },
 });

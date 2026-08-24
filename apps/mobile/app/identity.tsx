@@ -21,7 +21,8 @@ import { Kicker } from "@/components/Marks";
 import { Seal } from "@/components/Seal";
 import { HEADINGS } from "@tlon/copy/headings";
 import { EMPTY as EMPTY_COPY } from "@tlon/copy/empty";
-import { heldFirst } from "@/lib/drawnFrom";
+import { heldFirst, inRoomOf, unhintedHoldsOf } from "@/lib/drawnFrom";
+import { SECTIONS, asideOf } from "@tlon/copy/sections";
 
 /**
  * Identity, as something you assemble rather than something you are told.
@@ -49,6 +50,7 @@ export default function IdentityScreen() {
   const compositionSize = Math.min(height * 0.64, 440, width * 0.92);
   const client = useQueryClient();
   const [selected, setSelected] = useState<string | null>(null);
+  const [room, setRoom] = useState<"all" | "inside" | "holds" | "around">("all");
   const showFindings = usePreferences((s) => s.findings);
   const preferencesReady = usePreferences((s) => s.ready);
   const findingsVisible = preferencesReady && showFindings;
@@ -62,6 +64,11 @@ export default function IdentityScreen() {
   const candidates = useQuery<IdentityCandidates>({
     queryKey: [...scope, "candidates"],
     queryFn: () => api.identityCandidates(token!),
+    enabled: Boolean(token && userId) && findingsVisible,
+  });
+  const graph = useQuery({
+    queryKey: ["graph", userId],
+    queryFn: () => api.graph(token!, { limit: 200 }),
     enabled: Boolean(token && userId) && findingsVisible,
   });
 
@@ -87,13 +94,19 @@ export default function IdentityScreen() {
     (node: IdentityNode) => !keptIds.has(node.id),
   );
   const everything = [...kept, ...offered];
+  const scoped = inRoomOf(everything, room);
+  const scopedKept = scoped.filter((node) => keptIds.has(node.id));
+  const scopedOffered = scoped.filter((node) => !keptIds.has(node.id));
   // A removed reading is one the record still holds but no longer asserts — the
   // tombstone the note below the figures is about.
   const removedCount = everything.filter(
     (node: IdentityNode) => node.status === "removed",
   ).length;
-  const current = everything.find((node) => node.id === selected) ?? null;
+  const current = scoped.find((node) => node.id === selected) ?? null;
   const isKept = current ? keptIds.has(current.id) : false;
+  const unhinted = findingsVisible
+    ? unhintedHoldsOf(everything, graph.data?.nodes ?? [], graph.data?.edges ?? []).slice(0, 3)
+    : [];
 
   return (
     <Observatory
@@ -106,7 +119,7 @@ export default function IdentityScreen() {
       stage={
         <IdentityComposition
           size={compositionSize}
-          rings={ringsForComposition(kept, offered, keptIds).map((node: IdentityNode) => ({
+          rings={ringsForComposition(scopedKept, scopedOffered, keptIds).map((node: IdentityNode) => ({
             id: node.id,
             label: node.label,
             kind: node.kind,
@@ -128,14 +141,43 @@ export default function IdentityScreen() {
       // said "0 kept · 0 suggested" and stopped there, which is the size of the
       // record without the reason anyone would care about the distinction.
       belowStage={
-        <IdentitySummary
-          kept={kept.length}
-          tentative={offered.length}
-          kinds={new Set(everything.map((node: IdentityNode) => node.kind)).size}
-          removed={removedCount}
-        />
+        <>
+          <IdentitySummary
+            kept={kept.length}
+            tentative={offered.length}
+            kinds={new Set(everything.map((node: IdentityNode) => node.kind)).size}
+            removed={removedCount}
+          />
+          {findingsVisible && everything.length > 0 && (
+            <IdentityRooms
+              room={room}
+              onRoom={setRoom}
+              inside={inRoomOf(everything, "inside").length}
+              holds={inRoomOf(everything, "holds").length}
+              around={inRoomOf(everything, "around").length}
+            />
+          )}
+          {unhinted.length > 0 && (
+            <View style={styles.unhinted}>
+              <Kicker heading>{SECTIONS.unhinted.title}</Kicker>
+              {unhinted.map((node) => (
+                <MotionSurface
+                  key={node.id}
+                  onPress={() => router.push(`/node/${node.id}`)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${node.label} — held, not named from a thought, open this reading`}
+                >
+                  <Text style={styles.unhintedLabel}>{node.label}</Text>
+                  <Text style={styles.unhintedMeta}>
+                    {node.kind.toLowerCase()} · {asideOf("unhinted", true)}
+                  </Text>
+                </MotionSurface>
+              ))}
+            </View>
+          )}
+        </>
       }
-      data={everything.map((node: IdentityNode) => ({
+      data={scoped.map((node: IdentityNode) => ({
         id: node.id,
         // Kept themes carry full weight; unplaced ones are present but slight.
         weight: keptIds.has(node.id) ? 0.95 : 0.4,
@@ -161,7 +203,11 @@ export default function IdentityScreen() {
       // The figures above already say how many of each there are. The design
       // spends this line on how to read the picture instead — hovering on the
       // web, tapping here.
-      hint="Tap a ring to see what it is. The dense core is you."
+      hint={
+        room === "all"
+          ? "Tap a ring to see what it is. The dense core is you."
+          : `Tap a ring. ${asideOf(room, true) ?? ""}`.trim()
+      }
       detail={
         current && (
           <View style={styles.detail}>
@@ -203,7 +249,100 @@ export default function IdentityScreen() {
   );
 }
 
+function IdentityRooms({
+  room,
+  onRoom,
+  inside,
+  holds,
+  around,
+}: {
+  room: "all" | "inside" | "holds" | "around";
+  onRoom: (room: "all" | "inside" | "holds" | "around") => void;
+  inside: number;
+  holds: number;
+  around: number;
+}) {
+  if (inside + holds + around === 0) return null;
+  return (
+    <View style={styles.rooms}>
+      <RoomChip label="All" selected={room === "all"} onPress={() => onRoom("all")} />
+      {inside > 0 && (
+        <RoomChip
+          label={`${SECTIONS.inside.title} · ${inside}`}
+          selected={room === "inside"}
+          onPress={() => onRoom(room === "inside" ? "all" : "inside")}
+        />
+      )}
+      {holds > 0 && (
+        <RoomChip
+          label={`${SECTIONS.holds.title} · ${holds}`}
+          selected={room === "holds"}
+          onPress={() => onRoom(room === "holds" ? "all" : "holds")}
+        />
+      )}
+      {around > 0 && (
+        <RoomChip
+          label={`${SECTIONS.around.title} · ${around}`}
+          selected={room === "around"}
+          onPress={() => onRoom(room === "around" ? "all" : "around")}
+        />
+      )}
+    </View>
+  );
+}
+
+function RoomChip({
+  label,
+  selected,
+  onPress,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <MotionSurface
+      style={[styles.room, selected && styles.roomOn]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      accessibilityLabel={label}
+    >
+      <Text style={[styles.roomLabel, selected && styles.roomLabelOn]}>{label}</Text>
+    </MotionSurface>
+  );
+}
+
 const styles = StyleSheet.create({
+  rooms: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 14,
+    paddingHorizontal: 20,
+  },
+  room: {
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: 2,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+  },
+  roomOn: { borderColor: colors.ink },
+  roomLabel: {
+    color: colors.inkSoft,
+    fontFamily: fonts.mono,
+    fontSize: scale.meta.size,
+  },
+  roomLabelOn: { color: colors.ink },
+  unhinted: { marginTop: 14, paddingHorizontal: 20, gap: 6 },
+  unhintedLabel: { color: colors.ink, fontFamily: fonts.sansMedium, fontSize: 14, lineHeight: 20 },
+  unhintedMeta: {
+    color: colors.inkMuted,
+    fontFamily: fonts.mono,
+    fontSize: scale.meta.size,
+  },
   detailHead: { flexDirection: "row", alignItems: "center", gap: 9 },
   detail: { gap: 5 },
   kind: {

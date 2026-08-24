@@ -6,7 +6,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, 
 import { AtmosphericShell } from "@/components/Atmospheric";
 import { MotionSurface } from "@/components/MotionSurface";
 import { Seal } from "@/components/Seal";
-import { ApiError, api, type Experiment } from "@/lib/api";
+import { ApiError, api, type Experiment, type GraphNode } from "@/lib/api";
 import { localDateToday, localTimezone, validDuration, experimentQueryKeys } from "@/lib/experiment";
 import { uuidv7 } from "@/lib/ids";
 import { useSession } from "@/state/session";
@@ -16,7 +16,8 @@ import { radii } from "@tlon/design";
 import { type as scale } from "@tlon/design";
 import { Arc } from "@/components/Arc";
 import { HEADINGS } from "@tlon/copy/headings";
-import { SECTIONS } from "@tlon/copy/sections";
+import { SECTIONS, asideOf } from "@tlon/copy/sections";
+import { untriedOf } from "@/lib/drawnFrom";
 
 const cadences: Experiment["cadence"][] = ["daily", "weekly", "end_only"];
 const cadenceLabel = { daily: "Daily", weekly: "Weekly", end_only: "At the end" };
@@ -37,6 +38,11 @@ export default function ExperimentsScreen() {
   const [duration, setDuration] = useState("7");
   const [cadence, setCadence] = useState<Experiment["cadence"]>("daily");
   const experiments = useQuery({ queryKey: [...experimentQueryKeys.all(userId!), findingsVisible], queryFn: () => api.listExperiments(token!, findingsVisible), enabled: Boolean(token && userId), refetchOnMount: "always", refetchOnWindowFocus: "always" });
+  const graph = useQuery({
+    queryKey: ["graph", "experiments", userId],
+    queryFn: () => api.graph(token!, { limit: 200 }),
+    enabled: Boolean(token && userId) && findingsVisible,
+  });
   useFocusEffect(
     useCallback(() => {
       void experiments.refetch();
@@ -57,6 +63,9 @@ export default function ExperimentsScreen() {
   );
   const running = all.filter((x: Experiment) => x.state === "active").length;
   const completed = all.filter((x: Experiment) => x.state === "completed").length;
+  const untried = findingsVisible
+    ? untriedOf<GraphNode, Experiment>(graph.data?.nodes ?? [], all).slice(0, 5)
+    : [];
   if (!token || !userId) return null;
   return <AtmosphericShell variant="secondary"><ScrollView contentContainerStyle={styles.screen} accessibilityLabel="Experiments">
     {/* What you already have comes before the form to add more. This screen
@@ -87,6 +96,27 @@ export default function ExperimentsScreen() {
           checked in. The list said how long an experiment runs and never how it
           is going, which is the one thing you open this screen to see. */}
       <Arc id={experiment.id} days={experiment.duration_days} checkins={experiment.checkins?.length ?? 0} state={experiment.state} /></View></MotionSurface>)}
+
+    {untried.length > 0 && (
+      <>
+        <View style={styles.sectionRow}>
+          <Text style={styles.kicker}>{SECTIONS.untried.title}</Text>
+          <View style={styles.ruleFill}><View style={styles.rule} /></View>
+          <Text style={styles.aside}>{asideOf("untried", true)}</Text>
+        </View>
+        {untried.map((reading) => (
+          <MotionSurface
+            key={reading.id}
+            accessibilityRole="button"
+            accessibilityLabel={`${reading.label} — held, not a trial, open this reading`}
+            onPress={() => router.push(`/node/${reading.id}`)}
+          >
+            <Text style={styles.cardTitle}>{reading.label}</Text>
+            <Text style={styles.meta}>{reading.kind.toLowerCase()}</Text>
+          </MotionSurface>
+        ))}
+      </>
+    )}
 
     <View style={styles.sectionRow}>
       <Text style={styles.kicker}>Try a question</Text>

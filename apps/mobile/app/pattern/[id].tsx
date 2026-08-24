@@ -8,14 +8,16 @@ import { MotionSurface } from "@/components/MotionSurface";
 import { ErrorLens, LoadingLens } from "@/components/SpatialField";
 import { DETECTOR_LABEL } from "@tlon/copy/detectors";
 
-import { api, type Experiment, type Occasion, type Ordering, type Pattern, type Written } from "@/lib/api";
+import { api, type Experiment, type Occasion, type Ordering, type Pattern, type ThreadMember, type PatternThread, type Written } from "@/lib/api";
 import { arcsOf } from "@/lib/drawnFrom";
+import { patternDestination, patternMeta } from "@/lib/patterns";
 import { experimentQueryKeys } from "@/lib/experiment";
 import { useSession } from "@/state/session";
 import { usePreferences } from "@/state/preferences";
 import { colors, fonts } from "@/theme";
 import { radii } from "@tlon/design";
 import { type as scale } from "@tlon/design";
+import { Kicker } from "@/components/Marks";
 import { Guide } from "@/components/Guide";
 import { SECTIONS, asideOf } from "@tlon/copy/sections";
 
@@ -62,6 +64,18 @@ export default function PatternOrderingScreen() {
   });
   const wondered: Experiment[] = arcsOf(id ?? "", experiments.data?.experiments ?? []);
 
+  // The thread this finding belongs to, if any — an id match over what the
+  // grouping already stored. Siblings link out; nothing here is recomputed or
+  // re-claimed.
+  const threads = useQuery({
+    queryKey: ["threads", userId],
+    queryFn: () => api.listThreads(token!),
+    enabled: Boolean(token && userId) && findingsVisible,
+  });
+  const siblings = threads.data
+    ?.filter((t: PatternThread) => t.members.some((m: ThreadMember) => m.id === id))
+    .flatMap((t: PatternThread) => t.members.filter((m: ThreadMember) => m.id !== id));
+
   if (!token) return null;
 
   // Disabled findings must also hide an already-cached ordering response when
@@ -73,20 +87,23 @@ export default function PatternOrderingScreen() {
     return <ErrorLens label="This pattern has no ordered evidence." onRetry={() => void ordering.refetch()} />;
   }
 
-  return <Body ordering={ordering.data} pattern={pattern} wondered={wondered} />;
+  return <Body ordering={ordering.data} pattern={pattern} wondered={wondered} siblings={siblings} />;
 }
 
 function Body({
   ordering,
   pattern,
   wondered,
+  siblings,
 }: {
   ordering: Ordering;
   pattern?: Pattern;
   wondered: Experiment[];
+  siblings?: ThreadMember[];
 }) {
   const router = useRouter();
   const { lag_days, occasions } = ordering;
+  const sameDay = lag_days === 0;
   const gap = `${lag_days} ${lag_days === 1 ? "day" : "days"}`;
 
   return (
@@ -124,14 +141,35 @@ function Body({
         {/* Said before the evidence rather than in a footnote. Someone reading a
             list of "this, then that" will supply a cause if nobody says not to. */}
         <Text style={styles.lead}>
-          These entries were written {gap} apart, {occasions.length}{" "}
-          {occasions.length === 1 ? "time" : "times"}. That is an order, not a
-          reason — nothing here says one brought the other on.
+          {sameDay
+            ? `These entries were written on the same day, ${occasions.length} ${occasions.length === 1 ? "time" : "times"}. `
+            : `These entries were written ${gap} apart, ${occasions.length} ${occasions.length === 1 ? "time" : "times"}. `}
+          That is an order, not a reason — nothing here says one brought the other on.
         </Text>
 
         {occasions.map((occasion) => (
-          <Occurrence key={occasion.source_day} occasion={occasion} gap={gap} />
+          <Occurrence key={occasion.source_day} occasion={occasion} gap={sameDay ? null : gap} />
         ))}
+
+        {siblings && siblings.length > 0 && (
+          <>
+            <Text style={styles.kicker}>Same thread</Text>
+            <Text style={styles.footnote}>grouped by shared evidence words</Text>
+            {siblings.map((member) => (
+              <MotionSurface
+                key={member.id}
+                onPress={() => router.push(patternDestination(member).href)}
+                accessibilityRole="button"
+                accessibilityLabel={member.label}
+              >
+                <Text style={[styles.openLabel, member.tentative ? styles.ghost : null]}>
+                  {member.label}
+                </Text>
+                <Kicker>{patternMeta(member)}</Kicker>
+              </MotionSurface>
+            ))}
+          </>
+        )}
 
         {wondered.length > 0 && (
           <>
@@ -174,11 +212,13 @@ function Body({
 }
 
 /** One occasion: what was written first, then what was written after. */
-function Occurrence({ occasion, gap }: { occasion: Occasion; gap: string }) {
+function Occurrence({ occasion, gap }: { occasion: Occasion; gap: string | null }) {
   return (
     <View style={styles.occasion}>
       <Side day={occasion.source_day} label="First" entries={occasion.before} />
-      <Text style={styles.gap}>{gap} later</Text>
+      {/* A same-day pair has no gap to name — both moments sit under one
+          date, and the order is the only claim. */}
+      {gap !== null && <Text style={styles.gap}>{gap} later</Text>}
       <Side day={occasion.target_day} label="Then" entries={occasion.after} />
     </View>
   );
@@ -284,5 +324,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   openLabel: { color: colors.inkSoft, fontFamily: fonts.sans, fontSize: 15, fontWeight: "700" },
+  ghost: { opacity: 0.55 },
   footnote: { marginTop: 12, fontFamily: fonts.sans, fontSize: 12, lineHeight: 18, color: colors.inkMuted },
 });

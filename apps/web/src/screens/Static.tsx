@@ -6,6 +6,7 @@ import { detectorsWaiting, foundWaitingOf } from "@tlon/ontology";
 
 import { api } from "@/lib/api";
 import { localDay, mondayOf } from "@/lib/format";
+import { patternDestination } from "@/lib/patterns";
 import { Guide } from "@/components/Guide";
 import { HEADINGS } from "@tlon/copy/headings";
 import { usePreferences } from "@/state/preferences";
@@ -90,11 +91,7 @@ export function First() {
       <div className="cards">
         {waiting.map((w) => {
           const door = foundWaitingOf(w.detector, found);
-          const href = door
-            ? door.detector === "lag" || door.detector === "same-day-order"
-              ? `/pattern/${door.id}`
-              : `/node/${door.id}`
-            : undefined;
+          const href = door ? patternDestination(door).href : undefined;
           const body = (
             <>
               <div className="row" style={{ justifyContent: "space-between" }}>

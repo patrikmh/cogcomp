@@ -15,6 +15,7 @@ from pydantic import BaseModel
 
 from tlon.auth import current_user
 from tlon.db import patterns as patterns_db
+from tlon.db import threads as threads_db
 
 router = APIRouter(prefix="/v1/patterns", tags=["patterns"])
 
@@ -40,6 +41,24 @@ class Pattern(BaseModel):
     first_seen_at: datetime
     tentative: bool
     created_at: datetime
+
+
+class ThreadMember(BaseModel):
+    id: UUID
+    label: str
+    detector: str
+    confidence: float
+    tentative: bool
+    occurrences: int
+    distinct_days: int
+
+
+class PatternThread(BaseModel):
+    #: The words that connect the members — named, never summarised. A heading
+    #: like "work stress" would be an interpretation; these are the labels the
+    #: members' own evidence shares.
+    subjects: list[str]
+    members: list[ThreadMember]
 
 
 class MineResponse(BaseModel):
@@ -105,6 +124,20 @@ async def pattern_ordering(
     if ordering is None:
         raise HTTPException(status_code=404, detail="not found")
     return Ordering(**ordering)
+
+
+@router.get("/threads")
+async def list_threads(request: Request, user_id: UUID = Depends(current_user)) -> list[PatternThread]:
+    """Findings that rest on the same thing, grouped for navigation.
+
+    Grouping only, over what mining already stored: two findings share a thread
+    when their supporting nodes include the same normalised label. No new claim
+    is created, so there is nothing here to mine or confirm — recomputed on
+    request, like every other view of the graph.
+    """
+    return [PatternThread(**row) for row in await threads_db.list_for_user(
+        request.app.state.pool, user_id
+    )]
 
 
 @router.post("/mine")

@@ -531,6 +531,48 @@ class TestWithinDayOrder:
         for causal in ("because", "cause", "trigger", "leads to", "due to"):
             assert causal not in found[0]["label"].lower()
 
+    async def test_the_occasions_behind_a_within_day_finding_are_kept(
+        self, client: AsyncClient, pool: asyncpg.Pool, account: Account
+    ):
+        # The claim is auditable only while its evidence survives the mine:
+        # which entry came first on which day. Without these rows a reader is
+        # asked to trust a sentence about their own mornings.
+        mornings: list[UUID] = []
+        evenings: list[UUID] = []
+        days: list[str] = []
+        for week in range(4):
+            day = DAY_ONE + timedelta(days=week * 7)
+            days.append(day.date().isoformat())
+            morning_at = day.replace(hour=7, minute=30)
+            morning = await entry(client, account, morning_at)
+            await written_in_the_moment(pool, morning, morning_at)
+            await inferred(pool, account, morning, "wired")
+            evening_at = day.replace(hour=19, minute=0)
+            evening = await entry(client, account, evening_at)
+            await written_in_the_moment(pool, evening, evening_at)
+            await inferred(pool, account, evening, "skipping dinner", kind="Activity")
+            mornings.append(morning)
+            evenings.append(evening)
+
+        await mine(client, account)
+        pattern = next(
+            p for p in await listed(client, account) if p["detector"] == "same-day-order"
+        )
+
+        response = await client.get(f"/v1/patterns/{pattern['id']}/ordering", headers=account.auth)
+
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["lag_days"] == 0
+        assert [occasion["source_day"] for occasion in body["occasions"]] == days
+        assert [occasion["target_day"] for occasion in body["occasions"]] == days
+        assert [
+            [written["id"] for written in occasion["before"]] for occasion in body["occasions"]
+        ] == [[str(morning)] for morning in mornings]
+        assert [
+            [written["id"] for written in occasion["after"]] for occasion in body["occasions"]
+        ] == [[str(evening)] for evening in evenings]
+
     async def test_the_day_the_moments_belong_to_is_the_writers_own(
         self, client: AsyncClient, pool: asyncpg.Pool, account: Account
     ):

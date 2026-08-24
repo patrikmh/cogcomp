@@ -50,21 +50,22 @@ describe("how a pattern reads", () => {
 });
 
 describe("where tapping a pattern goes", () => {
-  it("sends an ordered finding to its occasions", () => {
-    expect(patternDestination(pattern("lag"))).toEqual({
-      href: "/pattern/pattern-1",
-      label: "See what came first →",
-    });
+  it("sends both ordered detectors to their occasions", () => {
+    // Same-day-order persists its occasions now, so its promise is kept the
+    // same way lag's is: the two moments, on the day, in order.
+    for (const detector of ["lag", "same-day-order"] as const) {
+      expect(patternDestination(pattern(detector))).toEqual({
+        href: "/pattern/pattern-1",
+        label: "See what came first →",
+      });
+    }
   });
 
   it("sends every other detector to the explain screen", () => {
-    // A within-day ordering has no occasions endpoint of its own yet, so it
-    // goes to the generic explain screen rather than a screen that cannot load.
     for (const detector of [
       "exact-label",
       "weekday",
       "stated-vs-recorded",
-      "same-day-order",
     ] as const) {
       expect(patternDestination(pattern(detector))).toEqual({
         href: "/node/pattern-1",

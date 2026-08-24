@@ -1,11 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { AtmosphericShell } from "@/components/Atmospheric";
 import { MotionSurface } from "@/components/MotionSurface";
 import { ErrorLens, LoadingLens } from "@/components/SpatialField";
-import { api, type ThemeDetail, type ThemeMember } from "@/lib/api";
+import { api, type Judgement, type ThemeDetail, type ThemeMember } from "@/lib/api";
 import { themeMembersOf } from "@/lib/drawnFrom";
 import { SECTIONS } from "@tlon/copy/sections";
 import { useSession } from "@/state/session";
@@ -54,8 +54,55 @@ export default function ThemeScreen() {
 
 function Body({ theme }: { theme: ThemeDetail }) {
   const router = useRouter();
+  const token = useSession((s) => s.token);
+  const client = useQueryClient();
   const held = new Date(theme.first_seen_at).toLocaleDateString();
+  const lastSeen = new Date(theme.last_confirmed_at).toLocaleDateString();
   const { inside, holds, around } = themeMembersOf(theme.members);
+
+  // The sections say "in your words", so each member carries the sentence that
+  // named it — the same first citing entry the web screen shows. Keyed the same
+  // way the node screen keys its explain reads, so opening a member afterwards
+  // is already in cache.
+  const evidence = useQueries({
+    queries: theme.members.map((member) => ({
+      queryKey: ["explain", member.id],
+      queryFn: () => api.explain(token!, member.id),
+      enabled: Boolean(token),
+    })),
+  });
+  const quoteFor = new Map(
+    theme.members.map((member, i) => [
+      member.id,
+      evidence[i]?.data?.derived_from?.[0]?.content as string | undefined,
+    ]),
+  );
+
+  // A region is the densest claim the system makes, so it is also answerable:
+  // the same judgement a reading gets, with the same consequences. While the
+  // request is in flight the chosen answer shows immediately; the invalidated
+  // query reconciles against the server's word afterwards.
+  const judge = useMutation({
+    mutationFn: (next: Judgement) => api.judgeNode(token!, theme.id, next),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["theme", theme.id], refetchType: "active" });
+      void client.invalidateQueries({ queryKey: ["themes"] });
+      // Rejecting stops the region feeding everything derived from it.
+      void client.invalidateQueries({ queryKey: ["patterns"] });
+      void client.invalidateQueries({ queryKey: ["temporal"] });
+      void client.invalidateQueries({ queryKey: ["graph"] });
+      void client.invalidateQueries({ queryKey: ["summary"] });
+    },
+    onSettled: () => {
+      void client.invalidateQueries({ queryKey: ["theme", theme.id], refetchType: "active" });
+    },
+  });
+  const status =
+    judge.isPending && judge.variables ? judge.variables : theme.epistemic_status;
+  const choose = (next: Judgement) => {
+    if (judge.isPending) return;
+    judge.mutate(status === next ? "hypothesis" : next);
+  };
 
   return (
     <AtmosphericShell variant="secondary">
@@ -85,7 +132,7 @@ function Body({ theme }: { theme: ThemeDetail }) {
             <Text style={styles.sectionTitle}>{SECTIONS.inside.title}</Text>
             <Text style={styles.sectionAside}>{SECTIONS.inside.aside} · in your words</Text>
             {inside.map((member) => (
-              <Member key={member.id} member={member} onOpen={() => router.push(`/node/${member.id}`)} />
+              <Member key={member.id} member={member} quote={quoteFor.get(member.id)} onOpen={() => router.push(`/node/${member.id}`)} />
             ))}
           </>
         )}
@@ -94,7 +141,7 @@ function Body({ theme }: { theme: ThemeDetail }) {
             <Text style={styles.sectionTitle}>{SECTIONS.holds.title}</Text>
             <Text style={styles.sectionAside}>{SECTIONS.holds.aside} · in your words</Text>
             {holds.map((member) => (
-              <Member key={member.id} member={member} onOpen={() => router.push(`/node/${member.id}`)} />
+              <Member key={member.id} member={member} quote={quoteFor.get(member.id)} onOpen={() => router.push(`/node/${member.id}`)} />
             ))}
           </>
         )}
@@ -103,7 +150,7 @@ function Body({ theme }: { theme: ThemeDetail }) {
             <Text style={styles.sectionTitle}>{SECTIONS.kept.title}</Text>
             <Text style={styles.sectionAside}>people, places, acts · in your words</Text>
             {around.map((member) => (
-              <Member key={member.id} member={member} onOpen={() => router.push(`/node/${member.id}`)} />
+              <Member key={member.id} member={member} quote={quoteFor.get(member.id)} onOpen={() => router.push(`/node/${member.id}`)} />
             ))}
           </>
         )}
@@ -115,8 +162,42 @@ function Body({ theme }: { theme: ThemeDetail }) {
             value={`${theme.associations.length} ${theme.associations.length === 1 ? "pair" : "pairs"}`}
           />
           <Row label="Held since" value={held} />
-          <Row label="Method" value={theme.detector} />
-          <Row label="Status" value={theme.epistemic_status} />
+          <Row label="Last confirmed" value={lastSeen} />
+        </View>
+
+        <View style={styles.verdict}>
+          <Text style={styles.verdictAsk}>Does this region hold?</Text>
+          <View style={styles.verdictRow}>
+            <MotionSurface
+              style={[styles.choice, status === "user_confirmed" && styles.choiceYes]}
+              onPress={() => choose("user_confirmed")}
+              accessibilityRole="button"
+              accessibilityState={{ selected: status === "user_confirmed" }}
+            >
+              <Text
+                style={[styles.choiceLabel, status === "user_confirmed" && styles.choiceLabelOn]}
+              >
+                Yes, that holds
+              </Text>
+            </MotionSurface>
+            <MotionSurface
+              style={[styles.choice, status === "user_rejected" && styles.choiceNo]}
+              onPress={() => choose("user_rejected")}
+              accessibilityRole="button"
+              accessibilityState={{ selected: status === "user_rejected" }}
+            >
+              <Text
+                style={[styles.choiceLabel, status === "user_rejected" && styles.choiceLabelOn]}
+              >
+                Not really
+              </Text>
+            </MotionSurface>
+          </View>
+          <Text style={styles.verdictNote}>
+            {status === "user_rejected"
+              ? "Kept on record, but no longer feeding patterns, comparisons or the graph."
+              : "Saying “not really” stops this region feeding patterns, comparisons and the graph."}
+          </Text>
         </View>
 
         <Text style={styles.footnote}>
@@ -128,7 +209,15 @@ function Body({ theme }: { theme: ThemeDetail }) {
   );
 }
 
-function Member({ member, onOpen }: { member: ThemeMember; onOpen: () => void }) {
+function Member({
+  member,
+  quote,
+  onOpen,
+}: {
+  member: ThemeMember;
+  quote?: string;
+  onOpen: () => void;
+}) {
   const tentative = member.confidence < 0.5;
   return (
     <MotionSurface
@@ -140,6 +229,7 @@ function Member({ member, onOpen }: { member: ThemeMember; onOpen: () => void })
       <View style={[styles.dot, tentative && styles.dotTentative]} />
       <View style={styles.memberBody}>
         <Text style={styles.memberLabel}>{member.label}</Text>
+        {quote && <Text style={styles.memberQuote}>“{quote}”</Text>}
         <Text style={styles.meta}>
           {member.kind.toLowerCase()} · {Math.round(member.confidence * 100)}%
           {member.epistemic_status === "user_rejected" ? " · you rejected this" : ""}
@@ -197,6 +287,12 @@ const styles = StyleSheet.create({
   dotTentative: { backgroundColor: "transparent", borderWidth: 1, borderColor: colors.warning },
   memberBody: { flex: 1, gap: 2 },
   memberLabel: { fontFamily: fonts.sans, fontSize: 16, color: colors.ink },
+  memberQuote: {
+    fontFamily: fonts.sans,
+    fontSize: 13,
+    fontStyle: "italic",
+    color: colors.inkSoft,
+  },
   meta: { fontFamily: fonts.sans, fontSize: 12, color: colors.inkMuted },
   chevron: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: 15 },
   provenance: {
@@ -219,4 +315,20 @@ const styles = StyleSheet.create({
   rowLabel: { fontFamily: fonts.sans, fontSize: 13, color: colors.inkMuted },
   rowValue: { fontFamily: fonts.sans, fontSize: 13, flexShrink: 1, textAlign: "right", color: colors.ink },
   footnote: { marginTop: 18, fontFamily: fonts.sans, fontSize: 12, lineHeight: 18, color: colors.inkMuted },
+  verdict: { gap: 8, marginTop: 18 },
+  verdictAsk: { color: colors.inkSoft, fontFamily: fonts.sans, fontSize: 14 },
+  verdictRow: { flexDirection: "row", gap: 10 },
+  choice: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.lineStrong,
+    borderRadius: 999,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  choiceYes: { borderColor: colors.cyan, backgroundColor: colors.surfaceBright },
+  choiceNo: { borderColor: colors.warning, backgroundColor: colors.surfaceBright },
+  choiceLabel: { color: colors.inkSoft, fontFamily: fonts.sans, fontSize: 15, fontWeight: "700" },
+  choiceLabelOn: { color: colors.ink },
+  verdictNote: { color: colors.inkMuted, fontFamily: fonts.sans, fontSize: 12, lineHeight: 18 },
 });

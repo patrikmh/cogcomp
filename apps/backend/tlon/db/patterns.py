@@ -30,6 +30,7 @@ from tlon.periodicity import VERSION as PERIODICITY_VERSION
 from tlon.periodicity import mine_weekdays
 from tlon.sameday import DETECTOR as SAMEDAY_DETECTOR
 from tlon.sameday import VERSION as SAMEDAY_VERSION
+from tlon.sameday import SameDayFinding
 from tlon.sameday import mine as mine_samedays
 from tlon.sameday import to_pattern as sameday_to_pattern
 from tlon.tension import DETECTOR as TENSION_DETECTOR
@@ -390,9 +391,8 @@ async def remine(pool: asyncpg.Pool, user_id: UUID) -> dict:
     tension_patterns = [
         tension_to_pattern(finding) for finding in mine_tensions(candidates, observed_days)
     ]
-    sameday_patterns = [
-        sameday_to_pattern(finding) for finding in mine_samedays(candidates, observed_days)
-    ]
+    sameday_findings = mine_samedays(candidates, observed_days)
+    sameday_patterns = [sameday_to_pattern(finding) for finding in sameday_findings]
 
     # Every view describes the same graph at the same instant. Reconcile them in
     # one transaction so one failed detector cannot leave the others current
@@ -434,6 +434,7 @@ async def remine(pool: asyncpg.Pool, user_id: UUID) -> dict:
             detector=SAMEDAY_DETECTOR,
             extractor=SAMEDAY_VERSION,
         )
+        await _replace_sameday_matches(conn, user_id, sameday_findings)
 
     runs = (exact, weekday, lag, tension, sameday)
     added = [pattern_id for run in runs for pattern_id in run["added"]]
@@ -490,6 +491,44 @@ async def _replace_lag_matches(
                     )
 
 
+async def _replace_sameday_matches(
+    conn: asyncpg.Connection,
+    user_id: UUID,
+    findings: list[SameDayFinding],
+) -> None:
+    await conn.execute("DELETE FROM pattern_sameday_matches WHERE user_id = $1", user_id)
+    if not findings:
+        return
+
+    pattern_ids = {
+        row["pattern_key"]: row["node_id"]
+        for row in await conn.fetch(
+            "SELECT pattern_key, node_id FROM patterns WHERE user_id = $1 AND detector = $2",
+            user_id,
+            SAMEDAY_DETECTOR,
+        )
+    }
+    for finding in findings:
+        pattern_id = pattern_ids[finding.key]
+        for match in finding.matches:
+            await conn.execute(
+                """
+                INSERT INTO pattern_sameday_matches
+                    (user_id, pattern_id,
+                     source_observation_id, target_observation_id,
+                     day, source_at, target_at)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                """,
+                user_id,
+                pattern_id,
+                match.source_observation_id,
+                match.target_observation_id,
+                match.day,
+                match.source_at,
+                match.target_at,
+            )
+
+
 async def ordering_for_pattern(
     pool: asyncpg.Pool,
     user_id: UUID,
@@ -502,7 +541,7 @@ async def ordering_for_pattern(
     because two entries on the same day produce a cross-product of rows, and a
     reader should see one occasion, not four.
 
-    `None` for anything that is not this user's lag pattern — including a
+    `None` for anything that is not this user's ordered pattern — including a
     pattern found by a detector that makes no claim about order.
     """
     pattern = await pool.fetchrow(
@@ -515,8 +554,11 @@ async def ordering_for_pattern(
         pattern_id,
         user_id,
     )
-    if pattern is None or pattern["detector"] != LAG_DETECTOR:
+    if pattern is None or pattern["detector"] not in (LAG_DETECTOR, SAMEDAY_DETECTOR):
         return None
+
+    if pattern["detector"] == SAMEDAY_DETECTOR:
+        return await _sameday_ordering(pool, user_id, pattern_id, pattern["label"])
 
     rows = await pool.fetch(
         """
@@ -585,6 +627,61 @@ def _written(row: asyncpg.Record, side: str) -> dict:
         "content": row[f"{side}_content"],
         "source": row[f"{side}_source"],
         "captured_at": row[f"{side}_captured_at"],
+    }
+
+
+async def _sameday_ordering(
+    pool: asyncpg.Pool,
+    user_id: UUID,
+    pattern_id: UUID,
+    label: str,
+) -> dict | None:
+    """The entries behind a same-day-order finding, one occasion per day.
+
+    The shape matches the lag payload so one screen can read both: `lag_days`
+    is 0 because both moments fell on the writing day itself, and each occasion
+    is the two moments in the order they were written, not a claim about why.
+    """
+    rows = await pool.fetch(
+        """
+        SELECT m.day,
+               before.node_id AS before_id, before.content AS before_content,
+               before.source AS before_source, before.captured_at AS before_captured_at,
+               before.timezone AS before_timezone, after.timezone AS after_timezone,
+               after.node_id AS after_id, after.content AS after_content,
+               after.source AS after_source, after.captured_at AS after_captured_at
+        FROM pattern_sameday_matches m
+        JOIN observations before ON before.node_id = m.source_observation_id
+        JOIN observations after ON after.node_id = m.target_observation_id
+        JOIN graph_nodes before_node ON before_node.id = before.node_id
+        JOIN graph_nodes after_node ON after_node.id = after.node_id
+        WHERE m.user_id = $1 AND m.pattern_id = $2
+          AND before_node.deleted_at IS NULL
+          AND after_node.deleted_at IS NULL
+        ORDER BY m.day, m.source_at, m.target_at
+        """,
+        user_id,
+        pattern_id,
+    )
+    if not rows:
+        return None
+
+    return {
+        "pattern_id": str(pattern_id),
+        "label": label,
+        "lag_days": 0,
+        "utc_fallback": any(
+            row["before_timezone"] is None or row["after_timezone"] is None for row in rows
+        ),
+        "occasions": [
+            {
+                "source_day": row["day"],
+                "target_day": row["day"],
+                "before": [_written(row, "before")],
+                "after": [_written(row, "after")],
+            }
+            for row in rows
+        ],
     }
 
 

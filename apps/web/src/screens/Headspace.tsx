@@ -7,6 +7,7 @@ import { changesOf, conflictedOf, feltThoughtOf, heldReadingsOf, innerFirst, nam
 
 import { mountHeadspace, type Stage, type Whorl } from "@tlon/headspace";
 import { api, type GraphNode, type Inference, type TemporalChanges } from "@/lib/api";
+import { patternDestination } from "@/lib/patterns";
 import { DETECTOR_LABEL, deviceTimezone, fmt, localDay } from "@/lib/format";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
@@ -71,10 +72,7 @@ export function Headspace() {
       weight: p.occurrences / busiest,
       tentative: p.tentative,
       tint: 0xe6b95c,
-      href:
-        p.detector === "lag" || p.detector === "same-day-order"
-          ? `/pattern/${p.id}`
-          : `/node/${p.id}`,
+      href: patternDestination(p).href,
       group: "pattern",
       kicker: `Pattern · ${DETECTOR_LABEL[p.detector] ?? p.detector}`,
       readout: `${p.distinct_days} of ${p.occurrences}`,

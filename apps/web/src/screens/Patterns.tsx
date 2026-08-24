@@ -3,14 +3,17 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { Meter } from "@/components/Meter";
-import { Empty, Failed, Loading } from "@/components/States";
-import { api, type Pattern } from "@/lib/api";
+import { Failed, Loading } from "@/components/States";
+import { api, type Pattern, type PatternThread, type TemporalChange } from "@/lib/api";
 import { DETECTOR_LABEL, dateOf, deviceTimezone, fmt } from "@/lib/format";
+import { shiftsForSubjects } from "@/lib/patterns";
 import { stripSeries } from "@tlon/design/marks";
 
 import { Seal } from "@/lib/seal";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
+import { heldFirst } from "@/lib/drawn-from";
+import { patternDestination } from "@/lib/patterns";
 import { HEADINGS } from "@tlon/copy/headings";
 import { EMPTY as EMPTY_COPY } from "@tlon/copy/empty";
 import { STRIP_CELLS, daysOfFortnight } from "@tlon/design/marks";
@@ -35,11 +38,22 @@ export function Patterns() {
   const userId = useSession((s) => s.userId);
   const client = useQueryClient();
   const showFindings = usePreferences((s) => s.findings);
-  const setFindings = usePreferences((s) => s.setFindings);
 
   const patterns = useQuery({
     queryKey: ["patterns", userId],
     queryFn: api.patterns,
+    enabled: showFindings,
+  });
+  const threads = useQuery({
+    queryKey: ["threads", userId],
+    queryFn: api.threads,
+    enabled: showFindings,
+  });
+  const tz = deviceTimezone();
+  const changes = useQuery({
+    // Same key Headspace reads, so one fetch serves both screens.
+    queryKey: ["temporal", tz],
+    queryFn: () => api.changes(tz),
     enabled: showFindings,
   });
   const themes = useQuery({
@@ -59,18 +73,9 @@ export function Patterns() {
     },
   });
 
-  if (!showFindings) {
-    return (
-      <>
-        <span className="kicker">Patterns</span>
-        <h1>Turned off</h1>
-        <Empty label="Everything you have written is still kept, and nothing here has been deleted." />
-        <button className="btn go on" onClick={() => setFindings(true)}>
-          SHOW PATTERNS AGAIN
-        </button>
-      </>
-    );
-  }
+  // No findings-off branch here. FindingsRoute already redirects this route
+  // home when the switch is off, so a turned-off state could never render —
+  // the mobile client shows one because nothing redirects there.
 
   if (patterns.isLoading) return <Loading />;
   if (patterns.isError) return <Failed onRetry={() => void patterns.refetch()} />;
@@ -93,6 +98,23 @@ export function Patterns() {
                 : "."
             }`}
       </p>
+
+      {held.length > 0 && (threads.data ?? []).length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">One thing, several directions</span>
+            <span className="rule" />
+            <span className="mono">grouped only by shared evidence words</span>
+          </div>
+          {(threads.data ?? []).map((thread) => (
+            <ThreadCard
+              key={thread.subjects.join("\u0000")}
+              thread={thread}
+              changes={changes.data?.changes ?? []}
+            />
+          ))}
+        </>
+      )}
 
       {held.length > 0 && (
         <>
@@ -137,6 +159,7 @@ export function Patterns() {
                 <span className="mono">
                   {t.member_count} things · held since{" "}
                   {dateOf(t.first_seen_at)}
+                  {t.epistemic_status === "user_rejected" ? " · you rejected this" : ""}
                 </span>
               </span>
             </Link>
@@ -148,6 +171,52 @@ export function Patterns() {
         {mine.isPending ? "LOOKING…" : "LOOK AGAIN"}
       </button>
     </>
+  );
+}
+
+/**
+ * One subject, seen by every detector that found it.
+ *
+ * The grouping is arithmetic over the stored graph — members share a normalised
+ * evidence word, and nothing else. The card says so rather than implying a
+ * synthesis: each member keeps its own claim, its own confidence, and its own
+ * way in, so a person who doubts the group can doubt one row at a time.
+ */
+function ThreadCard({ thread, changes }: { thread: PatternThread; changes: readonly TemporalChange[] }) {
+  // A shift that shares a subject word is shown as another direction on the
+  // same thread — matched by exact normalised label only, and still phrased as
+  // the comparison it is, linking to the Week screen where the two windows live.
+  const shifts = shiftsForSubjects(changes, thread.subjects);
+  return (
+    <div className="p-row">
+      <div className="p-head">
+        <b>{thread.subjects.join(" · ")}</b>
+        <span className="mono">
+          {thread.members.length} findings, {thread.members.filter((m) => !m.tentative).length} held
+        </span>
+      </div>
+      <div className="p-comp">
+        {thread.members.map((member) => (
+          <Link
+            key={member.id}
+            className={`c${member.tentative ? " ghost" : ""}`}
+            to={patternDestination(member).href}
+          >
+            {DETECTOR_LABEL[member.detector] ?? member.detector}: {member.label}
+          </Link>
+        ))}
+      </div>
+      {shifts.length > 0 && (
+        <div className="p-comp">
+          <span className="clab">changed lately</span>
+          {shifts.map((shift) => (
+            <Link key={`${shift.kind}:${shift.label}`} className={`c${shift.confidence < 0.5 ? " ghost" : ""}`} to="/week">
+              {shift.description}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -163,7 +232,7 @@ function Row({ pattern }: { pattern: Pattern }) {
     queryKey: ["neighbours", pattern.id],
     queryFn: () => api.neighbours(pattern.id),
   });
-  const made = composition.data?.neighbours ?? [];
+  const made = [...(composition.data?.neighbours ?? [])].sort(heldFirst);
 
   return (
     <div className={`p-row${pattern.tentative ? " ghost" : ""}`}>
@@ -171,9 +240,10 @@ function Row({ pattern }: { pattern: Pattern }) {
           row rather than stated as a number nobody can calibrate. */}
       <span className="p-pow" style={{ width: `${Math.round(strength * 100)}%` }} />
 
-      {/* Every detector gets the same detail page — the page decides what kind
-          of evidence to lay out, not the list. */}
-      <Link className="p-top" to={`/pattern/${pattern.id}`}>
+      {/* Where a tap lands depends on what found it: only the lag detector can
+          keep the ordering screen's promise, so everything else opens the
+          explain screen — the same decision the phone makes. */}
+      <Link className="p-top" to={patternDestination(pattern).href}>
         <span className="t-seal">
           <Seal id={pattern.id} className="j-seal" />
         </span>

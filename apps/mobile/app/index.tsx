@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 
+import { DrawnRooms } from "@/components/DrawnRooms";
 import { Chip, Kicker } from "@/components/Marks";
 import { DAY_STAGGER_CAP_MS, DAY_STAGGER_MS, Rise } from "@/components/Rise";
 import { MotionSurface } from "@/components/MotionSurface";
@@ -116,6 +117,23 @@ export default function JournalScreen() {
       setDraft("");
       void queryClient.invalidateQueries({ queryKey: ["observations", userId] });
       void queryClient.invalidateQueries({ queryKey: ["summary"] });
+      // The desktop client grows readings this way and the phone did not —
+      // entries saved here stayed undrawn forever, and a graph nothing is
+      // drawn from cannot surface a pattern. Same gate as the web: findings
+      // off means the person asked not to be read, so nothing is sent.
+      //
+      // The refetch happens when extraction RESOLVES, not alongside the save:
+      // invalidating before the pipeline finishes just re-reads a graph that
+      // does not have the readings yet, and "nothing drawn" would sit there
+      // until the next unrelated refetch.
+      if (usePreferences.getState().findings) {
+        void api.extract(token!, created.id)
+          .then(() => {
+            void queryClient.invalidateQueries({ queryKey: ["observations", userId] });
+            void queryClient.invalidateQueries({ queryKey: ["summary"] });
+          })
+          .catch(() => undefined);
+      }
     },
   });
 
@@ -127,13 +145,18 @@ export default function JournalScreen() {
       if (useSession.getState().userId === userId) setPendingVoice((items) => items.some((item) => item.id === envelope.id) ? items : [...items, envelope]);
       return api.createVoiceObservation(token!, { id: envelope.id, uri: envelope.uri!, capturedAt: envelope.capturedAt, timezone: envelope.timezone });
     },
-    onSuccess: async (_, { id, uri }) => {
+    onSuccess: async (created, { id, uri }) => {
       if (useSession.getState().userId !== userId) return;
       await forgetCapture(userId!, id);
       setPendingVoice((items) => items.filter((item) => item.id !== id));
       voiceIds.current.delete(uri);
       void queryClient.invalidateQueries({ queryKey: ["observations", userId] });
       void queryClient.invalidateQueries({ queryKey: ["summary"] });
+      // Same as a typed entry: the transcript is kept, so its readings can be
+      // drawn behind the person's back rather than in front of their patience.
+      if (usePreferences.getState().findings) {
+        void api.extract(token!, created.id).catch(() => undefined);
+      }
     },
   });
 
@@ -212,28 +235,10 @@ export default function JournalScreen() {
                         </Text>
                       </MotionSurface>
                       {findingsVisible && (drawnFrom.get(entry.id)?.length ?? 0) > 0 ? (
-                        <View style={styles.chipRow}>
-                          {/* On the newest entry only, and only while the words
-                              are still the ones in front of you: the kicker asks
-                              rather than announces. Everywhere else it states.
-                              A product that never nags cannot open a queue, but
-                              it can ask once, about the thing you just wrote,
-                              where saying no costs a tap. */}
-                          <Kicker>
-                            {gi === 0 && i === 0 ? "Drawn from this · does it fit?" : "Drawn from this"}
-                          </Kicker>
-                          <View style={styles.chips}>
-                            {drawnFrom.get(entry.id)!.slice(0, 4).map((r) => (
-                              <Chip
-                                key={r.id}
-                                label={r.label}
-                                confidence={r.confidence}
-                                tentative={r.tentative}
-                                onPress={() => router.push(`/node/${r.id}`)}
-                              />
-                            ))}
-                          </View>
-                        </View>
+                        <DrawnRooms
+                          readings={drawnFrom.get(entry.id)!}
+                          ask={gi === 0 && i === 0}
+                        />
                       ) : findingsVisible ? (
                         <Text style={styles.readoutOpen}>nothing drawn from this yet</Text>
                       ) : null}

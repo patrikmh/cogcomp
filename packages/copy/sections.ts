@@ -69,6 +69,8 @@ export const SECTIONS = {
   words: { title: "Your own words for it", aside: "counted, never interpreted" },
   /** On a reading: the entries it was drawn from. */
   evidence: { title: "The acts behind it" },
+  /** On a recurrence: the readings it counts, in rooms. */
+  parts: { title: "What it is made of", aside: "rooms, not a mix" },
   /** On a reading: the recurrences it supports. Membership, not origin. */
   among: { title: "This reading is among", aside: "it supports these" },
   /** On a reading: what keeps arriving in the same entries. Adjacency only. */
@@ -103,10 +105,17 @@ export const SECTIONS = {
   maybeAfter: { title: "After, maybe", aside: "a hypothesis, not a cause" },
   /** On that activity, event, or thought: what the record wondered this came before. */
   maybeBefore: { title: "Before this, maybe", aside: "a hypothesis, not a cause" },
+  /** On a reading: another reading the record linked only by writing why. */
+  related: { title: "Also related", aside: "a note, not a kind" },
+  /** On a reading: the distinct writing days behind its evidence, so the
+   *  spread of a recurrence can be walked in context. */
+  behind: { title: "The days behind", aside: "written days, first seen first" },
   /** Beliefs the record both holds up and sits against. */
   pulled: { title: "Pulled both ways", aside: "both in the record" },
   /** Beliefs the record holds and never argues. */
   unargued: { title: "Never argued", aside: "held, not tested" },
+  /** Needs and values the record holds and never hints at. */
+  unhinted: { title: "Never hinted", aside: "held, not named from a thought" },
   /** Emotions the record names and never aims. */
   untargeted: { title: "Felt, toward nothing", aside: "a feeling, not a direction" },
   /** Thoughts the record names and never points at a subject. */
@@ -115,6 +124,8 @@ export const SECTIONS = {
   arcs: { title: "Your arcs", aside: "active first" },
   /** On a reading: the trials already set against it. */
   wondered: { title: "You wondered", aside: "yours, not proposed" },
+  /** Holds never linked to a trial. Only when some hold already is. */
+  untried: { title: "Never tried", aside: "held, not a trial" },
   reason: { title: "Why you started it" },
   checkins: { title: "Check-ins", aside: "ordinary entries · most recent" },
   finish: { title: "Finish", aside: "yours to call" },

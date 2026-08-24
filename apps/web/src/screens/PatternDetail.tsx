@@ -4,9 +4,11 @@ import { Link, useParams } from "react-router-dom";
 import { Meter } from "@/components/Meter";
 import { Empty, Failed, Loading } from "@/components/States";
 import { api, type GraphNode } from "@/lib/api";
-import { apartSidesOf, arcsOf, weekdayShapeOf } from "@/lib/drawn-from";
-import { DETECTOR_LABEL, fmt, stampOf } from "@/lib/format";
+import { apartSidesOf, arcsOf, daysBehindOf, feltThoughtOf, heldReadingsOf, outerReadingsOf, weekdayShapeOf } from "@/lib/drawn-from";
+import { DETECTOR_LABEL, dateOf, fmt, stampOf } from "@/lib/format";
+import { patternDestination } from "@/lib/patterns";
 import { Seal } from "@/lib/seal";
+import { useSession } from "@/state/session";
 import { Guide } from "@/components/Guide";
 import { SECTIONS, asideOf } from "@tlon/copy/sections";
 
@@ -20,10 +22,15 @@ import { SECTIONS, asideOf } from "@tlon/copy/sections";
  */
 export function PatternDetail() {
   const { id = "" } = useParams();
+  const userId = useSession((s) => s.userId);
 
   const patterns = useQuery({ queryKey: ["patterns"], queryFn: api.patterns });
   const pattern = (patterns.data ?? []).find((p) => p.id === id);
-  const ordered = pattern?.detector === "lag" || pattern?.detector === "same-day-order";
+  // Lag and same-day-order both persist their occasions now: lag as day-apart
+  // pairs, same-day-order as two moments on one writing day. The ordered
+  // promise is kept for both; every other detector has no order to show.
+  const ordered =
+    pattern?.detector === "lag" || pattern?.detector === "same-day-order";
 
   // Every finding has a detail page; only the ordered ones have occasions.
   const ordering = useQuery({
@@ -48,6 +55,18 @@ export function PatternDetail() {
     queryFn: () => api.experiments(true),
     enabled: Boolean(pattern),
   });
+  // The thread this finding belongs to, if any. Cached from the Patterns
+  // screen when it is warm; the lookup is an id match over what grouping
+  // already stored — nothing recomputed, nothing new claimed. Keyed on the
+  // user so it cannot fire unauthenticated and cache a 401 as its answer.
+  const threads = useQuery({
+    queryKey: ["threads", userId],
+    queryFn: api.threads,
+    enabled: Boolean(pattern && userId),
+  });
+  const siblings = threads.data
+    ?.filter((t) => t.members.some((m) => m.id === id))
+    .flatMap((t) => t.members.filter((m) => m.id !== id));
 
   if (patterns.isLoading) return <Loading label="Reading the finding…" />;
   if (!pattern) return <Failed label="No such finding." />;
@@ -55,12 +74,19 @@ export function PatternDetail() {
   const detector = DETECTOR_LABEL[pattern.detector] ?? pattern.detector;
   const occasions = ordering.data?.occasions ?? [];
   const gap = ordering.data
-    ? `${ordering.data.lag_days} ${ordering.data.lag_days === 1 ? "day" : "days"}`
+    ? ordering.data.lag_days === 0
+      ? "later the same day"
+      : `${ordering.data.lag_days} ${ordering.data.lag_days === 1 ? "day" : "days"}`
     : "";
   const calendar =
     pattern.detector === "weekday"
       ? weekdayShapeOf((evidence.data?.derived_from ?? []).map((entry) => entry.captured_at))
       : [];
+  // The distinct writing days behind the evidence, so a recurrence can be
+  // walked in context instead of trusted on a count alone.
+  const behind = daysBehindOf(
+    (evidence.data?.derived_from ?? []).map((entry: { captured_at: string }) => entry.captured_at),
+  );
   const peaked = Math.max(0, ...calendar.map((day) => day.count));
   const neighbours = composition.data?.neighbours ?? [];
   const sides =
@@ -88,6 +114,27 @@ export function PatternDetail() {
         {pattern.distinct_days} of {pattern.occurrences} · sized against your own record, no
         absolute scale
       </div>
+
+      {siblings && siblings.length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">Same thread</span>
+            <span className="rule" />
+            <span className="mono">grouped by shared evidence words</span>
+          </div>
+          <div className="t-sum" style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            {siblings.map((member) => (
+              <Link
+                key={member.id}
+                className={`c${member.tentative ? " ghost" : ""}`}
+                to={patternDestination(member).href}
+              >
+                {DETECTOR_LABEL[member.detector] ?? member.detector}: {member.label}
+              </Link>
+            ))}
+          </div>
+        </>
+      )}
 
       {peaked > 0 && (
         <>
@@ -122,20 +169,7 @@ export function PatternDetail() {
         </>
       )}
 
-      {!split && neighbours.length > 0 && (
-        <>
-          <div className="t-sec">
-            <span className="kicker">What it is made of</span>
-            <span className="rule" />
-            <span className="mono">
-              {neighbours.length} {neighbours.length === 1 ? "reading" : "readings"}
-            </span>
-          </div>
-          {neighbours.map((reading) => (
-            <Neighbour key={reading.id} reading={reading} />
-          ))}
-        </>
-      )}
+      {!split && neighbours.length > 0 && <Parts neighbours={neighbours} />}
 
       {ordered ? (
         ordering.isLoading ? (
@@ -162,7 +196,9 @@ export function PatternDetail() {
                 <div className="t-sec">
                   <span className="kicker">First · {occasion.source_day}</span>
                   <span className="rule" />
-                  <span className="mono">then {gap} later</span>
+                  <span className="mono">
+                    {ordering.data?.lag_days === 0 ? "then, the same day" : `then ${gap} later`}
+                  </span>
                 </div>
                 {occasion.before.map((e) => (
                   <Act key={e.id} id={e.id} content={e.content} at={e.captured_at} role="first" />
@@ -192,6 +228,25 @@ export function PatternDetail() {
               <Act key={e.id} id={e.id} content={e.content} at={e.captured_at} />
             ))
           )}
+        </>
+      )}
+
+      {behind.length > 1 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.behind.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("behind")}</span>
+          </div>
+          {/* One day never earns this row: the single entry is already shown
+              in full above, and a one-link list would only repeat it. */}
+          <div className="p-comp">
+            {behind.map((day) => (
+              <Link className="c" key={day} to={`/today?date=${day}`}>
+                {dateOf(`${day}T12:00:00`)}
+              </Link>
+            ))}
+          </div>
         </>
       )}
 
@@ -277,6 +332,43 @@ function Neighbour({
         <span className="mono">{fmt(reading.confidence ?? 0)}</span>
       </span>
     </Link>
+  );
+}
+
+function Parts({ neighbours }: { neighbours: (GraphNode & { cites_entries?: number })[] }) {
+  const felt = feltThoughtOf(neighbours);
+  const holds = heldReadingsOf(neighbours);
+  const around = outerReadingsOf(neighbours);
+  const rooms = [
+    { name: "inside" as const, items: felt },
+    { name: "holds" as const, items: holds },
+    { name: "around" as const, items: around },
+  ].filter((room) => room.items.length > 0);
+  const leftover = rooms.length === 0 ? neighbours : [];
+
+  return (
+    <>
+      <div className="t-sec">
+        <span className="kicker">{SECTIONS.parts.title}</span>
+        <span className="rule" />
+        <span className="mono">{asideOf("parts")}</span>
+      </div>
+      {rooms.map((room) => (
+        <div key={room.name}>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS[room.name].title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf(room.name)}</span>
+          </div>
+          {room.items.map((reading) => (
+            <Neighbour key={reading.id} reading={reading} />
+          ))}
+        </div>
+      ))}
+      {leftover.map((reading) => (
+        <Neighbour key={reading.id} reading={reading} />
+      ))}
+    </>
   );
 }
 

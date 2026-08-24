@@ -27,6 +27,7 @@ import {
   outerReadingsOf,
   namedOnlyDaysOf,
   quietHoldsOf,
+  unhintedHoldsOf,
   returningInnerOf,
   unplacedReadingsOf,
   unnamedDaysOf,
@@ -102,8 +103,26 @@ export default function WeekScreen() {
     queryFn: () => api.identity(token!),
     enabled: Boolean(token && userId) && findingsVisible,
   });
+  const graph = useQuery({
+    queryKey: ["graph", userId],
+    queryFn: () => api.graph(token!, { limit: 200 }),
+    enabled: Boolean(token && userId) && findingsVisible,
+  });
 
   if (!token) return null;
+
+  const weekReadings: WeeklySummary["inferred"] = (query.data?.inferred ?? []).filter(
+    (item: WeeklySummary["inferred"][number]) =>
+      item.kind !== "Pattern" && item.kind !== "Theme",
+  );
+  const unhintedList: WeeklySummary["inferred"] =
+    findingsVisible && query.data
+      ? unhintedHoldsOf(
+          heldReadingsOf(weekReadings).filter((item) => !item.tentative),
+          graph.data?.nodes ?? [],
+          graph.data?.edges ?? [],
+        )
+      : [];
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -162,6 +181,7 @@ export default function WeekScreen() {
                 ? quietHoldsOf(identity.data?.nodes ?? [], query.data.inferred ?? [])
                 : []
             }
+            unhintedList={unhintedList}
             aloneList={
               findingsVisible
                 ? unplacedReadingsOf(
@@ -186,6 +206,10 @@ export default function WeekScreen() {
                 {vocabularyMarks(words.data!.weeks.at(-1)!).map((mark) => {
                   const reading = feltReadingOf(mark.word, query.data.inferred ?? []);
                   const label = `${mark.word}${mark.firstTime ? " · first time" : ""}`;
+                  // A word with a reading opens the reading; a word without
+                  // one still opens the record — the entries where the person
+                  // actually wrote it. Search is literal, so this is a door
+                  // to their own sentences, never to an interpretation.
                   return reading ? (
                     <MotionSurface
                       key={mark.word}
@@ -197,9 +221,15 @@ export default function WeekScreen() {
                       <Text style={styles.wordLabel}>{label}</Text>
                     </MotionSurface>
                   ) : (
-                    <Text key={mark.word} style={styles.word}>
-                      {label}
-                    </Text>
+                    <MotionSurface
+                      key={mark.word}
+                      style={styles.word}
+                      onPress={() => router.push(`/search?q=${encodeURIComponent(mark.word)}`)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${label} — where you wrote it`}
+                    >
+                      <Text style={styles.wordLabel}>{label}</Text>
+                    </MotionSurface>
                   );
                 })}
               </View>
@@ -221,6 +251,7 @@ function Body({
   circlingList,
   regionList,
   quietList,
+  unhintedList,
   aloneList,
 }: {
   summary: WeeklySummary;
@@ -231,6 +262,7 @@ function Body({
   circlingList: Pattern[];
   regionList: Theme[];
   quietList: IdentityNode[];
+  unhintedList: WeeklySummary["inferred"];
   aloneList: WeeklySummary["inferred"];
 }) {
   const router = useRouter();
@@ -466,6 +498,11 @@ function Body({
               ))}
             </Section>
           )}
+          <Inferences
+            title={SECTIONS.unhinted.title}
+            aside={asideOf("unhinted", true)}
+            items={unhintedList}
+          />
           <Inferences
             title={SECTIONS.cameBack.title}
             aside={asideOf("cameBack", true)}

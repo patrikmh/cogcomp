@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { IdentityComposition, type Ring } from "@/components/IdentityComposition";
 import { Failed, Loading } from "@/components/States";
 import { api, type IdentityNode } from "@/lib/api";
-import { feltThoughtOf, heldFirst, heldReadingsOf, outerReadingsOf } from "@/lib/drawn-from";
+import { feltThoughtOf, heldFirst, heldReadingsOf, inRoomOf, outerReadingsOf, unhintedHoldsOf } from "@/lib/drawn-from";
 import { fmt } from "@/lib/format";
 import { useSession } from "@/state/session";
 import { Guide } from "@/components/Guide";
@@ -75,6 +75,7 @@ export function Identity() {
   const userId = useSession((s) => s.userId);
   const client = useQueryClient();
   const [hovered, setHovered] = useState<Ring | null>(null);
+  const [room, setRoom] = useState<"all" | "inside" | "holds" | "around">("all");
 
   // Tombstones are asked for here, because this is the one screen that draws
   // them — a removal you cannot see is a decision you cannot reconsider.
@@ -83,6 +84,7 @@ export function Identity() {
     queryKey: ["identity", "candidates", userId],
     queryFn: api.identityCandidates,
   });
+  const graph = useQuery({ queryKey: ["graph"], queryFn: () => api.graph(200) });
 
   const invalidate = () => void client.invalidateQueries({ queryKey: ["identity"] });
   const keep = useMutation({ mutationFn: api.keep, onSuccess: invalidate });
@@ -100,7 +102,17 @@ export function Identity() {
   const tentative = [...selected, ...candidates].filter((n) => n.tentative);
   const kinds = new Set([...selected, ...candidates].map((n) => n.kind)).size;
 
-  const rings = ringsFor(selected, candidates, removed);
+  const scopedSelected = inRoomOf(selected, room);
+  const scopedCandidates = inRoomOf(candidates, room);
+  const rings = ringsFor(scopedSelected, scopedCandidates, room === "all" ? removed : []);
+  const insideCount = inRoomOf([...selected, ...candidates], "inside").length;
+  const holdsCount = inRoomOf([...selected, ...candidates], "holds").length;
+  const aroundCount = inRoomOf([...selected, ...candidates], "around").length;
+  const unhinted = unhintedHoldsOf(
+    [...selected, ...candidates],
+    graph.data?.nodes ?? [],
+    graph.data?.edges ?? [],
+  );
 
   return (
     <>
@@ -132,7 +144,11 @@ export function Identity() {
               Nothing has been noticed yet. Readings appear once there are entries to draw them from.
             </span>
           ) : (
-            <span className="rest">Hover a ring to see what it is. The dense core is you.</span>
+            <span className="rest">
+              {room === "all"
+                ? "Hover a ring to see what it is. The dense core is you."
+                : `Hover a ring. ${asideOf(room) ?? ""}`.trim()}
+            </span>
           )}
         </div>
       </IdentityComposition>
@@ -143,6 +159,45 @@ export function Identity() {
         <Count n={kinds} label="KINDS" />
         <Count n={removed.length} label="REMOVED" tent />
       </div>
+
+      {(insideCount > 0 || holdsCount > 0 || aroundCount > 0) && (
+        <div className="id-rooms">
+          <button
+            className={`id-room${room === "all" ? " on" : ""}`}
+            aria-pressed={room === "all"}
+            onClick={() => setRoom("all")}
+          >
+            All
+          </button>
+          {insideCount > 0 && (
+            <button
+              className={`id-room${room === "inside" ? " on" : ""}`}
+              aria-pressed={room === "inside"}
+              onClick={() => setRoom(room === "inside" ? "all" : "inside")}
+            >
+              {SECTIONS.inside.title} · {insideCount}
+            </button>
+          )}
+          {holdsCount > 0 && (
+            <button
+              className={`id-room${room === "holds" ? " on" : ""}`}
+              aria-pressed={room === "holds"}
+              onClick={() => setRoom(room === "holds" ? "all" : "holds")}
+            >
+              {SECTIONS.holds.title} · {holdsCount}
+            </button>
+          )}
+          {aroundCount > 0 && (
+            <button
+              className={`id-room${room === "around" ? " on" : ""}`}
+              aria-pressed={room === "around"}
+              onClick={() => setRoom(room === "around" ? "all" : "around")}
+            >
+              {SECTIONS.around.title} · {aroundCount}
+            </button>
+          )}
+        </div>
+      )}
 
       <Room
         title="Offered, not claimed"
@@ -162,6 +217,24 @@ export function Identity() {
         action="REMOVE"
         onAction={(id) => unkeep.mutate(id)}
       />
+
+      {unhinted.length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">{SECTIONS.unhinted.title}</span>
+            <span className="rule" />
+            <span className="mono">{asideOf("unhinted")}</span>
+          </div>
+          {unhinted.map((node) => (
+            <Link key={node.id} className="t-read" to={`/node/${node.id}`}>
+              <span className="t-main">
+                <b>{node.label}</b>
+                <span className="mono">{node.kind.toLowerCase()}</span>
+              </span>
+            </Link>
+          ))}
+        </>
+      )}
 
       <p className="mono" style={{ margin: "22px auto 0", maxWidth: "60ch", textAlign: "center" }}>
         Kept readings are protected from consolidation — they will not be absorbed into another

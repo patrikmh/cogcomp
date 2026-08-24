@@ -5,6 +5,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { MotionSurface } from "@/components/MotionSurface";
 import { api, type GraphNode } from "@/lib/api";
+import { heldFirst } from "@/lib/drawnFrom";
 import { colors, fonts } from "@/theme";
 
 /**
@@ -35,7 +36,9 @@ export function Composition({
     queryFn: () => api.neighbours(token, patternId),
     enabled: Boolean(token && patternId),
   });
-  const made: (GraphNode & { cites_entries?: number })[] = composition.data?.neighbours ?? [];
+  const made: (GraphNode & { cites_entries?: number })[] = [
+    ...(composition.data?.neighbours ?? []),
+  ].sort(heldFirst);
 
   return (
     <View style={styles.row}>
