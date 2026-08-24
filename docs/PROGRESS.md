@@ -152,8 +152,13 @@ Things that are genuinely not done, stated plainly rather than left to be discov
    every capture path now fills it, but historical rows are unknown rather than
    assumed to be UTC — so a claim resting on any of them still says `(UTC)`, and
    will keep saying so until its evidence has aged out of the recency window.
-3. **Semantic graph features are disabled.** Search, reranking, semantic
-   deduplication, and generated theme summaries need a real embedder/model and a
-   separate safety decision.
+3. **Semantic graph features are partially enabled (ADR-0007).** Theme
+   summaries and meaning-based search (`GET /v1/search/semantic`) are built:
+   the embedder is a local ONNX model (`EMBEDDING_PROVIDER=local`, fastembed
+   bge-small, entry text never leaves the server) and summaries use the
+   existing chat model on member labels only. Semantic deduplication stays
+   refused — over-merging rewrites what someone said — and reranking stays
+   refused. Production still runs `deterministic`; flipping it requires the
+   `embeddings` extra in the deploy image and one themes run to re-embed.
 4. **Web storage is weaker than native.** `expo-secure-store` has no web
    implementation, so the web build falls back to localStorage. Test surface only.

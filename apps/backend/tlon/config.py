@@ -127,6 +127,12 @@ class Settings(BaseSettings):
     #: and what a deployment does not.
     web_origin: str = ""
 
+    #: How words become vectors for the graph projection and semantic search.
+    #: 'deterministic' (default) is an offline hash stand-in with no semantics;
+    #: 'local' opts into the ONNX model described in ADR-0007, which keeps entry
+    #: text inside the server. Anything else must fail loudly, not degrade.
+    embedding_provider: str = "deterministic"
+
     #: FalkorDB, which holds the Graphiti projection. Postgres remains the source
     #: of truth and this is rebuilt from it on every themes run, so these point at
     #: a store that is expected to be empty sometimes and is never backed up.

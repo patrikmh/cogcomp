@@ -10,7 +10,7 @@ import { Chip, Kicker, Rule } from "@/components/Marks";
 import { MotionSurface } from "@/components/MotionSurface";
 import { ErrorLens } from "@/components/SpatialField";
 import { Seal } from "@/components/Seal";
-import { ApiError, api, type ObservationResponse, type Pattern, type Theme } from "@/lib/api";
+import { ApiError, api, type ObservationResponse, type Pattern, type SemanticHit, type Theme } from "@/lib/api";
 import { feltThoughtOf, heldReadingsOf, namedInnerOf, useAmong, useAmongThemes, useDrawnFrom } from "@/lib/drawnFrom";
 import { patternDestination } from "@/lib/patterns";
 import { useSession } from "@/state/session";
@@ -75,6 +75,18 @@ export default function SearchScreen() {
   const among = useAmong(token, userId, foundPatterns, 4, findingsVisible);
   const amongThemes = useAmongThemes(token, userId, foundThemes, 4, findingsVisible);
 
+  // The other kind of looking (ADR-0007): readings close in meaning to the
+  // question, ranked by the server's local model. A deployment without it
+  // answers with an error; that renders as "not available here", never as
+  // "nothing matched".
+  const trimmed = term.trim();
+  const semantic = useQuery({
+    queryKey: ["semantic-search", userId, trimmed],
+    queryFn: () => api.semanticSearch(token!, trimmed),
+    enabled: Boolean(token && userId) && findingsVisible && trimmed.length >= 2,
+    staleTime: 60_000,
+  });
+
   if (!token) return null;
   if (entries.isError) {
     return <ErrorLens label="Could not load your observations." onRetry={() => void entries.refetch()} />;
@@ -128,6 +140,40 @@ export default function SearchScreen() {
               : `No act contains “${term.trim()}”. Nothing was ranked or guessed.`}
       </Text>
       <Rule />
+
+      {findingsVisible && trimmed.length >= 2 && (
+        <View style={styles.named}>
+          <View style={styles.namedHead}>
+            <Kicker heading>Close in meaning</Kicker>
+            <Text style={styles.namedAside}>ranked by meaning</Text>
+          </View>
+          {semantic.isLoading ? (
+            <Text style={styles.count}>Looking for readings that mean something similar…</Text>
+          ) : semantic.isError ? (
+            <Text style={styles.count}>
+              Meaning search is not available on this server. Your own words above are searched
+              exactly as written.
+            </Text>
+          ) : (semantic.data?.hits.length ?? 0) > 0 ? (
+            <>
+              {semantic.data!.hits.map((hit: SemanticHit) => (
+                <Chip
+                  key={hit.node_id}
+                  label={`${hit.label} · ${Math.round(hit.score * 100)}% close`}
+                  confidence={hit.confidence}
+                  onPress={() => router.push(`/node/${hit.node_id}`)}
+                />
+              ))}
+              <Text style={styles.count}>
+                Ranked by meaning, strongest first — unlike your words above, which were only
+                ever matched.
+              </Text>
+            </>
+          ) : (
+            <Text style={styles.count}>{`No reading sits close to “${trimmed}”.`}</Text>
+          )}
+        </View>
+      )}
 
       {named.length > 0 && (
         <View style={styles.named}>

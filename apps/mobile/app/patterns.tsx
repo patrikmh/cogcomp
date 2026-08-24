@@ -268,6 +268,11 @@ export default function PatternsScreen() {
                   <Kicker>
                     {`${theme.member_count} things · held since ${new Date(theme.first_seen_at).toLocaleDateString()}${theme.epistemic_status === "user_rejected" ? " · you rejected this" : ""}`}
                   </Kicker>
+                  {theme.summary ? (
+                    <Text style={styles.aside}>
+                      {`${theme.summary} — written by a model from these words`}
+                    </Text>
+                  ) : null}
                 </View>
               </MotionSurface>
             </Rise>

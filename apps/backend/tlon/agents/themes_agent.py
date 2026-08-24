@@ -17,12 +17,16 @@ exactly when it is finally needed.
 
 from __future__ import annotations
 
+import logging
 from uuid import UUID
 
 import asyncpg
 
 from tlon.agents.base import AgentResult
-from tlon.graph import communities, graphiti_client, projection
+from tlon.config import get_settings
+from tlon.graph import communities, graphiti_client, projection, summaries
+
+logger = logging.getLogger(__name__)
 
 
 class ThemesAgent:
@@ -88,6 +92,23 @@ class ThemesAgent:
             )
 
         result = await communities.reconcile(pool, user_id, clusters)
+
+        # One sentence per held theme, from member labels only (ADR-0007).
+        # Skipped entirely without a real model — the membership label is the
+        # honest state of every theme then, exactly as before summaries.
+        summarised = 0
+        settings = get_settings()
+        if settings.uses_real_model:
+            try:
+                summarised = await summaries.summarise_themes(
+                    pool,
+                    user_id,
+                    settings.openrouter_api_key,
+                    settings.openrouter_model,
+                )
+            except Exception:
+                logger.warning("theme summarisation failed", exc_info=True)
+
         return AgentResult(
             summary={
                 "themes": len(result["added"]) + len(result["confirmed"]),
@@ -95,5 +116,6 @@ class ThemesAgent:
                 "confirmed": len(result["confirmed"]),
                 "projected_nodes": projected["nodes"],
                 "projected_edges": projected["edges"],
+                "summarised": summarised,
             }
         )

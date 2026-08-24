@@ -318,8 +318,20 @@ export interface Theme {
   epistemic_status: string;
   detector: string;
   first_seen_at: string;
+  /** One sentence a model wrote about what the members share, sent only with
+   *  the model that wrote it. The membership list remains the name. */
+  summary?: string | null;
+  summary_model?: string | null;
   tentative: boolean;
   created_at: string;
+}
+
+export interface SemanticHit {
+  node_id: string;
+  label: string;
+  kind: string;
+  confidence: number;
+  score: number;
 }
 
 export interface ThemeMember {
@@ -946,6 +958,15 @@ export const api = {
 
   listThemes(token: string) {
     return request<Theme[]>("/v1/themes", token);
+  },
+  /** Readings close in meaning to the question, ranked by the server's local
+   *  embedding model (ADR-0007). Rejects with a 503-shaped error when the
+   *  deployment has no real embedder. */
+  semanticSearch(token: string, q: string) {
+    return request<{ embedder: string; hits: SemanticHit[] }>(
+      `/v1/search/semantic?q=${encodeURIComponent(q)}`,
+      token,
+    );
   },
 
   theme(token: string, themeId: string) {

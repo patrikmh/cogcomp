@@ -5,10 +5,9 @@ to the database with nowhere to surface — the densest claim the system makes,
 computed daily and unreadable. These two routes are the read path.
 
 A theme is deliberately thinner over the wire than it could be. It carries its
-members, the associations that formed it, and its age; it does not carry a
-generated summary, because none is written. Naming a region of someone's life is
-an interpretation, and until a model does that under the same provenance rules
-as everything else, the honest name for a theme is the list of what is in it.
+members, the associations that formed it, and its age. When a model has written
+a summary sentence for the region (ADR-0007), it travels beside its generator —
+the membership list remains the name; the sentence is a lens on it.
 """
 
 from __future__ import annotations
@@ -39,6 +38,11 @@ class Theme(BaseModel):
     #: rewritten. A theme that has held for two months is a different claim from
     #: one the clustering found this morning.
     first_seen_at: datetime
+    #: One sentence a model wrote about what the members share, sent only with
+    #: the model that wrote it. Null when no summary exists — which is normal,
+    #: not an error: the membership label stands on its own.
+    summary: str | None = None
+    summary_model: str | None = None
     tentative: bool
     created_at: datetime
 

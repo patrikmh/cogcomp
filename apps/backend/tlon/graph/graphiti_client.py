@@ -42,39 +42,11 @@ from graphiti_core.embedder import EmbedderClient
 from graphiti_core.llm_client import LLMClient
 
 from tlon.config import get_settings
-
-#: Matches the small embedding models Graphiti expects, so a later switch to a
-#: real embedder does not require rewriting what is already stored.
-EMBEDDING_DIMENSION = 384
-
-
-class DeterministicEmbedder(EmbedderClient):
-    """A local, offline stand-in for an embedding model.
-
-    Hashed rather than learned, so it carries no semantics whatsoever. That is the
-    point: it keeps the projection and community pipeline exercisable without a
-    key or a network call — the same bargain the stub extractor and stub
-    transcriber make elsewhere — while being obviously useless for similarity, so
-    nobody mistakes a passing test for evidence that semantic search works.
-
-    Communities are built from graph structure rather than from these vectors, so
-    clustering is unaffected by the difference. Hybrid search would be, and is
-    deliberately not wired up until a real embedder is configured.
-    """
-
-    async def create(self, input_data) -> list[float]:
-        text = input_data if isinstance(input_data, str) else str(input_data)
-        # SHAKE-256 rather than a fixed-width hash: it emits an arbitrary number
-        # of bytes, so the vector width is a constant here rather than a property
-        # of whichever digest was picked.
-        digest = hashlib.shake_256(text.encode("utf-8")).digest(EMBEDDING_DIMENSION * 4)
-        raw = struct.unpack(f"{EMBEDDING_DIMENSION}i", digest)
-        scale = float(1 << 31)
-        return [value / scale for value in raw]
-
-    async def create_batch(self, input_data_list) -> list[list[float]]:
-        return [await self.create(item) for item in input_data_list]
-
+from tlon.graph.embedders import (  # noqa: F401 - re-exported for tests
+    EMBEDDING_DIMENSION,
+    DeterministicEmbedder,
+    build_embedder,
+)
 
 class NoModelConfigured(RuntimeError):
     """Raised where an unconfigured model would otherwise have been called."""
@@ -150,7 +122,7 @@ def build(
             password=(settings.falkor_password or None) if password is None else password,
             database=settings.falkor_database if database is None else database,
         ),
-        embedder=DeterministicEmbedder(),
+        embedder=build_embedder(settings),
         llm_client=RefusingLLMClient(),
         cross_encoder=RefusingCrossEncoder(),
     )

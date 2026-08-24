@@ -14,6 +14,7 @@ from tlon.api.experiment_routes import router as experiment_router
 from tlon.api.identity_routes import router as identity_router
 from tlon.api.pattern_routes import router as pattern_router
 from tlon.api.routes import router
+from tlon.api.search_routes import router as search_router
 from tlon.api.temporal_routes import router as temporal_router
 from tlon.api.theme_routes import router as theme_router
 from tlon.api.twin_routes import router as twin_router
@@ -122,4 +123,5 @@ app.include_router(twin_router)
 app.include_router(identity_router)
 app.include_router(experiment_router)
 app.include_router(theme_router)
+app.include_router(search_router)
 app.include_router(router)

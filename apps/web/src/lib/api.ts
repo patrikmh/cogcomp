@@ -251,6 +251,10 @@ export interface Theme {
   epistemic_status: string;
   detector: string;
   first_seen_at: string;
+  /** One sentence a model wrote about what the members share, sent only with
+   *  the model that wrote it. The membership list remains the name. */
+  summary?: string | null;
+  summary_model?: string | null;
   tentative: boolean;
   created_at: string;
 }
@@ -355,6 +359,14 @@ export interface GraphNode {
 
 /* ----------------------------------------------------------------- client */
 
+export interface SemanticHit {
+  node_id: string;
+  label: string;
+  kind: string;
+  confidence: number;
+  score: number;
+}
+
 export const api = {
   /* auth */
   signup: (email: string, password: string) =>
@@ -426,6 +438,14 @@ export const api = {
     ),
   ordering: (id: string) => request<Ordering>(`/v1/patterns/${id}/ordering`),
   themes: () => request<Theme[]>("/v1/themes"),
+  /** Readings close in meaning to the question, ranked by the server's local
+   *  embedding model. 503 when the deployment has no real embedder — the
+   *  caller treats that as "this kind of looking is not available here",
+   *  never as "nothing matches". */
+  semanticSearch: (q: string) =>
+    request<{ embedder: string; hits: SemanticHit[] }>(
+      `/v1/search/semantic?q=${encodeURIComponent(q)}`,
+    ),
   theme: (id: string) => request<ThemeDetail>(`/v1/themes/${id}`),
   changes: (tz: string) =>
     request<TemporalChanges>(`/v1/temporal/changes?timezone=${encodeURIComponent(tz)}`),

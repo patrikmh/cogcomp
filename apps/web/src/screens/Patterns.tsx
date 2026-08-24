@@ -161,6 +161,12 @@ export function Patterns() {
                   {dateOf(t.first_seen_at)}
                   {t.epistemic_status === "user_rejected" ? " · you rejected this" : ""}
                 </span>
+                {t.summary && (
+                  <span className="mono">
+                    {t.summary} — written by a model from these words
+                    {t.summary_model ? ` (${t.summary_model})` : ""}
+                  </span>
+                )}
               </span>
             </Link>
           ))}

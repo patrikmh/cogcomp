@@ -26,6 +26,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+embeddings = [
+    # Local ONNX embeddings for semantic search (ADR-0007). Optional so base
+    # deployments and CI never download model weights they will not use.
+    "fastembed>=0.3",
+]
 dev = [
     "pytest>=8.0",
     "pytest-timeout>=2.3",

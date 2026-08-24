@@ -375,13 +375,14 @@ async def list_for_user(pool: asyncpg.Pool, user_id: UUID) -> list[dict]:
         """
         SELECT n.id, n.label, n.confidence, n.epistemic_status, n.created_at,
                t.detector, t.first_seen_at, t.member_count,
+               t.summary, t.summary_model,
                array_agg(m.label ORDER BY m.label) AS members
         FROM graph_nodes n
         JOIN themes t ON t.node_id = n.id
         JOIN theme_members tm ON tm.theme_id = n.id
         JOIN graph_nodes m ON m.id = tm.node_id
         WHERE n.user_id = $1 AND n.kind = 'Theme' AND n.deleted_at IS NULL
-        GROUP BY n.id, t.detector, t.first_seen_at, t.member_count
+        GROUP BY n.id, t.detector, t.first_seen_at, t.member_count, t.summary, t.summary_model
         ORDER BY t.member_count DESC, n.confidence DESC, n.label
         """,
         user_id,
@@ -396,6 +397,8 @@ async def list_for_user(pool: asyncpg.Pool, user_id: UUID) -> list[dict]:
             "epistemic_status": row["epistemic_status"],
             "detector": row["detector"],
             "first_seen_at": row["first_seen_at"],
+            "summary": row["summary"],
+            "summary_model": row["summary_model"],
             "tentative": row["confidence"] < 0.5,
             "created_at": row["created_at"],
         }
@@ -415,7 +418,8 @@ async def detail(pool: asyncpg.Pool, user_id: UUID, theme_id: UUID) -> dict | No
     row = await pool.fetchrow(
         """
         SELECT n.id, n.label, n.confidence, n.epistemic_status, n.created_at,
-               t.detector, t.first_seen_at, t.last_confirmed_at, t.member_count
+               t.detector, t.first_seen_at, t.last_confirmed_at, t.member_count,
+               t.summary, t.summary_model
         FROM graph_nodes n
         JOIN themes t ON t.node_id = n.id
         WHERE n.id = $1 AND n.user_id = $2 AND n.kind = 'Theme' AND n.deleted_at IS NULL

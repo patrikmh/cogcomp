@@ -70,6 +70,18 @@ export function Search() {
   const among = useAmong(patterns.data ?? [], 4, findingsVisible);
   const amongThemes = useAmongThemes(themes.data ?? [], 4, findingsVisible);
 
+  // The other kind of looking. Where the list above gives back exactly what
+  // was written, this asks what the words meant, ranked by the server's local
+  // model (ADR-0007). A deployment without it answers 503; that is rendered
+  // as "not available here" rather than "nothing matched".
+  const trimmed = term.trim();
+  const semantic = useQuery({
+    queryKey: ["semantic-search", userId, trimmed],
+    queryFn: () => api.semanticSearch(trimmed),
+    enabled: findingsVisible && trimmed.length >= 2,
+    staleTime: 60_000,
+  });
+
   if (entries.isError) return <Failed onRetry={() => void entries.refetch()} />;
 
   const all = entries.data?.observations ?? [];
@@ -159,6 +171,42 @@ export function Search() {
                   </Link>
                 ))}
               </>
+            )}
+          </>
+        )}
+
+        {findingsVisible && trimmed.length >= 2 && (
+          <>
+            <div className="t-sec">
+              <span className="kicker">Close in meaning</span>
+              <span className="rule" />
+              <span className="mono">ranked by meaning · not your words</span>
+            </div>
+            {semantic.isLoading ? (
+              <p className="sub">Looking for readings that mean something similar…</p>
+            ) : semantic.isError ? (
+              <p className="sub">
+                Meaning search is not available on this server. Your own words above are
+                searched exactly as written.
+              </p>
+            ) : (semantic.data?.hits.length ?? 0) > 0 ? (
+              <>
+                {semantic.data!.hits.map((hit) => (
+                  <Link key={hit.node_id} className="t-read" to={`/node/${hit.node_id}`}>
+                    <span className="t-main">
+                      <b>{hit.label}</b>
+                      <span className="mono">{hit.kind.toLowerCase()}</span>
+                    </span>
+                    <span className="mono">{Math.round(hit.score * 100)}% close</span>
+                  </Link>
+                ))}
+                <p className="sub">
+                  Ranked by meaning, strongest first — unlike your words above, which were
+                  only ever matched.
+                </p>
+              </>
+            ) : (
+              <p className="sub">No reading sits close to “{trimmed}”.</p>
             )}
           </>
         )}
