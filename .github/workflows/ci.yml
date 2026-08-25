@@ -112,7 +112,6 @@ jobs:
     defaults:
       run:
         working-directory: apps/mobile
-
     steps:
       - uses: actions/checkout@v4
 
@@ -132,6 +131,30 @@ jobs:
         # The force simulation is pure logic and the half of the explorer that
         # would be painful to debug through a canvas, so it is tested directly.
         run: npx jest
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Unit tests
+        run: npx vitest run
 
   ontology:
     # The ontology is duplicated across three files by necessity (SQL, Python, TS).

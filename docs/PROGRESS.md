@@ -147,7 +147,8 @@ type and is erased before the bundler sees it.
 Things that are genuinely not done, stated plainly rather than left to be discovered:
 
 1. **CI has never run on GitHub.** Every check is verified locally; the workflow
-   itself is unexercised.
+   itself is unexercised (it now covers backend, mobile, web, and ontology, but
+   no push has proven the workflow file itself runs).
 2. **Entries written before 2026-08-04 have no timezone.** The column exists and
    every capture path now fills it, but historical rows are unknown rather than
    assumed to be UTC — so a claim resting on any of them still says `(UTC)`, and
