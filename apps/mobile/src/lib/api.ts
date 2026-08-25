@@ -255,6 +255,24 @@ export interface ThreadMember {
  * members' own evidence shares. Nothing summarised, nothing inferred: a thread
  * is arithmetic over what mining already stored.
  */
+/**
+ * A word coming back, one entry short of being a finding. Carries what it has
+ * and what is still needed — the counts are the message.
+ */
+export interface GatheringCandidate {
+  kind: string;
+  label: string;
+  observations: number;
+  distinct_days: number;
+  observations_needed: number;
+  days_needed: number;
+  last_seen_on: string;
+}
+
+export interface GatheringResponse {
+  candidates: GatheringCandidate[];
+}
+
 export interface PatternThread {
   subjects: string[];
   members: ThreadMember[];
@@ -950,6 +968,10 @@ export const api = {
 
   listPatterns(token: string) {
     return request<Pattern[]>("/v1/patterns", token);
+  },
+
+  listGathering(token: string) {
+    return request<GatheringResponse>("/v1/patterns/gathering", token);
   },
 
   listThreads(token: string) {

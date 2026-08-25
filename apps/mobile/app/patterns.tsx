@@ -18,7 +18,7 @@ import { ErrorLens } from "@/components/SpatialField";
 import { Strip } from "@/components/Strip";
 import { StripLegend } from "@/components/StripLegend";
 import { colors, fonts } from "@/theme";
-import { api, type Pattern, type PatternThread, type TemporalChange, type Theme } from "@/lib/api";
+import { api, type GatheringCandidate, type Pattern, type PatternThread, type TemporalChange, type Theme } from "@/lib/api";
 import { normaliseLabel, patternDestination, patternMeta, shiftsForSubjects } from "@/lib/patterns";
 import { usePreferences } from "@/state/preferences";
 import { useSession } from "@/state/session";
@@ -47,6 +47,12 @@ export default function PatternsScreen() {
   const patterns = useQuery({
     queryKey: ["patterns", userId],
     queryFn: () => api.listPatterns(token!),
+    enabled: Boolean(token && userId) && showFindings,
+  });
+
+  const gathering = useQuery({
+    queryKey: ["gathering", userId],
+    queryFn: () => api.listGathering(token!),
     enabled: Boolean(token && userId) && showFindings,
   });
 
@@ -216,6 +222,26 @@ export default function PatternsScreen() {
           </View>
           {held.map((pattern, i) => (
             <Finding key={pattern.id} pattern={pattern} index={i} token={token!} fortnight={fortnight} />
+          ))}
+        </>
+      )}
+
+      {(gathering.data?.candidates ?? []).length > 0 && (
+        <>
+          <View style={styles.sectionRow}>
+            <Kicker heading>Still gathering</Kicker>
+            <View style={styles.ruleFill}>
+              <Rule />
+            </View>
+            <Text style={styles.aside}>not a finding yet — one entry short</Text>
+          </View>
+          {(gathering.data?.candidates ?? []).map((c: GatheringCandidate) => (
+            <MotionSurface key={`${c.kind}:${c.label}`} style={styles.ghost}>
+              <View style={{ padding: 12, gap: 4 }}>
+                <Text style={[styles.label, styles.ghost]}>{c.label}</Text>
+                <Kicker>{`${c.observations} entries on ${c.distinct_days} days · a finding needs ${c.observations_needed} across ${c.days_needed}`}</Kicker>
+              </View>
+            </MotionSurface>
           ))}
         </>
       )}

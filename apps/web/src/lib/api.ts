@@ -208,6 +208,20 @@ export interface PatternThread {
   members: ThreadMember[];
 }
 
+export interface GatheringCandidate {
+  kind: string;
+  label: string;
+  observations: number;
+  distinct_days: number;
+  observations_needed: number;
+  days_needed: number;
+  last_seen_on: string;
+}
+
+export interface GatheringResponse {
+  candidates: GatheringCandidate[];
+}
+
 export interface Pattern {
   id: string;
   label: string;
@@ -430,6 +444,7 @@ export const api = {
 
   /* findings */
   patterns: () => request<Pattern[]>("/v1/patterns"),
+  gathering: () => request<GatheringResponse>("/v1/patterns/gathering"),
   threads: () => request<PatternThread[]>("/v1/patterns/threads"),
   minePatterns: () =>
     request<{ patterns: number; added: number; confirmed: number; considered: number }>(

@@ -56,6 +56,11 @@ export function Patterns() {
     queryFn: () => api.changes(tz),
     enabled: showFindings,
   });
+  const gathering = useQuery({
+    queryKey: ["gathering", userId],
+    queryFn: api.gathering,
+    enabled: showFindings,
+  });
   const themes = useQuery({
     queryKey: ["themes", userId],
     queryFn: api.themes,
@@ -125,6 +130,25 @@ export function Patterns() {
           </div>
           {held.map((p) => (
             <Row key={p.id} pattern={p} />
+          ))}
+        </>
+      )}
+
+      {(gathering.data?.candidates ?? []).length > 0 && (
+        <>
+          <div className="t-sec">
+            <span className="kicker">Still gathering</span>
+            <span className="rule" />
+            <span className="mono">not a finding yet — one entry short</span>
+          </div>
+          {(gathering.data?.candidates ?? []).map((c) => (
+            <div key={`${c.kind}:${c.label}`} className="p-row ghost">
+              <b>{c.label}</b>
+              <span className="mono">
+                {c.observations} entries on {c.distinct_days} days · a finding needs{" "}
+                {c.observations_needed} across {c.days_needed}
+              </span>
+            </div>
           ))}
         </>
       )}

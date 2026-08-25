@@ -14,8 +14,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from tlon.auth import current_user
+from tlon.db import gathering as gathering_db
 from tlon.db import patterns as patterns_db
 from tlon.db import threads as threads_db
+from tlon.gathering import gathering as compute_gathering
 
 router = APIRouter(prefix="/v1/patterns", tags=["patterns"])
 
@@ -107,6 +109,46 @@ class Ordering(BaseModel):
 async def list_patterns(request: Request, user_id: UUID = Depends(current_user)) -> list[Pattern]:
     rows = await patterns_db.list_for_user(request.app.state.pool, user_id)
     return [Pattern(**row) for row in rows]
+
+
+class GatheringCandidate(BaseModel):
+    """A word coming back, one entry short of being a finding.
+
+    It carries what it has and what is still needed, because a hint that only
+    said "jaw tight" would read as a claim. The counts are the message.
+    """
+
+    kind: str
+    label: str
+    observations: int
+    distinct_days: int
+    observations_needed: int
+    days_needed: int
+    last_seen_on: date
+
+
+class GatheringResponse(BaseModel):
+    #: Always present, possibly empty — an empty list means nothing is close,
+    #: which is itself worth saying plainly.
+    candidates: list[GatheringCandidate]
+
+
+@router.get("/gathering")
+async def list_gathering(
+    request: Request, user_id: UUID = Depends(current_user)
+) -> GatheringResponse:
+    """Words one honest entry short of a finding.
+
+    Read-only and computed on request, like every other view of the graph: no
+    rows are written, nothing here can become a pattern by being looked at. A
+    candidate is reported only when it sits exactly one distinct entry short of
+    the recurrence floor, already spread across the required days, recent enough
+    that the claim would still hold if it crossed the floor tomorrow.
+    """
+    candidates = await patterns_db.load_candidates(request.app.state.pool, user_id)
+    held = await gathering_db.held_keys(request.app.state.pool, user_id)
+    found = compute_gathering(candidates, held_keys=held)
+    return GatheringResponse(candidates=[GatheringCandidate(**c.__dict__) for c in found])
 
 
 @router.get("/{pattern_id}/ordering")
