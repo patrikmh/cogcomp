@@ -5,6 +5,8 @@ opts into the ONNX model. An unknown provider name must stop the deploy rather
 than degrade into a search that silently stopped being semantic.
 """
 
+import pytest
+
 from tlon.config import Settings
 from tlon.graph.embedders import (
     LOCAL_EMBEDDING_MODEL,
@@ -12,8 +14,6 @@ from tlon.graph.embedders import (
     LocalOnnxEmbedder,
     build_embedder,
 )
-
-import pytest
 
 
 def _settings(provider: str) -> Settings:

@@ -35,7 +35,9 @@ def _to_observation(row: asyncpg.Record) -> Observation:
     )
 
 
-async def _insert_on_connection(conn: asyncpg.Connection, user_id: UUID, new: NewObservation) -> Observation:
+async def _insert_on_connection(
+    conn: asyncpg.Connection, user_id: UUID, new: NewObservation
+) -> Observation:
     captured_at = new.captured_at or datetime.now().astimezone()
     created_at = await conn.fetchval(
         """
@@ -76,7 +78,12 @@ async def _insert_on_connection(conn: asyncpg.Connection, user_id: UUID, new: Ne
             (node_id, user_id, content, source, captured_at, timezone)
         VALUES ($1, $2, $3, $4, $5, $6)
         """,
-        new.id, user_id, new.content, str(new.source), captured_at, new.timezone,
+        new.id,
+        user_id,
+        new.content,
+        str(new.source),
+        captured_at,
+        new.timezone,
     )
     stored = await conn.fetchrow(_SELECT + "WHERE o.node_id = $1", new.id)
     return _to_observation(stored)
@@ -87,7 +94,9 @@ async def insert(pool: asyncpg.Pool, user_id: UUID, new: NewObservation) -> Obse
         return await _insert_on_connection(conn, user_id, new)
 
 
-async def insert_on_connection(conn: asyncpg.Connection, user_id: UUID, new: NewObservation) -> Observation:
+async def insert_on_connection(
+    conn: asyncpg.Connection, user_id: UUID, new: NewObservation
+) -> Observation:
     """Persist within a caller-owned transaction, such as conversation close."""
     return await _insert_on_connection(conn, user_id, new)
 

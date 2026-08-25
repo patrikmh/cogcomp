@@ -27,9 +27,7 @@ through `add_triplet`; see `projection.py`.
 
 from __future__ import annotations
 
-import hashlib
 import os
-import struct
 
 # Before importing graphiti_core: the telemetry client reads this at import time,
 # so setting it afterwards would be too late.
@@ -38,7 +36,6 @@ os.environ.setdefault("GRAPHITI_TELEMETRY_ENABLED", "false")
 from graphiti_core import Graphiti
 from graphiti_core.cross_encoder.client import CrossEncoderClient
 from graphiti_core.driver.falkordb_driver import FalkorDriver
-from graphiti_core.embedder import EmbedderClient
 from graphiti_core.llm_client import LLMClient
 
 from tlon.config import get_settings
@@ -47,6 +44,7 @@ from tlon.graph.embedders import (  # noqa: F401 - re-exported for tests
     DeterministicEmbedder,
     build_embedder,
 )
+
 
 class NoModelConfigured(RuntimeError):
     """Raised where an unconfigured model would otherwise have been called."""

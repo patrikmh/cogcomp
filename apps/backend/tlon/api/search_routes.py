@@ -19,8 +19,8 @@ from pydantic import BaseModel
 
 from tlon.auth import current_user
 from tlon.config import get_settings
-from tlon.graph.embedders import build_embedder
 from tlon.graph import graphiti_client, semantic_search
+from tlon.graph.embedders import build_embedder
 
 router = APIRouter(prefix="/v1/search", tags=["search"])
 
@@ -52,9 +52,7 @@ async def search_semantic(
 ) -> SemanticSearchResponse:
     settings = get_settings()
     if settings.embedding_provider.strip().lower() != "local":
-        return SemanticSearchResponse(
-            embedder="deterministic", available=False, hits=[]
-        )
+        return SemanticSearchResponse(embedder="deterministic", available=False, hits=[])
 
     embedder = build_embedder(settings)
     graphiti = graphiti_client.build()

@@ -35,8 +35,12 @@ async def say(
     return await client.post(
         f"/v1/conversations/{cid}/turns",
         headers=account.auth,
-        json={"content": text, "source": source, "timezone": timezone,
-              "client_turn_id": client_turn_id or str(uuid4())},
+        json={
+            "content": text,
+            "source": source,
+            "timezone": timezone,
+            "client_turn_id": client_turn_id or str(uuid4()),
+        },
     )
 
 
@@ -123,9 +127,7 @@ class TestOnlyUserTurnsBecomeObservations:
         assert closed.json()["turns_converted"] == 1
         assert closed.json()["observations"]
         observations = await client.get("/v1/observations", headers=account.auth)
-        assert [o["content"] for o in observations.json()["observations"]] == [
-            "a private thought"
-        ]
+        assert [o["content"] for o in observations.json()["observations"]] == ["a private thought"]
         extractor.extract.assert_not_awaited()
         persist.assert_not_awaited()
 
@@ -186,9 +188,7 @@ class TestOnlyUserTurnsBecomeObservations:
         assert body["turns_converted"] == 3
         assert len(body["observations"]) == 1
         listed = await client.get("/v1/observations", headers=account.auth)
-        entry = next(
-            o for o in listed.json()["observations"] if o["id"] == body["observations"][0]
-        )
+        entry = next(o for o in listed.json()["observations"] if o["id"] == body["observations"][0])
         assert entry["content"] == "one\n\ntwo\n\nthree"
         pool = client._transport.app.state.pool
         linked = await pool.fetchval(
@@ -247,7 +247,9 @@ class TestClosing:
         await client.post(f"/v1/conversations/{cid}/close", headers=account.auth)
         assert (await say(client, account, cid, "more")).status_code == 409
 
-    async def test_concurrent_closes_create_one_observation(self, client: AsyncClient, account: Account):
+    async def test_concurrent_closes_create_one_observation(
+        self, client: AsyncClient, account: Account
+    ):
         cid = await start(client, account)
         await say(client, account, cid, "hello")
         first, second = await asyncio.gather(
@@ -460,9 +462,7 @@ def parse_sse(body: str) -> list[dict]:
     import json
 
     return [
-        json.loads(line[len("data: ") :])
-        for line in body.splitlines()
-        if line.startswith("data: ")
+        json.loads(line[len("data: ") :]) for line in body.splitlines() if line.startswith("data: ")
     ]
 
 
@@ -475,8 +475,12 @@ class TestStreamedTurn:
         response = await client.post(
             f"/v1/conversations/{cid}/turns/stream",
             headers=account.auth,
-            json={"content": text, "source": "text", "timezone": None,
-                  "client_turn_id": str(uuid4())},
+            json={
+                "content": text,
+                "source": "text",
+                "timezone": None,
+                "client_turn_id": str(uuid4()),
+            },
         )
         return response, parse_sse(response.text)
 
@@ -523,8 +527,12 @@ class TestStreamedTurn:
         response = await client.post(
             f"/v1/conversations/{uuid4()}/turns/stream",
             headers=account.auth,
-            json={"content": "hello", "source": "text", "timezone": None,
-                  "client_turn_id": str(uuid4())},
+            json={
+                "content": "hello",
+                "source": "text",
+                "timezone": None,
+                "client_turn_id": str(uuid4()),
+            },
         )
         assert response.status_code == 404
 
@@ -538,7 +546,6 @@ class TestStreamedTurn:
         _, events = await self.stream(client, account, cid, "i want to hurt myself")
         assert all("[CRISIS]" not in e.get("text", "") for e in events)
         assert "[CRISIS]" not in events[-1]["reply"]
-
 
 
 class TestStreamedSpokenTurns:
@@ -623,4 +630,3 @@ class TestStreamedSpokenTurns:
             data={"timezone": "Not/AZone"},
         )
         assert response.status_code == 422
-

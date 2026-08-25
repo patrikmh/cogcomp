@@ -138,10 +138,7 @@ async def summarise_themes(
     client = _client(api_key, model)
     written = 0
     async with pool.acquire() as connection:
-        themes = [
-            row
-            async for row in _fetch_rows_with_members(connection, user_id)
-        ]
+        themes = [row async for row in _fetch_rows_with_members(connection, user_id)]
         for theme in themes:
             labels = _member_labels(theme["members"])
             if not labels:

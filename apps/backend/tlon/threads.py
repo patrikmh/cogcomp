@@ -90,7 +90,7 @@ def _display_forms(subjects: dict[str, list[str]]) -> list[str]:
         counts: dict[str, int] = {}
         for raw in subjects[normalised]:
             counts[raw.strip()] = counts.get(raw.strip(), 0) + 1
-        best = sorted(counts.items(), key=lambda item: (-item[1], item[0]))[0]
+        best = min(counts.items(), key=lambda item: (-item[1], item[0]))
         forms.append(best[0])
     return forms
 
@@ -143,13 +143,11 @@ def threads(links: list[Link]) -> list[Thread]:
             continue
         root = find(next(iter(pattern_ids)))
         connecting.setdefault(root, {})[subject] = [
-            link.subject_label
-            for link in links
-            if link.pattern_id in pattern_ids
+            link.subject_label for link in links if link.pattern_id in pattern_ids
         ]
 
-    for pattern_id in by_pattern:
-        components.setdefault(find(pattern_id), []).append(by_pattern[pattern_id])
+    for pattern_id, pattern_links in by_pattern.items():
+        components.setdefault(find(pattern_id), []).append(pattern_links)
 
     result: list[Thread] = []
     for root, members in components.items():

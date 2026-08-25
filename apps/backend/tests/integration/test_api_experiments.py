@@ -274,7 +274,9 @@ class TestTheListNamesWhatEachTrialTests:
         assert unlinked.status_code == 200
         assert "links" not in unlinked.json()
 
-    async def test_findings_off_listing_omits_links(self, client: AsyncClient, account: Account, pool):
+    async def test_findings_off_listing_omits_links(
+        self, client: AsyncClient, account: Account, pool
+    ):
         created = await create(client, account)
         node_id = await a_reading_drawn_from_an_entry(client, pool, account)
         await client.post(
@@ -285,7 +287,9 @@ class TestTheListNamesWhatEachTrialTests:
         response = await client.get("/v1/experiments?include_links=false", headers=account.auth)
         assert "links" not in response.json()["experiments"][0]
 
-    async def test_findings_off_detail_omits_links(self, client: AsyncClient, account: Account, pool):
+    async def test_findings_off_detail_omits_links(
+        self, client: AsyncClient, account: Account, pool
+    ):
         created = await create(client, account)
         node_id = await a_reading_drawn_from_an_entry(client, pool, account)
         await client.post(

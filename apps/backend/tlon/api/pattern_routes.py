@@ -127,7 +127,9 @@ async def pattern_ordering(
 
 
 @router.get("/threads")
-async def list_threads(request: Request, user_id: UUID = Depends(current_user)) -> list[PatternThread]:
+async def list_threads(
+    request: Request, user_id: UUID = Depends(current_user)
+) -> list[PatternThread]:
     """Findings that rest on the same thing, grouped for navigation.
 
     Grouping only, over what mining already stored: two findings share a thread
@@ -135,9 +137,10 @@ async def list_threads(request: Request, user_id: UUID = Depends(current_user)) 
     is created, so there is nothing here to mine or confirm — recomputed on
     request, like every other view of the graph.
     """
-    return [PatternThread(**row) for row in await threads_db.list_for_user(
-        request.app.state.pool, user_id
-    )]
+    return [
+        PatternThread(**row)
+        for row in await threads_db.list_for_user(request.app.state.pool, user_id)
+    ]
 
 
 @router.post("/mine")

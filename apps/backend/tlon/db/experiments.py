@@ -345,7 +345,9 @@ async def unlink(pool, user_id, experiment_id, node_id, revision, include_links=
         return await _detail_conn(conn, user_id, experiment_id, include_links=include_links)
 
 
-async def attach_checkin(pool, user_id, experiment_id, observation_id, revision, include_links=True):
+async def attach_checkin(
+    pool, user_id, experiment_id, observation_id, revision, include_links=True
+):
     async with pool.acquire() as conn, conn.transaction():
         row = await get(conn, user_id, experiment_id, conn=conn, lock=True)
         if not row:

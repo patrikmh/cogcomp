@@ -133,49 +133,79 @@ async def _lifecycle_lock(conn: asyncpg.Connection, user_id: UUID, conversation_
         await _release_advisory_lock(conn, key)
 
 
-async def find_on_connection(conn: asyncpg.Connection, user_id: UUID, conversation_id: UUID) -> dict | None:
+async def find_on_connection(
+    conn: asyncpg.Connection, user_id: UUID, conversation_id: UUID
+) -> dict | None:
     row = await conn.fetchrow(
         "SELECT id, started_at, closed_at, agent, flagged_at FROM conversations "
         "WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL",
-        conversation_id, user_id,
+        conversation_id,
+        user_id,
     )
     if row is None:
         return None
     turns = await conn.fetch(
         "SELECT id, speaker, content, source, spoken_at, timezone, observation_id "
         "FROM conversation_turns WHERE conversation_id = $1 AND user_id = $2 ORDER BY spoken_at, id",
-        conversation_id, user_id,
+        conversation_id,
+        user_id,
     )
     return {
-        "id": str(row["id"]), "started_at": row["started_at"], "closed_at": row["closed_at"],
-        "agent": row["agent"], "flagged": row["flagged_at"] is not None,
-        "turns": [{"id": str(t["id"]), "speaker": t["speaker"], "content": t["content"],
-                   "source": t["source"], "spoken_at": t["spoken_at"], "timezone": t["timezone"],
-                   "observation_id": str(t["observation_id"]) if t["observation_id"] else None}
-                  for t in turns],
+        "id": str(row["id"]),
+        "started_at": row["started_at"],
+        "closed_at": row["closed_at"],
+        "agent": row["agent"],
+        "flagged": row["flagged_at"] is not None,
+        "turns": [
+            {
+                "id": str(t["id"]),
+                "speaker": t["speaker"],
+                "content": t["content"],
+                "source": t["source"],
+                "spoken_at": t["spoken_at"],
+                "timezone": t["timezone"],
+                "observation_id": str(t["observation_id"]) if t["observation_id"] else None,
+            }
+            for t in turns
+        ],
     }
 
 
-async def client_turn_status_on_connection(conn: asyncpg.Connection, user_id: UUID, conversation_id: UUID, client_turn_id: UUID):
+async def client_turn_status_on_connection(
+    conn: asyncpg.Connection, user_id: UUID, conversation_id: UUID, client_turn_id: UUID
+):
     row = await conn.fetchrow(
         "SELECT content FROM conversation_turns WHERE conversation_id = $1 AND user_id = $2 "
-        "AND client_turn_id = $3 AND speaker = 'assistant'", conversation_id, user_id, client_turn_id)
+        "AND client_turn_id = $3 AND speaker = 'assistant'",
+        conversation_id,
+        user_id,
+        client_turn_id,
+    )
     if row:
         return ("assistant", row["content"])
     user = await conn.fetchval(
         "SELECT 1 FROM conversation_turns WHERE conversation_id = $1 AND user_id = $2 AND client_turn_id = $3 AND speaker = 'user'",
-        conversation_id, user_id, client_turn_id)
+        conversation_id,
+        user_id,
+        client_turn_id,
+    )
     return ("pending", None) if user else None
 
 
 async def add_assistant_turn_on_connection(
-    conn: asyncpg.Connection, user_id: UUID, conversation_id: UUID, content: str,
-    client_turn_id: UUID, crisis: bool = False,
+    conn: asyncpg.Connection,
+    user_id: UUID,
+    conversation_id: UUID,
+    content: str,
+    client_turn_id: UUID,
+    crisis: bool = False,
 ) -> None:
     async with conn.transaction():
         conversation = await conn.fetchrow(
             "SELECT closed_at, flagged_at FROM conversations WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL FOR UPDATE",
-            conversation_id, user_id)
+            conversation_id,
+            user_id,
+        )
         if conversation is None:
             raise LookupError("conversation not found")
         if conversation["closed_at"] is not None:
@@ -186,11 +216,17 @@ async def add_assistant_turn_on_connection(
             raise ConversationFlaggedError("conversation is already flagged")
         await conn.execute(
             "INSERT INTO conversation_turns (id, conversation_id, user_id, speaker, content, client_turn_id) "
-            "VALUES ($1, $2, $3, 'assistant', $4, $5)", uuid4(), conversation_id, user_id, content.strip(), client_turn_id)
+            "VALUES ($1, $2, $3, 'assistant', $4, $5)",
+            uuid4(),
+            conversation_id,
+            user_id,
+            content.strip(),
+            client_turn_id,
+        )
         if crisis:
             await conn.execute(
-                "UPDATE conversations SET flagged_at = now() "
-                "WHERE id = $1 AND flagged_at IS NULL", conversation_id
+                "UPDATE conversations SET flagged_at = now() WHERE id = $1 AND flagged_at IS NULL",
+                conversation_id,
             )
 
 
@@ -270,13 +306,18 @@ async def add_turn(
     source: str = "text",
     timezone: str | None = None,
     client_turn_id: UUID | None = None,
-    ) -> dict:
+) -> dict:
     turn_id = uuid4()
-    async with pool.acquire() as conn, _lifecycle_lock(conn, user_id, conversation_id), conn.transaction():
+    async with (
+        pool.acquire() as conn,
+        _lifecycle_lock(conn, user_id, conversation_id),
+        conn.transaction(),
+    ):
         conversation = await conn.fetchrow(
             "SELECT id, closed_at, flagged_at FROM conversations "
             "WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL FOR UPDATE",
-            conversation_id, user_id,
+            conversation_id,
+            user_id,
         )
         if conversation is None:
             raise LookupError("conversation not found")
@@ -289,31 +330,44 @@ async def add_turn(
                 "SELECT id, speaker, content, source, timezone, spoken_at "
                 "FROM conversation_turns WHERE conversation_id = $1 AND user_id = $2 "
                 "AND client_turn_id = $3 AND speaker = 'user'",
-                conversation_id, user_id, client_turn_id,
+                conversation_id,
+                user_id,
+                client_turn_id,
             )
             if existing is not None:
-                if (existing["content"] != content.strip()
-                        or existing["source"] != source
-                        or existing["timezone"] != timezone):
+                if (
+                    existing["content"] != content.strip()
+                    or existing["source"] != source
+                    or existing["timezone"] != timezone
+                ):
                     return {"duplicate": True, "payload_mismatch": True}
                 later_user = await conn.fetchval(
                     "SELECT 1 FROM conversation_turns WHERE conversation_id = $1 "
                     "AND user_id = $2 AND speaker = 'user' AND "
                     "(spoken_at > $3 OR (spoken_at = $3 AND id > $4)) LIMIT 1",
-                    conversation_id, user_id, existing["spoken_at"], existing["id"],
+                    conversation_id,
+                    user_id,
+                    existing["spoken_at"],
+                    existing["id"],
                 )
                 if later_user:
                     return {"duplicate": True, "ambiguous": True}
                 assistant = await conn.fetchrow(
                     "SELECT content FROM conversation_turns WHERE conversation_id = $1 "
                     "AND user_id = $2 AND client_turn_id = $3 AND speaker = 'assistant'",
-                    conversation_id, user_id, client_turn_id,
+                    conversation_id,
+                    user_id,
+                    client_turn_id,
                 )
                 return {
-                    "id": str(existing["id"]), "speaker": existing["speaker"],
-                    "content": existing["content"], "source": existing["source"],
-                    "spoken_at": existing["spoken_at"], "duplicate": True,
-                    "pending": assistant is None, "reconcile": assistant is None,
+                    "id": str(existing["id"]),
+                    "speaker": existing["speaker"],
+                    "content": existing["content"],
+                    "source": existing["source"],
+                    "spoken_at": existing["spoken_at"],
+                    "duplicate": True,
+                    "pending": assistant is None,
+                    "reconcile": assistant is None,
                     "assistant_reply": assistant["content"] if assistant else None,
                 }
         row = await conn.fetchrow(
@@ -321,17 +375,30 @@ async def add_turn(
             "(id, conversation_id, user_id, speaker, content, source, timezone, client_turn_id) "
             "VALUES ($1, $2, $3, $4, $5, $6, $7, $8) "
             "RETURNING id, speaker, content, source, spoken_at",
-            turn_id, conversation_id, user_id, speaker, content.strip(), source, timezone,
+            turn_id,
+            conversation_id,
+            user_id,
+            speaker,
+            content.strip(),
+            source,
+            timezone,
             client_turn_id,
         )
-    return {"id": str(row["id"]), "speaker": row["speaker"], "content": row["content"],
-        "source": row["source"], "spoken_at": row["spoken_at"]}
+    return {
+        "id": str(row["id"]),
+        "speaker": row["speaker"],
+        "content": row["content"],
+        "source": row["source"],
+        "spoken_at": row["spoken_at"],
+    }
+
 
 async def client_turn_is_ambiguous_on_connection(
     conn: asyncpg.Connection, user_id: UUID, conversation_id: UUID, client_turn_id: UUID
 ) -> bool:
-    return bool(await conn.fetchval(
-        """
+    return bool(
+        await conn.fetchval(
+            """
         SELECT 1
         FROM conversation_turns AS original
         JOIN conversation_turns AS later
@@ -344,15 +411,19 @@ async def client_turn_is_ambiguous_on_connection(
           AND original.client_turn_id = $3 AND original.speaker = 'user'
         LIMIT 1
         """,
-        conversation_id, user_id, client_turn_id,
-    ))
+            conversation_id,
+            user_id,
+            client_turn_id,
+        )
+    )
 
 
 async def client_turn_is_ambiguous(
     pool: asyncpg.Pool, user_id: UUID, conversation_id: UUID, client_turn_id: UUID
 ) -> bool:
-    return bool(await pool.fetchval(
-        """
+    return bool(
+        await pool.fetchval(
+            """
         SELECT 1
         FROM conversation_turns AS original
         JOIN conversation_turns AS later
@@ -365,8 +436,11 @@ async def client_turn_is_ambiguous(
           AND original.client_turn_id = $3 AND original.speaker = 'user'
         LIMIT 1
         """,
-        conversation_id, user_id, client_turn_id,
-    ))
+            conversation_id,
+            user_id,
+            client_turn_id,
+        )
+    )
 
 
 async def client_turn_payload_matches(
@@ -405,7 +479,9 @@ async def client_turn_status(
         WHERE conversation_id = $1 AND user_id = $2
           AND client_turn_id = $3 AND speaker = 'assistant'
         """,
-        conversation_id, user_id, client_turn_id,
+        conversation_id,
+        user_id,
+        client_turn_id,
     )
     if row:
         return ("assistant", row["content"])
@@ -415,7 +491,9 @@ async def client_turn_status(
         WHERE conversation_id = $1 AND user_id = $2
           AND client_turn_id = $3 AND speaker = 'user'
         """,
-        conversation_id, user_id, client_turn_id,
+        conversation_id,
+        user_id,
+        client_turn_id,
     )
     return ("pending", None) if user else None
 
@@ -446,9 +524,13 @@ async def close(pool: asyncpg.Pool, user_id: UUID, conversation_id: UUID) -> dic
             lock_rows = await conn.fetch(
                 "SELECT client_turn_id FROM conversation_turns WHERE conversation_id = $1 "
                 "AND user_id = $2 AND speaker = 'user' AND client_turn_id IS NOT NULL "
-                "ORDER BY client_turn_id", conversation_id, user_id,
+                "ORDER BY client_turn_id",
+                conversation_id,
+                user_id,
             )
-            lock_keys = [_turn_key(user_id, conversation_id, r["client_turn_id"]) for r in lock_rows]
+            lock_keys = [
+                _turn_key(user_id, conversation_id, r["client_turn_id"]) for r in lock_rows
+            ]
             acquired_lock_keys: list[str] = []
             try:
                 for key in lock_keys:
@@ -457,7 +539,9 @@ async def close(pool: asyncpg.Pool, user_id: UUID, conversation_id: UUID) -> dic
                 async with conn.transaction():
                     row = await conn.fetchrow(
                         "SELECT id, closed_at FROM conversations WHERE id = $1 AND user_id = $2 "
-                        "AND deleted_at IS NULL FOR UPDATE", conversation_id, user_id,
+                        "AND deleted_at IS NULL FOR UPDATE",
+                        conversation_id,
+                        user_id,
                     )
                     if row is None:
                         raise LookupError("conversation not found")
@@ -466,7 +550,9 @@ async def close(pool: asyncpg.Pool, user_id: UUID, conversation_id: UUID) -> dic
                     turns = await conn.fetch(
                         "SELECT id, speaker, content, source, spoken_at, timezone "
                         "FROM conversation_turns WHERE conversation_id = $1 AND user_id = $2 "
-                        "ORDER BY spoken_at, id", conversation_id, user_id,
+                        "ORDER BY spoken_at, id",
+                        conversation_id,
+                        user_id,
                     )
                     spoken = [turn for turn in turns if turn["speaker"] == "user"]
                     created: list[str] = []
@@ -476,14 +562,16 @@ async def close(pool: asyncpg.Pool, user_id: UUID, conversation_id: UUID) -> dic
                         new_entry = NewObservation(
                             id=observation_id,
                             content="\n\n".join(turn["content"] for turn in spoken),
-                            source=Source(first["source"]), captured_at=first["spoken_at"],
+                            source=Source(first["source"]),
+                            captured_at=first["spoken_at"],
                             timezone=first["timezone"],
                         )
                         await observations_db.insert_on_connection(conn, user_id, new_entry)
                         for turn in spoken:
                             await conn.execute(
                                 "UPDATE conversation_turns SET observation_id = $1 WHERE id = $2",
-                                observation_id, turn["id"],
+                                observation_id,
+                                turn["id"],
                             )
                         created.append(str(observation_id))
                     await conn.execute(
@@ -494,8 +582,11 @@ async def close(pool: asyncpg.Pool, user_id: UUID, conversation_id: UUID) -> dic
                     await _release_advisory_lock(conn, key)
         finally:
             await _release_advisory_lock(conn, lifecycle)
-    return {"conversation_id": str(conversation_id), "observations": created,
-            "turns_converted": len(spoken)}
+    return {
+        "conversation_id": str(conversation_id),
+        "observations": created,
+        "turns_converted": len(spoken),
+    }
 
 
 async def list_for_user(

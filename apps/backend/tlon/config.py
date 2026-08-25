@@ -34,9 +34,7 @@ class Settings(BaseSettings):
     #: TRANSCRIPTION_API_KEY is deliberately provider-neutral: it is the explicit
     #: choice for the provider selected below. Provider-specific environment keys
     #: are kept separate so a Groq key cannot accidentally be sent to ElevenLabs.
-    transcription_api_key: str = Field(
-        default="", validation_alias="TRANSCRIPTION_API_KEY"
-    )
+    transcription_api_key: str = Field(default="", validation_alias="TRANSCRIPTION_API_KEY")
     elevenlabs_api_key: str = Field(default="", validation_alias="ELEVENLABS_API_KEY")
     openai_compatible_api_key: str = Field(
         default="",
@@ -73,9 +71,7 @@ class Settings(BaseSettings):
         # key for another provider, however, is a configuration mistake and must
         # not be forwarded to a network client.
         mismatched = (
-            self.openai_compatible_api_key
-            if provider == "elevenlabs"
-            else self.elevenlabs_api_key
+            self.openai_compatible_api_key if provider == "elevenlabs" else self.elevenlabs_api_key
         )
         if mismatched.strip():
             raise ValueError(
@@ -83,6 +79,7 @@ class Settings(BaseSettings):
                 f"{self.transcription_provider!r}; only a mismatched provider key was configured"
             )
         return self
+
     #: Blank means the provider's own default model.
     transcription_model: str = ""
 

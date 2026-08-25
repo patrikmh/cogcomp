@@ -61,8 +61,12 @@ def test_a_bridge_finding_chains_two_subjects_and_names_both():
     dread = link("dread")
     sleep = link("sleep", label="broken sleep")
     bridge_rows = [
-        link("dread", label="dread comes before broken sleep", pattern_id=bridge_id, detector="lag"),
-        link("sleep", label="dread comes before broken sleep", pattern_id=bridge_id, detector="lag"),
+        link(
+            "dread", label="dread comes before broken sleep", pattern_id=bridge_id, detector="lag"
+        ),
+        link(
+            "sleep", label="dread comes before broken sleep", pattern_id=bridge_id, detector="lag"
+        ),
     ]
     found = threads([dread, *bridge_rows, sleep])
     assert len(found) == 1

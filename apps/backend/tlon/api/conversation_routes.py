@@ -48,9 +48,11 @@ async def _reconciled_response(
     request: Request, user_id: UUID, conversation_id: UUID, reply: str, conn=None
 ) -> TurnResponse:
     """Return a previously persisted reply without generating it again."""
-    conversation = (await conversations_db.find_on_connection(conn, user_id, conversation_id)
-                    if conn is not None else
-                    await conversations_db.find(request.app.state.pool, user_id, conversation_id))
+    conversation = (
+        await conversations_db.find_on_connection(conn, user_id, conversation_id)
+        if conn is not None
+        else await conversations_db.find(request.app.state.pool, user_id, conversation_id)
+    )
     flagged = conversation["flagged"]
     return TurnResponse(
         reply=reply,
@@ -60,10 +62,16 @@ async def _reconciled_response(
 
 
 async def _replay_completed(
-    request: Request, pool, user_id: UUID, conversation_id: UUID, client_turn_id: UUID,
+    request: Request,
+    pool,
+    user_id: UUID,
+    conversation_id: UUID,
+    client_turn_id: UUID,
     reply: str,
 ) -> TurnResponse:
-    async with conversations_db.turn_operation_lock(pool, user_id, conversation_id, client_turn_id) as lock_conn:
+    async with conversations_db.turn_operation_lock(
+        pool, user_id, conversation_id, client_turn_id
+    ) as lock_conn:
         status_result = await conversations_db.client_turn_status_on_connection(
             lock_conn, user_id, conversation_id, client_turn_id
         )
@@ -71,16 +79,30 @@ async def _replay_completed(
             if await conversations_db.client_turn_is_ambiguous_on_connection(
                 lock_conn, user_id, conversation_id, client_turn_id
             ):
-                raise HTTPException(status.HTTP_409_CONFLICT, {"code": "turn_ambiguous", "message": "This turn already has later messages. Refresh the conversation before retrying."})
-            return await _reconciled_response(request, user_id, conversation_id, status_result[1], lock_conn)
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    {
+                        "code": "turn_ambiguous",
+                        "message": "This turn already has later messages. Refresh the conversation before retrying.",
+                    },
+                )
+            return await _reconciled_response(
+                request, user_id, conversation_id, status_result[1], lock_conn
+            )
         return await _reconciled_response(request, user_id, conversation_id, reply, lock_conn)
 
 
 async def _replay_completed_stream(
-    request: Request, pool, user_id: UUID, conversation_id: UUID, client_turn_id: UUID,
+    request: Request,
+    pool,
+    user_id: UUID,
+    conversation_id: UUID,
+    client_turn_id: UUID,
     reply: str,
 ) -> StreamingResponse:
-    async with conversations_db.turn_operation_lock(pool, user_id, conversation_id, client_turn_id) as lock_conn:
+    async with conversations_db.turn_operation_lock(
+        pool, user_id, conversation_id, client_turn_id
+    ) as lock_conn:
         status_result = await conversations_db.client_turn_status_on_connection(
             lock_conn, user_id, conversation_id, client_turn_id
         )
@@ -88,21 +110,40 @@ async def _replay_completed_stream(
             if await conversations_db.client_turn_is_ambiguous_on_connection(
                 lock_conn, user_id, conversation_id, client_turn_id
             ):
-                raise HTTPException(status.HTTP_409_CONFLICT, {"code": "turn_ambiguous", "message": "This turn already has later messages. Refresh the conversation before retrying."})
-            conversation = await conversations_db.find_on_connection(lock_conn, user_id, conversation_id)
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    {
+                        "code": "turn_ambiguous",
+                        "message": "This turn already has later messages. Refresh the conversation before retrying.",
+                    },
+                )
+            conversation = await conversations_db.find_on_connection(
+                lock_conn, user_id, conversation_id
+            )
             return _replay_stream(request, status_result[1], conversation["flagged"])
-        conversation = await conversations_db.find_on_connection(lock_conn, user_id, conversation_id)
+        conversation = await conversations_db.find_on_connection(
+            lock_conn, user_id, conversation_id
+        )
         return _replay_stream(request, reply, conversation["flagged"])
 
 
 async def _persist_assistant_turn(
-    pool, user_id: UUID, conversation_id: UUID, content: str, client_turn_id: UUID,
-    conn=None, crisis: bool = False,
+    pool,
+    user_id: UUID,
+    conversation_id: UUID,
+    content: str,
+    client_turn_id: UUID,
+    conn=None,
+    crisis: bool = False,
 ) -> bool:
     try:
         if conn is None:
             await conversations_db.add_turn(
-                pool, user_id, conversation_id, "assistant", content,
+                pool,
+                user_id,
+                conversation_id,
+                "assistant",
+                content,
                 client_turn_id=client_turn_id,
             )
         else:
@@ -133,6 +174,7 @@ CRISIS_BLOCKED = "This conversation is paused after a crisis disclosure. Start a
 def _reject_flagged(conversation: dict) -> None:
     if conversation["flagged"]:
         raise HTTPException(status.HTTP_409_CONFLICT, CRISIS_BLOCKED)
+
 
 router = APIRouter(prefix="/v1/conversations", tags=["conversations"])
 
@@ -213,7 +255,9 @@ async def get_conversation(
     conversation = await conversations_db.find(request.app.state.pool, user_id, conversation_id)
     if conversation is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "not found")
-    conversation["crisis_resources"] = request.app.state.settings.crisis_resources_list if conversation["flagged"] else []
+    conversation["crisis_resources"] = (
+        request.app.state.settings.crisis_resources_list if conversation["flagged"] else []
+    )
     return conversation
 
 
@@ -240,11 +284,24 @@ async def add_turn(
     )
     if status_result is not None and status_result[0] == "assistant":
         if not await conversations_db.client_turn_payload_matches(
-            pool, user_id, conversation_id, payload.client_turn_id,
-            payload.source, payload.timezone, payload.content,
+            pool,
+            user_id,
+            conversation_id,
+            payload.client_turn_id,
+            payload.source,
+            payload.timezone,
+            payload.content,
         ):
-            raise HTTPException(status.HTTP_409_CONFLICT, {"code": "turn_payload_mismatch", "message": "This turn ID was already used with a different payload."})
-        return await _replay_completed(request, pool, user_id, conversation_id, payload.client_turn_id, status_result[1])
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                {
+                    "code": "turn_payload_mismatch",
+                    "message": "This turn ID was already used with a different payload.",
+                },
+            )
+        return await _replay_completed(
+            request, pool, user_id, conversation_id, payload.client_turn_id, status_result[1]
+        )
     _reject_flagged(conversation)
     if conversation["closed_at"] is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, "conversation is already closed")
@@ -252,20 +309,48 @@ async def add_turn(
     if not payload.content.strip():
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "turn cannot be blank")
 
-    turn = await _add_turn(pool, user_id, conversation_id, "user", payload.content,
-                           payload.source, payload.timezone, payload.client_turn_id)
+    turn = await _add_turn(
+        pool,
+        user_id,
+        conversation_id,
+        "user",
+        payload.content,
+        payload.source,
+        payload.timezone,
+        payload.client_turn_id,
+    )
     if turn.get("ambiguous"):
-        raise HTTPException(status.HTTP_409_CONFLICT, {"code": "turn_ambiguous", "message": "This turn already has later messages. Refresh the conversation before retrying."})
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            {
+                "code": "turn_ambiguous",
+                "message": "This turn already has later messages. Refresh the conversation before retrying.",
+            },
+        )
     if turn.get("payload_mismatch"):
-        raise HTTPException(status.HTTP_409_CONFLICT, {"code": "turn_payload_mismatch", "message": "This turn ID was already used with a different payload."})
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            {
+                "code": "turn_payload_mismatch",
+                "message": "This turn ID was already used with a different payload.",
+            },
+        )
 
-    async with conversations_db.turn_operation_lock(pool, user_id, conversation_id, payload.client_turn_id) as lock_conn:
-        status_result = await conversations_db.client_turn_status_on_connection(lock_conn, user_id, conversation_id, payload.client_turn_id)
+    async with conversations_db.turn_operation_lock(
+        pool, user_id, conversation_id, payload.client_turn_id
+    ) as lock_conn:
+        status_result = await conversations_db.client_turn_status_on_connection(
+            lock_conn, user_id, conversation_id, payload.client_turn_id
+        )
         if status_result and status_result[0] == "assistant":
-            return await _reconciled_response(request, user_id, conversation_id, status_result[1], lock_conn)
+            return await _reconciled_response(
+                request, user_id, conversation_id, status_result[1], lock_conn
+            )
         # A retry owns the same lock after a failed generation and may therefore
         # generate again. Only the terminal assistant row makes a turn complete.
-        conversation = await conversations_db.find_on_connection(lock_conn, user_id, conversation_id)
+        conversation = await conversations_db.find_on_connection(
+            lock_conn, user_id, conversation_id
+        )
         _reject_flagged(conversation)
         if conversation["closed_at"] is not None:
             raise HTTPException(status.HTTP_409_CONFLICT, "conversation is already closed")
@@ -276,8 +361,13 @@ async def add_turn(
             raise HTTPException(status.HTTP_502_BAD_GATEWAY, AGENT_UNAVAILABLE) from exc
 
         persisted = await _persist_assistant_turn(
-            pool, user_id, conversation_id, reply.content, payload.client_turn_id,
-            lock_conn, reply.crisis,
+            pool,
+            user_id,
+            conversation_id,
+            reply.content,
+            payload.client_turn_id,
+            lock_conn,
+            reply.crisis,
         )
         if not persisted:
             raise HTTPException(status.HTTP_409_CONFLICT, ASSISTANT_NOT_PERSISTED)
@@ -321,11 +411,24 @@ async def add_turn_streaming(
     )
     if status_result is not None and status_result[0] == "assistant":
         if not await conversations_db.client_turn_payload_matches(
-            pool, user_id, conversation_id, payload.client_turn_id,
-            payload.source, payload.timezone, payload.content,
+            pool,
+            user_id,
+            conversation_id,
+            payload.client_turn_id,
+            payload.source,
+            payload.timezone,
+            payload.content,
         ):
-            raise HTTPException(status.HTTP_409_CONFLICT, {"code": "turn_payload_mismatch", "message": "This turn ID was already used with a different payload."})
-        return await _replay_completed_stream(request, pool, user_id, conversation_id, payload.client_turn_id, status_result[1])
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                {
+                    "code": "turn_payload_mismatch",
+                    "message": "This turn ID was already used with a different payload.",
+                },
+            )
+        return await _replay_completed_stream(
+            request, pool, user_id, conversation_id, payload.client_turn_id, status_result[1]
+        )
     _reject_flagged(conversation)
     if conversation["closed_at"] is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, "conversation is already closed")
@@ -333,14 +436,36 @@ async def add_turn_streaming(
     if not payload.content.strip():
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "turn cannot be blank")
 
-    turn = await _add_turn(pool, user_id, conversation_id, "user", payload.content,
-                           payload.source, payload.timezone, payload.client_turn_id)
+    turn = await _add_turn(
+        pool,
+        user_id,
+        conversation_id,
+        "user",
+        payload.content,
+        payload.source,
+        payload.timezone,
+        payload.client_turn_id,
+    )
     if turn.get("ambiguous"):
-        raise HTTPException(status.HTTP_409_CONFLICT, {"code": "turn_ambiguous", "message": "This turn already has later messages. Refresh the conversation before retrying."})
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            {
+                "code": "turn_ambiguous",
+                "message": "This turn already has later messages. Refresh the conversation before retrying.",
+            },
+        )
     if turn.get("payload_mismatch"):
-        raise HTTPException(status.HTTP_409_CONFLICT, {"code": "turn_payload_mismatch", "message": "This turn ID was already used with a different payload."})
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            {
+                "code": "turn_payload_mismatch",
+                "message": "This turn ID was already used with a different payload.",
+            },
+        )
     if turn.get("assistant_reply") is not None:
-        return await _replay_completed_stream(request, pool, user_id, conversation_id, payload.client_turn_id, turn["assistant_reply"])
+        return await _replay_completed_stream(
+            request, pool, user_id, conversation_id, payload.client_turn_id, turn["assistant_reply"]
+        )
     if turn.get("pending"):
         conversation = await conversations_db.find(pool, user_id, conversation_id)
     # The stream acquires the conversation lock before taking its model snapshot.
@@ -348,20 +473,30 @@ async def add_turn_streaming(
     turns = conversation["turns"]
 
     return await _stream_agent_response(
-        request, pool, user_id, conversation_id, turns, payload.client_turn_id,
-        source=payload.source, timezone=payload.timezone, content=payload.content,
+        request,
+        pool,
+        user_id,
+        conversation_id,
+        turns,
+        payload.client_turn_id,
+        source=payload.source,
+        timezone=payload.timezone,
+        content=payload.content,
     )
+
 
 def _replay_stream(request: Request, reply: str, crisis: bool) -> StreamingResponse:
     settings = request.app.state.settings
 
     async def events() -> AsyncIterator[str]:
-        yield _event({
-            "type": "done",
-            "reply": reply,
-            "crisis": crisis,
-            "crisis_resources": settings.crisis_resources_list if crisis else [],
-        })
+        yield _event(
+            {
+                "type": "done",
+                "reply": reply,
+                "crisis": crisis,
+                "crisis_resources": settings.crisis_resources_list if crisis else [],
+            }
+        )
 
     return StreamingResponse(events(), media_type="text/event-stream")
 
@@ -384,26 +519,53 @@ async def _stream_agent_response(
     async def events() -> AsyncIterator[str]:
         if transcript is not None:
             yield _event({"type": "transcript", "text": transcript})
-        async with conversations_db.turn_operation_lock(pool, user_id, conversation_id, client_turn_id) as lock_conn:
-            status_result = await conversations_db.client_turn_status_on_connection(lock_conn, user_id, conversation_id, client_turn_id)
+        async with conversations_db.turn_operation_lock(
+            pool, user_id, conversation_id, client_turn_id
+        ) as lock_conn:
+            status_result = await conversations_db.client_turn_status_on_connection(
+                lock_conn, user_id, conversation_id, client_turn_id
+            )
             if status_result and status_result[0] == "assistant":
                 if not await conversations_db.client_turn_payload_matches(
-                    pool, user_id, conversation_id, client_turn_id, source, timezone, content,
+                    pool,
+                    user_id,
+                    conversation_id,
+                    client_turn_id,
+                    source,
+                    timezone,
+                    content,
                 ):
-                    yield _event({"type": "error", "code": "turn_payload_mismatch", "message": "This turn ID was already used with a different payload."})
+                    yield _event(
+                        {
+                            "type": "error",
+                            "code": "turn_payload_mismatch",
+                            "message": "This turn ID was already used with a different payload.",
+                        }
+                    )
                     return
                 if await conversations_db.client_turn_is_ambiguous_on_connection(
                     lock_conn, user_id, conversation_id, client_turn_id
                 ):
-                    yield _event({"type": "error", "code": "turn_ambiguous", "message": "This turn already has later messages. Refresh the conversation before retrying."})
+                    yield _event(
+                        {
+                            "type": "error",
+                            "code": "turn_ambiguous",
+                            "message": "This turn already has later messages. Refresh the conversation before retrying.",
+                        }
+                    )
                     return
-                reconciled = await conversations_db.find_on_connection(lock_conn, user_id, conversation_id)
+                reconciled = await conversations_db.find_on_connection(
+                    lock_conn, user_id, conversation_id
+                )
                 crisis = reconciled["flagged"]
-                yield _event({
-                    "type": "done", "reply": status_result[1],
-                    "crisis": crisis,
-                    "crisis_resources": settings.crisis_resources_list if crisis else [],
-                })
+                yield _event(
+                    {
+                        "type": "done",
+                        "reply": status_result[1],
+                        "crisis": crisis,
+                        "crisis_resources": settings.crisis_resources_list if crisis else [],
+                    }
+                )
                 return
             # The conversation lock covers the complete generation and terminal persistence.
             current = await conversations_db.find_on_connection(lock_conn, user_id, conversation_id)
@@ -411,7 +573,13 @@ async def _stream_agent_response(
                 yield _event({"type": "error", "code": "crisis_blocked", "message": CRISIS_BLOCKED})
                 return
             if current["closed_at"] is not None:
-                yield _event({"type": "error", "code": "conversation_closed", "message": "conversation is already closed"})
+                yield _event(
+                    {
+                        "type": "error",
+                        "code": "conversation_closed",
+                        "message": "conversation is already closed",
+                    }
+                )
                 return
             written = ""
             crisis = False
@@ -424,17 +592,27 @@ async def _stream_agent_response(
                         written = event.content
                         crisis = event.crisis
                         persisted = await _persist_assistant_turn(
-                            pool, user_id, conversation_id, written, client_turn_id,
-                            lock_conn, crisis,
+                            pool,
+                            user_id,
+                            conversation_id,
+                            written,
+                            client_turn_id,
+                            lock_conn,
+                            crisis,
                         )
                         if not persisted:
                             yield _event({"type": "error", **ASSISTANT_NOT_PERSISTED})
                             return
-                        yield _event({
-                            "type": "done", "reply": event.content,
-                            "crisis": event.crisis,
-                            "crisis_resources": settings.crisis_resources_list if event.crisis else [],
-                        })
+                        yield _event(
+                            {
+                                "type": "done",
+                                "reply": event.content,
+                                "crisis": event.crisis,
+                                "crisis_resources": settings.crisis_resources_list
+                                if event.crisis
+                                else [],
+                            }
+                        )
                         return
             except ConversationError as exc:
                 logger.warning("conversation stream failed: %s", exc)
@@ -443,7 +621,11 @@ async def _stream_agent_response(
     return StreamingResponse(
         events(),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
     )
 
 
@@ -465,11 +647,23 @@ async def add_voice_turn_streaming(
     )
     if status_result is not None and status_result[0] == "assistant":
         if not await conversations_db.client_turn_payload_matches(
-            pool, user_id, conversation_id, client_turn_id,
-            "voice", timezone,
+            pool,
+            user_id,
+            conversation_id,
+            client_turn_id,
+            "voice",
+            timezone,
         ):
-            raise HTTPException(status.HTTP_409_CONFLICT, {"code": "turn_payload_mismatch", "message": "This turn ID was already used with a different payload."})
-        return await _replay_completed_stream(request, pool, user_id, conversation_id, client_turn_id, status_result[1])
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                {
+                    "code": "turn_payload_mismatch",
+                    "message": "This turn ID was already used with a different payload.",
+                },
+            )
+        return await _replay_completed_stream(
+            request, pool, user_id, conversation_id, client_turn_id, status_result[1]
+        )
     _reject_flagged(conversation)
     if conversation["closed_at"] is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, "conversation is already closed")
@@ -487,29 +681,58 @@ async def add_voice_turn_streaming(
     # Skipping TurnRequest here used to let a bad zone persist and then fail
     # later, when closing the conversation tried to make an observation of it.
     try:
-        turn = TurnRequest(content=transcript, source="voice", timezone=timezone, client_turn_id=client_turn_id)
+        turn = TurnRequest(
+            content=transcript, source="voice", timezone=timezone, client_turn_id=client_turn_id
+        )
     except ValidationError as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, exc.errors()[0]["msg"]) from exc
     if not turn.content.strip():
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "turn cannot be blank")
     turn_result = await _add_turn(
-        pool, user_id, conversation_id, "user", turn.content, turn.source, turn.timezone,
+        pool,
+        user_id,
+        conversation_id,
+        "user",
+        turn.content,
+        turn.source,
+        turn.timezone,
         turn.client_turn_id,
     )
     if turn_result.get("ambiguous"):
-        raise HTTPException(status.HTTP_409_CONFLICT, {"code": "turn_ambiguous", "message": "This turn already has later messages. Refresh the conversation before retrying."})
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            {
+                "code": "turn_ambiguous",
+                "message": "This turn already has later messages. Refresh the conversation before retrying.",
+            },
+        )
     if turn_result.get("payload_mismatch"):
-        raise HTTPException(status.HTTP_409_CONFLICT, {"code": "turn_payload_mismatch", "message": "This turn ID was already used with a different payload."})
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            {
+                "code": "turn_payload_mismatch",
+                "message": "This turn ID was already used with a different payload.",
+            },
+        )
     if turn_result.get("assistant_reply") is not None:
-        return await _replay_completed_stream(request, pool, user_id, conversation_id, client_turn_id, turn_result["assistant_reply"])
+        return await _replay_completed_stream(
+            request, pool, user_id, conversation_id, client_turn_id, turn_result["assistant_reply"]
+        )
     # Read the committed conversation after the idempotent insert; a concurrent
     # turn must be part of the model snapshot as well.
     conversation = await conversations_db.find(pool, user_id, conversation_id)
     turns = conversation["turns"]
     return await _stream_agent_response(
-        request, pool, user_id, conversation_id, turns, turn.client_turn_id,
+        request,
+        pool,
+        user_id,
+        conversation_id,
+        turns,
+        turn.client_turn_id,
         None if turn_result.get("duplicate") else turn.content,
-        source="voice", timezone=turn.timezone, content=turn.content,
+        source="voice",
+        timezone=turn.timezone,
+        content=turn.content,
     )
 
 
@@ -537,11 +760,28 @@ async def add_voice_turn(
     )
     if status_result is not None and status_result[0] == "assistant":
         if not await conversations_db.client_turn_payload_matches(
-            request.app.state.pool, user_id, conversation_id, client_turn_id,
-            "voice", timezone,
+            request.app.state.pool,
+            user_id,
+            conversation_id,
+            client_turn_id,
+            "voice",
+            timezone,
         ):
-            raise HTTPException(status.HTTP_409_CONFLICT, {"code": "turn_payload_mismatch", "message": "This turn ID was already used with a different payload."})
-        return await _replay_completed(request, request.app.state.pool, user_id, conversation_id, client_turn_id, status_result[1])
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                {
+                    "code": "turn_payload_mismatch",
+                    "message": "This turn ID was already used with a different payload.",
+                },
+            )
+        return await _replay_completed(
+            request,
+            request.app.state.pool,
+            user_id,
+            conversation_id,
+            client_turn_id,
+            status_result[1],
+        )
     if conversation["closed_at"] is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, "conversation is already closed")
     _reject_flagged(conversation)
@@ -558,7 +798,9 @@ async def add_voice_turn(
     return await add_turn(
         request,
         conversation_id,
-        TurnRequest(content=transcript, source="voice", timezone=timezone, client_turn_id=client_turn_id),
+        TurnRequest(
+            content=transcript, source="voice", timezone=timezone, client_turn_id=client_turn_id
+        ),
         user_id,
     )
 

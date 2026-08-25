@@ -9,10 +9,9 @@ as an empty list.
 
 from uuid import uuid4
 
+import asyncpg
 import pytest
 from httpx import AsyncClient
-
-import asyncpg
 
 from tests.integration.conftest import Account
 
@@ -85,9 +84,7 @@ async def stored_pattern(
 async def test_two_findings_on_one_subject_arrive_as_a_thread(
     client: AsyncClient, pool: asyncpg.Pool, account: Account
 ) -> None:
-    recurrence = await stored_pattern(
-        pool, account.user_id, "dread", supporting_labels=("dread",)
-    )
+    recurrence = await stored_pattern(pool, account.user_id, "dread", supporting_labels=("dread",))
     weekday = await stored_pattern(
         pool,
         account.user_id,

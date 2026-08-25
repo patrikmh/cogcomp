@@ -129,10 +129,11 @@ async def create_voice_observation(
             # immutable envelope metadata must also match; do not let a regenerated
             # capture time or zone silently attach to the old observation.
             if (
-                (captured_at is not None and existing.captured_at != captured_at)
-                or existing.timezone != timezone
-            ):
-                raise HTTPException(status.HTTP_409_CONFLICT, "that observation id is already in use")
+                captured_at is not None and existing.captured_at != captured_at
+            ) or existing.timezone != timezone:
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT, "that observation id is already in use"
+                )
             return ObservationResponse.of(existing)
         raise HTTPException(status.HTTP_409_CONFLICT, "that observation id is already in use")
 

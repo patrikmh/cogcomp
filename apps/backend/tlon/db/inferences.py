@@ -133,7 +133,8 @@ async def persist(
 
         await conn.execute(
             "INSERT INTO observation_extraction_markers (observation_id, extractor) VALUES ($1, $2)",
-            observation_id, extractor,
+            observation_id,
+            extractor,
         )
 
     return {"nodes": len(extraction.nodes), "edges": len(extraction.edges)}
@@ -145,8 +146,10 @@ async def already_extracted(pool: asyncpg.Pool, observation_id: UUID) -> bool:
     Extraction is not idempotent — running it twice writes a second set of nodes
     citing the same entry. The API uses this to refuse rather than duplicate.
     """
-    return bool(await pool.fetchval(
-        "SELECT EXISTS (SELECT 1 FROM node_provenance WHERE observation_id = $1) "
-        "OR EXISTS (SELECT 1 FROM observation_extraction_markers WHERE observation_id = $1)",
-        observation_id,
-    ))
+    return bool(
+        await pool.fetchval(
+            "SELECT EXISTS (SELECT 1 FROM node_provenance WHERE observation_id = $1) "
+            "OR EXISTS (SELECT 1 FROM observation_extraction_markers WHERE observation_id = $1)",
+            observation_id,
+        )
+    )

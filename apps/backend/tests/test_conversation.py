@@ -37,7 +37,10 @@ class TestCloseLockCleanup:
 
             async def execute(self, query, key):
                 self.calls.append((query, key))
-                if "pg_advisory_lock" in query and len([call for call in self.calls if "pg_advisory_lock" in call[0]]) == 3:
+                if (
+                    "pg_advisory_lock" in query
+                    and len([call for call in self.calls if "pg_advisory_lock" in call[0]]) == 3
+                ):
                     raise asyncio.CancelledError
 
             async def fetch(self, query, *args):
@@ -254,7 +257,9 @@ class TestStubAgentStream:
         assert events[-1].content == (await StubAgent().reply(turns)).content
 
     async def test_it_ends_with_the_whole_reply_for_storing(self):
-        events = [event async for event in StubAgent().stream([{"speaker": "user", "content": "hi"}])]
+        events = [
+            event async for event in StubAgent().stream([{"speaker": "user", "content": "hi"}])
+        ]
         deltas = "".join(e.text for e in events if isinstance(e, Delta))
         assert deltas == events[-1].content
 
