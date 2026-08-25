@@ -443,7 +443,7 @@ export const api = {
    *  caller treats that as "this kind of looking is not available here",
    *  never as "nothing matches". */
   semanticSearch: (q: string) =>
-    request<{ embedder: string; hits: SemanticHit[] }>(
+    request<{ embedder: string; available?: boolean; hits: SemanticHit[] }>(
       `/v1/search/semantic?q=${encodeURIComponent(q)}`,
     ),
   theme: (id: string) => request<ThemeDetail>(`/v1/themes/${id}`),

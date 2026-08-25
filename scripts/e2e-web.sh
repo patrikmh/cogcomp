@@ -388,6 +388,14 @@ if playwright-cli eval "() => /acts contain/i.test(document.querySelector('main'
 else
   fail "search did not return the written entry"
 fi
+# Meaning-based search (ADR-0007) is inert on a deterministic deployment. The
+# section must say so plainly — and quietly, with no failed requests in the
+# console, which is exactly what console_clean below guards.
+if playwright-cli eval "() => /meaning search is not available/i.test(document.querySelector('main')?.innerText || '') ? 'hit' : 'miss'" 2>/dev/null | grep -q 'hit'; then
+  pass "meaning search states its unavailability instead of pretending"
+else
+  fail "close-in-meaning section missing its honest unavailable message"
+fi
 console_clean "search screen"
 
 step "Talk answers a typed turn and keeps the loop alive"

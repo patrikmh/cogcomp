@@ -149,7 +149,7 @@ export default function SearchScreen() {
           </View>
           {semantic.isLoading ? (
             <Text style={styles.count}>Looking for readings that mean something similar…</Text>
-          ) : semantic.isError ? (
+          ) : semantic.isError || semantic.data?.available === false ? (
             <Text style={styles.count}>
               Meaning search is not available on this server. Your own words above are searched
               exactly as written.

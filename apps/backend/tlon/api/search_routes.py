@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel
 
 from tlon.auth import current_user
@@ -37,7 +37,11 @@ class SemanticHit(BaseModel):
 
 class SemanticSearchResponse(BaseModel):
     embedder: str
-    hits: list[SemanticHit]
+    #: False when this deployment has no real embedder. Sent as data rather
+    #: than a 503 so an ordinary search does not fill the browser console with
+    #: failed requests — the message to the person is the same either way.
+    available: bool = True
+    hits: list[SemanticHit] = []
 
 
 @router.get("/semantic")
@@ -48,9 +52,8 @@ async def search_semantic(
 ) -> SemanticSearchResponse:
     settings = get_settings()
     if settings.embedding_provider.strip().lower() != "local":
-        raise HTTPException(
-            status_code=503,
-            detail="semantic search needs EMBEDDING_PROVIDER=local on this server",
+        return SemanticSearchResponse(
+            embedder="deterministic", available=False, hits=[]
         )
 
     embedder = build_embedder(settings)

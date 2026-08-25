@@ -963,7 +963,7 @@ export const api = {
    *  embedding model (ADR-0007). Rejects with a 503-shaped error when the
    *  deployment has no real embedder. */
   semanticSearch(token: string, q: string) {
-    return request<{ embedder: string; hits: SemanticHit[] }>(
+    return request<{ embedder: string; available?: boolean; hits: SemanticHit[] }>(
       `/v1/search/semantic?q=${encodeURIComponent(q)}`,
       token,
     );
