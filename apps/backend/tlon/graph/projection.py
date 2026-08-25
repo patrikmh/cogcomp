@@ -87,6 +87,11 @@ async def _live_nodes(pool: asyncpg.Pool, user_id: UUID) -> list[asyncpg.Record]
           -- the graph either. Correcting the system has to mean something
           -- everywhere, not only on the screen where the correction was made.
           AND epistemic_status <> 'user_rejected'
+        -- Clustering walks nodes in this order, and its tie-breaks inherit it.
+        -- Without a total order here, Postgres heap order — an implementation
+        -- detail that differs between machines and between weeks of inserts —
+        -- would quietly decide which community a boundary word joins.
+        ORDER BY id
         """,
         user_id,
     )

@@ -90,7 +90,7 @@ async def run_clustering(pool, account: Account) -> list[list[UUID]]:
     node_ids = [
         row["id"]
         for row in await pool.fetch(
-            "SELECT id FROM graph_nodes WHERE user_id = $1 AND kind NOT IN ('Observation','Theme')",
+            "SELECT id FROM graph_nodes WHERE user_id = $1 AND kind NOT IN ('Observation','Theme') ORDER BY id",
             account.user_id,
         )
     ]

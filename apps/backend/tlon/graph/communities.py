@@ -139,6 +139,15 @@ async def _bounded_community_clusters(
     with the bounded propagation above."""
     projection: dict[str, list[Neighbor]] = {}
     nodes = await EntityNode.get_by_group_ids(driver, [group_id_value])
+    # The propagation walk inherits its tie-breaks from this list's order, so
+    # the order has to be a property of the person's words rather than of
+    # storage internals. Sorting by uuid (a hash of the node id) would be
+    # stable per node set but arbitrary — and it changes wholesale when new
+    # nodes arrive, flipping boundary words between regions on an otherwise
+    # quiet day. Label order keeps walks consistent relative to content: the
+    # same graph always clusters the same way, and growth perturbs it only
+    # where the words actually changed.
+    nodes.sort(key=lambda node: ((node.name or "").lower(), node.uuid))
     for node in nodes:
         records, _, _ = await driver.execute_query(
             """
@@ -193,6 +202,7 @@ async def _existing(pool: asyncpg.Pool, user_id: UUID) -> dict[UUID, set[UUID]]:
         JOIN theme_members m ON m.theme_id = t.node_id
         WHERE t.user_id = $1 AND t.lapsed_at IS NULL
         GROUP BY t.node_id
+        ORDER BY t.node_id
         """,
         user_id,
     )
