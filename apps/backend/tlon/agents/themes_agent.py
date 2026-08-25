@@ -93,6 +93,14 @@ class ThemesAgent:
 
         result = await communities.reconcile(pool, user_id, clusters)
 
+        # A summary whose words have left the region falls, whether or not a
+        # real model is here to write a replacement — an unbacked sentence is
+        # not the honest state; no sentence is.
+        try:
+            await summaries.clear_unbacked(pool, user_id)
+        except Exception:
+            logger.warning("clearing unbacked theme summaries failed", exc_info=True)
+
         # One sentence per held theme, from member labels only (ADR-0007).
         # Skipped entirely without a real model — the membership label is the
         # honest state of every theme then, exactly as before summaries.

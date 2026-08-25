@@ -27,6 +27,7 @@ every theme lived in before this module existed.
 
 from __future__ import annotations
 
+import json
 import logging
 from uuid import UUID
 
@@ -100,16 +101,21 @@ async def store(
     theme_id: UUID,
     summary: str,
     model: str,
+    labels: list[str],
 ) -> None:
+    """Keep the sentence beside its writer and the exact words it drew on, so
+    its honesty can be checked later rather than assumed."""
     await conn.execute(
         """
         UPDATE themes
-        SET summary = $2, summary_model = $3, summary_at = now()
+        SET summary = $2, summary_model = $3, summary_at = now(),
+            summary_labels = $4
         WHERE node_id = $1
         """,
         theme_id,
         summary.strip(),
         model,
+        json.dumps(labels),
     )
 
 
@@ -119,11 +125,63 @@ async def clear(conn: asyncpg.Connection, theme_id: UUID) -> None:
     await conn.execute(
         """
         UPDATE themes
-        SET summary = NULL, summary_model = NULL, summary_at = NULL
+        SET summary = NULL, summary_model = NULL, summary_at = NULL,
+            summary_labels = NULL
         WHERE node_id = $1
         """,
         theme_id,
     )
+
+
+def _labels_left(written_from: list[str], current: list[str]) -> bool:
+    """True when any word the sentence was written from has left the region.
+
+    Words *arriving* never invalidate a sentence — it stays true of the words
+    it described. Only departure does: 'work follows bad sleep' cannot keep
+    standing under a region that no longer contains either word.
+    """
+    now = {label.strip().lower() for label in current}
+    return any(label.strip().lower() not in now for label in written_from)
+
+
+async def clear_unbacked(pool: asyncpg.Pool, user_id: UUID) -> int:
+    """Drop summaries whose words have partly left their region.
+
+    Runs whether or not a real model is available: without one this is not a
+    cosmetic refresh but the difference between a sentence backed by evidence
+    and one quietly outliving it. Returns how many were cleared.
+    """
+    rows = await pool.fetch(
+        """
+        SELECT t.node_id, t.summary_labels,
+               COALESCE(
+                   (SELECT array_agg(DISTINCT lower(m2.label))
+                    FROM theme_members tm2
+                    JOIN graph_nodes m2 ON m2.id = tm2.node_id
+                    WHERE tm2.theme_id = t.node_id),
+                   '{}'
+               ) AS current_labels
+        FROM themes t
+        JOIN graph_nodes n ON n.id = t.node_id
+        WHERE n.user_id = $1 AND n.kind = 'Theme'
+          AND n.deleted_at IS NULL AND t.lapsed_at IS NULL
+          AND t.summary_labels IS NOT NULL
+        """,
+        user_id,
+    )
+    cleared = 0
+    async with pool.acquire() as connection:
+        for row in rows:
+            try:
+                written_from = json.loads(row["summary_labels"])
+            except (TypeError, ValueError):
+                written_from = []
+            if _labels_left(written_from or [], list(row["current_labels"] or [])):
+                await clear(connection, row["node_id"])
+                cleared += 1
+    if cleared:
+        logger.info("cleared %d unbacked theme summaries for %s", cleared, user_id)
+    return cleared
 
 
 async def summarise_themes(
@@ -157,7 +215,7 @@ async def summarise_themes(
             if not sentence or len(sentence) > 400:
                 logger.info("theme summary rejected for %s (empty or overlong)", theme["id"])
                 continue
-            await store(connection, theme["id"], sentence, model)
+            await store(connection, theme["id"], sentence, model, labels)
             written += 1
     return written
 

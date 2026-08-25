@@ -87,3 +87,30 @@ def test_cosine_ranks_alignment_over_noise():
     assert opposite == -1.0
     # Mismatched widths can never score.
     assert _cosine([1.0], [1.0, 0.0]) == 0.0
+
+
+def test_a_summary_stands_while_words_only_arrive():
+    from tlon.graph.summaries import _labels_left
+
+    # The sentence stays true of the words it described; newcomers do not
+    # retroactively unwrite it.
+    assert _labels_left(["work", "bad sleep"], ["work", "Bad Sleep", "dread"]) is False
+
+
+def test_a_summary_falls_when_its_words_leave():
+    from tlon.graph.summaries import _labels_left
+
+    assert _labels_left(["work", "bad sleep"], ["work"]) is True
+    assert _labels_left(["work", "bad sleep"], ["dread", "drained"]) is True
+
+
+def test_an_empty_region_cannot_back_any_sentence():
+    from tlon.graph.summaries import _labels_left
+
+    assert _labels_left(["work"], []) is True
+
+
+def test_label_comparison_is_case_and_space_insensitive():
+    from tlon.graph.summaries import _labels_left
+
+    assert _labels_left(["  Work "], ["work"]) is False
